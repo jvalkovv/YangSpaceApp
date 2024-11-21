@@ -1,0 +1,193 @@
+/* Main content */
+.main-content {
+  min-height: calc(100vh - 150px); /* Adjust based on your footer's height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 20px;
+}
+
+/* Form Container Styling */
+.form-container {
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.form-card {
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Title */
+.form-title {
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 20px;
+  font-size: 1.8rem;
+  color: #007bff;
+}
+
+/* Input Fields */
+.form-control {
+  width: calc(100% - 40px); /* Adjusting for button width */
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+/* Valid Input Fields */
+.form-control.is-valid {
+  border-color: #28a745;
+}
+
+/* Invalid Input Fields */
+.form-control.is-invalid {
+  border-color: #e74c3c;
+}
+
+/* Password Toggle Button */
+.toggle-password-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #333;
+  font-size: 18px;
+}
+
+.toggle-password-btn:hover {
+  color: #007bff;
+}
+
+/* Error Messages */
+.text-danger {
+  font-size: 0.875rem;
+  color: #e74c3c;
+  margin-top: 5px;
+  margin-left: 5px;
+  display: inline;
+}
+
+/* Button Styling */
+.btn-primary {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+.btn-primary:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Password Field Wrapper */
+.password-field {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+/* Font Awesome Icon Size */
+i {
+  font-size: 18px;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .form-control {
+    width: 100%; /* Full width on mobile */
+  }
+
+  .form-container {
+    padding: 10px;
+  }
+
+  .form-card {
+    padding: 15px;
+  }
+
+  .form-title {
+    font-size: 1.5rem;
+  }
+
+  .btn-primary {
+    font-size: 14px;
+  }
+}
+
+/* Footer */
+.footer {
+  background: #333;
+  color: #fff;
+  padding: 20px 0;
+  text-align: center;
+  width: 100%;
+}
+
+.footer .container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.footer p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.footer .footer-p {
+  font-size: 14px;
+  margin: 5px 0;
+}
+
+.footer a {
+  color: #17a2b8;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: #007bff;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .form-control {
+    width: 100%; /* Full width on mobile */
+  }
+  .form-container {
+    padding: 0;
+  }
+  .form-card {
+    padding: 0;
+  }
+  .form-title {
+    font-size: 1.5rem;
+  }
+  .btn-primary {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 421px) {
+  .footer {
+    flex-direction: column;
+  }
+  .footer-p {
+    font-size: 12px;
+  }
+}

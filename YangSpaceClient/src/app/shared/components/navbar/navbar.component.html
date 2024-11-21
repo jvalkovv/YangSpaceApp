@@ -1,0 +1,21 @@
+<!-- navbar.component.html -->
+<div class="navbar">
+  <ul class="left">
+    <li>
+      <a
+        [routerLink]="['/homepage']"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >Home</a
+      >
+    </li>
+  </ul>
+  <ul class="right">
+    <li><a [routerLink]="['/login']" *ngIf="!isLoggedIn" routerLinkActive="active">Login</a></li>
+    <li>
+      <a [routerLink]="['/register']" *ngIf="!isLoggedIn" routerLinkActive="active">Register</a>
+    </li>
+    <li *ngIf="isLoggedIn"><a [routerLink]="['/user-profile']">Profile</a></li>
+    <li *ngIf="isLoggedIn"><a href="#" (click)="logout()">Logout</a></li>
+  </ul>
+</div>

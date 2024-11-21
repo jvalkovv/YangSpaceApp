@@ -1,0 +1,79 @@
+/* Main content */
+.main-content {
+  min-height: calc(100vh - 100px); /* Adjust based on your footer's height */
+  padding-bottom: 20px; /* Space for footer */
+}
+
+/* Container */
+.container {
+  max-width: 800px;
+  margin: auto;
+  padding: 20px;
+}
+
+/* Card style for profile details and form */
+.card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+/* Profile details */
+.profile-details p {
+  font-size: 16px;
+  margin: 10px 0;
+}
+
+/* Form styling */
+.profile-form .form-group {
+  margin-bottom: 15px;
+}
+
+.profile-form .form-control {
+  border-radius: 5px;
+}
+
+.profile-form button {
+  background-color: #007bff;
+  border-color: #007bff;
+  border-radius: 5px;
+  font-size: 16px;
+  padding: 10px 20px;
+}
+
+/* Button styling */
+.btn-block {
+  width: 100%;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+/* Booked tasks */
+.booked-tasks {
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.booked-tasks h3 {
+  margin-bottom: 20px;
+}
+
+.list-group-item {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  padding: 15px;
+}
+
+app-footer  {
+  position:relative;
+
+  width: 100%;
+}
