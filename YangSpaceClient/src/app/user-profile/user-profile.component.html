@@ -1,110 +1,34 @@
-<app-navbar></app-navbar>
-
-<div class="main-content container mt-5">
-  <h1 class="text-center mb-4">User Profile</h1>
-
-  <!-- Display User Details -->
-  <div class="profile-details card p-4 shadow-sm">
-    <p><strong>Username:</strong> {{ userProfile?.username }}</p>
-    <p><strong>First Name:</strong> {{ userProfile?.firstName }}</p>
-    <p><strong>Last Name:</strong> {{ userProfile?.lastName }}</p>
-    <p><strong>Email:</strong> {{ userProfile?.email }}</p>
-    <p><strong>Phone Number:</strong> {{ userProfile?.phoneNumber }}</p>
-  </div>
-
-  <!-- Profile Edit Form -->
-  <div class="profile-form-container mt-4">
-    <form #profileForm="ngForm" (ngSubmit)="updateProfile()" class="profile-form card p-4 shadow-sm">
-      <div class="form-group">
-        <label for="username">Username:</label>
-        <input
-          type="text"
-          id="username"
-          [(ngModel)]="userProfile.username"
-          name="username"
-          class="form-control"
-          required
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="firstName">First Name:</label>
-        <input
-          type="text"
-          id="firstName"
-          [(ngModel)]="userProfile.firstName"
-          name="firstName"
-          class="form-control"
-          required
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="lastName">Last Name:</label>
-        <input
-          type="text"
-          id="lastName"
-          [(ngModel)]="userProfile.lastName"
-          name="lastName"
-          class="form-control"
-          required
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="email">Email:</label>
-        <input
-          type="email"
-          id="email"
-          [(ngModel)]="userProfile.email"
-          name="email"
-          class="form-control"
-          required
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="phoneNumber">Phone Number:</label>
-        <input
-          type="text"
-          id="phoneNumber"
-          [(ngModel)]="userProfile.phoneNumber"
-          name="phoneNumber"
-          class="form-control"
-          required
-        />
-      </div>
-
-      <div class="form-group text-center">
-        <button
-          type="submit"
-          class="btn btn-primary"
-          [disabled]="profileForm.invalid"
-        >
-          Update Profile
-        </button>
-      </div>
-    </form>
-  </div>
-
-  <!-- Button to toggle bookings -->
-  <div class="mt-5">
-    <button (click)="toggleBookings()" class="btn btn-info btn-block">
-      My Bookings
-    </button>
-  </div>
-  
-  <!-- Conditionally display booked tasks based on viewBookings -->
-  <div *ngIf="userProfileService.viewBookings" class="booked-tasks mt-4">
-    <h3>My Booked Tasks</h3>
-    <ul class="list-group">
-      <li *ngFor="let task of bookedTasks" class="list-group-item">
-        <p><strong>Task Name:</strong> {{ task.name }}</p>
-        <p><strong>Scheduled for:</strong> {{ task.date | date:'short' }}</p>
-        <p><strong>Status:</strong> {{ task.status }}</p>
+<app-navbar/>
+<div class="profile-container">
+  <!-- Sidebar Navigation -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Welcome, {{ userProfile.firstName }}!</h2>
+      <p>{{ userProfile.role }}</p>
+    </div>
+    <ul class="sidebar-menu">
+      <li>
+        <a [routerLink]="['/edit-profile']">Manage User Profile</a>
+      </li>
+      <li>
+        <a [routerLink]="['/booked-services']">Booked Services</a>
+      </li>
+      <li *ngIf="userProfile.role === 'Service Provider'">
+        <a [routerLink]="['/dashboard']">Dashboard</a>
+      </li>
+      <li *ngIf="userProfile.role === 'Admin'">
+        <a [routerLink]="['/admin-console']">Admin Console</a>
       </li>
     </ul>
   </div>
-</div>
 
-<app-footer></app-footer>
+  <!-- Main Profile Content -->
+  <div class="profile-content">
+    <h3>User Summary</h3>
+    <p><strong>Username:</strong> {{ userProfile.username }}</p>
+    <p><strong>Full Name:</strong> {{ userProfile.firstName }} {{ userProfile.lastName }}</p>
+    <p><strong>Email:</strong> {{ userProfile.email }}</p>
+    <p><strong>Role:</strong> {{ userProfile.role }}</p>
+  </div>
+</div>
+<app-footer/>
