@@ -1,63 +1,91 @@
-﻿using System.Security.Claims;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Services.UserProfileServices;
 using YangSpaceBackEnd.Data.ViewModel.AccountViewModel;
 
 namespace YangSpaceBackEnd.Controllers
 {
-    [Route("/[controller]")]
+    [Route("[controller]")]
     [ApiController]
-    public class UserProfileController : Controller
+    public class UserProfileController : ControllerBase
     {
         private readonly UserProfileService _userProfileService;
-
-        public UserProfileController(UserProfileService userProfileService)
+        private readonly ILogger<UserProfileController> _logger;
+        private readonly IConfiguration _configuration;
+        public UserProfileController(UserProfileService userProfileService, ILogger<UserProfileController> logger, IConfiguration configuration)
         {
             _userProfileService = userProfileService;
+            _logger = logger;
+            _configuration = configuration;
         }
 
-        [HttpGet("profile")]
-        [Authorize]
+        [HttpGet("user-profile")]
         public async Task<IActionResult> GetProfile()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null)
+            var token = Request.Headers["Authorization"].ToString();
+
+            var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]!);
+
+            if (principal == null)
             {
                 return Unauthorized(new { message = "Invalid token." });
             }
 
+            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "Invalid or missing token." });
+            }
+
             var user = await _userProfileService.GetUserProfileAsync(userId);
+
             if (user == null)
             {
-                return NotFound(new { message = "User not found." });
+                return NotFound(new { message = "User profile not found." });
             }
 
             return Ok(new
             {
-                user.Id,
-                user.UserName,
-                user.FirstName,
-                user.LastName,
-                user.Email,
-                user.PhoneNumber
+                username = user.UserName,
+                firstName = user.FirstName,
+                lastName = user.LastName,
+                email = user.Email,
+                phoneNumber = user.PhoneNumber
             });
         }
 
-        [HttpPut("profile")]
-        [Authorize]
+
+        [HttpPut("user-profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UserProfileModel model)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null)
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            var token = Request.Headers["Authorization"].ToString();
+
+            var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]!);
+
+            if (principal == null)
             {
                 return Unauthorized(new { message = "Invalid token." });
+            }
+
+            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "Invalid or missing token." });
             }
 
             var result = await _userProfileService.UpdateUserProfileAsync(userId, model);
             if (!result)
             {
-                return BadRequest(new { message = "Failed to update user." });
+                return BadRequest(new { message = "Failed to update user profile." });
             }
 
             return Ok(new { message = "Profile updated successfully." });

@@ -3,8 +3,8 @@
 namespace YangSpaceBackEnd.Controllers
 {
     [ApiController]
-    [Route("/[controller]")]
-    public class ImageController : Controller
+    [Route("[controller]")]
+    public class ImageController : ControllerBase
     {
         private readonly IWebHostEnvironment _environment;
 

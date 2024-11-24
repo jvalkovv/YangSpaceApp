@@ -1,7 +1,6 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -10,7 +9,7 @@ using YangSpaceBackEnd.Data.ViewModel.AccountViewModel;
 
 namespace YangSpaceBackEnd.Controllers;
 
-[Route("/[controller]")]
+[Route("[controller]")]
 [ApiController]
 public class AccountController : ControllerBase
 {
@@ -26,7 +25,7 @@ public class AccountController : ControllerBase
     }
 
     // Register a new user
-    [HttpPost("/register")]
+    [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] UserRegistrationModel model)
     {
         if (!ModelState.IsValid)
@@ -71,7 +70,7 @@ public class AccountController : ControllerBase
     }
 
     // Login the user and return JWT token
-    [HttpPost("/login")]
+    [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] UserLoginModel model)
     {
         if (!ModelState.IsValid)
@@ -90,6 +89,7 @@ public class AccountController : ControllerBase
         {
             // Generate JWT Token if the login is successful
             var token = await GenerateJwtToken(user);
+
             return Ok(new
             {
                 token,
@@ -102,7 +102,7 @@ public class AccountController : ControllerBase
     }
 
     // Logout the user (sign-out)
-    [HttpPost("/logout")]
+    [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
         await _signInManager.SignOutAsync();
@@ -110,7 +110,7 @@ public class AccountController : ControllerBase
     }
 
     // Check if the username is taken
-    [HttpGet("/check-username/{username}")]
+    [HttpGet("check-username/{username}")]
     public async Task<IActionResult> CheckUsername(string username)
     {
         var existingUser = await _userManager.FindByNameAsync(username);
@@ -125,7 +125,7 @@ public class AccountController : ControllerBase
     {
         // Implement JWT token generation logic here
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_configuration["Jwt:SecretKey"]); 
+        var key = Encoding.ASCII.GetBytes(_configuration["Jwt:SecretKey"]);
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -148,6 +148,7 @@ public class AccountController : ControllerBase
         };
 
         var token = tokenHandler.CreateToken(tokenDescriptor);
+
         return tokenHandler.WriteToken(token); // Return the JWT token as a string
     }
 

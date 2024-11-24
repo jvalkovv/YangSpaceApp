@@ -6,7 +6,7 @@ using YangSpaceBackEnd.Data.Models;
 namespace YangSpaceBackEnd.Controllers
 {
     [Authorize(Roles = "Admin")]
-    [Route("/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class AdminController : ControllerBase
     {
