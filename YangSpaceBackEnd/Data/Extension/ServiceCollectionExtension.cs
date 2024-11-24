@@ -36,7 +36,6 @@ namespace YangSpaceBackEnd.Data.Extension
                 })
                 .AddEntityFrameworkStores<YangSpaceDbContext>()
                 .AddDefaultTokenProviders();
-
             return services;
         }
 

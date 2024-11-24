@@ -24,10 +24,14 @@ namespace YangSpaceBackEnd.Data.Models
         [Required]
         public DateTime BookingDate { get; set; }
 
-        [Comment("Status of the Booking (Pending/Confirmed/Cancelled)")]
+        [Comment("Status of the Booking (Pending/InProgress/Completed/Cancelled)")]
         [Required]
         public BookingStatus Status { get; set; }
 
-        public bool IsCompleted { get; set; }
+        [Comment("Optional Notes for the Booking")]
+        public string? Notes { get; set; }
+
+        [Comment("Last Updated Date for the Booking")]
+        public DateTime? UpdatedDate { get; set; }
     }
 }

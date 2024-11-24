@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using YangSpaceBackEnd.Data;
 
@@ -11,9 +12,11 @@ using YangSpaceBackEnd.Data;
 namespace YangSpaceBackEnd.Migrations
 {
     [DbContext(typeof(YangSpaceDbContext))]
-    partial class YangSpaceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241122074907_EditBookTable")]
+    partial class EditBookTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -90,5 +90,15 @@ namespace YangSpaceBackEnd.Controllers
 
             return Ok(new { message = "Profile updated successfully." });
         }
+
+        //[HttpGet("booked-tasks")]
+        //public async Task<IActionResult> GetBookedTasks()
+        //{
+        //    var userId = User.FindFirst("id")?.Value;
+        //    if (userId == null) return Unauthorized();
+
+        //    var tasks = await _userProfileService.GetBookedTasksAsync(userId);
+        //    return Ok(tasks);
+        //}
     }
 }
