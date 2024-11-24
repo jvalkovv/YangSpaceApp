@@ -1,0 +1,28 @@
+<div class="dashboard-container">
+    <h2>Dashboard</h2>
+    <div class="tasks">
+      <h3>Tasks</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Task Name</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let task of tasks">
+            <td>{{ task.name }}</td>
+            <td>{{ task.customer }}</td>
+            <td>{{ task.status }}</td>
+            <td>
+              <button (click)="markCompleted(task)">Mark as Completed</button>
+              <button (click)="cancelTask(task)">Cancel</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
