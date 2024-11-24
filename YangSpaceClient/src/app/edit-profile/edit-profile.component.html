@@ -1,0 +1,93 @@
+<app-navbar />
+
+<div class="edit-profile-container">
+  <h2>Edit Profile</h2>
+
+  <!-- Reactive Form -->
+  <form [formGroup]="editProfileForm" (ngSubmit)="saveProfile()">
+    <!-- First Name -->
+    <div>
+      <label for="firstName">First Name:</label>
+      <input
+        formControlName="firstName"
+        placeholder="First Name"
+        [ngClass]="{
+            'input-error':
+            editProfileForm.get('firstName')?.invalid &&
+            editProfileForm.get('firstName')?.touched,
+            'is-valid':
+            editProfileForm.get('firstName')?.valid &&
+            editProfileForm.get('firstName')?.touched
+          }"
+      />
+
+      <!-- Error message for first name -->
+      <div
+        *ngIf="{
+          'is-invalid':
+            editProfileForm.get('firstName')?.invalid &&
+            editProfileForm.get('firstName')?.touched
+        }"
+      >
+        <div
+          class="text-danger"
+          *ngIf="editProfileForm.get('firstName')?.hasError('required')"
+        >
+          First Name is required.
+        </div>
+        <div
+          class="text-danger"
+          *ngIf="editProfileForm.get('firstName')?.hasError('pattern')"
+        >
+          First Name must only contain letters.
+        </div>
+      </div>
+    </div>
+
+    <!-- Last Name -->
+    <div>
+      <label for="lastName">Last Name:</label>
+      <input
+        formControlName="lastName"
+        placeholder="Last Name"
+        [ngClass]="{
+            'input-error':
+            editProfileForm.get('lastName')?.invalid &&
+            editProfileForm.get('lastName')?.touched,
+            'is-valid':
+            editProfileForm.get('lastName')?.valid &&
+            editProfileForm.get('lastName')?.touched
+          }"
+      />
+
+
+      <!-- Error message for last name -->
+      <div
+        *ngIf="
+          editProfileForm.get('lastName')?.invalid &&
+          editProfileForm.get('lastName')?.touched
+        "
+      >
+        <div
+          class="text-danger"
+          *ngIf="editProfileForm.get('lastName')?.hasError('required')"
+        >
+          Last Name is required.
+        </div>
+        <div
+          class="text-danger"
+          *ngIf="editProfileForm.get('lastName')?.hasError('pattern')"
+        >
+          Last Name must only contain letters.
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit button -->
+    <button type="submit" [disabled]="editProfileForm.invalid">
+      Save Changes
+    </button>
+  </form>
+</div>
+
+<app-footer />
