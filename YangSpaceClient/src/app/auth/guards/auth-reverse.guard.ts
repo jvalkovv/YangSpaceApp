@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { CanActivate, Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { map, take } from 'rxjs/operators';
-import { AuthService } from './auth/auth-service';
+import { AuthService } from '../services/auth-service';
 
 @Injectable({
   providedIn: 'root',
@@ -15,10 +15,10 @@ export class AuthReverseGuard implements CanActivate {
       take(1),
       map((isLoggedIn) => {
         if (isLoggedIn) {
-          this.router.navigate(['/user-profile']); // Redirect if already logged in
-          return false; // Deny access to unauthenticated routes
+          this.router.navigate(['/user-profile']);
+          return false;
         }
-        return true; // Allow access to unauthenticated routes
+        return true;
       })
     );
   }

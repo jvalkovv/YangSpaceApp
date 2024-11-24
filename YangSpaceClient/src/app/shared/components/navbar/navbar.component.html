@@ -15,7 +15,7 @@
     <li>
       <a [routerLink]="['/register']" *ngIf="!isLoggedIn" routerLinkActive="active">Register</a>
     </li>
-    <li *ngIf="isLoggedIn"><a [routerLink]="['/user-profile']">Profile</a></li>
+    <li *ngIf="isLoggedIn"><a [routerLink]="['/user-profile']">My Profile</a></li>
     <li *ngIf="isLoggedIn"><a href="#" (click)="logout()">Logout</a></li>
   </ul>
 </div>
