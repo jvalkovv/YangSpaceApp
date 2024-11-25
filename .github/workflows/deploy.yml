@@ -12,7 +12,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-      
+
     # Azure log in
     - name: Log in to Azure
       uses: azure/login@v1
@@ -36,7 +36,7 @@ jobs:
       with:
         app-name: ${{ secrets.AZURE_WEBAPP_NAME_ANGULAR }}
         slot-name: 'production'
-        package: YangSpaceClient/dist/yangspace
+        package: YangSpaceClient/dist/
 
     # Backend Deployment
     - name: Set up .NET Core
