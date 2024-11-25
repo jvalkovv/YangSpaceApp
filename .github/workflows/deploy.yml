@@ -20,7 +20,7 @@ jobs:
 
     - name: Install dependencies and build Angular app
       run: |
-        cd ../../YangSpaceClient/
+        cd ../../YangSpaceClient
         npm install
         npm run build --prod
 
