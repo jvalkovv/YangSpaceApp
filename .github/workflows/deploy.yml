@@ -13,43 +13,40 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
+    # Frontend Deployment
     - name: Set up Node.js
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
         node-version: '18'
-    - name: Log in to Azure
-      uses: azure/login@v1
-      with:
-       creds: ${{ secrets.AZURE_CREDENTIALS }}
-        
-    - name: Install dependencies and build Angular app
+
+    - name: Build Angular app
       run: |
         cd YangSpaceClient
         npm install
         npm run build --prod
 
-    - name: Set up .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: '8.0.x'
-
-    - name: Build ASP.NET Core app
-      run: |
-        cd YangSpaceBackEnd
-        dotnet restore
-        dotnet publish -c Release -o ./publish
-    - name: Create ZIP package for Angular app
-      run: |
-        cd YangSpaceClient/dist/yangspace
-        zip -r ../yangspace.zip .
-    - name: Deploy to Azure Web App (Angular)
+    - name: Deploy Angular to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ secrets.AZURE_WEBAPP_NAME_ANGULAR }}
-        package: ./YangSpaceClient/dist/yangspace.zip
+        slot-name: 'production'
+        package: YangSpaceClient/dist/yangspace
 
-    - name: Deploy to Azure Web App (ASP.NET)
+    # Backend Deployment
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Build and publish ASP.NET API
+      run: |
+        cd YangSpaceBackEnd
+        dotnet restore
+        dotnet publish -c Release -o publish
+
+    - name: Deploy ASP.NET API to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ secrets.AZURE_WEBAPP_NAME_ASPNET }}
-        package: ./YangSpaceBackEnd/publish
+        slot-name: 'production'
+        package: YangSpaceBackEnd/publish
