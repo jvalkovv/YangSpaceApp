@@ -20,7 +20,7 @@ jobs:
 
     - name: Install dependencies and build Angular app
       run: |
-        cd YangSpaceClient
+        cd ../../YangSpaceClient/
         npm install
         npm run build --prod
 
@@ -31,7 +31,7 @@ jobs:
 
     - name: Build ASP.NET Core app
       run: |
-        cd ../YangSpaceBackEnd
+        cd ../../YangSpaceBackEnd/
         dotnet publish -c Release -o ./publish
 
     - name: Deploy to Azure Web App (Angular)
