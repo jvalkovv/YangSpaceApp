@@ -38,17 +38,15 @@ jobs:
         cd YangSpaceBackEnd
         dotnet restore
         dotnet publish -c Release -o ./publish
-
-        - name: Create ZIP package for Angular app
-        run: |
-          cd YangSpaceClient/dist/yangspace
-          zip -r ../yangspace.zip .
-        
+    - name: Create ZIP package for Angular app
+      run: |
+        cd YangSpaceClient/dist/yangspace
+        zip -r ../yangspace.zip .
     - name: Deploy to Azure Web App (Angular)
-       uses: azure/webapps-deploy@v2
-       with:
-         app-name: ${{ secrets.AZURE_WEBAPP_NAME_ANGULAR }}
-         package: ./YangSpaceClient/dist/yangspace.zip
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ secrets.AZURE_WEBAPP_NAME_ANGULAR }}
+        package: ./YangSpaceClient/dist/yangspace.zip
 
     - name: Deploy to Azure Web App (ASP.NET)
       uses: azure/webapps-deploy@v2
