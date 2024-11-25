@@ -1,0 +1,47 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'
+
+    - name: Install dependencies and build Angular app
+      run: |
+        cd ../../YangSpaceClient/
+        npm install
+        npm run build --prod
+
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Build ASP.NET Core app
+      run: |
+        cd ../../YangSpaceBackEnd/
+        dotnet publish -c Release -o ./publish
+
+    - name: Deploy to Azure Web App (Angular)
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ secrets.AZURE_WEBAPP_NAME_ANGULAR }}
+        package: ./angular-app/dist
+
+    - name: Deploy to Azure Web App (ASP.NET)
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ secrets.AZURE_WEBAPP_NAME_ASPNET }}
+        package: ./aspnet-app/publish
