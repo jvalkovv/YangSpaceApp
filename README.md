@@ -11,19 +11,31 @@ Follow the instructions below to set up the project on your local machine.
 Make sure you have the following software installed:
 - [Node.js](https://nodejs.org/)
 - [.NET Core SDK](https://dotnet.microsoft.com/download)
+- SQL Server (or use Docker to run a SQL Server instance)
+You can check if .NET Core SDK is installed by running:
+
+```bash
+dotnet --version
+```
 
 ### Running the Backend
-
-1. Open a terminal and navigate to the backend folder:
+1. Ensure you have a SQL Server instance running. You can either install SQL Server locally or use Docker. For Docker, you can run:
+   
+   ```bash
+   docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=My@Password123!' -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+   ```
+   
+3. Open a terminal and navigate to the backend folder:
 
     ```bash
     cd YangSpaceBackEnd
     ```
 
-2. Install dependencies and run the backend server:
+4. Install dependencies and run the backend server:
 
     ```bash
     dotnet restore
+    dotnet ef database update
     dotnet run
     ```
 
