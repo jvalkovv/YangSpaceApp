@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using static YangSpaceBackEnd.Data.Extension.Enum;
 
-namespace YangSpaceBackEnd.Data.Services1.Booking
+namespace YangSpaceBackEnd.Data.Services
 {
     public class CreateBookingRequest
     {
@@ -11,7 +11,7 @@ namespace YangSpaceBackEnd.Data.Services1.Booking
         public DateTime RequestedDate { get; set; }  // The date the user wants to book the service
         public BookingStatus Status { get; set; } = BookingStatus.Pending;// Default status is Pending
 
-        [Required] 
+        [Required]
         public string? Notes { get; set; }
     }
 }

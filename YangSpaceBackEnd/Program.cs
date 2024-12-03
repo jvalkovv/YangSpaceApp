@@ -3,14 +3,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.SeedData;
-using YangSpaceBackEnd.Data.Services.UserProfileServices;
+using YangSpaceBackEnd.Data.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register DbContext and Identity services
+// Register DbContext and Identity services and AutoMapper
 builder.Services.AddYangSpaceDbContext(builder.Configuration);
 builder.Services.AddRegisterIdentity();
-
+builder.Services.AddAutoMapper();
 // Add Controllers
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
