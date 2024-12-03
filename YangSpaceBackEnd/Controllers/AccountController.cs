@@ -4,7 +4,7 @@ using YangSpaceBackEnd.Data.ViewModel.AccountViewModel;
 
 namespace YangSpaceBackEnd.Controllers;
 
-[Route("[controller]")]
+[Route("api/[controller]")]
 [ApiController]
 public class AccountController(IUserService userService) : ControllerBase
 {
@@ -15,7 +15,7 @@ public class AccountController(IUserService userService) : ControllerBase
         {
             var user = await userService.RegisterUserAsync(model);
             var token = await userService.GenerateJwtToken(user);
-            return Ok(new { token, username = user.UserName });
+            return Ok(new { token, username = user.UserName, role = user.Role });
         }
         catch (Exception ex)
         {

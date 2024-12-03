@@ -6,7 +6,7 @@ using YangSpaceBackEnd.Data.Models;
 namespace YangSpaceBackEnd.Controllers
 {
     [Authorize(Roles = "Admin")]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     [ApiController]
     public class AdminController : ControllerBase
     {
@@ -65,7 +65,7 @@ namespace YangSpaceBackEnd.Controllers
             return Conflict(new { message = "User does not have this role." });
         }
 
-        // Switch between "OrdinaryUser" and "ServiceProvider" roles for a user
+        // Switch between "Client" and "ServiceProvider" roles for a user
         [HttpPost("switch-role")]
         public async Task<IActionResult> SwitchRole(string userId)
         {
@@ -75,14 +75,14 @@ namespace YangSpaceBackEnd.Controllers
                 return NotFound("User not found.");
             }
 
-            // Check if the user has the "OrdinaryUser" role
-            if (await _userManager.IsInRoleAsync(user, "OrdinaryUser"))
+            // Check if the user has the "Client" role
+            if (await _userManager.IsInRoleAsync(user, "Client"))
             {
-                // Remove "OrdinaryUser" role and assign "ServiceProvider" role
-                var removeOrdinaryUserResult = await _userManager.RemoveFromRoleAsync(user, "OrdinaryUser");
-                if (!removeOrdinaryUserResult.Succeeded)
+                // Remove "Client" role and assign "ServiceProvider" role
+                var removeClientResult = await _userManager.RemoveFromRoleAsync(user, "Client");
+                if (!removeClientResult.Succeeded)
                 {
-                    return BadRequest(new { errors = removeOrdinaryUserResult.Errors.Select(e => e.Description) });
+                    return BadRequest(new { errors = removeClientResult.Errors.Select(e => e.Description) });
                 }
 
                 var addServiceProviderResult = await _userManager.AddToRoleAsync(user, "ServiceProvider");
@@ -96,23 +96,23 @@ namespace YangSpaceBackEnd.Controllers
             // Check if the user has the "ServiceProvider" role
             else if (await _userManager.IsInRoleAsync(user, "ServiceProvider"))
             {
-                // Remove "ServiceProvider" role and assign "OrdinaryUser" role
+                // Remove "ServiceProvider" role and assign "Client" role
                 var removeServiceProviderResult = await _userManager.RemoveFromRoleAsync(user, "ServiceProvider");
                 if (!removeServiceProviderResult.Succeeded)
                 {
                     return BadRequest(new { errors = removeServiceProviderResult.Errors.Select(e => e.Description) });
                 }
 
-                var addOrdinaryUserResult = await _userManager.AddToRoleAsync(user, "OrdinaryUser");
-                if (addOrdinaryUserResult.Succeeded)
+                var addClientResult = await _userManager.AddToRoleAsync(user, "Client");
+                if (addClientResult.Succeeded)
                 {
-                    return Ok(new { message = "User role switched to 'OrdinaryUser' successfully." });
+                    return Ok(new { message = "User role switched to 'Client' successfully." });
                 }
 
-                return BadRequest(new { errors = addOrdinaryUserResult.Errors.Select(e => e.Description) });
+                return BadRequest(new { errors = addClientResult.Errors.Select(e => e.Description) });
             }
 
-            return BadRequest(new { message = "User does not have either 'OrdinaryUser' or 'ServiceProvider' role." });
+            return BadRequest(new { message = "User does not have either 'Client' or 'ServiceProvider' role." });
         }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.SeedData;
 using YangSpaceBackEnd.Data.Services;
+using YangSpaceBackEnd.Data.Services.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,7 +51,11 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Register services
-builder.Services.AddScoped<UserProfileService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IServiceService, ServicesService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+
 // Initialize Seed Data
 builder.Services.AddScoped<Seed>();  // Register Seed service
 var app = builder.Build();

@@ -18,7 +18,9 @@ public class ServicesService : IServiceService
         _userManager = userManager;
     }
 
-    public async Task<PagedResult<Service>> GetPagedServicesAsync(int page = 1, int pageSize = 10, string? category = null, string? search = null, decimal? minPrice = null, decimal? maxPrice = null, string? sortBy = null)
+    public async Task<PagedResult<ServiceViewModel>> GetPagedServicesAsync(int page = 1, int pageSize = 10,
+        string? category = null, string? search = null, decimal? minPrice = null, decimal? maxPrice = null,
+        string? sortBy = null)
     {
         var query = _context.Services.Include(c => c.Category).Include(p => p.Provider).AsQueryable();
 
@@ -46,21 +48,20 @@ public class ServicesService : IServiceService
         var services = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(s => new Service
+            .Select(s => new ServiceViewModel()
             {
-                Id = s.Id,
                 Title = s.Title,
                 Description = s.Description,
                 Price = s.Price,
-                Category = s.Category,
-                Provider = s.Provider
+                CategoryName = s.Category.Name, 
+                ProviderName = $"{s.Provider.FirstName} {s.Provider.LastName}"   
             })
             .ToListAsync();
 
-        return new PagedResult<Service>
+        return new PagedResult<ServiceViewModel>
         {
             TotalCount = totalCount,
-            Items = services
+            Services = services
         };
     }
 
@@ -72,7 +73,8 @@ public class ServicesService : IServiceService
             Description = serviceModel.Description,
             Price = serviceModel.Price,
             ProviderId = providerId,
-            CategoryId = serviceModel.CategoryId
+            CategoryId = serviceModel.CategoryId,
+            CreatedAt = DateTime.Now
         };
 
         _context.Services.Add(service);
@@ -133,8 +135,8 @@ public class ServicesService : IServiceService
         return isProvider || hasBooking;
     }
 
-    public async Task<List<string>> GetCategories()
+    public async Task<List<Category>> GetCategories()
     {
-        return await _context.Categories.Select(c => c.Name).ToListAsync();
+        return await _context.Categories.ToListAsync();
     }
 }

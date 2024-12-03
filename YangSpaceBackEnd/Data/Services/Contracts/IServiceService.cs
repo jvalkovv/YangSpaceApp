@@ -6,7 +6,8 @@ namespace YangSpaceBackEnd.Data.Services.Contracts;
 
 public interface IServiceService
 {
-    Task<PagedResult<Service>> GetPagedServicesAsync(int page = 1, int pageSize = 10, string? category = null, string? search = null, decimal? minPrice = null, decimal? maxPrice = null, string? sortBy = null);
+    Task<PagedResult<ServiceViewModel>> GetPagedServicesAsync(int page = 1, int pageSize = 10, string? category = null,
+        string? search = null, decimal? minPrice = null, decimal? maxPrice = null, string? sortBy = null);
     Task<List<Service>> GetServicesByProviderAsync(string? providerId);
     Task<Service?> GetServiceByIdAsync(int id);
 
@@ -15,11 +16,11 @@ public interface IServiceService
     Task<bool> CheckUserAccessToServiceAsync(User user, int serviceId);
     Task<bool> UpdateServiceAsync(Service service);
     Task<bool> DeleteServiceAsync(int id);
-    Task<List<string>> GetCategories();
+    Task<List<Category>> GetCategories();
 }
 
 public class PagedResult<T>
 {
     public int TotalCount { get; set; }
-    public IEnumerable<T> Items { get; set; }
+    public IEnumerable<T> Services { get; set; }
 }

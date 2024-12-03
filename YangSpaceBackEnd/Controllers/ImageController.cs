@@ -3,7 +3,7 @@
 namespace YangSpaceBackEnd.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class ImageController : ControllerBase
     {
         private readonly IWebHostEnvironment _environment;
@@ -25,7 +25,7 @@ namespace YangSpaceBackEnd.Controllers
             }
 
             var fileBytes = System.IO.File.ReadAllBytes(filePath);
-            var contentType = "image/jpg"; // Adjust this based on file type if needed
+            var contentType = "image/jpg"; 
 
             return File(fileBytes, contentType);
         }

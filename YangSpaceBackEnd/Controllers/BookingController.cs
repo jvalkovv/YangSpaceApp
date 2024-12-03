@@ -7,6 +7,8 @@ using static YangSpaceBackEnd.Data.Extension.Enum;
 
 namespace YangSpaceBackEnd.Controllers;
 
+[ApiController]
+[Route("api/[controller]")]
 public class BookingController : ControllerBase
 {
     private readonly IBookingService _bookingService;

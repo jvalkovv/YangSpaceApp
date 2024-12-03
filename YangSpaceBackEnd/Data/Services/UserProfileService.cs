@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Security.Claims;
+using Azure.Core;
+using Microsoft.EntityFrameworkCore;
+using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Models;
 using YangSpaceBackEnd.Data.Services.Contracts;
 using YangSpaceBackEnd.Data.ViewModel.AccountViewModel;
@@ -8,10 +11,12 @@ namespace YangSpaceBackEnd.Data.Services
     public class UserProfileService : IUserProfileService
     {
         private readonly YangSpaceDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public UserProfileService(YangSpaceDbContext context)
+        public UserProfileService(YangSpaceDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         public async Task<User?> GetUserProfileAsync(string userId)
@@ -20,6 +25,12 @@ namespace YangSpaceBackEnd.Data.Services
                 .Where(u => u.Id == userId)
                 .FirstOrDefaultAsync() as User;
         }
+
+        public ClaimsPrincipal GetUserProfileAsyncByToken(string token)
+        {
+            return JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]!);
+        }
+
 
         public async Task<bool> UpdateUserProfileAsync(string userId, UserProfileModel model)
         {

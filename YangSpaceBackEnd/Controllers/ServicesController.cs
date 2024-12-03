@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Models;
+using YangSpaceBackEnd.Data.Services;
 using YangSpaceBackEnd.Data.Services.Contracts;
 using YangSpaceBackEnd.Data.ViewModel;
 
 namespace YangSpaceBackEnd.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("api/[controller]")]
 public class ServicesController : ControllerBase
 {
     private readonly IServiceService _serviceService;
@@ -25,8 +26,10 @@ public class ServicesController : ControllerBase
     }
 
     [HttpGet("categories")]
-    public IActionResult GetCategories() =>
-        Ok(_serviceService.GetCategories());
+    public async Task<List<Category>> GetCategories()
+    {
+        return await _serviceService.GetCategories();
+    }
 
     [HttpGet("provider")]
     public async Task<IActionResult> GetProviderServices()
@@ -89,7 +92,7 @@ public class ServicesController : ControllerBase
     }
 
     [HttpPost("create-service")]
-    [Authorize(Roles = "ServiceProvider")]
+    //[Authorize(Roles = "ServiceProvider")]
     public async Task<IActionResult> CreateService([FromBody] ServiceViewModel serviceModel)
     {
         var userId = GetAuthenticatedUserId();
@@ -98,6 +101,7 @@ public class ServicesController : ControllerBase
             return BadRequest(ModelState);
 
         var service = await _serviceService.CreateServiceAsync(serviceModel, userId);
+
         return CreatedAtAction(nameof(GetServices), new { id = service.Id }, service);
     }
 
@@ -120,15 +124,18 @@ public class ServicesController : ControllerBase
 
         return NoContent();
     }
+ 
 
     private string? GetAuthenticatedUserId()
     {
         var token = Request.Headers["Authorization"].ToString();
         var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]);
 
-        if (principal == null) return Unauthorized("Invalid token.").ToString();
+
         var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userId == null) return Unauthorized("User ID not found.").ToString();
-        return Ok(userId).ToString();
+
+        if (userId == null) 
+            return Unauthorized("User ID not found.").ToString();
+        return userId;
     }
 }
