@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using YangSpaceBackEnd.Data.Extension;
+using YangSpaceBackEnd.Data.SeedData;
 using YangSpaceBackEnd.Data.Services.UserProfileServices;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,7 @@ builder.Services.AddRegisterIdentity();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 
 // Add CORS policy
 builder.Services.AddCors(options =>
@@ -49,7 +51,8 @@ builder.Services.AddAuthentication(options =>
 
 // Register services
 builder.Services.AddScoped<UserProfileService>();
-
+// Initialize Seed Data
+builder.Services.AddScoped<Seed>();  // Register Seed service
 var app = builder.Build();
 
 // Middleware
@@ -57,6 +60,9 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    var scope = app.Services.CreateScope();
+    var seedDataLoader = scope.ServiceProvider.GetRequiredService<Seed>();
+    await seedDataLoader.SeedCategories(); // Seed the categories
 }
 
 app.UseDefaultFiles();
