@@ -6,5 +6,7 @@ public class ServiceViewModel
     public string Description { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public int CategoryId { get; set; }
-    public string ProviderId { get; set; } = string.Empty; 
+
+    public string CategoryName { get; set; }
+    public string ProviderName { get; set; }
 }
