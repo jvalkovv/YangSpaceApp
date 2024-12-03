@@ -1,6 +1,4 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Services.UserProfileServices;
@@ -13,12 +11,11 @@ namespace YangSpaceBackEnd.Controllers
     public class UserProfileController : ControllerBase
     {
         private readonly UserProfileService _userProfileService;
-        private readonly ILogger<UserProfileController> _logger;
+        
         private readonly IConfiguration _configuration;
-        public UserProfileController(UserProfileService userProfileService, ILogger<UserProfileController> logger, IConfiguration configuration)
+        public UserProfileController(UserProfileService userProfileService, IConfiguration configuration)
         {
             _userProfileService = userProfileService;
-            _logger = logger;
             _configuration = configuration;
         }
 
@@ -48,14 +45,14 @@ namespace YangSpaceBackEnd.Controllers
             {
                 return NotFound(new { message = "User profile not found." });
             }
-
             return Ok(new
             {
                 username = user.UserName,
                 firstName = user.FirstName,
                 lastName = user.LastName,
                 email = user.Email,
-                phoneNumber = user.PhoneNumber
+                phoneNumber = user.PhoneNumber,
+                role = user.Role
             });
         }
 
@@ -91,6 +88,7 @@ namespace YangSpaceBackEnd.Controllers
             return Ok(new { message = "Profile updated successfully." });
         }
 
+        // Will be implement  also 
         //[HttpGet("booked-tasks")]
         //public async Task<IActionResult> GetBookedTasks()
         //{

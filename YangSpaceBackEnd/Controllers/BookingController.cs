@@ -41,7 +41,7 @@ namespace YangSpaceBackEnd.Controllers
             {
                 ServiceId = request.ServiceId,
                 UserId = userId,
-                BookingDate = DateTime.UtcNow,
+                BookingDate = DateTime.Now,
                 Status = BookingStatus.Pending,
                 Notes = request.Notes
             };
@@ -109,7 +109,7 @@ namespace YangSpaceBackEnd.Controllers
                 return Forbid();
 
             booking.Status = request.Status;
-            booking.UpdatedDate = DateTime.UtcNow;
+            booking.UpdatedDate = DateTime.Now;
 
             await _context.SaveChangesAsync();
 

@@ -16,15 +16,16 @@ public class AccountController : ControllerBase
     private readonly UserManager<User> _userManager;
     private readonly SignInManager<User> _signInManager;
     private readonly IConfiguration _configuration;
+    private readonly RoleManager<IdentityRole> _roleManager;
 
-    public AccountController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration)
+    public AccountController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, RoleManager<IdentityRole> roleManager)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _configuration = configuration;
+        _roleManager = roleManager;
     }
 
-    // Register a new user
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] UserRegistrationModel model)
     {
@@ -33,21 +34,35 @@ public class AccountController : ControllerBase
             return BadRequest(new { message = "Invalid data." });
         }
 
+        // Check if the username already exists
         var existingUser = await _userManager.FindByNameAsync(model.Username);
+        var existingEmail = await _userManager.FindByEmailAsync(model.Email);
         if (existingUser != null)
         {
             return Conflict(new { message = "Username is already taken." });
         }
 
+        if (existingEmail != null)
+        {
+            return Conflict(new { message = "Email is already taken." });
+        }
+
+        await _roleManager.CreateAsync(new IdentityRole("ServiceProvider"));
+
+        await _roleManager.CreateAsync(new IdentityRole("OrdinaryUser"));
+
+        
+        // Create the new user
         var user = new User
         {
             UserName = model.Username,
             Email = model.Email,
             FirstName = model.FirstName,
             LastName = model.LastName,
-            Role = model.IsServiceProvider ? "ServiceProvider" : "OrdinaryUser" // Set Role column
+            Role = model.IsServiceProvider ? "ServiceProvider" : "OrdinaryUser"
         };
 
+        // Create the user in the database
         var result = await _userManager.CreateAsync(user, model.Password);
 
         if (!result.Succeeded)
@@ -55,19 +70,27 @@ public class AccountController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
         }
 
-        // Assign role
-        var role = user.Role; // Use the same role set earlier
 
-        var roleAssignmentResult = await _userManager.AddToRoleAsync(user, role);
-
+        // Assign role to the user
+        var roleAssignmentResult = await _userManager.AddToRoleAsync(user, user.Role);
 
         if (!roleAssignmentResult.Succeeded)
         {
             return BadRequest(new { message = "Failed to assign role." });
         }
 
-        return Ok(new { message = "User registered successfully." });
+        // Generate JWT Token
+        var token = await GenerateJwtToken(user);
+
+        // Return the success response with the JWT and username
+        return Ok(new
+        {
+            token,
+            username = user.UserName,
+
+        });
     }
+
 
     // Login the user and return JWT token
     [HttpPost("login")]
@@ -79,12 +102,14 @@ public class AccountController : ControllerBase
         }
 
         var user = await _userManager.FindByNameAsync(model.Username);
+
         if (user == null)
         {
-            return Unauthorized(new { message = "Invalid credentials." });
+            return Unauthorized(new { message = "Invalid username." });
         }
 
         var result = await _signInManager.PasswordSignInAsync(user, model.Password, false, false);
+
         if (result.Succeeded)
         {
             // Generate JWT Token if the login is successful
@@ -93,12 +118,13 @@ public class AccountController : ControllerBase
             return Ok(new
             {
                 token,
-                username = user.UserName
+                username = user.UserName,
+                role = user.Role
             }
             );
         }
 
-        return Unauthorized(new { message = "Invalid credentials." });
+        return Unauthorized(new { message = "Invalid credentials(password)." });
     }
 
     // Logout the user (sign-out)
@@ -119,6 +145,18 @@ public class AccountController : ControllerBase
             return Ok(new { isUsernameTaken = true }); // Username is already taken
         }
         return Ok(new { isUsernameTaken = false });
+    }
+
+    // Check if the username is taken
+    [HttpGet("check-email/{email}")]
+    public async Task<IActionResult> CheckEmail(string email)
+    {
+        var existingUser = await _userManager.FindByEmailAsync(email);
+        if (existingUser != null)
+        {
+            return Ok(new { isEmailTaken = true }); // Email is already taken
+        }
+        return Ok(new { isEmailTaken = false });
     }
 
     private async Task<string> GenerateJwtToken(User user)
@@ -143,7 +181,7 @@ public class AccountController : ControllerBase
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddDays(1), // You can adjust the expiration time
+            Expires = DateTime.Now.AddMinutes(15), // You can adjust the expiration time
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 

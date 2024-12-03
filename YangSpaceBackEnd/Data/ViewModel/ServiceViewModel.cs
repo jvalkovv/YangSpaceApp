@@ -2,11 +2,10 @@
 {
     public class ServiceViewModel
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public decimal Price { get; set; }
-        public string CategoryName { get; set; } // Include category name instead of CategoryId
-        public string ProviderName { get; set; } // Include provider's name instead of ProviderId
+        public int CategoryId { get; set; }
+        public string? ProviderId { get; set; }
     }
 }

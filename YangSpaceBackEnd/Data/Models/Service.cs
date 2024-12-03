@@ -21,6 +21,8 @@ namespace YangSpaceBackEnd.Data.Models
         [Range(0.01, double.MaxValue)]
         public decimal Price { get; set; }
 
+        public DateTime CreatedAt { get; set; }
+
         public string? ProviderId { get; set; }
 
         [ForeignKey(nameof(ProviderId))]

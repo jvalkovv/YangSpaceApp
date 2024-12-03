@@ -1,27 +1,46 @@
 ﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using YangSpaceBackEnd.Data;
+using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Models;
+using YangSpaceBackEnd.Data.ViewModel;
 
 namespace YangSpaceBackEnd.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     public class ServicesController : ControllerBase
     {
         private readonly YangSpaceDbContext _context;
-
-        public ServicesController(YangSpaceDbContext context)
+        private readonly IConfiguration _configuration;
+        public ServicesController(YangSpaceDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
-
-        // GET: api/Services/Provider
-        [HttpGet("Provider")]
+        [HttpGet]
+        [Route("categories")]
+        public IActionResult GetCategories()
+        {
+            var categories = _context.Categories.ToList();
+            return Ok(categories);
+        }
+        // GET: Services/Provider
+        [HttpGet("provider")]
         public async Task<IActionResult> GetProviderServices()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var token = Request.Headers["Authorization"].ToString();
+
+            var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]!);
+
+            if (principal == null)
+            {
+                return Unauthorized(new { message = "Invalid token." });
+            }
+
+            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             var services = await _context.Services
                 .Where(s => s.ProviderId == userId)
@@ -30,8 +49,8 @@ namespace YangSpaceBackEnd.Controllers
             return Ok(services);
         }
 
-        // GET: api/Services
-        [HttpGet]
+        // GET: /Services
+        [HttpGet("all-services")]
         public async Task<IActionResult> GetServices(
             [FromQuery] string? category,
             [FromQuery] string? search,
@@ -39,9 +58,9 @@ namespace YangSpaceBackEnd.Controllers
             [FromQuery] decimal? maxPrice,
             [FromQuery] string? sortBy,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] int pageSize = 12)
         {
-            var query = _context.Services.AsQueryable();
+            var query = _context.Services.Include(c => c.Category).Include(p => p.Provider).AsQueryable();
 
             if (!string.IsNullOrEmpty(category))
                 query = query.Where(s => s.Category.Name == category);
@@ -59,6 +78,7 @@ namespace YangSpaceBackEnd.Controllers
             {
                 "price" => query.OrderBy(s => s.Price),
                 "name" => query.OrderBy(s => s.Title),
+                "recent" or null => query.OrderByDescending(s => s.CreatedAt),
                 _ => query
             };
 
@@ -66,25 +86,64 @@ namespace YangSpaceBackEnd.Controllers
             var services = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .Select(s => new
+                {
+                    id = s.Id,
+                    title = s.Title,
+                    desciption = s.Description,
+                    price = s.Price,
+                    CategoryName = s.Category.Name,
+                    ProviderName = $"{s.Provider.FirstName} {s.Provider.LastName}"
+                })
                 .ToListAsync();
+
+            if (totalCount == 0)
+            {
+                return BadRequest("No services");
+            }
 
             return Ok(new
             {
                 TotalCount = totalCount,
-                Services = services
+                Services = services,
             });
         }
 
-        // POST: api/Services
-        [HttpPost]
-        public async Task<IActionResult> CreateService(Service service)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
 
-            _context.Services.Add(service);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetServices), new { id = service.Id }, service);
+
+        // POST: /Services
+        [HttpPost("create-service")]
+        [Authorize(Roles = "ServiceProvider")]
+        public async Task<IActionResult> CreateService([FromBody] ServiceViewModel serviceModel)
+        {
+            try
+            {
+                var principal = GetAuthenticatedUser();
+                EnsureUserIsServiceProvider(principal);
+
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                var service = new Service
+                {
+                    Title = serviceModel.Title,
+                    Description = serviceModel.Description,
+                    Price = serviceModel.Price,
+                    ProviderId = userId,
+                    CategoryId = serviceModel.CategoryId
+                };
+
+                _context.Services.Add(service);
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction(nameof(GetServices), new { id = service.Id }, service);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
         }
 
         // PUT: api/Services/{id}
@@ -124,6 +183,31 @@ namespace YangSpaceBackEnd.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+
+        private ClaimsPrincipal GetAuthenticatedUser()
+        {
+            // Check if the user is authenticated
+            var token = Request.Headers["Authorization"].ToString();
+
+            var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]!);
+
+            if (principal == null)
+                throw new UnauthorizedAccessException("Invalid token.");
+
+            if (string.IsNullOrEmpty(token))
+                throw new UnauthorizedAccessException("Missing token.");
+
+            return principal;
+        }
+
+        private static void EnsureUserIsServiceProvider(ClaimsPrincipal principal)
+        {
+            // Check if the user is a service provider (you could use a claim or role)
+            var isServiceProvider = principal.IsInRole("ServiceProvider");
+            if (!isServiceProvider)
+                throw new UnauthorizedAccessException("You must be a service provider to perform this action.");
         }
     }
 }

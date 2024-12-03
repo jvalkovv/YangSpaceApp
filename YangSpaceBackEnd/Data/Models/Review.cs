@@ -27,6 +27,6 @@ namespace YangSpaceBackEnd.Data.Models
         public string? Comment { get; set; }
 
         [Comment("Date of the Review")]
-        public DateTime ReviewDate { get; set; } = DateTime.UtcNow;
+        public DateTime ReviewDate { get; set; } = DateTime.Now;
     }
 }

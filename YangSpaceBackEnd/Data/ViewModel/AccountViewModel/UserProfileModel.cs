@@ -17,6 +17,8 @@ namespace YangSpaceBackEnd.Data.ViewModel.AccountViewModel
         [EmailAddress]
         public string? Email { get; set; }
 
+        public string? Role { get; set; }
+
         [Phone]
         public string? PhoneNumber { get; set; }
     }
