@@ -8,7 +8,9 @@ namespace YangSpaceBackEnd.Data.Extension
     {
         public static ClaimsPrincipal GetPrincipalFromToken(string token, string signingKey)
         {
-            var tokenHandler = new JwtSecurityTokenHandler(); var key = System.Text.Encoding.ASCII.GetBytes(signingKey); try
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = System.Text.Encoding.ASCII.GetBytes(signingKey);
+            try
             {
                 var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {

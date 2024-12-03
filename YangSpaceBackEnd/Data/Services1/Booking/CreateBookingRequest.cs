@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using static YangSpaceBackEnd.Data.Extension.Enum;
 
-namespace YangSpaceBackEnd.Data.Services.Booking
+namespace YangSpaceBackEnd.Data.Services1.Booking
 {
     public class CreateBookingRequest
     {

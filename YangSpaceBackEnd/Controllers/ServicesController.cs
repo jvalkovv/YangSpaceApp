@@ -1,213 +1,134 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using YangSpaceBackEnd.Data;
 using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Models;
+using YangSpaceBackEnd.Data.Services.Contracts;
 using YangSpaceBackEnd.Data.ViewModel;
 
-namespace YangSpaceBackEnd.Controllers
+namespace YangSpaceBackEnd.Controllers;
+
+[ApiController]
+[Route("[controller]")]
+public class ServicesController : ControllerBase
 {
-    [ApiController]
-    [Route("[controller]")]
-    public class ServicesController : ControllerBase
+    private readonly IServiceService _serviceService;
+    private readonly IConfiguration _configuration;
+    private readonly UserManager<User> _userManager;
+
+    public ServicesController(IServiceService serviceService, IConfiguration configuration, UserManager<User> userManager)
     {
-        private readonly YangSpaceDbContext _context;
-        private readonly IConfiguration _configuration;
-        public ServicesController(YangSpaceDbContext context, IConfiguration configuration)
-        {
-            _context = context;
-            _configuration = configuration;
-        }
-        [HttpGet]
-        [Route("categories")]
-        public IActionResult GetCategories()
-        {
-            var categories = _context.Categories.ToList();
-            return Ok(categories);
-        }
-        // GET: Services/Provider
-        [HttpGet("provider")]
-        public async Task<IActionResult> GetProviderServices()
-        {
-            var token = Request.Headers["Authorization"].ToString();
+        _serviceService = serviceService;
+        _configuration = configuration;
+        _userManager = userManager;
+    }
 
-            var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]!);
+    [HttpGet("categories")]
+    public IActionResult GetCategories() =>
+        Ok(_serviceService.GetCategories());
 
-            if (principal == null)
-            {
-                return Unauthorized(new { message = "Invalid token." });
-            }
+    [HttpGet("provider")]
+    public async Task<IActionResult> GetProviderServices()
+    {
+        string? userId = GetAuthenticatedUserId();
+        var services = await _serviceService.GetServicesByProviderAsync(userId);
+        return Ok(services);
+    }
 
-            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    [HttpGet("all-services")]
+    public async Task<IActionResult> GetServices(
+        [FromQuery] string? category,
+        [FromQuery] string? search,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice,
+        [FromQuery] string? sortBy,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12)
+    {
+        var services = await _serviceService.GetPagedServicesAsync(page, pageSize, category, search, minPrice, maxPrice, sortBy);
+        return Ok(services);
+    }
 
-            var services = await _context.Services
-                .Where(s => s.ProviderId == userId)
-                .ToListAsync();
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetServiceById(int id)
+    {
+        var service = await _serviceService.GetServiceByIdAsync(id);
+        if (service == null) return NotFound("Service not found");
 
-            return Ok(services);
-        }
+        return Ok(service);
+    }
 
-        // GET: /Services
-        [HttpGet("all-services")]
-        public async Task<IActionResult> GetServices(
-            [FromQuery] string? category,
-            [FromQuery] string? search,
-            [FromQuery] decimal? minPrice,
-            [FromQuery] decimal? maxPrice,
-            [FromQuery] string? sortBy,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 12)
-        {
-            var query = _context.Services.Include(c => c.Category).Include(p => p.Provider).AsQueryable();
+    [HttpPost("book/{serviceId}")]
+    [Authorize]
+    public async Task<IActionResult> BookService(int serviceId)
+    {
+        string? userId = GetAuthenticatedUserId();
+        var user = await _userManager.FindByIdAsync(userId);
+        var service = await _serviceService.GetServiceByIdAsync(serviceId);
 
-            if (!string.IsNullOrEmpty(category))
-                query = query.Where(s => s.Category.Name == category);
+        if (service == null) return NotFound("Service not found");
 
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(s => s.Title.Contains(search) || s.Description.Contains(search));
+        var success = await _serviceService.BookServiceAsync(user, service);
+        if (!success) return BadRequest("You have already booked this service.");
 
-            if (minPrice.HasValue)
-                query = query.Where(s => s.Price >= minPrice);
+        return Ok("Service booked successfully.");
+    }
 
-            if (maxPrice.HasValue)
-                query = query.Where(s => s.Price <= maxPrice);
+    [HttpGet("check-access/{serviceId}")]
+    [Authorize]
+    public async Task<IActionResult> CheckUserAccessToService(int serviceId)
+    {
+        string? userId = GetAuthenticatedUserId();
+        var user = await _userManager.FindByIdAsync(userId);
 
-            query = sortBy?.ToLower() switch
-            {
-                "price" => query.OrderBy(s => s.Price),
-                "name" => query.OrderBy(s => s.Title),
-                "recent" or null => query.OrderByDescending(s => s.CreatedAt),
-                _ => query
-            };
+        var hasAccess = await _serviceService.CheckUserAccessToServiceAsync(user, serviceId);
+        if (!hasAccess) return Unauthorized("You do not have access to this service.");
 
-            var totalCount = await query.CountAsync();
-            var services = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(s => new
-                {
-                    id = s.Id,
-                    title = s.Title,
-                    desciption = s.Description,
-                    price = s.Price,
-                    CategoryName = s.Category.Name,
-                    ProviderName = $"{s.Provider.FirstName} {s.Provider.LastName}"
-                })
-                .ToListAsync();
+        return Ok("User has access to this service.");
+    }
 
-            if (totalCount == 0)
-            {
-                return BadRequest("No services");
-            }
+    [HttpPost("create-service")]
+    [Authorize(Roles = "ServiceProvider")]
+    public async Task<IActionResult> CreateService([FromBody] ServiceViewModel serviceModel)
+    {
+        var userId = GetAuthenticatedUserId();
 
-            return Ok(new
-            {
-                TotalCount = totalCount,
-                Services = services,
-            });
-        }
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
+        var service = await _serviceService.CreateServiceAsync(serviceModel, userId);
+        return CreatedAtAction(nameof(GetServices), new { id = service.Id }, service);
+    }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateService(int id, Service service)
+    {
+        if (id != service.Id)
+            return BadRequest("Service ID mismatch");
 
-        // POST: /Services
-        [HttpPost("create-service")]
-        [Authorize(Roles = "ServiceProvider")]
-        public async Task<IActionResult> CreateService([FromBody] ServiceViewModel serviceModel)
-        {
-            try
-            {
-                var principal = GetAuthenticatedUser();
-                EnsureUserIsServiceProvider(principal);
+        await _serviceService.UpdateServiceAsync(service);
+        return NoContent();
+    }
 
-                if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteService(int id)
+    {
+        var success = await _serviceService.DeleteServiceAsync(id);
+        if (!success)
+            return NotFound("Service not found");
 
-                var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return NoContent();
+    }
 
-                var service = new Service
-                {
-                    Title = serviceModel.Title,
-                    Description = serviceModel.Description,
-                    Price = serviceModel.Price,
-                    ProviderId = userId,
-                    CategoryId = serviceModel.CategoryId
-                };
+    private string? GetAuthenticatedUserId()
+    {
+        var token = Request.Headers["Authorization"].ToString();
+        var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]);
 
-                _context.Services.Add(service);
-                await _context.SaveChangesAsync();
-
-                return CreatedAtAction(nameof(GetServices), new { id = service.Id }, service);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Forbid(ex.Message);
-            }
-        }
-
-        // PUT: api/Services/{id}
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateService(int id, Service service)
-        {
-            if (id != service.Id)
-                return BadRequest("Service ID mismatch");
-
-            _context.Entry(service).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Services.Any(s => s.Id == id))
-                    return NotFound("Service not found");
-
-                throw;
-            }
-
-            return NoContent();
-        }
-
-        // DELETE: api/Services/{id}
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteService(int id)
-        {
-            var service = await _context.Services.FindAsync(id);
-
-            if (service == null)
-                return NotFound("Service not found");
-
-            _context.Services.Remove(service);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-
-        private ClaimsPrincipal GetAuthenticatedUser()
-        {
-            // Check if the user is authenticated
-            var token = Request.Headers["Authorization"].ToString();
-
-            var principal = JwtHelper.GetPrincipalFromToken(token, _configuration["Jwt:SecretKey"]!);
-
-            if (principal == null)
-                throw new UnauthorizedAccessException("Invalid token.");
-
-            if (string.IsNullOrEmpty(token))
-                throw new UnauthorizedAccessException("Missing token.");
-
-            return principal;
-        }
-
-        private static void EnsureUserIsServiceProvider(ClaimsPrincipal principal)
-        {
-            // Check if the user is a service provider (you could use a claim or role)
-            var isServiceProvider = principal.IsInRole("ServiceProvider");
-            if (!isServiceProvider)
-                throw new UnauthorizedAccessException("You must be a service provider to perform this action.");
-        }
+        if (principal == null) return Unauthorized("Invalid token.").ToString();
+        var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null) return Unauthorized("User ID not found.").ToString();
+        return Ok(userId).ToString();
     }
 }
