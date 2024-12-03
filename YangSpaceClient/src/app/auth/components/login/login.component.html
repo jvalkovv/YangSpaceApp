@@ -22,12 +22,14 @@
         />
         <div
           *ngIf="
-            loginForm.get('username')?.hasError('required') &&
-            loginForm.get('username')?.touched
+            loginForm.get('username')?.touched &&
+            loginForm.get('username')?.invalid
           "
           class="text-danger"
         >
-          Username is required.
+          <div *ngIf="loginForm.get('username')?.hasError('required')">
+            Username is required.
+          </div>
         </div>
       </div>
 
@@ -47,7 +49,11 @@
               loginForm.get('password')?.touched
           }"
         />
-        <button type="button" (click)="togglePasswordVisibility()" class="toggle-password-btn">
+        <button
+          type="button"
+          (click)="togglePasswordVisibility()"
+          class="toggle-password-btn"
+        >
           <i [class]="passwordVisible ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
         </button>
         <div
@@ -59,8 +65,20 @@
         >
           Password is required.
         </div>
+        <div
+          *ngIf="
+            loginForm.get('password')?.hasError('minLength') &&
+            loginForm.get('password')?.touched
+          "
+          class="text-danger"
+        >
+          Password need to be at least 6 symbol.
+        </div>
       </div>
-
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="text-danger">
+        {{ errorMessage }}
+      </div>
       <!-- Submit Button -->
       <div class="mt-4">
         <button

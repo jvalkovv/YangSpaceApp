@@ -52,6 +52,7 @@ form {
 /* Input Field Styling */
 input {
   width: calc(100% - 40px); /* Adjusting for button width */
+  display: inline;
   padding: 5px;
   margin: 5px 0;
   border: 1px solid #ccc;

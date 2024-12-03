@@ -1,8 +1,7 @@
 import { Component } from '@angular/core';
-import { AbstractControl, AsyncValidatorFn, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { AbstractControl,  FormBuilder, FormGroup, ReactiveFormsModule,  Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { catchError, debounceTime, finalize, map, Observable, of, switchMap } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { environment } from '../../../../environments/environment';
 import { FooterComponent } from '../../../shared/components/footer/footer.component';
@@ -29,12 +28,12 @@ export class RegisterComponent {
   constructor(private fb: FormBuilder, private http: HttpClient, private authService: AuthService, private router: Router) {
     this.registerForm = this.fb.group(
       {
-        username: ['', [Validators.required, Validators.minLength(3), this.noWhitespaceValidator], [this.usernameValidator()]],
-        email: ['', [Validators.required, Validators.email]],
+        username: ['', [Validators.required, Validators.minLength(3), this.noWhitespaceValidator], [this.authService.usernameValidator()]],
+        email: ['', [Validators.required, Validators.email], [this.authService.emailValidator()]],
         password: ['', [Validators.required, Validators.minLength(6), this.noWhitespaceValidator]],
         confirmPassword: ['', Validators.required],
-        firstName: ['', [Validators.required, this.noWhitespaceValidator]],
-        lastName: ['', [Validators.required, this.noWhitespaceValidator]],
+        firstName: ['', [Validators.required, Validators.pattern('^[a-zA-Z]+$'), this.noWhitespaceValidator]],
+        lastName: ['', [Validators.required, Validators.pattern('^[a-zA-Z]+$'), this.noWhitespaceValidator]],
         isServiceProvider: [null, Validators.required],
       },
       { validator: this.passwordMatchValidator }
@@ -49,15 +48,11 @@ export class RegisterComponent {
     }
   }
 
-  // Save JWT and user details
-  saveUserDetails(token: string, username: string) {
-    localStorage.setItem('jwt', token);
-    localStorage.setItem('username', username);
-  }
   noWhitespaceValidator(control: AbstractControl): { [key: string]: any } | null {
-    const value = control.value || '';
-  
-    return value.trim().length === 0 ? { whitespace: true } : null;
+    const value = control.value;  // Keep the value as is, without trimming
+
+    // Check if the value is empty or consists of only spaces
+    return value && value.length > 0 && !/^\s+$/.test(value) ? null : { whitespace: true };
   }
 
   passwordMatchValidator(group: AbstractControl): { [key: string]: any } | null {
@@ -65,38 +60,18 @@ export class RegisterComponent {
     const confirmPassword = group.get('confirmPassword')?.value;
     return password === confirmPassword ? null : { passwordMismatch: true };
   }
-
-  usernameValidator(): AsyncValidatorFn {
-    return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
-        return of(null);  // If no value is provided, no validation is needed.
-      }
-
-      this.isUsernameChecking = true;
-
-      return this.http.get<any>(`${this.apiUrl}/account/check-username/${control.value}`).pipe(
-        debounceTime(500),  // Debounce for 500ms to wait before making the API call.
-        map((response) => {
-          return response.isUsernameTaken ? { usernameTaken: true } : null;  // If the username is taken, return error.
-        }),
-        catchError((error) => {
-          console.error('Error during username validation:', error);
-          return of({ usernameTaken: false });  // Return false for usernameTaken if error occurs.
-        }),
-        finalize(() => {
-          this.isUsernameChecking = false;  // Reset the checking flag after API call.
-        })
-      );
-    };
+  // Save JWT and user details using environment keys
+  saveUserDetails(token: string, username: string) {
+    localStorage.setItem(environment.tokenKey, token); 
+    localStorage.setItem(environment.usernameKey, username); 
   }
-
   onSubmit() {
     if (this.registerForm.valid) {
       const formData = this.registerForm.value;
       this.authService.register(formData).subscribe({
         next: (response) => {
           this.successMessage = response.message;
-          this.authService.saveUserDetails(response.token, response.username);
+          this.saveUserDetails(response.token, response.username);        
           this.router.navigate(['/user-profile']);
         },
         error: (err) => {

@@ -35,7 +35,10 @@
               Username must be at least 3 characters.
             </div>
             <div *ngIf="registerForm.get('username')?.hasError('whitespace')">
-              Username cannot be empty or just whitespace.
+              Username cannot be empty or consist of only spaces.
+            </div>
+            <div *ngIf="registerForm.get('username')?.hasError('pattern')">
+              Username must only contain letters.
             </div>
           </div>
         </div>
@@ -64,6 +67,11 @@
             <div *ngIf="registerForm.get('email')?.hasError('email')">
               Please enter a valid email.
             </div>
+            <div
+            *ngIf="registerForm.get('email')?.hasError('emailTaken')"
+          >
+            Email is already taken.
+          </div>
           </div>
         </div>
 
@@ -157,6 +165,9 @@
             <div *ngIf="registerForm.get('firstName')?.hasError('required')">
               First name is required.
             </div>
+            <div *ngIf="registerForm.get('firstName')?.hasError('pattern')">
+              First name must only contain letters.
+            </div>
           </div>
         </div>
 
@@ -180,6 +191,12 @@
           >
             <div *ngIf="registerForm.get('lastName')?.hasError('required')">
               Last name is required.
+            </div>
+            <div
+              *ngIf="registerForm.get('lastName')?.hasError('pattern')"
+              class="text-danger"
+            >
+              Last name must only contain letters.
             </div>
           </div>
         </div>

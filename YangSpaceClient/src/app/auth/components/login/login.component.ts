@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { FooterComponent } from '../../../shared/components/footer/footer.component';
 import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
 import { AuthService } from '../../services/auth-service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -23,35 +24,36 @@ export class LoginComponent {
   constructor(private fb: FormBuilder, private http: HttpClient, private router: Router, private authService: AuthService) {
     this.loginForm = this.fb.group({
       username: ['', Validators.required],
-      password: ['', Validators.required],
+      password: ['', [Validators.required, Validators.minLength(6)]],
     });
   }
 
   togglePasswordVisibility() {
     this.passwordVisible = !this.passwordVisible;
   }
-  
-  // Save JWT and user details
+
+  // Save JWT and user details using environment keys
   saveUserDetails(token: string, username: string) {
-    localStorage.setItem('jwt', token);
-    localStorage.setItem('username', username);
+    localStorage.setItem(environment.tokenKey, token); // Save token
+    localStorage.setItem(environment.usernameKey, username); // Save username
   }
   onLogin() {
     if (this.loginForm.valid) {
       const loginData = this.loginForm.value;
+      this.isLoading = true;
       this.authService.login(loginData).subscribe(
         (response) => {
-          // Store JWT token in localStorage upon successful login
-          localStorage.setItem('jwt', response.token);
-          this.authService.saveUserDetails(response.token, response.username);
-          localStorage.setItem('token', response.token);
+          // Store JWT token and username once
+          this.saveUserDetails(response.token, response.username);
 
           this.errorMessage = '';
+          this.isLoading = false;
           // Redirect to UserProfile
-          this.router.navigate(['/user-profile']); // Redirect to the home page or dashboard
+          this.router.navigate(['/user-profile']);
         },
-        (error) => {
-          this.errorMessage = 'Invalid credentials';
+        (error ) => {
+          this.isLoading = false;
+          this.errorMessage = error.message;
         }
       );
     }
