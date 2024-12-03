@@ -9,13 +9,15 @@ import { environment } from "../../environments/environment";
 export class UserProfileService {
   private apiUrl = `${environment.apiUrl}/UserProfile/user-profile`;
   private _viewBookings = false;
+  username: string | null = null;
+  tokenKey: string | null = null;
 
   constructor(private http: HttpClient) { }
 
   private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
+    this.tokenKey = localStorage.getItem(environment.tokenKey);
     return new HttpHeaders({
-      Authorization: `${token}`,
+      Authorization: `${this.tokenKey}`,
     });
   }
 

@@ -3,7 +3,7 @@ import { AbstractControl, AsyncValidatorFn, FormBuilder, FormGroup, ReactiveForm
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../auth/services/auth-service';
-import { catchError, debounceTime, finalize, map, Observable, of } from 'rxjs';
+import { Observable } from 'rxjs';
 import { FooterComponent } from '../shared/components/footer/footer.component';
 import { NavbarComponent } from '../shared/components/navbar/navbar.component';
 import { CommonModule } from '@angular/common';
@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 export class EditProfileComponent implements OnInit {
   private apiUrl = `${environment.apiUrl}/UserProfile/user-profile`;
   editProfileForm: FormGroup;
-  
+
   constructor(private fb: FormBuilder, private http: HttpClient, private authService: AuthService) {
     // Initialize form with validation rules and async validator for firstName
     this.editProfileForm = this.fb.group({
@@ -28,9 +28,10 @@ export class EditProfileComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    
     this.getUserProfile().subscribe(
       (profile) => {
-        this.editProfileForm.patchValue(profile); // Populate form with existing user profile data
+        this.editProfileForm.patchValue(profile); 
       },
       (error) => {
         console.error('Error fetching user profile:', error);
@@ -46,9 +47,9 @@ export class EditProfileComponent implements OnInit {
 
   // Get Authorization headers with token
   private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
+    const tokenKey = localStorage.getItem(environment.tokenKey);
     return new HttpHeaders({
-      Authorization: `${token}`,
+      Authorization: `${tokenKey}`,
     });
   }
 

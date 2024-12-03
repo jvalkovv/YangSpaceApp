@@ -1,23 +1,28 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Service } from '../models/service.model';
 import { environment } from '../../environments/environment';
+import { AuthService } from '../auth/services/auth-service';
+import { Service } from '../create-service/service.model';
+
 
 @Injectable({
   providedIn: 'root',
 })
 export class ServiceService {
-  private apiUrl = `${environment.apiUrl}/services`; // URL to the services API
+  private apiUrl = `${environment.apiUrl}/services/create-service`; // URL to the services API
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {}
 
   getServices(): Observable<Service[]> {
     return this.http.get<Service[]>(`${this.apiUrl}`); // Fetch all services
   }
 
   createService(service: Service): Observable<any> {
-    return this.http.post(`${this.apiUrl}`, service); // Add a new service
+  const token = this.authService.getToken(); // Retrieve token from AuthService
+  const headers = { Authorization: `${token}` };
+
+  return this.http.post(`${this.apiUrl}`, service, { headers });
   }
 
   updateService(service: Service): Observable<any> {
@@ -28,3 +33,4 @@ export class ServiceService {
     return this.http.delete(`${this.apiUrl}/${id}`); // Delete service by ID
   }
 }
+

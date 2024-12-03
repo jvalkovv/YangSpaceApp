@@ -9,7 +9,7 @@ import { of } from 'rxjs';
   providedIn: 'root',
 })
 export class BookingService {
-  private apiUrl = `${environment.apiUrl}/bookings`; // URL to the booking API
+  private apiUrl = `${environment.apiUrl}/booking`; // URL to the booking API
 
   constructor(private http: HttpClient) { }
 
@@ -23,6 +23,7 @@ export class BookingService {
   }
 
   getBookings(): Observable<Booking[]> {
+    
     return this.http.get<Booking[]>(`${this.apiUrl}`).pipe(
       catchError(error => {
         console.error('Get bookings failed:', error);

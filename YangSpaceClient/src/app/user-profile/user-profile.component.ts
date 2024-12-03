@@ -15,6 +15,7 @@ import { RouterLink } from '@angular/router';
 })
 export class UserProfileComponent implements OnInit {
   userProfile: any = {};
+  userRole: any={};
   bookedTasks: any[] = [];
   viewBookings: boolean = false;
 
@@ -22,17 +23,16 @@ export class UserProfileComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchUserProfile();
+    
   }
 
   fetchUserProfile(): void {
     this.userProfileService.getUserProfile()
       .subscribe({
         next: (data) => {
-          console.log('User profile fetched successfully:', data);
           this.userProfile = data;
         },
         error: (err) => {
-          console.error('Error fetching user profile:', err);
         }
       });
   }

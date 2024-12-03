@@ -35,8 +35,6 @@ export class HomepageComponent implements OnInit {
   constructor(private router: Router) { }
 
   ngOnInit(): void {
-    console.log('Homepage Component initialized');
-    console.log('Services:', this.services);
   }
 
   navigateToRegister() {

@@ -3,7 +3,7 @@ import { Booking } from '../models/booking.model';
 
 @Pipe({
   name: 'filterByStatus',
-  standalone: true, // Marking the pipe as standalone
+  standalone: true,
 })
 export class FilterByStatusPipe implements PipeTransform {
 

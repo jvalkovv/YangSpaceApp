@@ -1,0 +1,10 @@
+<div class="service-item">
+    <h2>{{ service?.title }}</h2>
+    <p>{{ service?.description }}</p>
+    <p><strong>Price:</strong> ${{ service?.price }}</p>
+    <p><strong>Category:</strong> {{ service?.categoryName  }}</p>
+    <p><strong>Provider:</strong> {{ service?.providerName }}</p>
+  
+    <button (click)="bookService()">Book Now</button>
+  </div>
+  
