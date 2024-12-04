@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Models;
 using YangSpaceBackEnd.Data.Services;
@@ -14,15 +15,17 @@ namespace YangSpaceBackEnd.Controllers;
 [Route("api/[controller]")]
 public class ServicesController : ControllerBase
 {
+    private readonly IImageService _imageService;
     private readonly IServiceService _serviceService;
     private readonly IConfiguration _configuration;
     private readonly UserManager<User> _userManager;
 
-    public ServicesController(IServiceService serviceService, IConfiguration configuration, UserManager<User> userManager)
+    public ServicesController(IServiceService serviceService, IConfiguration configuration, UserManager<User> userManager, IImageService imageService)
     {
         _serviceService = serviceService;
         _configuration = configuration;
         _userManager = userManager;
+        _imageService = imageService;
     }
 
     [HttpGet("categories")]
@@ -61,6 +64,18 @@ public class ServicesController : ControllerBase
 
         return Ok(service);
     }
+    [HttpGet("get-service/{id}")]
+    public async Task<IActionResult> GetService(int id)
+    {
+        var service = await _serviceService.GetServiceWithImageAsync(id);
+
+        if (service == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(service);
+    }
 
     [HttpPost("book/{serviceId}")]
     [Authorize]
@@ -93,14 +108,17 @@ public class ServicesController : ControllerBase
 
     [HttpPost("create-service")]
     //[Authorize(Roles = "ServiceProvider")]
-    public async Task<IActionResult> CreateService([FromBody] ServiceViewModel serviceModel)
+    public async Task<IActionResult> CreateService([FromForm] ServiceViewModel serviceModel)
     {
         var userId = GetAuthenticatedUserId();
+
 
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
+
         var service = await _serviceService.CreateServiceAsync(serviceModel, userId);
+
 
         return CreatedAtAction(nameof(GetServices), new { id = service.Id }, service);
     }
@@ -124,7 +142,7 @@ public class ServicesController : ControllerBase
 
         return NoContent();
     }
- 
+
 
     private string? GetAuthenticatedUserId()
     {
@@ -134,7 +152,7 @@ public class ServicesController : ControllerBase
 
         var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        if (userId == null) 
+        if (userId == null)
             return Unauthorized("User ID not found.").ToString();
         return userId;
     }

@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using YangSpaceBackEnd.Data.Extension;
+using YangSpaceBackEnd.Data.Models;
 using YangSpaceBackEnd.Data.SeedData;
 using YangSpaceBackEnd.Data.Services;
 using YangSpaceBackEnd.Data.Services.Contracts;
@@ -55,6 +56,7 @@ builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IServiceService, ServicesService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IImageService, ImageService>();
 
 // Initialize Seed Data
 builder.Services.AddScoped<Seed>();  // Register Seed service

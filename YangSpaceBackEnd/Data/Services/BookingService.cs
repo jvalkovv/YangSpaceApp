@@ -1,4 +1,6 @@
-﻿using AutoMapper;
+﻿using System.Security.Claims;
+using AutoMapper;
+using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using YangSpaceBackEnd.Data.Models;
 using YangSpaceBackEnd.Data.Services.Contracts;
@@ -11,19 +13,28 @@ public class BookingService : IBookingService
 {
     private readonly YangSpaceDbContext _context;
     private readonly IMapper _mapper;
+    private readonly IUserProfileService _userProfileService;
 
-    public BookingService(YangSpaceDbContext context, IMapper mapper)
+
+    public BookingService(YangSpaceDbContext context, IMapper mapper, IUserProfileService userProfileService)
     {
         _context = context;
         _mapper = mapper;
+        _userProfileService = userProfileService;
     }
 
     public async Task<BookingViewModel> CreateBookingAsync(CreateBookingRequest request)
     {
         var service = await _context.Services.FindAsync(request.ServiceId);
+
         if (service == null) return null;
 
-        var userId = "user-id"; // Replace with actual user context
+        var userToken = request.UserTokenKey;
+
+        var principal = _userProfileService.GetUserProfileAsyncByToken(userToken);
+
+        var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
         var booking = new Booking
         {
             ServiceId = request.ServiceId,
@@ -48,9 +59,8 @@ public class BookingService : IBookingService
         return booking == null ? null : _mapper.Map<BookingViewModel>(booking);
     }
 
-    public async Task<IEnumerable<BookingViewModel>> GetUserBookingsAsync()
+    public async Task<IEnumerable<BookingViewModel>> GetUserBookingsAsync(string userId)
     {
-        var userId = "user-id"; // Replace with actual user context
         var bookings = await _context.Bookings
             .Where(b => b.UserId == userId)
             .Include(b => b.Service)
@@ -93,4 +103,5 @@ public class BookingService : IBookingService
             Bookings = _mapper.Map<List<BookingViewModel>>(bookings)
         };
     }
+
 }

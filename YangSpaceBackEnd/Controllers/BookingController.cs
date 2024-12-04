@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using System.Security.Claims;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using YangSpaceBackEnd.Data.Services;
 using YangSpaceBackEnd.Data.Services.Contracts;
@@ -13,11 +14,13 @@ public class BookingController : ControllerBase
 {
     private readonly IBookingService _bookingService;
     private readonly IMapper _mapper;
+    private readonly IUserProfileService _userProfileService;
 
-    public BookingController(IBookingService bookingService, IMapper mapper)
+    public BookingController(IBookingService bookingService, IMapper mapper, IUserProfileService userProfileService)
     {
         _bookingService = bookingService;
         _mapper = mapper;
+        _userProfileService = userProfileService;
     }
 
     [HttpPost]
@@ -34,7 +37,7 @@ public class BookingController : ControllerBase
         return CreatedAtAction(nameof(GetBookingById), new { id = resultDto.Id }, resultDto);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("booking:{id}")]
     public async Task<IActionResult> GetBookingById(int id)
     {
         var booking = await _bookingService.GetBookingByIdAsync(id);
@@ -48,7 +51,8 @@ public class BookingController : ControllerBase
     [HttpGet("user")]
     public async Task<IActionResult> GetUserBookings()
     {
-        var userBookings = await _bookingService.GetUserBookingsAsync();
+        var userId = GetUserIdFromToken();
+        var userBookings = await _bookingService.GetUserBookingsAsync(userId);
         var userBookingsDto = _mapper.Map<List<BookingViewModel>>(userBookings);
         return Ok(userBookingsDto);
     }
@@ -73,5 +77,13 @@ public class BookingController : ControllerBase
         var bookings = await _bookingService.GetBookingsAsync(status, page, pageSize);
         var bookingsDto = _mapper.Map<List<BookingViewModel>>(bookings);
         return Ok(bookingsDto);
+    }
+
+    private string? GetUserIdFromToken()
+    {
+        var userToken = Request.Headers["Authorization"].ToString();
+        var principal = _userProfileService.GetUserProfileAsyncByToken(userToken);
+
+        return principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     }
 }

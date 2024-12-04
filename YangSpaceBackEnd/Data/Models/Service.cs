@@ -36,5 +36,9 @@ namespace YangSpaceBackEnd.Data.Models
         // Navigation Properties
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
+
+        // Add this navigation property for images
+        public ICollection<ServiceImage> ServiceImages { get; set; } = new List<ServiceImage>();
+
     }
 }

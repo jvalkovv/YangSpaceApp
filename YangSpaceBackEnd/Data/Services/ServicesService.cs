@@ -9,13 +9,12 @@ namespace YangSpaceBackEnd.Data.Services;
 
 public class ServicesService : IServiceService
 {
+    private readonly IImageService _imageService;
     private readonly YangSpaceDbContext _context;
-    private readonly UserManager<User> _userManager;
-
-    public ServicesService(YangSpaceDbContext context, UserManager<User> userManager)
+    public ServicesService(YangSpaceDbContext context, IImageService imageService)
     {
         _context = context;
-        _userManager = userManager;
+        _imageService = imageService;
     }
 
     public async Task<PagedResult<ServiceViewModel>> GetPagedServicesAsync(int page = 1, int pageSize = 10,
@@ -67,7 +66,7 @@ public class ServicesService : IServiceService
 
     public async Task<Service> CreateServiceAsync(ServiceViewModel serviceModel, string? providerId)
     {
-        var service = new Service
+       var service = new Service
         {
             Title = serviceModel.Title,
             Description = serviceModel.Description,
@@ -79,6 +78,26 @@ public class ServicesService : IServiceService
 
         _context.Services.Add(service);
         await _context.SaveChangesAsync();
+
+        var imageFile = serviceModel.ImagePath;
+        string? imageUrl = null;
+
+        if (imageFile != null)
+        {
+            // Save the image and get the URL (path)
+            imageUrl = await _imageService.SaveImageAsync(imageFile, service.Id);
+        }
+        // Create a ServiceImage entity and associate it with the created service
+        if (imageUrl != null)
+        {
+            var serviceImage = new ServiceImage
+            {
+                ImageUrl = imageUrl,
+                ServiceId = service.Id
+            };
+            _context.ServiceImages.Add(serviceImage);
+            await _context.SaveChangesAsync();
+        }
 
         return service;
     }
@@ -109,6 +128,28 @@ public class ServicesService : IServiceService
     {
         return await _context.Services.FindAsync(id);
     }
+
+    public async Task<Service> GetServiceWithImageAsync(int serviceId)
+    {
+        // Retrieve the service with its associated ServiceImages
+        var service = await _context.Services
+            .Where(s => s.Id == serviceId)
+            .Include(s => s.ServiceImages)  // Include ServiceImages navigation property
+            .FirstOrDefaultAsync();
+
+        // If the service has associated images, you can extract the first image URL
+        if (service != null && service.ServiceImages.Any())
+        {
+            // Optionally, you can return the first image URL (or handle multiple images if necessary)
+            var imageUrl = service.ServiceImages.FirstOrDefault()?.ImageUrl;
+            // Optionally, you can add the image URL to the service object or return it separately
+            // For example, you could set the service.ImageUrl property if you added it earlier
+            service.ServiceImages.Add(imageUrl);  // Add ImageUrl to the service class if necessary
+        }
+
+        return service;
+    }
+
 
     public async Task<bool> BookServiceAsync(User user, Service service)
     {

@@ -50,5 +50,7 @@ namespace YangSpaceBackEnd.Data
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Availability> Availabilities { get; set; }
+
+        public DbSet<ServiceImage> ServiceImages { get; set; }
     }
 }
