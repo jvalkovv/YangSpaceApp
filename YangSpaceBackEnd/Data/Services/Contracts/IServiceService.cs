@@ -11,6 +11,7 @@ public interface IServiceService
     Task<List<Service>> GetServicesByProviderAsync(string? providerId);
     Task<Service?> GetServiceByIdAsync(int id);
 
+    Task<Service?> GetServiceWithImageAsync(int serviceId);
     Task<Service> CreateServiceAsync(ServiceViewModel serviceModel, string? providerId);
     Task<bool> BookServiceAsync(User user, Service service);
     Task<bool> CheckUserAccessToServiceAsync(User user, int serviceId);

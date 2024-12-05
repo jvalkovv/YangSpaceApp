@@ -21,7 +21,10 @@ public class ServicesService : IServiceService
         string? category = null, string? search = null, decimal? minPrice = null, decimal? maxPrice = null,
         string? sortBy = null)
     {
-        var query = _context.Services.Include(c => c.Category).Include(p => p.Provider).AsQueryable();
+        var query = _context.Services.Include(c => c.Category)
+            .Include(p => p.Provider)
+            .Include(i=>i.ServiceImages)
+            .AsQueryable();
 
         if (!string.IsNullOrEmpty(category))
             query = query.Where(s => s.Category.Name == category);
@@ -49,13 +52,19 @@ public class ServicesService : IServiceService
             .Take(pageSize)
             .Select(s => new ServiceViewModel()
             {
+                ServiceId = s.Id,
+                CategoryId = s.CategoryId,
                 Title = s.Title,
                 Description = s.Description,
                 Price = s.Price,
-                CategoryName = s.Category.Name, 
-                ProviderName = $"{s.Provider.FirstName} {s.Provider.LastName}"   
+                CategoryName = s.Category.Name,
+                ProviderName = $"{s.Provider.FirstName} {s.Provider.LastName}",
+                ImageUrl = s.ServiceImages.FirstOrDefault()!.ImageUrl
+
             })
             .ToListAsync();
+
+
 
         return new PagedResult<ServiceViewModel>
         {
@@ -66,7 +75,7 @@ public class ServicesService : IServiceService
 
     public async Task<Service> CreateServiceAsync(ServiceViewModel serviceModel, string? providerId)
     {
-       var service = new Service
+        var service = new Service
         {
             Title = serviceModel.Title,
             Description = serviceModel.Description,
@@ -79,15 +88,15 @@ public class ServicesService : IServiceService
         _context.Services.Add(service);
         await _context.SaveChangesAsync();
 
-        var imageFile = serviceModel.ImagePath;
+        var imageFile = serviceModel.ImageFile;
         string? imageUrl = null;
 
         if (imageFile != null)
         {
-            // Save the image and get the URL (path)
+
             imageUrl = await _imageService.SaveImageAsync(imageFile, service.Id);
         }
-        // Create a ServiceImage entity and associate it with the created service
+
         if (imageUrl != null)
         {
             var serviceImage = new ServiceImage
@@ -129,22 +138,23 @@ public class ServicesService : IServiceService
         return await _context.Services.FindAsync(id);
     }
 
-    public async Task<Service> GetServiceWithImageAsync(int serviceId)
+    public async Task<Service?> GetServiceWithImageAsync(int serviceId)
     {
-        // Retrieve the service with its associated ServiceImages
         var service = await _context.Services
             .Where(s => s.Id == serviceId)
-            .Include(s => s.ServiceImages)  // Include ServiceImages navigation property
+            .Include(s => s.ServiceImages)
             .FirstOrDefaultAsync();
 
-        // If the service has associated images, you can extract the first image URL
+
         if (service != null && service.ServiceImages.Any())
         {
-            // Optionally, you can return the first image URL (or handle multiple images if necessary)
+
             var imageUrl = service.ServiceImages.FirstOrDefault()?.ImageUrl;
-            // Optionally, you can add the image URL to the service object or return it separately
-            // For example, you could set the service.ImageUrl property if you added it earlier
-            service.ServiceImages.Add(imageUrl);  // Add ImageUrl to the service class if necessary
+
+            if (!string.IsNullOrEmpty(imageUrl))
+            {
+                service.ServiceImages.Add(new ServiceImage { ImageUrl = imageUrl });
+            }
         }
 
         return service;

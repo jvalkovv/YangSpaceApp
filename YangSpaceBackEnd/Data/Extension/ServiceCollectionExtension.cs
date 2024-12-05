@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using YangSpaceBackEnd.Data.Models;
 
 namespace YangSpaceBackEnd.Data.Extension

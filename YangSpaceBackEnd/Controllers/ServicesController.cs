@@ -119,8 +119,15 @@ public class ServicesController : ControllerBase
 
         var service = await _serviceService.CreateServiceAsync(serviceModel, userId);
 
+        try
+        {
+            return CreatedAtAction(nameof(GetServices), new { ServiceId = service.Id }, service);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Internal server error: {ex.Message}");
+        }
 
-        return CreatedAtAction(nameof(GetServices), new { id = service.Id }, service);
     }
 
     [HttpPut("{id}")]

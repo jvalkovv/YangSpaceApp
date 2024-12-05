@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace YangSpaceBackEnd.Data.Models
 {
@@ -9,6 +10,7 @@ namespace YangSpaceBackEnd.Data.Models
         public int ServiceId { get; set; }
 
         [ForeignKey(nameof(ServiceId))]
-        public Service? Service { get; set; }
+        [JsonIgnore]
+        public Service Service { get; set; }
     }
 }

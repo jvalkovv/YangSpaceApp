@@ -18,7 +18,7 @@ export class AllServicesComponent implements OnInit {
   totalCount: number = 0;
   errorMessage: string = '';
   currentPage: number = 1;
-  pageSize: number = 12;
+  pageSize: number = 8;
   loading: boolean = false;
 
   constructor(private http: HttpClient) { }
@@ -26,7 +26,9 @@ export class AllServicesComponent implements OnInit {
   ngOnInit(): void {
     this.loadServices();
   }
-
+  trackById(index: number, service: any): number {
+    return service.id; 
+  }
   loadServices(page: number = 1): void {
     this.loading = true;
 

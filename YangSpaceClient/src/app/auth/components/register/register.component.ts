@@ -23,7 +23,6 @@ export class RegisterComponent {
   isUsernameChecking: boolean = false;
   errorMessage: string = '';
   successMessage: string = '';
-  private apiUrl = `${environment.apiUrl}`;
 
   constructor(private fb: FormBuilder, private http: HttpClient, private authService: AuthService, private router: Router) {
     this.registerForm = this.fb.group(
@@ -60,18 +59,14 @@ export class RegisterComponent {
     const confirmPassword = group.get('confirmPassword')?.value;
     return password === confirmPassword ? null : { passwordMismatch: true };
   }
-  // Save JWT and user details using environment keys
-  saveUserDetails(token: string, username: string) {
-    localStorage.setItem(environment.tokenKey, token); 
-    localStorage.setItem(environment.usernameKey, username); 
-  }
   onSubmit() {
     if (this.registerForm.valid) {
       const formData = this.registerForm.value;
       this.authService.register(formData).subscribe({
         next: (response) => {
           this.successMessage = response.message;
-          this.saveUserDetails(response.token, response.username);        
+          // Call the centralized saveUserDetails method in the AuthService
+          this.authService.saveUserDetails(response.token, response.username, response.role);        
           this.router.navigate(['/user-profile']);
         },
         error: (err) => {

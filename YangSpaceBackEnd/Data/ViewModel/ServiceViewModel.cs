@@ -9,5 +9,8 @@ public class ServiceViewModel
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string ProviderName { get; set; } = string.Empty;
-    public IFormFile ImagePath { get; set; } = null!;
+    public IFormFile ImageFile { get; set; } = null!;
+
+    // For returning the image path
+    public string? ImageUrl { get; set; }
 }

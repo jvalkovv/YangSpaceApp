@@ -2,7 +2,6 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using YangSpaceBackEnd.Data.Extension;
-using YangSpaceBackEnd.Data.Models;
 using YangSpaceBackEnd.Data.SeedData;
 using YangSpaceBackEnd.Data.Services;
 using YangSpaceBackEnd.Data.Services.Contracts;
@@ -13,8 +12,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddYangSpaceDbContext(builder.Configuration);
 builder.Services.AddRegisterIdentity();
 builder.Services.AddAutoMapper();
+
 // Add Controllers
 builder.Services.AddControllers();
+//.AddJsonOptions(options =>
+//{
+//    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+//});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -32,6 +36,7 @@ builder.Services.AddCors(options =>
 });
 
 // Configure JWT authentication
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -59,7 +64,7 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 
 // Initialize Seed Data
-builder.Services.AddScoped<Seed>();  // Register Seed service
+builder.Services.AddTransient<Seed>();  // Register Seed service
 var app = builder.Build();
 
 // Middleware
@@ -70,6 +75,7 @@ if (app.Environment.IsDevelopment())
     var scope = app.Services.CreateScope();
     var seedDataLoader = scope.ServiceProvider.GetRequiredService<Seed>();
     await seedDataLoader.SeedCategories(); // Seed the categories
+    await seedDataLoader.SeedUsers(); // Seed the users
 }
 
 app.UseDefaultFiles();
@@ -77,6 +83,7 @@ app.UseStaticFiles();
 
 // Use CORS
 app.UseCors("AllowAngularApp");
+app.UseCors("AllowAll");
 
 // Use Authentication and Authorization
 app.UseAuthentication();
