@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
-import { Observable } from "rxjs";
+import { catchError, Observable } from "rxjs";
 import { environment } from "../../environments/environment";
 
 @Injectable({
@@ -9,26 +9,29 @@ import { environment } from "../../environments/environment";
 export class UserProfileService {
   private apiUrl = `${environment.apiUrl}/UserProfile/user-profile`;
   private _viewBookings = false;
-  username: string | null = null;
-  tokenKey: string | null = null;
+  private tokenKey = localStorage.getItem(environment.tokenKey)  || '';
 
   constructor(private http: HttpClient) { }
 
   private getAuthHeaders(): HttpHeaders {
-    this.tokenKey = localStorage.getItem(environment.tokenKey);
     return new HttpHeaders({
       Authorization: `${this.tokenKey}`,
     });
   }
 
   getUserProfile(): Observable<any> {
-    const headers = this.getAuthHeaders();      
-    return this.http.get(this.apiUrl, { headers });
+    const headers = this.getAuthHeaders();   
+    return this.http.get(this.apiUrl, { headers }).pipe(
+      catchError((error) => {
+        console.error('Error fetching user profile:', error);
+        throw error;
+      })
+    );
   }
 
   updateUserProfile(userProfile: any): Observable<any> {
     const headers = this.getAuthHeaders();
-    return this.http.put(`${this.apiUrl}`, userProfile, { headers });
+    return this.http.put(this.apiUrl, userProfile.username, { headers });
   }
 
   get viewBookings(): boolean {

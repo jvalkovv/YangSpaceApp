@@ -5,32 +5,38 @@ import { environment } from '../../environments/environment';
 import { AuthService } from '../auth/services/auth-service';
 import { Service } from '../create-service/service.model';
 
-
 @Injectable({
   providedIn: 'root',
 })
 export class ServiceService {
-  private apiUrl = `${environment.apiUrl}/services/create-service`; // URL to the services API
+  private apiUrl = `${environment.apiUrl}/services`; // URL to the services API
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(private http: HttpClient, private authService: AuthService) { }
 
+  // Fetch all services
   getServices(): Observable<Service[]> {
-    return this.http.get<Service[]>(`${this.apiUrl}`); // Fetch all services
+    return this.http.get<Service[]>(`${this.apiUrl}`);
   }
 
-  createService(service: Service): Observable<any> {
-  const token = this.authService.getToken(); // Retrieve token from AuthService
-  const headers = { Authorization: `${token}` };
+  // Create a new service using FormData
+  createService(formData: FormData): Observable<any> {
+    const token = this.authService.getToken(); // Retrieve token from AuthService
+    const headers = { Authorization: `${token}` }; // Make sure to prefix with 'Bearer'
 
-  return this.http.post(`${this.apiUrl}`, service, { headers });
+    return this.http.post(`${this.apiUrl}/create-service`, formData, { headers });
   }
 
-  updateService(service: Service): Observable<any> {
-    return this.http.put(`${this.apiUrl}/${service.id}`, service); // Update service by ID
+  // Update a service by ID
+  updateService(serviceId: number, service: Service): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/update-service/${serviceId}`, service);
   }
 
+  // Delete a service by ID
   deleteService(id: number): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}`); // Delete service by ID
+    return this.http.delete(`${this.apiUrl}/delete-service/${id}`);
+  }
+
+  getServiceById(serviceId: number): Observable<Service> {
+    return this.http.get<Service>(`${this.apiUrl}/${serviceId}`);
   }
 }
-

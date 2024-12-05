@@ -9,14 +9,13 @@ export class ServiceProviderGuard implements CanActivate {
   constructor(private authService: AuthService, private router: Router) {}
 
   canActivate(): boolean {
-    const userRole = this.authService.isServiceProvider();
-    console.log(userRole);
-    
-    
+    // Use the observable and check if the user has the ServiceProvider role
+    const userRole = this.authService.isServiceProvider();  // Check role, assuming this is a method in AuthService
+
     if (userRole) {
-      return true; 
+      return true;  // Allow access if the user is a ServiceProvider
     } else {
-      this.router.navigate(['/login']); 
+      this.router.navigate(['/login']);  // Redirect to login if not a ServiceProvider
       return false;
     }
   }

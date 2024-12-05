@@ -1,6 +1,6 @@
 /* Full-page container with responsive background */
 .html {
-  background-image: url("http://localhost:5290/image/hero-bg.jpg");
+  background-image: url("http://localhost:5290/api/image/hero-bg.jpg");
   background-size: cover;
   background-position: center;
   height: 100%;

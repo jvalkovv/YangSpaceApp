@@ -1,4 +1,3 @@
-<!-- navbar.component.html -->
 <div class="navbar">
   <ul class="left">
     <li>
@@ -10,8 +9,8 @@
       >
     </li>
     <li><a [routerLink]="['/all-services']" *ngIf="isLoggedIn" routerLinkActive="active">Provided Services</a></li>
- <!-- only for ServiceProvider role -->
-    <li><a [routerLink]="['/create-service']" *ngIf="isLoggedIn" routerLinkActive="active">Create Service</a></li> 
+    <!-- Only for ServiceProvider role -->
+    <li><a [routerLink]="['/create-service']" *ngIf="isLoggedIn && isServiceProvider" routerLinkActive="active">Create Service</a></li>
   </ul>
   <ul class="right">
     <li><a [routerLink]="['/login']" *ngIf="!isLoggedIn" routerLinkActive="active">Login</a></li>

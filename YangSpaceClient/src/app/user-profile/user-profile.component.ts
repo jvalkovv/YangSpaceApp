@@ -31,6 +31,7 @@ export class UserProfileComponent implements OnInit {
       .subscribe({
         next: (data) => {
           this.userProfile = data;
+                   
         },
         error: (err) => {
         }

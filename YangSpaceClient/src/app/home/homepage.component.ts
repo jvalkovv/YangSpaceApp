@@ -4,6 +4,7 @@ import { NavbarComponent } from "../shared/components/navbar/navbar.component";
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FooterComponent } from "../shared/components/footer/footer.component";
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-homepage',
@@ -13,22 +14,22 @@ import { FooterComponent } from "../shared/components/footer/footer.component";
   styleUrls: ['./homepage.component.scss'],
 })
 export class HomepageComponent implements OnInit {
-  apiUrl = 'http://localhost:5290/image'; 
+  private apiUrl = environment.apiUrl;
   services = [
     {
       title: 'Find Service Providers',
       description: 'Connect with experts in your area for various services.',
-      image: `${this.apiUrl}/service1.jpg`,
+      image: `${this.apiUrl}/image/service1.jpg`,
     },
     {
       title: 'Book Appointments',
       description: 'Schedule your appointments with ease and convenience.',
-      image: `${this.apiUrl}/service2.jpg`,
+      image: `${this.apiUrl}/image/service2.jpg`,
     },
     {
       title: 'Manage Your Schedule',
       description: 'Keep track of your bookings with our advanced scheduler.',
-      image: `${this.apiUrl}/s3.jpg`,
+      image: `${this.apiUrl}/image/s3.jpg`,
     },
   ];
 

@@ -6,11 +6,10 @@ import { Booking } from '../models/booking.model';
   standalone: true,
 })
 export class FilterByStatusPipe implements PipeTransform {
-
   transform(bookings: Booking[], status: string): Booking[] {
-    if (status === 'all') {
+    if (!status || status === 'all') {
       return bookings;
     }
-    return bookings.filter(booking => booking.status === status);
+    return bookings.filter((booking) => booking.status === status);
   }
 }

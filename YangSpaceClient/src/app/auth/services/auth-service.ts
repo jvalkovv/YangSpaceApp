@@ -12,60 +12,46 @@ import { Router } from '@angular/router';
 })
 export class AuthService {
   private apiUrl = environment.apiUrl;
-  private tokenKey = environment.tokenKey;
-  private usernameKey = environment.usernameKey;
+  private token = environment.tokenKey;
+  private username = environment.usernameKey;
+  private role = environment.userRoleName;
   private maxInactivityTime = 15 * 60 * 1000; // 15 minutes
 
   // Authentication state
   private isLoggedInSubject = new BehaviorSubject<boolean>(this.hasValidToken());
   isLoggedIn$ = this.isLoggedInSubject.asObservable();
 
-  isUsernameChecking = false;
-  isEmailChecking = false;
-
   constructor(private http: HttpClient, private router: Router) {
     this.setupInactivityTimer();
 
-    window.onbeforeunload = () => {
-      this.logout();
-    };
+    // window.onbeforeunload = () => {
+    //   this.logout();
+    // };
   }
 
   // Token Validation Methods
   hasValidToken(): boolean {
     const token = this.getToken();
-    return !!token && !this.isTokenExpired(token);
+    return !!token; // Simply check for token existence (no expiration check)
   }
 
-  private isTokenExpired(token: string): boolean {
-    try {
-      const decoded = this.decodeToken(token);
-      return decoded.exp < Date.now() / 1000;
-    } catch {
-      return true;
-    }
-  }
-
-  private decodeToken(token: string): any {
-    try {
-      return JSON.parse(atob(token.split('.')[1]));
-    } catch {
-      return null;
-    }
-  }
-
-  // Token and User Management
+  // Token and User Management 
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return localStorage.getItem(this.token);
   }
 
   getUsername(): string | null {
-    return localStorage.getItem(this.usernameKey);
+    return localStorage.getItem(this.username);
   }
 
-  saveUserDetails(token: string, username: string): void {
-    localStorage.setItem(this.tokenKey, token);
-    localStorage.setItem(this.usernameKey, username);
+  getUserRole(): string | null {
+    return localStorage.getItem(this.role);
+  }
+
+  saveUserDetails(token: string, username: string, role: string = ''): void {
+    localStorage.setItem(this.token, token);
+    localStorage.setItem(this.username, username);
+    localStorage.setItem(this.role, role || '');  // Default to '' if role is undefined
     sessionStorage.setItem('lastActivity', Date.now().toString()); // Track last activity
     this.isLoggedInSubject.next(true);
     this.resetInactivityTimer();
@@ -75,25 +61,40 @@ export class AuthService {
   login(credentials: UserLoginModel): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/account/login`, credentials).pipe(
       tap(response => {
-        this.saveUserDetails(response.token, response.username);
+        this.saveUserDetails(response.token, response.username, response.role);
       }),
       catchError(this.handleError)
     );
   }
 
   register(userData: UserRegistrationModel): Observable<any> {
-    return this.http.post(`${this.apiUrl}/account/register`, userData).pipe(
+    return this.http.post<any>(`${this.apiUrl}/account/register`, userData).pipe(
+      tap(response => {
+        this.saveUserDetails(response.token, response.username, response.role);
+      }),
       catchError(this.handleError)
     );
   }
+
   logout(): void {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.usernameKey);
+    localStorage.removeItem(this.token);
+    localStorage.removeItem(this.username);
+    localStorage.removeItem(this.role);
     sessionStorage.removeItem('lastActivity');
     this.isLoggedInSubject.next(false);
     this.router.navigate(['/login']);
   }
 
+  // Track activity
+  trackUserActivity(): void {
+    const events = ['mousemove', 'keydown', 'scroll', 'click'];
+
+    events.forEach(event => {
+      window.addEventListener(event, () => {
+        this.resetInactivityTimer(); // Reset inactivity timer on activity
+      });
+    });
+  }
   // Inactivity Timer
   setupInactivityTimer(): void {
     const inactivityCheck = () => {
@@ -106,56 +107,15 @@ export class AuthService {
     // Check inactivity every minute
     setInterval(inactivityCheck, 60000);
   }
+
   resetInactivityTimer(): void {
     sessionStorage.setItem('lastActivity', Date.now().toString()); // Reset last activity timestamp
-  }
-  // Username Availability Check
-  checkUsername(username: string): Observable<{ isUsernameTaken: boolean }> {
-    return this.http.get<{ isUsernameTaken: boolean }>(
-      `${this.apiUrl}/account/check-username/${username}`
-    ).pipe(
-      catchError(this.handleError)
-    );
-  }
-  // Track activity
-  trackUserActivity(): void {
-    const events = ['mousemove', 'keydown', 'scroll', 'click'];
-
-    events.forEach(event => {
-      window.addEventListener(event, () => {
-        this.resetInactivityTimer(); // Reset inactivity timer on activity
-      });
-    });
-  }
-  // Email Availability Check
-  checkEmail(email: string): Observable<{ isEmailTaken: boolean }> {
-    return this.http.get<{ isEmailTaken: boolean }>(
-      `${this.apiUrl}/account/check-email/${email}`
-    ).pipe(
-      catchError(this.handleError)
-    );
-  }
-
-  // Check if the user is authenticated
-  isAuthenticated(): boolean {
-    const token = localStorage.getItem(this.tokenKey);
-    return !!token && !this.isTokenExpired(token);
   }
 
   // Check if the user has the 'ServiceProvider' role
   isServiceProvider(): boolean {
-    const token = this.getToken();
-    if (!token) {
-      return false;
-    }
-
-    try {
-      const decodedToken = JSON.parse(atob(token.split('.')[1]));
-      return decodedToken === 'ServiceProvider';
-    } catch (error) {
-     
-      return false;
-    }
+    const role = localStorage.getItem(this.role);
+    return role === 'ServiceProvider';
   }
 
   // Error Handling
@@ -178,11 +138,20 @@ export class AuthService {
       } else if (error.status === 403) {
         errorMessage = 'You do not have permission to access this resource.';
       } else {
-        errorMessage = `Error Code: `;
+        errorMessage = `Error Code: ${error.status}`;
       }
     }
 
     return throwError(() => new Error(errorMessage));
+  }
+
+  // Username Availability Check
+  checkUsername(username: string): Observable<{ isUsernameTaken: boolean }> {
+    return this.http.get<{ isUsernameTaken: boolean }>(
+      `${this.apiUrl}/account/check-username/${username}`
+    ).pipe(
+      catchError(this.handleError)
+    );
   }
 
   // Username Validator
@@ -192,8 +161,6 @@ export class AuthService {
         return of(null);  // If no value is provided, no validation is needed.
       }
 
-      this.isUsernameChecking = true;
-
       return this.checkUsername(control.value).pipe(
         debounceTime(500),  // Debounce for 500ms to wait before making the API call.
         map((response) => {
@@ -202,12 +169,18 @@ export class AuthService {
         catchError((error) => {
           console.error('Error during username validation:', error);
           return of({ usernameTaken: false });  // Return false for usernameTaken if error occurs.
-        }),
-        finalize(() => {
-          this.isUsernameChecking = false;  // Reset the checking flag after API call.
         })
       );
     };
+  }
+
+  // Email Availability Check
+  checkEmail(email: string): Observable<{ isEmailTaken: boolean }> {
+    return this.http.get<{ isEmailTaken: boolean }>(
+      `${this.apiUrl}/account/check-email/${email}`
+    ).pipe(
+      catchError(this.handleError)
+    );
   }
 
   // Email Validator
@@ -217,8 +190,6 @@ export class AuthService {
         return of(null);  // If no value is provided, no validation is needed.
       }
 
-      this.isEmailChecking = true;
-
       return this.checkEmail(control.value).pipe(
         debounceTime(500),  // Debounce for 500ms to wait before making the API call.
         map((response) => {
@@ -227,9 +198,6 @@ export class AuthService {
         catchError((error) => {
           console.error('Error during email validation:', error);
           return of({ emailTaken: false });  // Return false for emailTaken if error occurs.
-        }),
-        finalize(() => {
-          this.isEmailChecking = false;  // Reset the checking flag after API call.
         })
       );
     };

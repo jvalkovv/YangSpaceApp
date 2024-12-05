@@ -4,6 +4,7 @@ import { BookingService } from '../models/booking.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { FilterByStatusPipe } from './filterByStatus';
+import { AuthService } from '../auth/services/auth-service';
 
 @Component({
   selector: 'app-booked-services',
@@ -14,24 +15,52 @@ import { FilterByStatusPipe } from './filterByStatus';
 })
 export class BookedServicesComponent implements OnInit {
   bookings: Booking[] = [];  // To store the list of bookings
-  currentUserId: number = 1; // Replace this with actual user ID from your auth service
-   statusFilter: any;
-  
-  constructor(private bookingService: BookingService) {}
+  statusFilter: any;
+  id: number | undefined;
+  currentUserTokenId: string | undefined;
 
+  constructor(private bookingService: BookingService, private authService: AuthService) { }
+
+ 
   ngOnInit(): void {
-    // Fetch all bookings for the user when the component loads
-    this.bookingService.getBookings().subscribe(bookings => {
-      // Filter bookings by current user (if needed)
-      this.bookings = bookings.filter(booking => booking.userId === this.currentUserId);
+    this.fetchBookings();
+  }
+  fetchBookings(): void {
+    const currentUserTokenId = this.authService.getToken(); 
+
+    if (!currentUserTokenId) {
+      alert('You need to log in to book a service.');
+      return;
+    }
+
+    this.bookingService.getBookings().subscribe({
+      next: (bookings) => {
+        this.bookings = bookings.filter((booking) => booking.userToken === this.currentUserTokenId);
+      },
+      error: (err) => {
+        console.error('Failed to fetch bookings:', err);
+      },
     });
   }
-  deleteBooking(id: number): void {
-    this.bookingService.deleteBooking(id).subscribe(() => {
-      this.bookings = this.bookings.filter(booking => booking.id !== id);  // Remove deleted booking from the list
-    });
+  deleteBooking(id: number | undefined): void {
+    if (!id) {
+      alert('Invalid booking ID. Cannot cancel.');
+      return;
+    }
+  
+    this.bookingService.deleteBooking(id).subscribe(
+      () => {
+        // Remove the deleted booking from the list
+        this.bookings = this.bookings.filter((booking) => booking.id !== id);
+      },
+      (error) => {
+        console.error('Failed to delete booking:', error);
+        alert('Failed to cancel booking. Please try again later.');
+      }
+    );
   }
-   // toggleBookings(): void {
+
+  // toggleBookings(): void {
   //   this.viewBookings = !this.viewBookings;
   //   if (this.viewBookings) {
   //     this.fetchBookedTasks();
@@ -50,6 +79,6 @@ export class BookedServicesComponent implements OnInit {
   //       },
   //     });
   // }
-  
+
   // Add additional methods for filtering, sorting, etc. if needed
 }

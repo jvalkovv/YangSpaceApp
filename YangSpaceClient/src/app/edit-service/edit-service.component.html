@@ -1,0 +1,36 @@
+<form [formGroup]="editServiceForm" (ngSubmit)="onSubmit()">
+    <div>
+      <label for="title">Service Title</label>
+      <input id="title" formControlName="title" />
+    </div>
+  
+    <div>
+      <label for="description">Description</label>
+      <input id="description" formControlName="description" />
+    </div>
+  
+    <div>
+      <label for="price">Price</label>
+      <input id="price" formControlName="price" />
+    </div>
+  
+    <div>
+      <label for="categoryId">Category</label>
+      <select id="categoryId" formControlName="categoryId">
+        <option *ngFor="let category of categories" [value]="category.id">
+          {{ category.name }}
+        </option>
+      </select>
+    </div>
+  
+    <div *ngIf="existingServiceImage">
+      <img [src]="existingServiceImage" alt="Service Image" />
+    </div>
+    <div>
+      <label for="image">Upload New Image</label>
+      <input type="file" id="image" (change)="onImageChange($event)" />
+    </div>
+  
+    <button type="submit" [disabled]="editServiceForm.invalid">Update Service</button>
+  </form>
+  

@@ -4,7 +4,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'OrdinaryUser' | 'ServiceProvider' | 'Admin';
+  role: 'Client' | 'ServiceProvider' | 'Admin';
   isServiceProvider: boolean;
 }
 

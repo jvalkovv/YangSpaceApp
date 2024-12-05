@@ -3,8 +3,8 @@
   <!-- Sidebar Navigation -->
   <div class="sidebar">
     <div class="sidebar-header">
-      <h2>Welcome, {{ userProfile.firstName }}!</h2>
-      <p>{{ userProfile.role }}</p>
+      <h3>Welcome,</h3>
+      <h2>{{ userProfile.firstName }} {{ userProfile.lastName }}!</h2>
     </div>
     <ul class="sidebar-menu">
       <li>
@@ -25,7 +25,7 @@
   <!-- Main Profile Content -->
   <div class="profile-content">
     <h3>User Summary</h3>
-    <p><strong>Username:</strong> {{ userProfile.username }}</p>
+    <p><strong>Username:</strong> {{ userProfile.userName }}</p>
     <p><strong>Full Name:</strong> {{ userProfile.firstName }} {{ userProfile.lastName }}</p>
     <p><strong>Email:</strong> {{ userProfile.email }}</p>
     <p><strong>Role:</strong> {{ userProfile.role }}</p>
