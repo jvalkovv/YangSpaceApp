@@ -53,8 +53,8 @@ namespace YangSpaceBackEnd.Data.SeedData
 
         public async Task SeedUsers()
         {
-            // Check if the Categories table is empty
-            if (!dbContext.Users.Any() && !userManager.Users.Any())
+
+            if (!userManager.Users.Any())
             {
                 using var scope = serviceProvider.CreateScope();
 
@@ -69,6 +69,10 @@ namespace YangSpaceBackEnd.Data.SeedData
                 {
                     await roleManager.CreateAsync(new IdentityRole("Client"));
                 }
+            }
+            // Check if the Users table is empty
+            if (!dbContext.Users.Any())
+            {
 
                 var usersData =
                     new List<(string Username, string Email, string Password, string FirstName, string LastName, string Role)>

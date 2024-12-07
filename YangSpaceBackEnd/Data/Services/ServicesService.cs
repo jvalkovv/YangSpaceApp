@@ -116,13 +116,61 @@ public class ServicesService : IServiceService
         return await _context.Services.Where(s => s.ProviderId == providerId).ToListAsync();
     }
 
-    public async Task<bool> UpdateServiceAsync(Service service)
+    public async Task<bool> UpdateServiceAsync(ServiceViewModel serviceModel)
     {
+        // Find the existing service in the database
+        var service = await _context.Services
+            .Include(s => s.ServiceImages) // Include related ServiceImages
+            .FirstOrDefaultAsync(s => s.Id == serviceModel.ServiceId);
+
+        if (service == null)
+            return false; // If no service is found, return false
+
+        // Update service properties from the ViewModel
+        service.Title = serviceModel.Title;
+        service.Description = serviceModel.Description;
+        service.Price = serviceModel.Price;
+        service.CategoryId = serviceModel.CategoryId;
+
+        // Update or replace ServiceImages
+        if (serviceModel.ImageFile != null)
+        {
+            // Clear existing images
+            _context.ServiceImages.RemoveRange(service.ServiceImages);
+
+            // Save the new image
+            var newImagePath = await SaveImageFile(serviceModel.ImageFile); // A method to save image to the server/storage
+
+            // Add the new image to ServiceImages collection
+            service.ServiceImages = new List<ServiceImage>
+            {
+                new ServiceImage { ImageUrl = newImagePath, ServiceId = service.Id }
+            };
+        }
+
+        // Mark service entity as modified
         _context.Entry(service).State = EntityState.Modified;
+
+        // Save changes to the database
         await _context.SaveChangesAsync();
         return true;
     }
+    // Helper Method for Saving Image File
+    private async Task<string> SaveImageFile(IFormFile imageFile)
+    {
+        var uploadsFolder = Path.Combine("wwwroot", "images");
+        Directory.CreateDirectory(uploadsFolder);
 
+        var uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imageFile.FileName);
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            await imageFile.CopyToAsync(fileStream);
+        }
+
+        return "/images/" + uniqueFileName; // Return relative URL
+    }
     public async Task<bool> DeleteServiceAsync(int serviceId)
     {
         var service = await _context.Services.FindAsync(serviceId);
@@ -135,7 +183,10 @@ public class ServicesService : IServiceService
 
     public async Task<Service?> GetServiceByIdAsync(int id)
     {
-        return await _context.Services.FindAsync(id);
+        var service = await _context.Services.Where(s => s.Id == id).FirstOrDefaultAsync();
+
+
+        return service;
     }
 
     public async Task<Service?> GetServiceWithImageAsync(int serviceId)

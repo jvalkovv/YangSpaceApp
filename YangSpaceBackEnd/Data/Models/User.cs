@@ -21,8 +21,13 @@ namespace YangSpaceBackEnd.Data.Models
         [Comment("Profile Picture URL")]
         public string? ProfilePictureUrl { get; set; }
 
+        //PhoneNUmber
+        [MaxLength(10)]
+        public string? PhoneNumber { get; set; }
+
         [Comment("User Bio/Description")]
         public string? Bio { get; set; }
+        public string? Location { get; set; }
 
         // Navigation Properties
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

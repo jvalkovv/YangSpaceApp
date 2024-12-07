@@ -5,6 +5,7 @@ namespace YangSpaceBackEnd.Data.ViewModel.AccountViewModel
     public class UserRegistrationModel
     {
         [Required]
+        [StringLength(20, MinimumLength = 3)]
         public string Username { get; set; }
 
         [Required]

@@ -59,8 +59,12 @@ public class ServicesController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetServiceById(int id)
     {
-        var service = await _serviceService.GetServiceByIdAsync(id);
-        if (service == null) return NotFound("Service not found");
+        var service = await _serviceService.GetServiceWithImageAsync(id);
+
+        if (service == null)
+        {
+            return NotFound();
+        }
 
         return Ok(service);
     }
@@ -130,13 +134,14 @@ public class ServicesController : ControllerBase
 
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateService(int id, Service service)
+    [HttpPut("edit-service/:{id}")]
+    public async Task<IActionResult> UpdateService(int id, [FromForm] ServiceViewModel serviceModel)
     {
-        if (id != service.Id)
-            return BadRequest("Service ID mismatch");
+        serviceModel.ServiceId = id;
+        var result = await _serviceService.UpdateServiceAsync(serviceModel);
+        if (!result)
+            return NotFound("Service not found");
 
-        await _serviceService.UpdateServiceAsync(service);
         return NoContent();
     }
 

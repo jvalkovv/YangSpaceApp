@@ -17,7 +17,14 @@ namespace YangSpaceBackEnd.Data.ViewModel.AccountViewModel
         [EmailAddress]
         public string? Email { get; set; }
 
+        public string Bio { get; set; }
+
+       public string? ProfilePictureUrl { get; set; }
+
+       public IFormFile ProfilePicture { get; set; }
+
         public string? Role { get; set; }
+        public string? Location { get; set; }
 
         [Phone]
         public string? PhoneNumber { get; set; }

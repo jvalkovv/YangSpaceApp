@@ -1,6 +1,5 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
-using YangSpaceBackEnd.Data.Extension;
 using YangSpaceBackEnd.Data.Services.Contracts;
 using YangSpaceBackEnd.Data.ViewModel.AccountViewModel;
 
@@ -34,14 +33,20 @@ namespace YangSpaceBackEnd.Controllers
             return Ok(userProfile);
         }
 
-        [HttpPut]
-        public async Task<IActionResult> UpdateUserProfile(UserProfileModel model)
+        [HttpPut("edit-profile")]
+        public async Task<IActionResult> UpdateUserProfile([FromForm] UserProfileModel model)
         {
             var userId = GetUserIdFromToken();
 
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized("User not authorized.");
+            }
+
+            if (model.ProfilePicture != null)
+            {
+                var profilePictureUrl = await SaveProfilePictureAsync(model.ProfilePicture);
+                model.ProfilePictureUrl = profilePictureUrl; 
             }
 
             var result = await _userProfileService.UpdateUserProfileAsync(userId, model);
@@ -76,6 +81,29 @@ namespace YangSpaceBackEnd.Controllers
             var principal = _userProfileService.GetUserProfileAsyncByToken(userToken);
 
             return principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        }
+
+        private async Task<string> SaveProfilePictureAsync(IFormFile profilePicture)
+        {
+            var userId = GetUserIdFromToken();
+
+            // Define the file path where the image will be saved
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "profile-pictures");
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(profilePicture.FileName);
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await profilePicture.CopyToAsync(stream);
+            }
+
+            // Return the URL or file path where the profile picture is stored
+            return $"/profile-pictures/{userId}/{fileName}";
         }
     }
 }

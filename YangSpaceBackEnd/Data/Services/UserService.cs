@@ -87,7 +87,7 @@ public class UserService : IUserService
         if (user == null) throw new UnauthorizedAccessException("Invalid username.");
 
         var result = await _signInManager.PasswordSignInAsync(user, model.Password, false, false);
-        if (!result.Succeeded) throw new UnauthorizedAccessException("Invalid credentials.");
+        if (!result.Succeeded) throw new UnauthorizedAccessException("Invalid password.");
 
         return user;
     }

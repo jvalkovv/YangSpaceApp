@@ -44,7 +44,10 @@ namespace YangSpaceBackEnd.Data.Services
             user.LastName = model.LastName;
             user.Email = model.Email;
             user.PhoneNumber = model.PhoneNumber;
-
+            user.Bio = model.Bio;
+            user.ProfilePictureUrl = model.ProfilePictureUrl;
+            user.Location = model.Location;
+            
             await _context.SaveChangesAsync();
             return true;
         }

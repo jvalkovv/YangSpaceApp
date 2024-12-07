@@ -15,7 +15,7 @@ public interface IServiceService
     Task<Service> CreateServiceAsync(ServiceViewModel serviceModel, string? providerId);
     Task<bool> BookServiceAsync(User user, Service service);
     Task<bool> CheckUserAccessToServiceAsync(User user, int serviceId);
-    Task<bool> UpdateServiceAsync(Service service);
+    Task<bool> UpdateServiceAsync(ServiceViewModel serviceModel);
     Task<bool> DeleteServiceAsync(int id);
     Task<List<Category>> GetCategories();
 }
