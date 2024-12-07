@@ -4,7 +4,7 @@ import { NavbarComponent } from "../shared/components/navbar/navbar.component";
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FooterComponent } from "../shared/components/footer/footer.component";
-import { environment } from '../../environments/environment';
+import { environment } from '../../environments/environment.prod';
 
 @Component({
   selector: 'app-homepage',

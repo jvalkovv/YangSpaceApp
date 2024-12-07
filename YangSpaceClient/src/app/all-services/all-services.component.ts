@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../environments/environment';
+import { environment } from '../../environments/environment.prod';
 import { CommonModule } from '@angular/common';
 import { ServiceItemComponent } from '../service-item/service-item.component';
 import { NavbarComponent } from '../shared/components/navbar/navbar.component';

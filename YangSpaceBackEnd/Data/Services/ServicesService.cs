@@ -132,22 +132,29 @@ public class ServicesService : IServiceService
         service.Price = serviceModel.Price;
         service.CategoryId = serviceModel.CategoryId;
 
-        // Update or replace ServiceImages
-        if (serviceModel.ImageFile != null)
-        {
+        var imageFile = serviceModel.ImageFile;
+        string? imageUrl = null;
+
+        if (imageFile != null)
+        {  
             // Clear existing images
             _context.ServiceImages.RemoveRange(service.ServiceImages);
 
-            // Save the new image
-            var newImagePath = await SaveImageFile(serviceModel.ImageFile); // A method to save image to the server/storage
-
-            // Add the new image to ServiceImages collection
-            service.ServiceImages = new List<ServiceImage>
-            {
-                new ServiceImage { ImageUrl = newImagePath, ServiceId = service.Id }
-            };
+            imageUrl = await _imageService.SaveImageAsync(imageFile, service.Id);
         }
 
+        if (imageUrl != null)
+        {
+            var serviceImage = new ServiceImage
+            {
+                ImageUrl = imageUrl,
+                ServiceId = service.Id
+            };
+            _context.ServiceImages.Add(serviceImage);
+            await _context.SaveChangesAsync();
+        }
+
+        
         // Mark service entity as modified
         _context.Entry(service).State = EntityState.Modified;
 

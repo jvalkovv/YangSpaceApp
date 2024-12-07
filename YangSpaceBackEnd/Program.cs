@@ -11,17 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Register DbContext and Identity services and AutoMapper
 builder.Services.AddYangSpaceDbContext(builder.Configuration);
 builder.Services.AddRegisterIdentity();
-builder.Services.AddAutoMapper();
 
 // Add Controllers
 builder.Services.AddControllers();
-//.AddJsonOptions(options =>
-//{
-//    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
-//});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
 
 // Add CORS policy
 builder.Services.AddCors(options =>
@@ -36,7 +30,6 @@ builder.Services.AddCors(options =>
 });
 
 // Configure JWT authentication
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

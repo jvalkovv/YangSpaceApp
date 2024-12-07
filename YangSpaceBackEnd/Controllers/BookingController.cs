@@ -1,5 +1,4 @@
 ﻿using System.Security.Claims;
-using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using YangSpaceBackEnd.Data.Services;
 using YangSpaceBackEnd.Data.Services.Contracts;
@@ -13,13 +12,12 @@ namespace YangSpaceBackEnd.Controllers;
 public class BookingController : ControllerBase
 {
     private readonly IBookingService _bookingService;
-    private readonly IMapper _mapper;
     private readonly IUserProfileService _userProfileService;
 
-    public BookingController(IBookingService bookingService, IMapper mapper, IUserProfileService userProfileService)
+    public BookingController(IBookingService bookingService,IUserProfileService userProfileService)
     {
         _bookingService = bookingService;
-        _mapper = mapper;
+
         _userProfileService = userProfileService;
     }
 
@@ -33,8 +31,7 @@ public class BookingController : ControllerBase
         if (result == null)
             return NotFound(new { Error = "Service not found" });
 
-        var resultDto = _mapper.Map<BookingViewModel>(result);
-        return CreatedAtAction(nameof(GetBookingById), new { id = resultDto.Id }, resultDto);
+        return null;
     }
 
     [HttpGet("booking:{id}")]
@@ -43,9 +40,8 @@ public class BookingController : ControllerBase
         var booking = await _bookingService.GetBookingByIdAsync(id);
         if (booking == null)
             return NotFound();
-
-        var bookingDto = _mapper.Map<BookingViewModel>(booking);
-        return Ok(bookingDto);
+        ;
+        return Ok();
     }
 
     [HttpGet("user")]
@@ -53,8 +49,7 @@ public class BookingController : ControllerBase
     {
         var userId = GetUserIdFromToken();
         var userBookings = await _bookingService.GetUserBookingsAsync(userId);
-        var userBookingsDto = _mapper.Map<List<BookingViewModel>>(userBookings);
-        return Ok(userBookingsDto);
+        return Ok();
     }
 
     [HttpPut("{id}/status")]
@@ -67,16 +62,14 @@ public class BookingController : ControllerBase
         if (result == null)
             return NotFound();
 
-        var resultDto = _mapper.Map<BookingViewModel>(result);
-        return Ok(resultDto);
+        return Ok();
     }
 
     [HttpGet]
     public async Task<IActionResult> GetBookings([FromQuery] BookingStatus? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         var bookings = await _bookingService.GetBookingsAsync(status, page, pageSize);
-        var bookingsDto = _mapper.Map<List<BookingViewModel>>(bookings);
-        return Ok(bookingsDto);
+        return Ok();
     }
 
     private string? GetUserIdFromToken()

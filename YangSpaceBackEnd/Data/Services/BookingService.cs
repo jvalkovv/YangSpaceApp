@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
-using AutoMapper;
 using Azure.Core;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using YangSpaceBackEnd.Data.Models;
 using YangSpaceBackEnd.Data.Services.Contracts;
@@ -12,14 +12,12 @@ namespace YangSpaceBackEnd.Data.Services;
 public class BookingService : IBookingService
 {
     private readonly YangSpaceDbContext _context;
-    private readonly IMapper _mapper;
     private readonly IUserProfileService _userProfileService;
 
 
-    public BookingService(YangSpaceDbContext context, IMapper mapper, IUserProfileService userProfileService)
+    public BookingService(YangSpaceDbContext context,IUserProfileService userProfileService)
     {
         _context = context;
-        _mapper = mapper;
         _userProfileService = userProfileService;
     }
 
@@ -47,7 +45,7 @@ public class BookingService : IBookingService
         _context.Bookings.Add(booking);
         await _context.SaveChangesAsync();
 
-        return _mapper.Map<BookingViewModel>(booking);
+        return null;
     }
 
     public async Task<BookingViewModel> GetBookingByIdAsync(int id)
@@ -56,7 +54,7 @@ public class BookingService : IBookingService
             .Include(b => b.Service)
             .FirstOrDefaultAsync(b => b.Id == id);
 
-        return booking == null ? null : _mapper.Map<BookingViewModel>(booking);
+        return null;
     }
 
     public async Task<IEnumerable<BookingViewModel>> GetUserBookingsAsync(string userId)
@@ -66,7 +64,7 @@ public class BookingService : IBookingService
             .Include(b => b.Service)
             .ToListAsync();
 
-        return _mapper.Map<IEnumerable<BookingViewModel>>(bookings);
+        return null;
     }
 
     public async Task<BookingViewModel> UpdateBookingStatusAsync(int id, UpdateBookingStatusRequest request)
@@ -79,7 +77,7 @@ public class BookingService : IBookingService
 
         await _context.SaveChangesAsync();
 
-        return _mapper.Map<BookingViewModel>(booking);
+        return null;
     }
 
     public async Task<PaginatedBookingsViewModel> GetBookingsAsync(BookingStatus? status, int page, int pageSize)
@@ -100,7 +98,7 @@ public class BookingService : IBookingService
         return new PaginatedBookingsViewModel
         {
             TotalCount = totalCount,
-            Bookings = _mapper.Map<List<BookingViewModel>>(bookings)
+            Bookings = null
         };
     }
 
