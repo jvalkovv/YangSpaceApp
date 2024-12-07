@@ -58,7 +58,7 @@ pipeline {
                 script {
                     dir('YangSpaceClient') {
                         bat 'npm install'
-                        bat 'npm install typescript@5.5.0 --save-dev'
+                        bat 'npm install typescript@5.5.4 --save-dev'
                         bat 'ng build --configuration production'
                     }
                 }
