@@ -31,7 +31,7 @@ export class EditServiceComponent implements OnInit {
   dialogTitle: string = '';
   isDialogVisible: boolean = false;
   errorMessage: string = '';
-  fileInput:any = '';
+  fileInput: any = '';
   constructor(
     private fb: FormBuilder,
     private serviceService: ServiceService,
@@ -95,12 +95,9 @@ export class EditServiceComponent implements OnInit {
         this.imageError = null;
       } else {
         this.imageFile = null;
-      
-        this.imageError =
-          `${this.imageFile}
-        Invalid image type. Only JPG, PNG, and GIF are allowed.`;
-        this.openDialog(this.imageError, "Failed")
 
+        this.imageError = 'Invalid image type. Only JPG, PNG, and GIF are allowed.';
+        this.openDialog(this.imageError, "Failed")
       }
     }
   }

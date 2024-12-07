@@ -2,11 +2,22 @@
 <div class="main-body">
   <div class="card-body">
     <form [formGroup]="editServiceForm" (ngSubmit)="onSubmit()">
+      <h2 class="form-title">Edit service</h2>
+      <hr/>
       <div class="row">
         <div>
           <label for="title" class="mb-0">Title:</label>
           <div class="col-sm-9">
-            <input id="title" formControlName="title" class="form-control" />
+            <input
+              id="title"
+              formControlName="title"
+              class="form-control"
+              [ngClass]="{
+                'is-valid':
+                  editServiceForm.get('title')?.valid &&
+                  editServiceForm.get('title')?.touched
+              }"
+            />
           </div>
           <div
             *ngIf="
@@ -29,11 +40,20 @@
         <div>
           <label for="description" class="mb-0">Description:</label>
           <div class="col-sm-9">
-            <input
+            <textarea
               id="description"
               formControlName="description"
               class="form-control"
-            />
+              rows="5"
+              cols="80"
+              minlength="10"
+              maxlength="300"
+              [ngClass]="{
+                'is-valid':
+                  editServiceForm.get('description')?.valid &&
+                  editServiceForm.get('description')?.touched
+              }"
+            ></textarea>
           </div>
           <div
             *ngIf="
@@ -63,6 +83,14 @@
               formControlName="price"
               class="form-control"
               type="number"
+              [ngClass]="{
+                'input-error':
+                  editServiceForm.get('price')?.invalid &&
+                  editServiceForm.get('price')?.touched,
+                'is-valid':
+                  editServiceForm.get('price')?.valid &&
+                  editServiceForm.get('price')?.touched
+              }"
             />
           </div>
           <div
@@ -82,13 +110,14 @@
         </div>
       </div>
       <hr />
-
-      <label for="categoryId">Category</label>
-      <select id="categoryId" formControlName="categoryId">
-        <option *ngFor="let category of categories" [value]="category.id">
-          {{ category.name }}
-        </option>
-      </select>
+      <div class="row">
+        <label for="categoryId">Category</label>
+        <select id="categoryId" formControlName="categoryId">
+          <option *ngFor="let category of categories" [value]="category.id">
+            {{ category.name }}
+          </option>
+        </select>
+      </div>
       <hr />
       <div class="row">
         <label for="image">Image</label>
