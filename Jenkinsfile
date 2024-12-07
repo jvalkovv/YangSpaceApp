@@ -60,15 +60,6 @@ pipeline {
             }
         }
 
-    // stage('Test') {
-    //         steps {
-    //             script {
-    //                 // Running tests
-    //                 bat "dotnet test --no-restore --configuration Release"
-    //             }
-    //         }
-    //     }
-
         stage('Publish') {
             steps {
                 script {
