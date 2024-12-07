@@ -51,16 +51,17 @@ pipeline {
         stage('Build ASP.NET Web API') {
             steps {
                 script {
-                    // Restoring dependencies
-                    bat 'dotnet restore'
+                    dir('YangSpaceBackEnd') {
+                        // Restoring dependencies
+                        bat 'dotnet restore'
 
-                    // Building the application
-                    bat 'dotnet build --configuration Release'
+                        // Building the application
+                        bat 'dotnet build --configuration Release'
+                    }
                 }
             }
         }
-        stage('Build Angular Application')
-        {
+        stage('Build Angular Application') {
             steps {
                 script {
                     dir('YangSpaceClient') {
@@ -68,10 +69,10 @@ pipeline {
                         bat 'npm install'
                         // Build the Angular application
                         bat 'ng build --prod'
-                }
-                }
+                    }
                 }
             }
+        }
 
         stage('Publish') {
             steps {
@@ -81,17 +82,15 @@ pipeline {
                 }
             }
         }
-        stage('Copy Files')
-        {
-            steps
-        { script
-        {
+        stage('Copy Files') {
+            steps {
+                script {
                     // Copy ASP.NET Web API files
-                    bat 'xcopy /s /y .\\publish D:\\Applications\\YangSpaceApp'
+                    bat 'xcopy /s /y .\\publish D:\\Applications\\YangSpaceApp\\YangSpaceBackEnd'
                     // Copy Angular build files
-                    bat 'xcopy /s /y AngularApp\\dist\\* D:\\Applications\\YangSpaceApp\\app'
-        }
-        }
+                    bat 'xcopy /s /y AngularApp\\dist\\* D:\\Applications\\YangSpaceApp\\app\\YangSpaceClient'
+                }
+            }
         }
 
         stage('Start Website') {
@@ -125,11 +124,11 @@ pipeline {
                 }
             }
         }
-        }
+    }
 
     post {
         success {
             echo 'Build, test, publish, and deploy successful!'
         }
     }
-    }
+}
