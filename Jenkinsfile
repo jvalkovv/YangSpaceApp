@@ -8,28 +8,17 @@ pipeline {
         stage('Stop Website') {
             steps {
                 script {
-                    // Check if the site is already stopped
-                    def siteStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "YangSpaceApp" /text:state',
-                        returnStdout: true
-                    ).trim()
+                    def siteStatus = bat(script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "YangSpaceApp" /text:state', returnStdout: true).trim()
                     if (siteStatus == 'Stopped') {
                         echo "The site 'YangSpaceApp' is already stopped."
                     } else {
-                        // Stop the specific IIS website
                         bat 'C:\\Windows\\System32\\inetsrv\\appcmd stop site /site.name:"YangSpaceApp"'
                     }
 
-                    // Check if the application pool is already stopped
-                    def appPoolStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "YangSpaceApp" /text:state',
-                        returnStdout: true
-                    ).trim()
-
+                    def appPoolStatus = bat(script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "YangSpaceApp" /text:state', returnStdout: true).trim()
                     if (appPoolStatus == 'Stopped') {
                         echo "The application pool 'YangSpaceApp' is already stopped."
                     } else {
-                        // Stop the application pool
                         bat 'C:\\Windows\\System32\\inetsrv\\appcmd stop apppool /apppool.name:"YangSpaceApp"'
                     }
                 }
@@ -37,7 +26,6 @@ pipeline {
         }
         stage('Checkout') {
             steps {
-                // Checkout code from GitHub using the specified SSH credentials
                 checkout([$class: 'GitSCM',
                           branches: [[name: '*/main']],
                           doGenerateSubmoduleConfigurations: false,
@@ -47,15 +35,19 @@ pipeline {
                 ])
             }
         }
-
+        stage('Restore Dependencies') {
+            steps {
+                script {
+                    dir('YangSpaceBackEnd') {
+                        bat 'dotnet restore'
+                    }
+                }
+            }
+        }
         stage('Build ASP.NET Web API') {
             steps {
                 script {
                     dir('YangSpaceBackEnd') {
-                        // Restoring dependencies
-                        bat 'dotnet restore'
-
-                        // Building the application
                         bat 'dotnet build --configuration Release'
                     }
                 }
@@ -65,70 +57,56 @@ pipeline {
             steps {
                 script {
                     dir('YangSpaceClient') {
-                        // Install dependencies
                         bat 'npm install'
-                        // Build the Angular application
-                        bat 'ng build --prod'
+                        bat 'npm install typescript@5.5.0 --save-dev'
+                        bat 'ng build --configuration production'
                     }
                 }
             }
         }
-
         stage('Publish') {
             steps {
                 script {
-                    // Publishing the application
-                    bat 'dotnet publish --no-restore --configuration Release --output .\\publish'
+                    dir('YangSpaceBackEnd') {
+                        bat 'dotnet publish --no-restore --configuration Release --output ..\\publish'
+                    }
                 }
             }
         }
         stage('Copy Files') {
             steps {
                 script {
-                    // Copy ASP.NET Web API files
-                    bat 'xcopy /s /y .\\publish D:\\Applications\\YangSpaceApp\\YangSpaceBackEnd'
-                    // Copy Angular build files
-                    bat 'xcopy /s /y AngularApp\\dist\\* D:\\Applications\\YangSpaceApp\\app\\YangSpaceClient'
+                    bat 'xcopy /s /y publish\\* D:\\Applications\\YangSpaceApp\\YangSpaceBackEnd'
+                    bat 'xcopy /s /y YangSpaceClient\\dist\\browser\\* D:\\Applications\\YangSpaceApp\\YangSpaceClient'
                 }
             }
         }
-
         stage('Start Website') {
             steps {
                 script {
-                    // Check if the site is already started
-                    def siteStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "YangSpaceApp" /text:state',
-                        returnStdout: true
-                    ).trim()
-
+                    def siteStatus = bat(script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "YangSpaceApp" /text:state', returnStdout: true).trim()
                     if (siteStatus == 'Started') {
                         echo "The site 'YangSpaceApp' is already started."
                     } else {
-                        // Start the specific IIS website
                         bat 'C:\\Windows\\System32\\inetsrv\\appcmd start site /site.name:"YangSpaceApp"'
                     }
 
-                    // Check if the application pool is already started
-                    def appPoolStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "YangSpaceApp" /text:state',
-                        returnStdout: true
-                    ).trim()
-
+                    def appPoolStatus = bat(script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "YangSpaceApp" /text:state', returnStdout: true).trim()
                     if (appPoolStatus == 'Started') {
                         echo "The application pool 'YangSpaceApp' is already started."
                     } else {
-                        // Start the application pool
                         bat 'C:\\Windows\\System32\\inetsrv\\appcmd start apppool /apppool.name:"YangSpaceApp"'
                     }
                 }
             }
         }
     }
-
     post {
         success {
-            echo 'Build, test, publish, and deploy successful!'
+            echo 'Build, publish, and deploy successful!'
+        }
+        failure {
+            echo 'Build, publish, and deploy failed. Check the console output for details.'
         }
     }
 }
