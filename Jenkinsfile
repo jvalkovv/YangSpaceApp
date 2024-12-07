@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        DOTNET_CLI_HOME = "C:\\Program Files\\dotnet"
+        DOTNET_CLI_HOME = 'C:\\Program Files\\dotnet'
     }
 
     stages {
@@ -10,27 +10,27 @@ pipeline {
                 script {
                     // Check if the site is already stopped
                     def siteStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "OfficeBiteProd" /text:state',
+                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "YangSpaceApp" /text:state',
                         returnStdout: true
                     ).trim()
                     if (siteStatus == 'Stopped') {
-                        echo "The site 'OfficeBiteProd' is already stopped."
+                        echo "The site 'YangSpaceApp' is already stopped."
                     } else {
                         // Stop the specific IIS website
-                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd stop site /site.name:"OfficeBiteProd"'
+                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd stop site /site.name:"YangSpaceApp"'
                     }
 
                     // Check if the application pool is already stopped
                     def appPoolStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "OfficeBiteProd" /text:state',
+                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "YangSpaceApp" /text:state',
                         returnStdout: true
                     ).trim()
 
                     if (appPoolStatus == 'Stopped') {
-                        echo "The application pool 'OfficeBiteProd' is already stopped."
+                        echo "The application pool 'YangSpaceApp' is already stopped."
                     } else {
                         // Stop the application pool
-                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd stop apppool /apppool.name:"OfficeBiteProd"'
+                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd stop apppool /apppool.name:"YangSpaceApp"'
                     }
                 }
             }
@@ -38,81 +38,98 @@ pipeline {
         stage('Checkout') {
             steps {
                 // Checkout code from GitHub using the specified SSH credentials
-                checkout([$class: 'GitSCM', 
-                          branches: [[name: '*/main']], 
-                          doGenerateSubmoduleConfigurations: false, 
-                          extensions: [], 
-                          submoduleCfg: [], 
+                checkout([$class: 'GitSCM',
+                          branches: [[name: '*/main']],
+                          doGenerateSubmoduleConfigurations: false,
+                          extensions: [],
+                          submoduleCfg: [],
                           userRemoteConfigs: [[url: 'https://github.com/jvalkovv/YangSpaceApp.git']]
                 ])
             }
         }
 
-        stage('Build') {
+        stage('Build ASP.NET Web API') {
             steps {
                 script {
                     // Restoring dependencies
-                    bat "dotnet restore"
+                    bat 'dotnet restore'
 
                     // Building the application
-                    bat "dotnet build --configuration Release"
+                    bat 'dotnet build --configuration Release'
                 }
             }
         }
+        stage('Build Angular Application')
+        {
+            steps {
+                script {
+                    dir('YangSpaceClient') {
+                        // Install dependencies
+                        bat 'npm install'
+                        // Build the Angular application
+                        bat 'ng build --prod'
+                }
+                }
+                }
+            }
 
         stage('Publish') {
             steps {
                 script {
                     // Publishing the application
-                    bat "dotnet publish --no-restore --configuration Release --output .\\publish"
+                    bat 'dotnet publish --no-restore --configuration Release --output .\\publish'
                 }
             }
+        }
+        stage('Copy Files')
+        {
+            steps
+        { script
+        {
+                    // Copy ASP.NET Web API files
+                    bat 'xcopy /s /y .\\publish D:\\Applications\\YangSpaceApp'
+                    // Copy Angular build files
+                    bat 'xcopy /s /y AngularApp\\dist\\* D:\\Applications\\YangSpaceApp\\app'
+        }
+        }
         }
 
-        stage('Copy Files') {
-            steps {
-                script {
-                    // Perform the copy operation here using xcopy 
-                    bat 'xcopy /s /y .\\publish D:\\Applications\\OfficeBiteProd'
-                }
-            }
-        }
         stage('Start Website') {
             steps {
                 script {
                     // Check if the site is already started
                     def siteStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "OfficeBiteProd" /text:state',
+                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list site "YangSpaceApp" /text:state',
                         returnStdout: true
                     ).trim()
 
                     if (siteStatus == 'Started') {
-                        echo "The site 'OfficeBiteProd' is already started."
+                        echo "The site 'YangSpaceApp' is already started."
                     } else {
                         // Start the specific IIS website
-                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd start site /site.name:"OfficeBiteProd"'
+                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd start site /site.name:"YangSpaceApp"'
                     }
 
                     // Check if the application pool is already started
                     def appPoolStatus = bat(
-                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "OfficeBiteProd" /text:state',
+                        script: 'C:\\Windows\\System32\\inetsrv\\appcmd list apppool "YangSpaceApp" /text:state',
                         returnStdout: true
                     ).trim()
 
                     if (appPoolStatus == 'Started') {
-                        echo "The application pool 'OfficeBiteProd' is already started."
+                        echo "The application pool 'YangSpaceApp' is already started."
                     } else {
                         // Start the application pool
-                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd start apppool /apppool.name:"OfficeBiteProd"'
+                        bat 'C:\\Windows\\System32\\inetsrv\\appcmd start apppool /apppool.name:"YangSpaceApp"'
                     }
                 }
             }
         }
-    }
+        }
 
     post {
         success {
             echo 'Build, test, publish, and deploy successful!'
         }
     }
-}
+    }
