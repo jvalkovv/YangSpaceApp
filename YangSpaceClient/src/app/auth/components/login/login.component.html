@@ -3,7 +3,7 @@
 <div class="main-content container mt-5">
   <div class="form-container">
     <form (ngSubmit)="onLogin()" [formGroup]="loginForm" class="form-card">
-      <h2 class="form-title">Login</h2>
+      <h2 class="form-title">Sign in to your account</h2>
 
       <!-- Username Field -->
       <div class="mb-3">
@@ -30,6 +30,15 @@
           <div *ngIf="loginForm.get('username')?.hasError('required')">
             Username is required.
           </div>
+          <div
+          *ngIf="
+            loginForm.get('username')?.hasError('minLength') &&
+            loginForm.get('username')?.touched
+          "
+          class="text-danger"
+        >
+        Username need to be at least 3 symbol.
+        </div>
         </div>
       </div>
 
@@ -75,6 +84,7 @@
           Password need to be at least 6 symbol.
         </div>
       </div>
+      
       <!-- Error Message -->
       <div *ngIf="errorMessage" class="text-danger">
         {{ errorMessage }}
@@ -98,5 +108,5 @@
     </form>
   </div>
 </div>
-
+<app-dialog *ngIf="isDialogVisible" [message]="dialogMessage" [title]="dialogTitle" (closeDialog)="closeDialog()"></app-dialog>
 <app-footer></app-footer>

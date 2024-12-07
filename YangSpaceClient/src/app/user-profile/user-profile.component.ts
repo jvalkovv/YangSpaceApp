@@ -19,7 +19,7 @@ export class UserProfileComponent implements OnInit {
   bookedTasks: any[] = [];
   viewBookings: boolean = false;
 
-  constructor(private userProfileService: UserProfileService) { }
+  constructor(private userProfileService: UserProfileService ) {   }
 
   ngOnInit(): void {
     this.fetchUserProfile();

@@ -27,8 +27,11 @@ export class ServiceService {
   }
 
   // Update a service by ID
-  updateService(serviceId: number, service: Service): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/update-service/${serviceId}`, service);
+  updateService(serviceId: number, formData: FormData): Observable<any> {
+    const token = this.authService.getToken(); // Retrieve token from AuthService
+    const headers = { Authorization: `${token}` }; 
+  
+    return this.http.put(`${this.apiUrl}/edit-service/:${serviceId}`, formData, { headers });
   }
 
   // Delete a service by ID

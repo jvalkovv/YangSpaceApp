@@ -3,9 +3,9 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { catchError, debounceTime, finalize, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { UserLoginModel, UserRegistrationModel } from '../../models/user.model';
 import { AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
 import { Router } from '@angular/router';
+import { UserLoginModel, UserRegistrationModel } from '../../user-profile/user.model';
 
 @Injectable({
   providedIn: 'root'
@@ -16,6 +16,7 @@ export class AuthService {
   private username = environment.usernameKey;
   private role = environment.userRoleName;
   private maxInactivityTime = 15 * 60 * 1000; // 15 minutes
+
 
   // Authentication state
   private isLoggedInSubject = new BehaviorSubject<boolean>(this.hasValidToken());
@@ -62,8 +63,7 @@ export class AuthService {
     return this.http.post<any>(`${this.apiUrl}/account/login`, credentials).pipe(
       tap(response => {
         this.saveUserDetails(response.token, response.username, response.role);
-      }),
-      catchError(this.handleError)
+      })
     );
   }
 
@@ -100,16 +100,14 @@ export class AuthService {
     const inactivityCheck = () => {
       const lastActivity = sessionStorage.getItem('lastActivity');
       if (lastActivity && Date.now() - parseInt(lastActivity) > this.maxInactivityTime) {
-        this.logout(); // Log out if inactive for more than maxInactivityTime
+        this.logout();
       }
     };
-
-    // Check inactivity every minute
     setInterval(inactivityCheck, 60000);
   }
 
   resetInactivityTimer(): void {
-    sessionStorage.setItem('lastActivity', Date.now().toString()); // Reset last activity timestamp
+    sessionStorage.setItem('lastActivity', Date.now().toString());
   }
 
   // Check if the user has the 'ServiceProvider' role
@@ -119,7 +117,7 @@ export class AuthService {
   }
 
   // Error Handling
-  private handleError(error: HttpErrorResponse) {
+  handleError(error: HttpErrorResponse) {
     let errorMessage = 'An unknown error occurred!';
 
     if (error.error instanceof ErrorEvent) {

@@ -4,6 +4,10 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  phoneNumber: string;
+  bio:string;
+  location:string;
+  profilePicture: string;
   role: 'Client' | 'ServiceProvider' | 'Admin';
   isServiceProvider: boolean;
 }
@@ -22,4 +26,8 @@ export interface UserProfileUpdateModel {
   firstName: string;
   lastName: string;
   email: string;
+  phoneNumber: string;
+  bio:string;
+  location:string;
+  profilePicture: string;
 }

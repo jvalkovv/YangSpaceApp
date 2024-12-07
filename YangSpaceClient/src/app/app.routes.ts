@@ -17,15 +17,16 @@ import { ServiceItemComponent } from './service-item/service-item.component';
 export const routes: Routes = [
   { path: '', redirectTo: '/homepage', pathMatch: 'full' }, // Default redirect
   { path: 'homepage', component: HomepageComponent },       // Home route
-  { path: 'all-services', component: AllServicesComponent },
-  { path: 'create-service', component: CreateServiceComponent, canActivate: [ServiceProviderGuard]},
-  { path: 'edit-service/:id', component: EditServiceComponent },
   { path: 'register', component: RegisterComponent, canActivate: [AuthReverseGuard] }, // Allow only unauthenticated users
   { path: 'login', component: LoginComponent, canActivate: [AuthReverseGuard] }, // Redirect logged-in users away from login
   { path: 'user-profile', component: UserProfileComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
   { path: 'edit-profile', component: EditProfileComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
-  { path: 'booked-services', component: BookedServicesComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
+  { path: 'all-services', component: AllServicesComponent },
   { path: 'service-item', component: ServiceItemComponent, canActivate: [AuthGuard] },
+  { path: 'create-service', component: CreateServiceComponent, canActivate: [ServiceProviderGuard]},
+  { path: 'edit-service/:id', component: EditServiceComponent },
+  { path: 'edit-service/:serviceId', component: EditServiceComponent },
+  { path: 'booked-services', component: BookedServicesComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
  
 ];
 export class AppRoutingModule { }

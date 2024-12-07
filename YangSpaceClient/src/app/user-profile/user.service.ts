@@ -24,4 +24,13 @@ export class UserService {
 
     return this.http.get<User[]>(`${this.apiUrl}/services/provider`, {headers}); 
   }
+  getUserProfile(): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/profile`);
+  }
+
+  updateUserProfile(user: User): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/profile`, user);
+  }
+
+  
 }

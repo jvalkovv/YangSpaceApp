@@ -1,36 +1,71 @@
+.main-body {
+  padding: 30px 40px;
+}
+.card-body {
+  border: 0 solid rgba(0, 0, 0, 0.37);
+  border-radius: 0.5rem;
+  padding-left: 50px;
+}
 form {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-  }
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+}
+
+label {
+  width: 100%;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   
-  label {
-    font-size: 14px;
-    margin-bottom: 8px;
-    display: block;
-  }
-  
-  input,
-  select {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-  }
-  
-  button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  
-  button:disabled {
-    background-color: #ccc;
-  }
-  
+}
+
+button[type="submit"] {
+  padding: 10px;
+  font-size: 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+}
+button[type="submit"]:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
+}
+
+button[type="submit"]:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Invalid Input Field Styling */
+input.input-error {
+  border-color: #e74c3c;
+  box-shadow: 0 0 10px rgba(244, 30, 6, 0.5);
+}
+input.is-valid {
+  border-color: green;
+  box-shadow: 0 0 10px rgba(96, 215, 22, 0.5);
+}
+/* Styling for Error Messages */
+.text-danger {
+  font-size: 0.75rem;
+  color: #e74c3c;
+  margin-top: 5px;
+  margin-left: 5px;
+  display: inline;
+}

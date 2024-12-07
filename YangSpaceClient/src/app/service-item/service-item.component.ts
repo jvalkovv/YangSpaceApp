@@ -3,16 +3,16 @@ import { CommonModule } from '@angular/common';
 import { Booking } from '../models/booking.model';
 import { BookingService } from '../models/booking.service';
 import { AuthService } from '../auth/services/auth-service';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { FormsModule } from '@angular/forms'; // Import FormsModule
+import { FormsModule } from '@angular/forms'; 
 import { Router } from '@angular/router';
 import { Service } from '../create-service/service.model';
 import { environment } from '../../environments/environment';
+import { DialogComponent } from "../dialog/dialog.component";
 
 @Component({
   selector: 'app-service-item',
   standalone: true,
-  imports: [CommonModule, FormsModule], // Ensure FormsModule is imported
+  imports: [CommonModule, FormsModule, DialogComponent],
   templateUrl: './service-item.component.html',
   styleUrls: ['./service-item.component.css'],
 })
@@ -22,15 +22,25 @@ export class ServiceItemComponent {
   isLoading = false;
   selectedTime = '12:00 PM';
   bookingDate: string = '';
+  dialogMessage: string = '';
+  dialogTitle: string = '';
+  isDialogVisible: boolean = false;
 
   constructor(
     private bookingService: BookingService,
     private authService: AuthService,
-    private snackBar: MatSnackBar,
-    private router: Router
+    private router: Router,
   ) {
     this.currentUser = this.authService.getToken();
+  }
 
+  openDialog(message: string, title: string): void {
+    this.dialogMessage = message;
+    this.dialogTitle = title;
+    this.isDialogVisible = true;
+  }
+  closeDialog(): void {
+    this.isDialogVisible = false;
   }
 
   get imageUrl(): string {
@@ -39,25 +49,27 @@ export class ServiceItemComponent {
     }
     return ''; 
   }
+  canEditService(): boolean {
+    return this.service.userToken === this.currentUser.userToken;
+  }
 
   onEditService(serviceId: number | undefined): void {
-    if (serviceId === undefined) {
-      this.snackBar.open('Invalid service id.', 'Error');
+    if (!serviceId) {
+      this.openDialog(`${serviceId}'Service ID is invalid.'`, 'Error');
       return;
     }
-    this.router.navigate(['/edit-service', serviceId]);
+    this.router.navigate(['/edit-service', serviceId]); // Route to the edit page
   }
 
   bookService(): void {
     const currentUserTokenId = this.authService.getToken();
-    console.log(this.imageUrl);
     if (!currentUserTokenId) {
-      this.snackBar.open('You need to log in to book a service.', 'Login Required');
+      this.openDialog('You need to log in to book a service.', 'Login Required');
       return;
     }
 
     if (!this.bookingDate) {
-      this.snackBar.open('Please select a booking date.', 'Date Required');
+      this.openDialog('Please select a booking date.', 'Date Required');
       return;
     }
 
@@ -75,14 +87,14 @@ export class ServiceItemComponent {
       next: (response) => {
         this.isLoading = false;
         if (response) {
-          this.snackBar.open('Booking created successfully!', 'Success');
+          this.openDialog('Booking created successfully!', 'Success');
         } else {
-          this.snackBar.open('Failed to create booking. Try again.', 'Error');
+          this.openDialog('Failed to create booking. Try again.', 'Error');
         }
       },
       error: () => {
         this.isLoading = false;
-        this.snackBar.open('An error occurred while creating the booking.', 'Error');
+        this.openDialog('An error occurred while creating the booking.', 'Error');
       }
     });
   }

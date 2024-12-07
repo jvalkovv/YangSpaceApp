@@ -1,93 +1,252 @@
-<app-navbar />
+<app-navbar></app-navbar>
+<div class="container">
+  <div class="main-body">
+    <div class="row gutters-sm">
+      <!-- Profile Information Form -->
+      <div class="col-md-8">
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex flex-column align-items-center text-center">
+              <div>
+                <div *ngIf="userProfile.profilePicture; else noPicture">
+                  <img
+                    [src]="userProfile.profilePicture"
+                    alt="Profile Picture"
+                    class="rounded-circle"
+                    style="max-width: 150px"
+                  />
+                </div>
+                <ng-template #noPicture>
+                  <p>No profile picture available.</p>
+                </ng-template>
+              </div>
+            </div>
+            <form [formGroup]="editProfileForm" (ngSubmit)="saveProfile()">
+              <div class="row">
+                <div>
+                  <label for="firstName" class="mb-0">First Name:</label>
+                  <div class="col-sm-9">
+                    <input
+                      id="firstName"
+                      formControlName="firstName"
+                      class="form-control"
+                    />
+                  </div>
+                  <div
+                    *ngIf="
+                      editProfileForm.get('firstName')?.invalid &&
+                      editProfileForm.get('firstName')?.touched
+                    "
+                    class="text-danger"
+                  >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('firstName')?.hasError('required')
+                      "
+                      >First name is required.</span
+                    >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('firstName')?.hasError('pattern')
+                      "
+                      >Only letters are allowed.</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <hr />
+              <div class="row">
+                <div>
+                  <label for="lastName" class="mb-0">Last Name:</label>
+                  <div class="col-sm-9">
+                    <input
+                      id="lastName"
+                      formControlName="lastName"
+                      class="form-control"
+                    />
+                  </div>
+                  <div
+                    *ngIf="
+                      editProfileForm.get('lastName')?.invalid &&
+                      editProfileForm.get('lastName')?.touched
+                    "
+                    class="text-danger"
+                  >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('lastName')?.hasError('required')
+                      "
+                      >Last name is required.</span
+                    >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('lastName')?.hasError('pattern')
+                      "
+                      >Only letters are allowed.</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <hr />
+              <div class="row">
+                <div>
+                  <label for="email" class="mb-0">Email:</label>
+                  <div class="col-sm-9">
+                    <input
+                      id="email"
+                      formControlName="email"
+                      class="form-control"
+                    />
+                  </div>
+                  <div
+                    *ngIf="
+                      editProfileForm.get('email')?.invalid &&
+                      editProfileForm.get('email')?.touched
+                    "
+                    class="text-danger"
+                  >
+                    <span
+                      *ngIf="editProfileForm.get('email')?.hasError('required')"
+                      >Email is required.</span
+                    >
+                    <span
+                      *ngIf="editProfileForm.get('email')?.hasError('email')"
+                      >Invalid format</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <hr />
+              <div class="row">
+                <div>
+                  <label for="phoneNumber" class="mb-0">Phone number:</label>
+                  <div class="col-sm-9">
+                    <input
+                      id="phoneNumber"
+                      formControlName="phoneNumber"
+                      class="form-control"
+                      maxlength="10"
+                      minlength="10"
+                    />
+                  </div>
+                  <div
+                    *ngIf="
+                      editProfileForm.get('phoneNumber')?.invalid &&
+                      editProfileForm.get('phoneNumber')?.touched
+                    "
+                    class="text-danger"
+                  >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('phoneNumber')?.hasError('required')
+                      "
+                      >Phone number is required.</span
+                    >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('phoneNumber')?.hasError('pattern')
+                      "
+                      >Invalid format.([0-9] 10 digit).</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <hr />
+              <div class="row">
+                <div>
+                  <label for="bio" class="mb-0">Biography:</label>
+                  <div class="col-sm-9">
+                    <textarea
+                      id="bio"
+                      formControlName="bio"
+                      class="form-control"
+                      rows="5"
+                      cols="80"
+                      minlength="10"
+                      maxlength="500"
 
-<div class="edit-profile-container">
-  <h2>Edit Profile</h2>
-
-  <!-- Reactive Form -->
-  <form [formGroup]="editProfileForm" (ngSubmit)="saveProfile()">
-    <!-- First Name -->
-    <div>
-      <label for="firstName">First Name:</label>
-      <input
-        formControlName="firstName"
-        placeholder="First Name"
-        [ngClass]="{
-            'input-error':
-            editProfileForm.get('firstName')?.invalid &&
-            editProfileForm.get('firstName')?.touched,
-            'is-valid':
-            editProfileForm.get('firstName')?.valid &&
-            editProfileForm.get('firstName')?.touched
-          }"
-      />
-
-      <!-- Error message for first name -->
-      <div
-        *ngIf="{
-          'is-invalid':
-            editProfileForm.get('firstName')?.invalid &&
-            editProfileForm.get('firstName')?.touched
-        }"
-      >
-        <div
-          class="text-danger"
-          *ngIf="editProfileForm.get('firstName')?.hasError('required')"
-        >
-          First Name is required.
-        </div>
-        <div
-          class="text-danger"
-          *ngIf="editProfileForm.get('firstName')?.hasError('pattern')"
-        >
-          First Name must only contain letters.
+                    ></textarea>
+                  </div>
+                  <div
+                    *ngIf="
+                      editProfileForm.get('bio')?.invalid &&
+                      editProfileForm.get('bio')?.touched
+                    "
+                    class="text-danger"
+                  >
+                    <span
+                      *ngIf="editProfileForm.get('bio')?.hasError('required')"
+                      >Biography is required.
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <hr />
+              <div class="row">
+                <div>
+                  <label for="location" class="mb-0">Location:</label>
+                  <div class="col-sm-9">
+                    <input
+                      id="location"
+                      formControlName="location"
+                      class="form-control"
+                    />
+                  </div>
+                  <div
+                    *ngIf="
+                      editProfileForm.get('location')?.invalid &&
+                      editProfileForm.get('location')?.touched
+                    "
+                    class="text-danger"
+                  >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('location')?.hasError('required')
+                      "
+                      >Location is required.</span
+                    >
+                    <span
+                      *ngIf="
+                        editProfileForm.get('location')?.hasError('maxLength')
+                      "
+                      >Location max length is 100 character.</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <hr />
+              <!-- Image Upload -->
+              <div class="form-group">
+                <label for="profilePicture">Upload New Profile Picture</label>
+                <input
+                  type="file"
+                  id="profilePicture"
+                  class="form-control"
+                  (change)="onImageChange($event)"
+                  accept="image/*"
+                />
+                <div *ngIf="imageError" class="text-danger">
+                  {{ imageError }}
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-12">
+                  <button type="submit" [disabled]="editProfileForm.invalid">
+                    Save
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Last Name -->
-    <div>
-      <label for="lastName">Last Name:</label>
-      <input
-        formControlName="lastName"
-        placeholder="Last Name"
-        [ngClass]="{
-            'input-error':
-            editProfileForm.get('lastName')?.invalid &&
-            editProfileForm.get('lastName')?.touched,
-            'is-valid':
-            editProfileForm.get('lastName')?.valid &&
-            editProfileForm.get('lastName')?.touched
-          }"
-      />
-
-
-      <!-- Error message for last name -->
-      <div
-        *ngIf="
-          editProfileForm.get('lastName')?.invalid &&
-          editProfileForm.get('lastName')?.touched
-        "
-      >
-        <div
-          class="text-danger"
-          *ngIf="editProfileForm.get('lastName')?.hasError('required')"
-        >
-          Last Name is required.
-        </div>
-        <div
-          class="text-danger"
-          *ngIf="editProfileForm.get('lastName')?.hasError('pattern')"
-        >
-          Last Name must only contain letters.
-        </div>
-      </div>
-    </div>
-
-    <!-- Submit button -->
-    <button type="submit" [disabled]="editProfileForm.invalid">
-      Save Changes
-    </button>
-  </form>
+  </div>
 </div>
-
-<app-footer />
+<app-dialog
+  *ngIf="isDialogVisible"
+  [message]="dialogMessage"
+  [title]="dialogTitle"
+  (closeDialog)="closeDialog()"
+></app-dialog>
+<app-footer></app-footer>

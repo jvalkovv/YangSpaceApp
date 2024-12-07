@@ -21,8 +21,14 @@
       <span *ngIf="isLoading">Booking...</span>
       <span *ngIf="!isLoading">Book Now</span>
     </button>
-    <button *ngIf="service.userToken === currentUser.userToken" (click)="onEditService(service.id)">
+  
+    <button *ngIf="canEditService()" (click)="onEditService(service.serviceId)">
       Edit Service
     </button>
+    <!-- <button *ngIf="service.userToken === currentUser.userToken" (click)="onEditService(service.id)">
+      Edit Service
+    </button> -->
   </div>
 </div>
+<!-- Dialog -->
+<app-dialog *ngIf="isDialogVisible" [message]="dialogMessage" [title]="dialogTitle" (closeDialog)="closeDialog()"></app-dialog>

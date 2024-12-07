@@ -5,7 +5,6 @@ import { CommonModule } from '@angular/common';
 import { ServiceItemComponent } from '../service-item/service-item.component';
 import { NavbarComponent } from '../shared/components/navbar/navbar.component';
 import { FooterComponent } from '../shared/components/footer/footer.component';
-
 @Component({
   selector: 'app-all-services',
   standalone: true,
