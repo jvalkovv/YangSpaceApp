@@ -1,6 +1,0 @@
-@YangSpaceBackEnd_HostAddress = http://localhost:5290
-
-GET {{YangSpaceBackEnd_HostAddress}}/
-Accept: application/json
-
-###
