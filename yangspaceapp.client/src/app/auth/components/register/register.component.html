@@ -1,0 +1,256 @@
+<div class="html">
+  <app-navbar></app-navbar>
+  <div class="main-content">
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <div class="mb-4">REGISTRATION FORM</div>
+
+      <div class="container">
+        <!-- Username Field -->
+        <div class="mb-3">
+          <input
+            formControlName="username"
+            placeholder="Username"
+            [ngClass]="{
+              'is-invalid':
+                registerForm.get('username')?.invalid &&
+                registerForm.get('username')?.touched
+            }"
+          />
+          <div
+            *ngIf="
+              registerForm.get('username')?.touched &&
+              registerForm.get('username')?.invalid
+            "
+            class="text-danger"
+          >
+            <div *ngIf="registerForm.get('username')?.hasError('required')">
+              Username is required.
+            </div>
+            <div
+              *ngIf="registerForm.get('username')?.hasError('usernameTaken')"
+            >
+              Username is already taken.
+            </div>
+            <div *ngIf="registerForm.get('username')?.hasError('minlength')">
+              Username must be at least 3 characters.
+            </div>
+            <div *ngIf="registerForm.get('username')?.hasError('whitespace')">
+              Username cannot be empty or consist of only spaces.
+            </div>
+            <div *ngIf="registerForm.get('username')?.hasError('pattern')">
+              Username must only contain letters.
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Field -->
+        <div class="mb-3">
+          <input
+            formControlName="email"
+            placeholder="Email"
+            [ngClass]="{
+              'is-invalid':
+                registerForm.get('email')?.invalid &&
+                registerForm.get('email')?.touched
+            }"
+          />
+          <div
+            *ngIf="
+              registerForm.get('email')?.touched &&
+              registerForm.get('email')?.invalid
+            "
+            class="text-danger"
+          >
+            <div *ngIf="registerForm.get('email')?.hasError('required')">
+              Email is required.
+            </div>
+            <div *ngIf="registerForm.get('email')?.hasError('email')">
+              Please enter a valid email.
+            </div>
+            <div
+            *ngIf="registerForm.get('email')?.hasError('emailTaken')"
+          >
+            Email is already taken.
+          </div>
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="psw">
+          <input
+            [type]="passwordVisible ? 'text' : 'password'"
+            formControlName="password"
+            placeholder="Password"
+          />
+          <button class="btn" (click)="togglePasswordVisibility('password')">
+            <i [class]="passwordVisible ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+          </button>
+          <div
+            *ngIf="
+              registerForm.get('password')?.touched &&
+              registerForm.get('password')?.invalid
+            "
+            class="text-danger"
+          >
+            <div *ngIf="registerForm.get('password')?.hasError('required')">
+              Password is required.
+            </div>
+            <div *ngIf="registerForm.get('password')?.hasError('minlength')">
+              Password must be at least 6 characters.
+            </div>
+            <div *ngIf="registerForm.get('password')?.hasError('pattern')">
+              Password must contain at least one uppercase letter and one
+              number.
+            </div>
+          </div>
+        </div>
+        <!-- Confirm Password Field -->
+        <div class="psw">
+          <input
+            [type]="confirmPasswordVisible ? 'text' : 'password'"
+            formControlName="confirmPassword"
+            placeholder="Confirm Password"
+          />
+          <button
+            class="btn"
+            (click)="togglePasswordVisibility('confirmPassword')"
+          >
+            <i
+              [class]="confirmPasswordVisible ? 'fa fa-eye-slash' : 'fa fa-eye'"
+            ></i>
+          </button>
+          <div
+            *ngIf="
+              registerForm.get('confirmPassword')?.touched &&
+              registerForm.get('confirmPassword')?.invalid
+            "
+            class="text-danger mt-2"
+          >
+            <div
+              *ngIf="registerForm.get('confirmPassword')?.hasError('required')"
+            >
+              Confirm Password is required.
+            </div>
+          </div>
+        </div>
+
+        <!-- Password Mismatch Error -->
+        <div
+          *ngIf="
+            registerForm.hasError('passwordMismatch') && registerForm.touched
+          "
+          class="text-danger"
+        >
+          Passwords do not match.
+        </div>
+
+        <!-- First Name Field -->
+        <div class="mb-3">
+          <input
+            formControlName="firstName"
+            placeholder="First Name"
+            [ngClass]="{
+              'is-invalid':
+                registerForm.get('firstName')?.invalid &&
+                registerForm.get('firstName')?.touched
+            }"
+          />
+          <div
+            *ngIf="
+              registerForm.get('firstName')?.touched &&
+              registerForm.get('firstName')?.invalid
+            "
+            class="text-danger"
+          >
+            <div *ngIf="registerForm.get('firstName')?.hasError('required')">
+              First name is required.
+            </div>
+            <div *ngIf="registerForm.get('firstName')?.hasError('pattern')">
+              First name must only contain letters.
+            </div>
+          </div>
+        </div>
+
+        <!-- Last Name Field -->
+        <div class="mb-3">
+          <input
+            formControlName="lastName"
+            placeholder="Last Name"
+            [ngClass]="{
+              'is-invalid':
+                registerForm.get('lastName')?.invalid &&
+                registerForm.get('lastName')?.touched
+            }"
+          />
+          <div
+            *ngIf="
+              registerForm.get('lastName')?.touched &&
+              registerForm.get('lastName')?.invalid
+            "
+            class="text-danger"
+          >
+            <div *ngIf="registerForm.get('lastName')?.hasError('required')">
+              Last name is required.
+            </div>
+            <div
+              *ngIf="registerForm.get('lastName')?.hasError('pattern')"
+              class="text-danger"
+            >
+              Last name must only contain letters.
+            </div>
+          </div>
+        </div>
+
+        <!-- Service Provider Option -->
+        <div class="mb-3">
+          <label for="isServiceProvider">Are you a service provider?</label>
+          <div class="provider">
+            <label>
+              <input
+                type="radio"
+                formControlName="isServiceProvider"
+                [value]="true"
+                [ngClass]="{
+                  'is-invalid': registerForm.get('isServiceProvider')?.invalid
+                }"
+              />
+              Yes
+            </label>
+            <label>
+              <input
+                type="radio"
+                formControlName="isServiceProvider"
+                [value]="false"
+                [ngClass]="{
+                  'is-invalid': registerForm.get('isServiceProvider')?.invalid
+                }"
+              />
+              No
+            </label>
+          </div>
+          <div
+            *ngIf="
+              registerForm.get('isServiceProvider')?.invalid &&
+              registerForm.get('isServiceProvider')?.touched
+            "
+            class="text-danger"
+          >
+            Please select an option.
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="mb-3">
+          <button
+            type="submit"
+            [disabled]="registerForm.invalid"
+            class="btn btn-primary w-100 rounded-3"
+          >
+            Register
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+  <app-footer></app-footer>
+</div>

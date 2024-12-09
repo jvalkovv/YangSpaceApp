@@ -1,0 +1,41 @@
+<app-navbar></app-navbar>
+
+<div class="services-page">
+  <h1>Our Services</h1>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="error">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading">
+    <p>Loading services...</p>
+  </div>
+
+  <!-- Service List -->
+  <div *ngIf="!errorMessage && !loading">
+    <div class="service-list">
+      <!-- Loop through services -->
+      <div *ngFor="let service of services; trackBy: trackById">
+        <app-service-item [service]="service"></app-service-item>
+      </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="pagination">
+      <button (click)="previousPage()" [disabled]="currentPage === 1">
+        Previous
+      </button>
+      <span>Page {{ currentPage }}</span>
+      <button
+        (click)="nextPage()"
+        [disabled]="currentPage * pageSize >= totalCount"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+</div>
+
+<app-footer></app-footer>

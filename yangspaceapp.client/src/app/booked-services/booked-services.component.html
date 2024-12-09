@@ -1,0 +1,53 @@
+<div class="filter">
+    <label for="statusFilter">Filter by Status:</label>
+    <select id="statusFilter" [(ngModel)]="statusFilter">
+      <option value="all">All</option>
+      <option value="pending">Pending</option>
+      <option value="completed">Completed</option>
+      <option value="canceled">Canceled</option>
+    </select>
+  </div>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Service Name</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let booking of bookings | filterByStatus: statusFilter">
+        <td>{{ booking.serviceId }}</td>
+        <td>{{ booking.date }}</td>
+        <td>{{ booking.time }}</td>
+        <td>{{ booking.status || 'Pending' }}</td>
+        <td><button (click)="deleteBooking(booking.id)">Cancel</button></td>
+      </tr>
+    </tbody>
+  </table>
+  
+<div class="booked-services">
+    <h2>Booked Services</h2>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Service Name</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let booking of bookings">
+          <td>{{ booking.serviceId }}</td>  <!-- Display service name or ID -->
+          <td>{{ booking.date }}</td>
+          <td>{{ booking.time }}</td>
+          <td>{{ booking.status || 'Pending' }}</td> <!-- Display status, fallback to 'Pending' -->
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  

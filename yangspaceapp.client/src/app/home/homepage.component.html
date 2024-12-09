@@ -1,0 +1,24 @@
+<div class="html">
+  <app-navbar></app-navbar>
+  <div class="homepage-container">
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <h1>Welcome to YangSpace</h1>
+      <p>Your go-to platform for providing services.</p>
+      <button class="cta-btn" (click)="navigateToRegister()">
+        Get Started
+      </button>
+    </section>
+    <div class="services-section">
+      <h2>Our Services</h2>
+      <div class="services-grid">
+        <div class="service-card" *ngFor="let service of services">
+          <img [src]="service.image" [alt]="service.title" />
+          <h3>{{ service.title }}</h3>
+          <p>{{ service.description }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <app-footer></app-footer>
+</div>

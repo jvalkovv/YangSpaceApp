@@ -1,0 +1,112 @@
+<app-navbar></app-navbar>
+
+<div class="main-content container mt-5">
+  <div class="form-container">
+    <form (ngSubmit)="onLogin()" [formGroup]="loginForm" class="form-card">
+      <h2 class="form-title">Sign in to your account</h2>
+
+      <!-- Username Field -->
+      <div class="mb-3">
+        <input
+          class="form-control"
+          placeholder="Username"
+          formControlName="username"
+          [ngClass]="{
+            'input-error':
+              loginForm.get('username')?.invalid &&
+              loginForm.get('username')?.touched,
+            'is-valid':
+              loginForm.get('username')?.valid &&
+              loginForm.get('username')?.touched
+          }"
+        />
+        <div
+          *ngIf="
+            loginForm.get('username')?.touched &&
+            loginForm.get('username')?.invalid
+          "
+          class="text-danger"
+        >
+          <div *ngIf="loginForm.get('username')?.hasError('required')">
+            Username is required.
+          </div>
+          <div
+          *ngIf="
+            loginForm.get('username')?.hasError('minLength') &&
+            loginForm.get('username')?.touched
+          "
+          class="text-danger"
+        >
+        Username need to be at least 3 symbol.
+        </div>
+        </div>
+      </div>
+
+      <!-- Password Field -->
+      <div class="mb-3 password-field">
+        <input
+          [type]="passwordVisible ? 'text' : 'password'"
+          class="form-control"
+          placeholder="Password"
+          formControlName="password"
+          [ngClass]="{
+            'input-error':
+              loginForm.get('password')?.invalid &&
+              loginForm.get('password')?.touched,
+            'is-valid':
+              loginForm.get('password')?.valid &&
+              loginForm.get('password')?.touched
+          }"
+        />
+        <button
+          type="button"
+          (click)="togglePasswordVisibility()"
+          class="toggle-password-btn"
+        >
+          <i [class]="passwordVisible ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
+        </button>
+        <div
+          *ngIf="
+            loginForm.get('password')?.hasError('required') &&
+            loginForm.get('password')?.touched
+          "
+          class="text-danger"
+        >
+          Password is required.
+        </div>
+        <div
+          *ngIf="
+            loginForm.get('password')?.hasError('minLength') &&
+            loginForm.get('password')?.touched
+          "
+          class="text-danger"
+        >
+          Password need to be at least 6 symbol.
+        </div>
+      </div>
+      
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="text-danger">
+        {{ errorMessage }}
+      </div>
+      <!-- Submit Button -->
+      <div class="mt-4">
+        <button
+          type="submit"
+          class="btn btn-primary w-100 rounded-3"
+          [disabled]="loginForm.invalid || isLoading"
+        >
+          <span
+            *ngIf="isLoading"
+            class="spinner-border spinner-border-sm"
+            role="status"
+            aria-hidden="true"
+          ></span>
+          <span *ngIf="!isLoading">Login</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<app-dialog *ngIf="isDialogVisible" [message]="dialogMessage" [title]="dialogTitle" (closeDialog)="closeDialog()"></app-dialog>
+<app-footer></app-footer>

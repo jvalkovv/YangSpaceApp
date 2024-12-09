@@ -1,0 +1,80 @@
+/* Add general form container styling */
+.form-container {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #12111109;
+}
+
+/* Center the form header */
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #4a90e2;
+}
+
+/* Styling the form groups */
+.form-group {
+  margin-bottom: 20px;
+}
+
+select{
+  height: 50px;
+}
+input{
+  height: 50px;
+}
+/* Input and select fields styling */
+.form-control {
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 14px;
+}
+
+/* Add some space between the label and the input field */
+label {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* Invalid input styling */
+.invalid-feedback {
+  color: red;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+/* Submit button styling */
+button {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 4px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+}
+
+button:disabled {
+  background-color: #aaa;
+}
+
+/* Hover effect for button */
+button:not(:disabled):hover {
+  background-color: #357abd;
+}
+
+/* Ensure form is responsive */
+@media (max-width: 576px) {
+  .form-container {
+    padding: 15px;
+  }
+
+  button {
+    padding: 10px;
+  }
+}

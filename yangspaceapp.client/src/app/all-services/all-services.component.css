@@ -1,0 +1,27 @@
+.services-page {
+    text-align: center;
+  
+    .service-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+  
+    .pagination {
+      margin: 20px 0;
+      button {
+        margin: 0 5px;
+      }
+    }
+  
+    .loading {
+      font-size: 1.2em;
+      color: #007bff;
+    }
+  
+    .error {
+      color: red;
+    }
+  }
+  

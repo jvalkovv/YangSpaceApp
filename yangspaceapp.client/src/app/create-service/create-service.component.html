@@ -1,0 +1,118 @@
+<app-navbar></app-navbar>
+<div class="container">
+  <div class="form-container">
+    <h2>Create a New Service</h2>
+
+    <form [formGroup]="createServiceForm" (ngSubmit)="onSubmit()">
+      <!-- Service Title -->
+      <div class="form-group">
+        <label for="title">Service Title</label>
+        <input
+          type="text"
+          class="form-control"
+          id="title"
+          formControlName="title"
+          placeholder="Enter service title"
+        />
+        <div
+          *ngIf="
+            createServiceForm.get('title')?.invalid &&
+            createServiceForm.get('title')?.touched
+          "
+          class="invalid-feedback"
+        >
+          Service title is required.
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea
+          class="form-control"
+          id="description"
+          formControlName="description"
+          placeholder="Enter service description"
+        ></textarea>
+        <div
+          *ngIf="
+            createServiceForm.get('description')?.invalid &&
+            createServiceForm.get('description')?.touched
+          "
+          class="invalid-feedback"
+        >
+          Description is required.
+        </div>
+      </div>
+
+      <!-- Price -->
+      <div class="form-group">
+        <label for="price">Price</label>
+        <input
+          type="number"
+          class="form-control"
+          id="price"
+          formControlName="price"
+          placeholder="Enter price"
+        />
+        <div
+          *ngIf="
+            createServiceForm.get('price')?.invalid &&
+            createServiceForm.get('price')?.touched
+          "
+          class="invalid-feedback"
+        >
+          Price is required and must be a positive number.
+        </div>
+      </div>
+
+      <!-- Category -->
+      <div class="form-group">
+        <label for="categoryId">Category</label>
+        <select
+          class="form-control"
+          id="categoryId"
+          formControlName="categoryId"
+        >
+          <option *ngFor="let category of categories" [value]="category.id">
+            {{ category.name }}
+          </option>
+        </select>
+        <div
+          *ngIf="
+            createServiceForm.get('categoryId')?.invalid &&
+            createServiceForm.get('categoryId')
+          "
+          class="invalid-feedback"
+        >
+          Category is required.
+        </div>
+      </div>
+
+      <!-- Image Upload -->
+      <div class="form-group">
+        <label for="imageUrl">Service Image</label>
+        <input
+          type="file"
+          class="form-control"
+          id="imageUrl"
+          (change)="onImageChange($event)"
+          accept="image/*"
+        />
+        <div *ngIf="imageError" class="invalid-feedback">
+          {{ imageError }}
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [disabled]="createServiceForm.invalid"
+      >
+        Create Service
+      </button>
+    </form>
+  </div>
+</div>
+<app-footer></app-footer>

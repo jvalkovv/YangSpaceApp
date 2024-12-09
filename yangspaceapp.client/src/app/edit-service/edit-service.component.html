@@ -1,0 +1,151 @@
+<app-navbar />
+<div class="main-body">
+  <div class="card-body">
+    <form [formGroup]="editServiceForm" (ngSubmit)="onSubmit()">
+      <h2 class="form-title">Edit service</h2>
+      <hr/>
+      <div class="row">
+        <div>
+          <label for="title" class="mb-0">Title:</label>
+          <div class="col-sm-9">
+            <input
+              id="title"
+              formControlName="title"
+              class="form-control"
+              [ngClass]="{
+                'is-valid':
+                  editServiceForm.get('title')?.valid &&
+                  editServiceForm.get('title')?.touched
+              }"
+            />
+          </div>
+          <div
+            *ngIf="
+              editServiceForm.get('title')?.invalid &&
+              editServiceForm.get('title')?.touched
+            "
+            class="text-danger"
+          >
+            <span *ngIf="editServiceForm.get('title')?.hasError('required')"
+              >Title field is required.</span
+            >
+            <span *ngIf="editServiceForm.get('title')?.hasError('minlength')"
+              >Title field must be at least 3 characters long
+            </span>
+          </div>
+        </div>
+      </div>
+      <hr />
+      <div class="row">
+        <div>
+          <label for="description" class="mb-0">Description:</label>
+          <div class="col-sm-9">
+            <textarea
+              id="description"
+              formControlName="description"
+              class="form-control"
+              rows="5"
+              cols="80"
+              minlength="10"
+              maxlength="300"
+              [ngClass]="{
+                'is-valid':
+                  editServiceForm.get('description')?.valid &&
+                  editServiceForm.get('description')?.touched
+              }"
+            ></textarea>
+          </div>
+          <div
+            *ngIf="
+              editServiceForm.get('description')?.invalid &&
+              editServiceForm.get('description')?.touched
+            "
+            class="text-danger"
+          >
+            <span
+              *ngIf="editServiceForm.get('description')?.hasError('required')"
+              >Description field is required.</span
+            >
+            <span
+              *ngIf="editServiceForm.get('description')?.hasError('minlength')"
+              >Description field must be at least 10 characters long.
+            </span>
+          </div>
+        </div>
+      </div>
+      <hr />
+      <div class="row">
+        <div>
+          <label for="price" class="mb-0">Price:</label>
+          <div class="col-sm-9">
+            <input
+              id="price"
+              formControlName="price"
+              class="form-control"
+              type="number"
+              [ngClass]="{
+                'input-error':
+                  editServiceForm.get('price')?.invalid &&
+                  editServiceForm.get('price')?.touched,
+                'is-valid':
+                  editServiceForm.get('price')?.valid &&
+                  editServiceForm.get('price')?.touched
+              }"
+            />
+          </div>
+          <div
+            *ngIf="
+              editServiceForm.get('price')?.invalid &&
+              editServiceForm.get('price')?.touched
+            "
+            class="text-danger"
+          >
+            <span *ngIf="editServiceForm.get('price')?.hasError('required')"
+              >Price field is required.</span
+            >
+            <span *ngIf="editServiceForm.get('price')?.hasError('min')"
+              >Price field must be a positive number.
+            </span>
+          </div>
+        </div>
+      </div>
+      <hr />
+      <div class="row">
+        <label for="categoryId">Category</label>
+        <select id="categoryId" formControlName="categoryId">
+          <option *ngFor="let category of categories" [value]="category.id">
+            {{ category.name }}
+          </option>
+        </select>
+      </div>
+      <hr />
+      <div class="row">
+        <label for="image">Image</label>
+        <input id="image" type="file" (change)="onImageChange($event)" />
+        <div *ngIf="existingServiceImage">
+          <p>Existing Image:</p>
+          <img
+            *ngIf="existingServiceImage"
+            [src]="imageUrl"
+            alt="Service Image"
+          />
+          <img [src]="existingServiceImage" alt="Current Service Image" />
+        </div>
+      </div>
+      <!-- <div *ngIf="!existingServiceImage">
+        <p>No image available</p>
+      </div> -->
+
+      <button type="submit" [disabled]="editServiceForm.invalid">
+        Update Service
+      </button>
+    </form>
+  </div>
+</div>
+<app-dialog
+  *ngIf="isDialogVisible"
+  [message]="dialogMessage"
+  [title]="dialogTitle"
+  (closeDialog)="closeDialog()"
+></app-dialog>
+<app-footer />

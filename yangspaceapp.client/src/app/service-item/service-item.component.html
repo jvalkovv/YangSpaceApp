@@ -1,0 +1,67 @@
+<div class="service-item">
+  <div class="service-header">
+    <!-- Service picture (if available) -->
+    <img
+      *ngIf="imageUrl"
+      [src]="imageUrl"
+      class="card-img-top"
+      alt="Service Image"
+    />
+    <h2>Title: {{ service.title }}</h2>
+  </div>
+
+  <p><strong>Description:</strong> {{ service.description }}</p>
+  <p><strong>Price:</strong> ${{ service.price }}</p>
+  <p><strong>Category:</strong> {{ service.categoryName }}</p>
+  <p><strong>Provider:</strong> {{ service.providerName }}</p>
+  <!-- Display provider's email -->
+  <p>
+    <strong>Contact Email:</strong>
+    <a [href]="'mailto:' + service.email">{{ service.email }}</a>
+  </p>
+  <p>
+    <strong>Contact Phone:</strong>
+    <a [href]="'tel:' + service.phoneNumber">{{ service.phoneNumber }}</a>
+  </p>
+
+  <div class="booking-form">
+    <label for="bookingDate" class="booking-label">Select Booking Date:</label>
+    <input
+      type="date"
+      id="bookingDate"
+      [(ngModel)]="bookingDate"
+      aria-labelledby="bookingDateLabel"
+    />
+
+    <label for="bookingTime" class="booking-label">Select Time:</label>
+    <input
+      type="time"
+      id="bookingTime"
+      [(ngModel)]="selectedTime"
+      aria-labelledby="bookingTimeLabel"
+    />
+
+    <button
+      (click)="bookService()"
+      [disabled]="
+        isLoading || !bookingDate || service.userToken === currentUserToken
+      "
+      class="book-button"
+    >
+      <span *ngIf="isLoading">Booking...</span>
+      <span *ngIf="!isLoading">Book Now</span>
+    </button>
+
+       <!-- Edit Button: Display if the user has access -->
+       <div *ngIf="hasAccess">
+        <button (click)="onEditService(service.serviceId)">Edit</button>
+      </div>
+  </div>
+</div>
+<!-- Dialog -->
+<app-dialog
+  *ngIf="isDialogVisible"
+  [message]="dialogMessage"
+  [title]="dialogTitle"
+  (closeDialog)="closeDialog()"
+></app-dialog>

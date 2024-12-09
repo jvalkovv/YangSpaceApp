@@ -1,0 +1,247 @@
+/* Full-page container with responsive background */
+.html {
+  position: relative;
+}
+
+.html::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url("http://localhost:5290/api/image/img4.jpg") no-repeat center
+    center;
+  background-size: cover;
+  opacity: 0.9;
+  z-index: -1;
+}
+
+/* Main content */
+.main-content {
+  min-height: calc(100vh - 150px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px;
+
+}
+
+/* General Styling for Form */
+form {
+  width: 400px;
+  opacity: 0.9;
+  margin: 0 auto;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Styling for the Header */
+.mb-4 {
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #1397d9;
+  font-size: 1.8rem;
+  width: 100%;
+}
+
+/* Input Field Styling */
+input {
+  width: calc(100% - 40px); /* Adjusting for button width */
+  display: inline;
+  padding: 5px;
+  margin: 5px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+/* Focus effect for input fields */
+input:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
+}
+
+/* Invalid Input Field Styling */
+input.is-invalid {
+  border-color: #e74c3c;
+}
+
+/* Border focus on invalid inputs */
+input.is-invalid:focus {
+  border-color: #e74c3c;
+  box-shadow: 0 0 5px rgba(231, 76, 60, 0.5);
+}
+
+/* Label for Radio Buttons */
+.provider {
+  display: flex;
+}
+.provider > label {
+  width: 20%;
+}
+.provider > label > input {
+  width: min-content;
+}
+/* Valid Input Fields */
+.form-control.is-valid{
+  border-color: #28a745;
+}
+
+/* Styling for Error Messages */
+.text-danger {
+  font-size: 0.75rem;
+  color: #e74c3c;
+  margin-top: 5px;
+  margin-left: 5px;
+  display: inline;
+}
+
+/* Password Visibility Toggle */
+.psw {
+  display: inline;
+}
+
+/* Styling for the password visibility toggle button */
+.psw button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 5px;
+  color: #007bff;
+}
+
+/* Button hover effect for visibility toggle */
+.psw button:hover {
+  color: #0056b3;
+}
+
+/* General Button Styling */
+.btn {
+  padding: 5px;
+  margin: 5px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background-color: #0056b3;
+}
+
+/* Submit Button Styling */
+button[type="submit"] {
+  padding: 10px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover {
+  background-color: #218838;
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
+}
+
+button[type="submit"]:disabled {
+  background-color: #b2dfdb;
+  cursor: not-allowed;
+}
+
+/* Margin for Input Fields */
+.mb-3 {
+  margin-bottom: 15px;
+}
+
+/* Radio Button Container */
+.mb-3 label {
+  font-size: 1rem;
+  margin-right: 10px;
+}
+
+
+/* Placeholder Text Styling */
+input::placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+
+/* Make form responsive */
+@media (max-width: 421px) {
+  form {
+    margin: 0;
+    padding: 0;
+  }
+  .mb-4 {
+    font-size: 1.2rem;
+  }
+  input {
+    font-size: 1rem;
+  }
+  .mb-3 {
+    font-size: 0.9rem;
+  }
+  button[type="submit"] {
+    font-size: 1.2rem;
+  }
+  app-footer {
+    position: relative;
+    line-height: 20px;
+  }
+}
+
+/* Footer */
+.footer {
+  background: #333;
+  color: #fff;
+  padding: 20px 0;
+  text-align: center;
+  width: 100%;
+}
+
+.footer .container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.footer p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.footer .footer-p {
+  font-size: 14px;
+  margin: 5px 0;
+}
+
+.footer a {
+  color: #17a2b8;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: #007bff;
+}
+
+@media (max-width: 421px) {
+  .footer {
+    flex-direction: column;
+  }
+
+  .footer-p {
+    font-size: 12px;
+  }
+}
