@@ -29,30 +29,46 @@
             ],
             "scripts": []
           },
-          "configurations": {
-            "production": {
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
-                },
-                {
-                  "type": "anyComponentStyle",
-                  "maximumWarning": "2kB",
-                  "maximumError": "4kB"
-                }
-              ],
-              "outputHashing": "all"
+          {
+            "configurations": {
+              "production": {
+                "fileReplacements": [
+                  {
+                    "replace": "src/environments/environment.ts",
+                    "with": "src/environments/environment.prod.ts"
+                  }
+                ],
+                "budgets": [
+                  {
+                    "type": "initial",
+                    "maximumWarning": "500kB",
+                    "maximumError": "1MB"
+                  },
+                  {
+                    "type": "anyComponentStyle",
+                    "maximumWarning": "2kB",
+                    "maximumError": "4kB"
+                  }
+                ],
+                "outputHashing": "all",
+                "optimization": true,
+                "sourceMap": false,
+                "extractLicenses": true
+              },
+              "development": {
+                "fileReplacements": [
+                  {
+                    "replace": "src/environments/environment.prod.ts",
+                    "with": "src/environments/environment.ts"
+                  }
+                ],
+                "optimization": false,
+                "extractLicenses": false,
+                "sourceMap": true
+              }
             },
-            "development": {
-              "optimization": false,
-              "extractLicenses": false,
-              "sourceMap": true
-            }
+            "defaultConfiguration": "production"
           },
-          "defaultConfiguration": "production"
-        },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
