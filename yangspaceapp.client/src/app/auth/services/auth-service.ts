@@ -122,8 +122,6 @@ export class AuthService {
       if (lastActivity && Date.now() - parseInt(lastActivity) > this.maxInactivityTime) {
         this.logout();
       }
-      console.log(lastActivity);
-      console.log(this.maxInactivityTime);
     };
     setInterval(inactivityCheck, 6000);
   }

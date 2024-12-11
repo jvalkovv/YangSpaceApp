@@ -10,6 +10,8 @@ export class FilterByStatusPipe implements PipeTransform {
     if (!status || status === 'all') {
       return bookings;
     }
-    return bookings.filter((booking) => booking.status === status);
+
+    const statusLowerCase = status.toLowerCase();
+    return bookings.filter((booking) => booking.status.toLowerCase() === statusLowerCase);
   }
 }
