@@ -43,6 +43,10 @@
     <div *ngIf="hasAccess">
       <button (click)="onEditService(service.serviceId)">Edit</button>
     </div>
+    <!-- Delete Button -->
+    <div *ngIf="hasAccess">
+      <button (click)="confirmDelete()">Delete Service</button>
+    </div>
   </div>
 </div>
 <!-- Dialog -->
