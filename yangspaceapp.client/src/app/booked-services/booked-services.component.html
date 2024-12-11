@@ -1,11 +1,9 @@
 <app-navbar></app-navbar>
 <div class="filter-container">
-  <label for="statusFilter" class="filter-label">Filter by Status:</label>
-  <select id="statusFilter" [(ngModel)]="statusFilter" class="filter-select">
+  <label class="filter-label">Filter by Status:</label>
+  <select [(ngModel)]="statusFilter" (ngModelChange)="onStatusChange()">
     <option value="all">All</option>
-    <option value="pending">Pending</option>
-    <option value="completed">Completed</option>
-    <option value="canceled">Canceled</option>
+    <option *ngFor="let status of statusEnum" [ngValue]="status">{{ status }}</option>
   </select>
 </div>
 
@@ -16,8 +14,9 @@
     <thead>
       <tr>
         <th>Service Name</th>
-        <th>Date</th>
-        <th>Time</th>
+        <th>Provider Email</th>
+        <th>Book Date</th>
+        <th>Updated Date</th>
         <th>Price</th>
         <th>Status</th>
       </tr>
@@ -25,9 +24,10 @@
     <tbody>
       <tr *ngFor="let booking of bookings | filterByStatus: statusFilter">
         <td>{{ booking.serviceName }}</td>
-        <td>{{ booking.date }}</td>
-        <td>{{ booking.time }}</td>
-        <td>{{booking.price}}</td>
+        <td>{{booking.providerEmail}}</td>
+        <td>{{ booking.bookingDate }}</td>
+        <td>{{ booking.updatedDate }}</td>
+        <td>{{ booking.price }}</td>
         <td>{{ booking.status }}</td>
       </tr>
     </tbody>
@@ -36,5 +36,14 @@
 <div *ngIf="(bookings | filterByStatus: statusFilter)?.length === 0">
   <p>No bookings found.</p>
 </div>
-
+<!-- Pagination Controls -->
+<div class="pagination">
+  <button (click)="previousPage()" [disabled]="currentPage === 1">
+    Previous
+  </button>
+  <span>Page {{ currentPage }}</span>
+  <button (click)="nextPage()" [disabled]="currentPage * pageSize >= totalCount">
+    Next
+  </button>
+</div>
 <app-footer></app-footer>
