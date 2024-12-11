@@ -1,6 +1,48 @@
-# YangSpace
+## YangSpace
 
-Welcome to YangSpace! This repository contains both the backend and frontend for the YangSpace platform.
+YangSpace is a web application that connects service providers with users, offering a variety of services with integrated booking and management features. Developed with ASP.NET Core and Angular, it allows service providers to list services, manage bookings, and delete services, while users can browse available services and schedule appointments.
+
+The application is deployed on Azure, providing a scalable and reliable cloud infrastructure for users to interact with the platform.
+# Application URL - 
+https://yangspace.azurewebsites.net/
+## Features
+	•	User Authentication: Secure login and role-based authorization with JWT.
+	•	Service Management: Providers can create, update, or delete services they offer.
+	•	Booking System: Users can view service availability and book appointments.
+	•	User Profiles: Each user has a profile, and service providers can manage their listings.
+	•	Dynamic UI: Fully responsive interface built with Angular for seamless user experience.
+
+## App Functionality
+    User Authentication and Authorization
+	•	Users log in with their credentials, and their roles (e.g., provider or customer) are determined.
+	•	Service providers can manage their listed services.
+	•	JWT tokens are used for secure authentication and API interaction.
+
+## Service Management
+	•	Service providers can create, edit, and delete services.
+	•	Services include detailed descriptions, available time slots, and pricing.
+
+## Booking System
+	•	Users can book services by selecting available time slots.
+	•	Booking details are stored and accessible in the user profile.
+
+## Administrative Features
+	•	Providers can view all bookings and delete services if needed.
+	•	Service providers can only modify or delete services they created.
+
+## User Roles
+# Client
+	•	Book Services: Browse available services and schedule appointments with service providers.
+	•	View Bookings: Manage current and past bookings.
+username: cuser
+password: cuser1A
+
+# Service Provider
+	•	Manage Services: Create, update, or delete services they offer.
+	•	View Bookings: View client bookings for their services and manage availability.
+	•	Admin Features: Providers can delete their services if no longer required.
+usename: spuser
+password: spuser1A
 
 ## Getting Started
 
