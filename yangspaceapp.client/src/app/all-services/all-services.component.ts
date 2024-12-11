@@ -2,9 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { CommonModule } from '@angular/common';
-import { ServiceItemComponent } from '../service-item/service-item.component';
 import { NavbarComponent } from '../shared/components/navbar/navbar.component';
 import { FooterComponent } from '../shared/components/footer/footer.component';
+import { ServiceItemComponent } from '../service-item/service-item.component';
 @Component({
   selector: 'app-all-services',
   standalone: true,
