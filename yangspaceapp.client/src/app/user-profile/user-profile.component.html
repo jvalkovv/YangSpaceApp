@@ -21,8 +21,6 @@
                   <p class="text-muted font-size-sm">
                     Username: {{ userProfile.userName }}
                   </p>
-                  <!-- <button class="btn btn-primary">Follow</button> -->
-                  <button class="btn btn-outline-primary">Message</button>
                 </div>
               </div>
             </div>
@@ -32,6 +30,11 @@
               <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
                 <h6 class="mb-0">
                   <a [routerLink]="['/booked-services']">All Booked Services</a>
+                </h6>
+              </li>
+              <li *ngIf="isLoggedIn && isServiceProvider" class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                <h6 class="mb-0">
+                  <a [routerLink]="['/service-provider-dashboard']">Service Provider Dashboard</a>
                 </h6>
               </li>
             </ul>

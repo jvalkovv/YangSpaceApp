@@ -8,6 +8,7 @@ import { FooterComponent } from "../shared/components/footer/footer.component";
 import { NavbarComponent } from "../shared/components/navbar/navbar.component";
 import { UserProfileService } from './user-profile.service';
 import { Booking } from '../models/booking.model';
+import { AuthService } from '../auth/services/auth-service';
 
 @Component({
   selector: 'app-user-profile',
@@ -17,6 +18,8 @@ import { Booking } from '../models/booking.model';
   styleUrls: ['./user-profile.component.css']
 })
 export class UserProfileComponent implements OnInit {
+  isServiceProvider: boolean = false;
+  isLoggedIn: boolean = false;
   userProfile: any = {};
   userRole: any = {};
   bookedTasks: any[] = [];
@@ -24,11 +27,14 @@ export class UserProfileComponent implements OnInit {
   servicesToProvide: Service[] = [];
   servicesBooked: Service[] = [];
   recentBookings: Booking[] = [];
-  constructor(private userProfileService: UserProfileService) { }
+  constructor(private userProfileService: UserProfileService, private authService: AuthService) { }
 
   ngOnInit(): void {
     this.fetchUserProfile();
-
+    this.authService.isLoggedIn$.subscribe((isLoggedIn) => {
+      this.isLoggedIn = isLoggedIn;
+      this.isServiceProvider = this.authService.isServiceProvider(); 
+    });
    
     this.fetchServicesToProvide();
     this.fetchServicesBooked();
@@ -52,7 +58,6 @@ export class UserProfileComponent implements OnInit {
   }
   fetchServicesToProvide(): void {
     this.userProfileService.getServicesToProvide().subscribe((services) => {
-      console.log('Correct Services to Provide:', services); // Should now show provider services
       this.servicesToProvide = services;
     });
   }

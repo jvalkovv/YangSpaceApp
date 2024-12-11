@@ -134,8 +134,6 @@ export class EditServiceComponent implements OnInit {
     this.serviceService.updateService(this.serviceId, formData).subscribe({
       next: (response) => {
         this.openDialog('Profile updated successfully.', 'Success');
-
-        console.log('Service updated successfully:', response);
         this.router.navigate(['/all-services']); // Navigate to the service
       },
       error: (err) => console.error('Error updating service:', err),

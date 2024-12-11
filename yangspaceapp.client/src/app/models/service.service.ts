@@ -42,8 +42,11 @@ export class ServiceService {
   }
 
   // Delete a service by ID
-  deleteService(id: number): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/delete-service/${id}`);
+  deleteService(serviceId: number): Observable<any> {
+    const token = this.authService.getToken(); // Retrieve the user's token
+    const headers = { Authorization: `${token}` }; // Include the token in the request
+
+    return this.http.delete(`${this.apiUrl}/delete:${serviceId}`, { headers });
   }
 
   getServiceById(serviceId: number): Observable<Service> {

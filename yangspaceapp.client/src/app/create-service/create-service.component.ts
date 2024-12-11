@@ -96,7 +96,6 @@ export class CreateServiceComponent implements OnInit {
     // Call the service to create the new service
     this.serviceService.createService(formData).subscribe(
       (response) => {
-        console.log('Service created successfully:', response);
         this.router.navigate(['/all-services']); // Navigate to the services page
       },
       (error) => {

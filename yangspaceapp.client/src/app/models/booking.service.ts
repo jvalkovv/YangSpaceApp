@@ -1,19 +1,17 @@
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, catchError } from 'rxjs';
-import { Booking, PaginatedBookingsViewModel } from '../models/booking.model';
+import { Observable, catchError, of } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { of } from 'rxjs';
-import id from '@angular/common/locales/id';
+import { AuthService } from '../auth/services/auth-service';
+import { Booking } from '../models/booking.model';
 
 @Injectable({
   providedIn: 'root',
 })
 export class BookingService {
-
   private apiUrl = `${environment.apiUrl}/booking`; // URL to the booking API
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private authService: AuthService) { }
 
   createBooking(booking: Booking): Observable<any> {
     return this.http.post(`${this.apiUrl}`, booking).pipe(
@@ -24,34 +22,31 @@ export class BookingService {
     );
   }
 
-  getBookings(
-    status?: string,
-    page: number = 1,
-    pageSize: number = 10
-  ): Observable<PaginatedBookingsViewModel> {
-    let params = new HttpParams()
-      .set('page', page)
-      .set('pageSize', pageSize);
-
-    if (status) {
-      params = params.set('status', status);
-    }
-
-    return this.http.get<PaginatedBookingsViewModel>(this.apiUrl, { params }).pipe(
-      catchError((error) => {
-        console.error('Get bookings failed:', error);
-        return of({ totalCount: 0, bookings: [] }); // Return an empty paginated object on error
+  // Get bookings based on status, page, and pageSize
+  getBookings(status: string = 'all', page: number = 1, pageSize: number = 2): Observable<any> {
+    // Construct the URL with query parameters
+    const url = `${this.apiUrl}?status=${status}&page=${page}&pageSize=${pageSize}`;
+    return this.http.get<any>(url).pipe(
+      catchError(error => {
+        console.error('Failed to fetch bookings:', error);
+        return of({ bookings: [], totalCount: 0 });  // Return an empty result on error
       })
     );
   }
+  // Method to get bookings for a provider (assumes providerId is extracted from JWT token)
+  getBookingsForProvider(): Observable<Booking[]> {
+    const providerId = this.authService.getToken(); // Extract providerId from token or user context
+    const headers = new HttpHeaders().set('Authorization', `${providerId}`);
 
-  updateBooking(booking: Booking): Observable<any> {
-    return this.http.put(`${this.apiUrl}/${booking.id}`, booking).pipe(
-      catchError(error => {
-        console.error('Update booking failed:', error);
-        return of(null);  // return a fallback value on error
-      })
-    );
+    return this.http.get<Booking[]>(`${this.apiUrl}/provider/${providerId}`, { headers });
+  }
+
+  // Method to update the booking status
+  updateBookingStatus(booking: Booking): Observable<any> {
+    const token = this.authService.getToken();
+    const headers = new HttpHeaders().set('Authorization', `${token}`);
+
+    return this.http.patch<any>(`${this.apiUrl}/${booking.id}/status`, booking, { headers });
   }
 
   deleteBooking(id: number): Observable<any> {

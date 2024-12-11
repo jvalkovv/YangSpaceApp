@@ -12,6 +12,7 @@ import { CreateServiceComponent } from './create-service/create-service.componen
 import { ServiceProviderGuard } from './create-service/service-provider.guard';
 import { EditServiceComponent } from './edit-service/edit-service.component';
 import { EditServiceGuard } from './service-item/edit-service.guard';
+import { ServiceProviderDashboardComponent } from './service-provider-dashboard/service-provider-dashboard.component';
 
 
 
@@ -27,5 +28,6 @@ export const routes: Routes = [
   { path: 'create-service', component: CreateServiceComponent, canActivate: [ServiceProviderGuard] },
   { path: 'edit-service/:id', component: EditServiceComponent, canActivate: [EditServiceGuard] },
   { path: 'booked-services', component: BookedServicesComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
+  { path: 'service-provider-dashboard', component: ServiceProviderDashboardComponent, canActivate: [ServiceProviderGuard] },
 ];
 export class AppRoutingModule { }
