@@ -17,7 +17,7 @@ import { EditServiceGuard } from './service-item/edit-service.guard';
 
 
 export const routes: Routes = [
- /* { path: '', redirectTo: '/homepage', pathMatch: 'full' }, // Default redirect*/
+  { path: '', redirectTo: '/homepage', pathMatch: 'full' }, // Default redirect
   { path: 'homepage', component: HomepageComponent },       // Home route
   { path: 'register', component: RegisterComponent, canActivate: [AuthReverseGuard] }, // Allow only unauthenticated users
   { path: 'login', component: LoginComponent, canActivate: [AuthReverseGuard] }, // Redirect logged-in users away from login
