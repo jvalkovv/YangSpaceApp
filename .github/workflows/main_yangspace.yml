@@ -35,10 +35,10 @@ jobs:
         npm install
         npm run build -- --configuration production
 
-    # Step 5: Copy Angular build output to ASP.NET Core wwwroot
+ # Step 5: Copy Angular build output to ASP.NET Core wwwroot
     - name: Copy Angular Build to wwwroot
       run: |
-        cp -R yangspaceapp.client/dist/browser/* YangSpaceApp.Server/wwwroot/
+        cp -R yangspaceapp.client/dist/browser/. YangSpaceApp.Server/wwwroot/
 
     # Step 6: Publish ASP.NET Core application
     - name: Publish ASP.NET Core App
