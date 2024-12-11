@@ -1,12 +1,13 @@
-import { Component, Input, OnInit } from '@angular/core';
-import { UserProfileService } from './user-profile.service';
 import { CommonModule } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NavbarComponent } from "../shared/components/navbar/navbar.component";
-import { FooterComponent } from "../shared/components/footer/footer.component";
 import { RouterLink } from '@angular/router';
-import { User, UserProfileUpdateModel } from './user.model';
 import { environment } from '../../environments/environment';
+import { Service } from '../create-service/service.model';
+import { FooterComponent } from "../shared/components/footer/footer.component";
+import { NavbarComponent } from "../shared/components/navbar/navbar.component";
+import { UserProfileService } from './user-profile.service';
+import { Booking } from '../models/booking.model';
 
 @Component({
   selector: 'app-user-profile',
@@ -17,21 +18,22 @@ import { environment } from '../../environments/environment';
 })
 export class UserProfileComponent implements OnInit {
   userProfile: any = {};
-  userRole: any={};
+  userRole: any = {};
   bookedTasks: any[] = [];
   viewBookings: boolean = false;
-
-  constructor(private userProfileService: UserProfileService ) {   }
+  servicesToProvide: Service[] = [];
+  servicesBooked: Service[] = [];
+  recentBookings: Booking[] = [];
+  constructor(private userProfileService: UserProfileService) { }
 
   ngOnInit(): void {
     this.fetchUserProfile();
-    
+
+   
+    this.fetchServicesToProvide();
+    this.fetchServicesBooked();
   }
-  // get profilePicture(): string {
-  //   return this.userProfile?.profilePictureUrl
-  //     ? `${environment.imageUrl}/${this.userProfile.profilePictureUrl}`
-  //     : '';
-  // }
+
   get profilePicture(): string {
     return this.userProfile?.profilePictureUrl
       ? `${environment.imageUrl}${this.userProfile.profilePictureUrl}`
@@ -42,10 +44,23 @@ export class UserProfileComponent implements OnInit {
       .subscribe({
         next: (data) => {
           this.userProfile = data;
-                   
         },
         error: (err) => {
+          console.error('Error fetching user profile:', err);
         }
       });
   }
+  fetchServicesToProvide(): void {
+    this.userProfileService.getServicesToProvide().subscribe((services) => {
+      console.log('Correct Services to Provide:', services); // Should now show provider services
+      this.servicesToProvide = services;
+    });
+  }
+
+  fetchServicesBooked(): void {
+    this.userProfileService.getServicesBooked().subscribe((services) => {
+      this.servicesBooked = services;
+    });
+  }
 }
+

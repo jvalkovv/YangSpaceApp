@@ -56,9 +56,10 @@ export class AuthService {
   saveUserDetails(token: string, username: string, role: string = ''): void {
     localStorage.setItem(this.token, token);
     localStorage.setItem(this.username, username);
-    localStorage.setItem(this.role, role || '');  // Default to '' if role is undefined
-    sessionStorage.setItem('lastActivity', Date.now().toString()); // Track last activity
+    localStorage.setItem(this.role, role || '');
+    sessionStorage.setItem('lastActivity', Date.now().toString())
     this.isLoggedInSubject.next(true);
+
     this.resetInactivityTimer();
   }
 
@@ -67,8 +68,9 @@ export class AuthService {
   checkServiceAccess(serviceId: number): Observable<boolean> {
     const token = this.getToken();
     if (!token) {
-      return of(false); // Return false if no token exists
+      return of(false); 
     }
+
 
     const headers = new HttpHeaders().set('Authorization', `${token}`);
     return this.http.get<boolean>(`${environment.apiUrl}/services/check-access/${serviceId}`, { headers });
@@ -100,7 +102,7 @@ export class AuthService {
     localStorage.removeItem(this.role);
     sessionStorage.removeItem('lastActivity');
     this.isLoggedInSubject.next(false);
-    this.router.navigate(['/login']);
+    this.router.navigate(['/homepage']);
   }
 
   // Track activity
@@ -109,7 +111,7 @@ export class AuthService {
 
     events.forEach(event => {
       window.addEventListener(event, () => {
-        this.resetInactivityTimer(); // Reset inactivity timer on activity
+        this.resetInactivityTimer();
       });
     });
   }
@@ -120,8 +122,10 @@ export class AuthService {
       if (lastActivity && Date.now() - parseInt(lastActivity) > this.maxInactivityTime) {
         this.logout();
       }
+      console.log(lastActivity);
+      console.log(this.maxInactivityTime);
     };
-    setInterval(inactivityCheck, 60000);
+    setInterval(inactivityCheck, 6000);
   }
 
   resetInactivityTimer(): void {

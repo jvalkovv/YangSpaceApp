@@ -14,4 +14,6 @@ export interface Service {
   userToken: string;
   email?: string; // Add email property
   phoneNumber?: string;
+  serviceName: string;
+  status: string;
 }

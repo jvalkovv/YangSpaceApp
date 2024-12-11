@@ -11,7 +11,6 @@ import { AllServicesComponent } from './all-services/all-services.component';
 import { CreateServiceComponent } from './create-service/create-service.component';
 import { ServiceProviderGuard } from './create-service/service-provider.guard';
 import { EditServiceComponent } from './edit-service/edit-service.component';
-import { ServiceItemComponent } from './service-item/service-item.component';
 import { EditServiceGuard } from './service-item/edit-service.guard';
 
 
@@ -25,8 +24,7 @@ export const routes: Routes = [
   { path: 'user-profile', component: UserProfileComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
   { path: 'edit-profile', component: EditProfileComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
   { path: 'all-services', component: AllServicesComponent },
-  { path: 'service-item', component: ServiceItemComponent, canActivate: [AuthGuard] },
-  { path: 'create-service', component: CreateServiceComponent, canActivate: [ServiceProviderGuard]},
+  { path: 'create-service', component: CreateServiceComponent, canActivate: [ServiceProviderGuard] },
   { path: 'edit-service/:id', component: EditServiceComponent, canActivate: [EditServiceGuard] },
   { path: 'booked-services', component: BookedServicesComponent, canActivate: [AuthGuard] }, // Protect profile for authenticated users
 ];

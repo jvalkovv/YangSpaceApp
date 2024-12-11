@@ -7,11 +7,9 @@
           <div class="card">
             <div class="card-body">
               <div class="d-flex flex-column align-items-center text-center">
-                <img
-                  [src]="profilePicture"
-                  alt="Profile Picture"
-                  class="circle"
-                />
+                <img [src]="profilePicture"
+                     alt="Profile Picture"
+                     class="circle" />
                 <div class="mt-3">
                   <h3>Welcome,</h3>
                   <h2>
@@ -21,7 +19,7 @@
                     User Role: {{ userProfile.role }}
                   </p>
                   <p class="text-muted font-size-sm">
-                    Username: {{ userProfile.username }}
+                    Username: {{ userProfile.userName }}
                   </p>
                   <!-- <button class="btn btn-primary">Follow</button> -->
                   <button class="btn btn-outline-primary">Message</button>
@@ -31,9 +29,7 @@
           </div>
           <div class="card mt-3">
             <ul class="list-group list-group-flush">
-              <li
-                class="list-group-item d-flex justify-content-between align-items-center flex-wrap"
-              >
+              <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
                 <h6 class="mb-0">
                   <a [routerLink]="['/booked-services']">All Booked Services</a>
                 </h6>
@@ -91,52 +87,56 @@
               <hr />
               <div class="row">
                 <div class="col-sm-12">
-                  <a class="btn btn-info" [routerLink]="['/edit-profile']"
-                    >Manage User Profile</a
-                  >
+                  <a class="btn btn-info" [routerLink]="['/edit-profile']">Manage User Profile</a>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="row gutters-sm">
-            <ng-container *ngIf="userProfile.role === 'ServiceProvider'">
-              <!-- WorkOrders for me -->
+            <!-- Service Provider's Services to Provide -->
+            <ng-container *ngIf="servicesToProvide.length > 0">
               <div class="col-sm-6 mb-3">
                 <div class="card h-100">
                   <div class="card-body">
                     <h6 class="d-flex align-items-center mb-3">
                       <i class="material-icons text-info mr-2">assignment</i>
-                      WorkOrders for me:
+                      Services to Provide:
                     </h6>
-                    <small>Web Design</small>
-                    <div>
-                      Some content related to orders for this service provider
-                    </div>
+                    <ul class="sp-ul">
+                      <li *ngFor="let service of servicesToProvide">
+                        {{ service.serviceName }} - ${{ service.price }}
+                      </li>
+                    </ul>
                   </div>
                 </div>
               </div>
+              <div *ngIf="servicesToProvide.length === 0">
+                <p>No services available.</p>
+              </div>
             </ng-container>
 
-            <!-- WorkOrders(Book) from me -->
-            <div
-              class="col-sm-6 mb-3"
-              *ngIf="
-                userProfile.role === 'ServiceProvider' ||
-                userProfile.role === 'Client'
-              "
-            >
-              <div class="card h-100">
-                <div class="card-body">
-                  <h6 class="d-flex align-items-center mb-3">
-                    <i class="material-icons text-info mr-2">assignment</i>
-                    WorkOrders(Book) from me:
-                  </h6>
-                  <small>Web Design</small>
-                  <div>Some content related to bookings made by this user</div>
+            <!-- Service Provider's Services Booked -->
+            <ng-container *ngIf="servicesBooked.length > 0">
+              <div class="col-sm-6 mb-3">
+                <div class="card h-100">
+                  <div class="card-body">
+                    <h6 class="d-flex align-items-center mb-3">
+                      <i class="material-icons text-info mr-2">assignment</i>
+                      Services Booked:
+                    </h6>
+                    <ul class="c-ul">
+                      <li *ngFor="let booking of servicesBooked">
+                        {{ booking.serviceName }} - {{ booking.price }} $ - {{booking.status}}
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
+              <div *ngIf="servicesBooked.length === 0">
+                <p>No bookings available.</p>
+              </div>
+            </ng-container>
           </div>
         </div>
       </div>

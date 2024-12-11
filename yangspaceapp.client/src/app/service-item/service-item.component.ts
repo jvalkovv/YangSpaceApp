@@ -1,14 +1,13 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Booking } from '../models/booking.model';
 import { BookingService } from '../models/booking.service';
 import { AuthService } from '../auth/services/auth-service';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Service } from '../create-service/service.model';
 import { environment } from '../../environments/environment';
 import { DialogComponent } from '../dialog/dialog.component';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { ServiceService } from '../models/service.service';
 
 @Component({
   selector: 'app-service-item',
@@ -18,7 +17,8 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
   styleUrls: ['./service-item.component.css'],
 })
 export class ServiceItemComponent {
-  @Input() service!: Service;
+  @Input() service: any; 
+  isBooking = false;
   isLoading = false;
   selectedTime = '12:00 PM';
   bookingDate: string = '';
@@ -32,7 +32,8 @@ export class ServiceItemComponent {
     private bookingService: BookingService,
     private authService: AuthService,
     private router: Router,
-    private http: HttpClient
+    private http: HttpClient,
+    private serviceService: ServiceService
   ) { }
 
   ngOnInit(): void {
@@ -46,8 +47,24 @@ export class ServiceItemComponent {
         this.hasAccess = false;
       }
     );
-  }
 
+
+  }
+  
+  bookService(serviceId: number): void {
+    this.isBooking = true;
+
+    this.serviceService.bookService(serviceId).subscribe({
+      next: (response: { message: any; }) => {
+        alert(response.message);
+        this.isBooking = false;
+      },
+      error: (error) => {
+        alert(error.error?.error || 'Failed to book the service.');
+        this.isBooking = false;
+      },
+    });
+  }
   checkUserAccess(): any {
     if (!this.currentUserToken || !this.service?.serviceId) {
       this.hasAccess = false;
@@ -95,66 +112,4 @@ export class ServiceItemComponent {
       : '';
   }
 
-
-  // checkUserAccess(): void {
-  //   if (!this.currentUserToken || !this.service?.serviceId) {
-  //     this.hasAccess = false;
-  //     return;
-  //   }
-
-  //   const headers = new HttpHeaders().set('Authorization', `${this.currentUserToken}`);
-
-  //   // Send request to check access for the specific service
-  //   this.http.get<boolean>(`${environment.apiUrl}/services/check-access/${this.service.serviceId}`, { headers })
-  //     .subscribe(
-  //       (response: boolean) => {
-  //         this.hasAccess = response;
-  //         console.log("Access check result:", this.hasAccess); // Confirm updated value
-  //       },
-  //       error => {
-  //         console.error('Error:', error);
-  //         this.hasAccess = false;
-  //       }
-  //     );
-  // }
-  bookService(): void {
-    if (!this.currentUserToken) {
-      this.openDialog('You need to log in to book a service.', 'Login Required');
-      return;
-    }
-
-    if (this.canEditService()) {
-      this.openDialog('You cannot book your own service.', 'Booking Not Allowed');
-      return;
-    }
-
-    if (!this.bookingDate) {
-      this.openDialog('Please select a booking date.', 'Date Required');
-      return;
-    }
-
-    this.isLoading = true;
-
-    const booking: Booking = {
-      serviceId: this.service.id ?? 0,
-      userToken: this.currentUserToken,
-      status: 'pending',
-      date: this.bookingDate,
-      time: this.selectedTime,
-    };
-
-    this.bookingService.createBooking(booking).subscribe({
-      next: (response) => {
-        this.isLoading = false;
-        this.openDialog(
-          response ? 'Booking created successfully!' : 'Failed to create booking. Try again.',
-          response ? 'Success' : 'Error'
-        );
-      },
-      error: () => {
-        this.isLoading = false;
-        this.openDialog('An error occurred while creating the booking.', 'Error');
-      },
-    });
-  }
 }

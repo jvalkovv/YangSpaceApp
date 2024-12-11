@@ -18,6 +18,13 @@ export class ServiceService {
     return this.http.get<Service[]>(`${this.apiUrl}`);
   }
 
+  bookService(serviceId: number): Observable<any> {
+    const token = this.authService.getToken();
+    const headers = { Authorization: `${token}` };
+    return this.http.post<any>(`${this.apiUrl}/book/${serviceId}`, {}, { headers });
+  }
+
+
   // Create a new service using FormData
   createService(formData: FormData): Observable<any> {
     const token = this.authService.getToken(); // Retrieve token from AuthService
@@ -29,8 +36,8 @@ export class ServiceService {
   // Update a service by ID
   updateService(serviceId: number, formData: FormData): Observable<any> {
     const token = this.authService.getToken(); // Retrieve token from AuthService
-    const headers = { Authorization: `${token}` }; 
-  
+    const headers = { Authorization: `${token}` };
+
     return this.http.put(`${this.apiUrl}/edit-service/:${serviceId}`, formData, { headers });
   }
 

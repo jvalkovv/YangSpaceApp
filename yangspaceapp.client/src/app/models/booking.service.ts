@@ -1,17 +1,16 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError } from 'rxjs';
-import { Booking } from '../models/booking.model';
+import { Booking, PaginatedBookingsViewModel } from '../models/booking.model';
 import { environment } from '../../environments/environment';
 import { of } from 'rxjs';
+import id from '@angular/common/locales/id';
 
 @Injectable({
   providedIn: 'root',
 })
 export class BookingService {
-  checkAccess(serviceId: number) {
-    throw new Error('Method not implemented.');
-  }
+
   private apiUrl = `${environment.apiUrl}/booking`; // URL to the booking API
 
   constructor(private http: HttpClient) { }
@@ -25,12 +24,23 @@ export class BookingService {
     );
   }
 
-  getBookings(): Observable<Booking[]> {
+  getBookings(
+    status?: string,
+    page: number = 1,
+    pageSize: number = 10
+  ): Observable<PaginatedBookingsViewModel> {
+    let params = new HttpParams()
+      .set('page', page)
+      .set('pageSize', pageSize);
 
-    return this.http.get<Booking[]>(`${this.apiUrl}`).pipe(
-      catchError(error => {
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<PaginatedBookingsViewModel>(this.apiUrl, { params }).pipe(
+      catchError((error) => {
         console.error('Get bookings failed:', error);
-        return of([]);  // return empty array on error
+        return of({ totalCount: 0, bookings: [] }); // Return an empty paginated object on error
       })
     );
   }

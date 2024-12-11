@@ -8,23 +8,27 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+
 }
 
 /* Service Item Card */
 .service-item {
+
   background-color: white;
+  height: auto;
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin: 20px auto;
-  max-width: 400px;
+  padding: 15px;
+  margin: 5px auto;
+  max-width: 300px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+/*  overflow: scroll;*/
 }
 
-.service-item:hover {
+/*.service-item:hover {
   transform: translateY(-5px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
+}*/
 
 /* Service Header */
 .service-header {
@@ -41,29 +45,31 @@ body {
   align-items: center;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.312);
 }
+
 .circle {
   border-radius: 50%;
   overflow: hidden;
   width: 220px;
   height: 170px;
 }
+
 h2 {
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   color: #222;
-  margin: 10px 0;
+  margin: 5px 0;
 }
 
 p {
-  font-size: 1rem;
+  font-size: 0.8rem;
   line-height: 1.6;
   color: #555;
-  margin: 8px 0;
+  margin: 5px 0;
 }
 
 /* Booking Form */
 .booking-form {
   width: 100%;
-  margin-top: 20px;
+  margin-top: 10px;
 }
 
 .booking-label {
@@ -86,35 +92,36 @@ input[type="time"] {
   transition: border-color 0.3s ease;
 }
 
-input[type="date"]:focus,
-input[type="time"]:focus {
-  border-color: #007bff;
-  outline: none;
-}
+  input[type="date"]:focus,
+  input[type="time"]:focus {
+    border-color: #007bff;
+    outline: none;
+  }
 
 /* Buttons */
-.book-button {
-  width: 100%;
+button {
+  width: 50%;
   padding: 10px;
+  margin: 5px;
   background-color: #007bff;
   color: white;
   border: none;
   border-radius: 4px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.book-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
+  button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
 
-.book-button:not(:disabled):hover {
-  background-color: #0056b3;
-  transform: translateY(-2px);
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-}
+  button:not(:disabled):hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  }
 
 /* Loading Spinner */
 .loading-spinner {
@@ -130,6 +137,7 @@ input[type="time"]:focus {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
