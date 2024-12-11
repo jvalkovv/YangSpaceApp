@@ -30,6 +30,20 @@ https://yangspace.azurewebsites.net/
 	•	Providers can view all bookings and delete services if needed.
 	•	Service providers can only modify or delete services they created.
 
+## User Roles
+# Client
+	•	Book Services: Browse available services and schedule appointments with service providers.
+	•	View Bookings: Manage current and past bookings.
+username: cuser
+password: cuser1A
+
+# Service Provider
+	•	Manage Services: Create, update, or delete services they offer.
+	•	View Bookings: View client bookings for their services and manage availability.
+	•	Admin Features: Providers can delete their services if no longer required.
+usename: spuser
+password: spuser1A
+
 ## Getting Started
 
 Follow the instructions below to set up the project on your local machine.
