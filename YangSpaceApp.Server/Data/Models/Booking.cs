@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using static YangSpaceApp.Server.Data.Extension.Enum;
 
@@ -13,6 +14,7 @@ namespace YangSpaceApp.Server.Data.Models
         public int ServiceId { get; set; }
 
         [ForeignKey(nameof(ServiceId))]
+        [JsonIgnore]
         public Service Service { get; set; } = null!;
 
         public string? UserId { get; set; }

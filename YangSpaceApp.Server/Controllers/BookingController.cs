@@ -20,18 +20,18 @@ public class BookingController : ControllerBase
         _userProfileService = userProfileService;
     }
 
-    [HttpPost]
-    public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(new { Error = "Invalid request" });
+    //[HttpPost]
+    //public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequest request)
+    //{
+    //    if (!ModelState.IsValid)
+    //        return BadRequest(new { Error = "Invalid request" });
 
-        var result = await _bookingService.CreateBookingAsync(request);
-        if (result == null)
-            return NotFound(new { Error = "Service not found" });
+    //    var result = await _bookingService.CreateBookingAsync(request);
+    //    if (result == null)
+    //        return NotFound(new { Error = "Service not found" });
 
-        return null;
-    }
+    //    return null;
+    //}
 
     [HttpGet("booking:{id}")]
     public async Task<IActionResult> GetBookingById(int id)
@@ -68,7 +68,8 @@ public class BookingController : ControllerBase
     public async Task<IActionResult> GetBookings([FromQuery] BookingStatus? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         var bookings = await _bookingService.GetBookingsAsync(status, page, pageSize);
-        return Ok();
+
+        return Ok(bookings);
     }
 
     private string? GetUserIdFromToken()

@@ -1,5 +1,4 @@
-﻿using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using YangSpaceApp.Server.Data.Models;
 using YangSpaceApp.Server.Data.Services.Contracts;
 using YangSpaceApp.Server.Data.ViewModel;
@@ -20,31 +19,35 @@ public class BookingService : IBookingService
         _userProfileService = userProfileService;
     }
 
-    public async Task<BookingViewModel> CreateBookingAsync(CreateBookingRequest request)
+    public async Task<bool> CreateBookingAsync(string userId, int serviceId)
     {
-        var service = await _context.Services.FindAsync(request.ServiceId);
+        var service = await _context.Services.FindAsync(serviceId);
 
-        if (service == null) return null;
+        if (service == null) throw new Exception("Service not found.");
 
-        var userToken = request.UserTokenKey;
+        // Prevent self-booking
+        if (service.ProviderId == userId)
+            throw new InvalidOperationException("You cannot book your own service.");
 
-        var principal = _userProfileService.GetUserProfileAsyncByToken(userToken);
+        var existingBooking = await _context.Bookings.FirstOrDefaultAsync(b =>
+            b.UserId == userId && b.ServiceId == service.Id && b.Status == BookingStatus.Pending);
 
-        var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (existingBooking != null)
+        {
+            throw new InvalidOperationException("You have already booked this service.");
+        }
 
         var booking = new Booking
         {
-            ServiceId = request.ServiceId,
+            ServiceId = serviceId,
             UserId = userId,
-            BookingDate = DateTime.Now,
             Status = BookingStatus.Pending,
-            Notes = request.Notes
         };
 
         _context.Bookings.Add(booking);
         await _context.SaveChangesAsync();
 
-        return null;
+        return true;
     }
 
     public async Task<BookingViewModel> GetBookingByIdAsync(int id)
@@ -92,13 +95,29 @@ public class BookingService : IBookingService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Include(b => b.Service)
+            .Select(b=> new BookingViewModel
+            {
+                Id = b.Id,
+                ServiceName = b.Service.Title,
+                BookingDate = b.BookingDate,
+                Status = b.Status.ToString(),
+            })
             .ToListAsync();
+
+
 
         return new PaginatedBookingsViewModel
         {
             TotalCount = totalCount,
-            Bookings = null
+            Bookings = bookings
         };
     }
 
+    public async Task<List<Booking>> GetBookingsByUserId(string? userId)
+    {
+        return await _context.Bookings
+            .Where(b => b.UserId == userId)
+            .Include(b => b.Service) // Include service data in booking
+            .ToListAsync();
+    }
 }

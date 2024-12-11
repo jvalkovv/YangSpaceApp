@@ -54,16 +54,25 @@ namespace YangSpaceApp.Server.Data.Services
 
         public async Task<List<Booking>> GetBookedServicesAsync(string userId, bool isServiceProvider)
         {
-            if (isServiceProvider)
-            {
-                return await _context.Bookings
-                    .Where(b => b.Service.ProviderId == userId) // Assuming 'Provider' refers to a user who is the provider
-                    .ToListAsync();
-            }
-
             return await _context.Bookings
-                .Where(b => b.UserId == userId) // Client bookings
+                .Where(b => b.UserId == userId)
+                .Include(b => b.Service) // Include service data in booking
                 .ToListAsync();
         }
+
+        //public async Task<List<Booking>> GetBookedServicesAsync(string userId, bool isServiceProvider)
+        //{
+        //    if (isServiceProvider)
+        //    {
+        //        return await _context.Bookings
+        //            .Where(b => b.Service.ProviderId == userId) 
+        //            .ToListAsync();
+        //    }
+
+        //    return await _context.Bookings
+        //        .Where(b => b.UserId == userId)
+        //        .Include(b => b.Service)
+        //        .ToListAsync();
+        //}
     }
 }

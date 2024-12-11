@@ -218,30 +218,15 @@ public class ServicesService : IServiceService
         return service;
     }
 
-
-    public async Task<bool> BookServiceAsync(User user, Service service)
-    {
-        var booking = new Booking
-        {
-            UserId = user.Id,
-            ServiceId = service.Id,
-            BookingDate = DateTime.UtcNow
-        };
-
-        _context.Bookings.Add(booking);
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
     public async Task<bool> CheckUserAccessToServiceAsync(User user, int serviceId)
     {
         var service = await _context.Services.FindAsync(serviceId);
         if (service == null) return false;
+        bool isProvider = service.ProviderId == user.Id;
+        
+        //var hasBooking = await _context.Bookings.AnyAsync(b => b.UserId == user.Id && b.ServiceId == serviceId);
 
-        var isProvider = service.ProviderId == user.Id;
-        var hasBooking = await _context.Bookings.AnyAsync(b => b.UserId == user.Id && b.ServiceId == serviceId);
-
-        return isProvider || hasBooking;
+        return isProvider;
     }
 
     public async Task<List<Category>> GetCategories()

@@ -2,8 +2,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using YangSpaceApp.Server.Data;
 using YangSpaceApp.Server.Data.Extension;
 using YangSpaceApp.Server.Data.Models;
 using YangSpaceApp.Server.Data.Services.Contracts;
@@ -19,12 +17,14 @@ public class ServicesController : ControllerBase
     private readonly IServiceService _serviceService;
     private readonly IConfiguration _configuration;
     private readonly UserManager<User> _userManager;
+    private readonly IBookingService _bookingService;
 
-    public ServicesController(IServiceService serviceService, IConfiguration configuration, UserManager<User> userManager)
+    public ServicesController(IServiceService serviceService, IConfiguration configuration, UserManager<User> userManager, IBookingService bookingService)
     {
         _serviceService = serviceService;
         _configuration = configuration;
         _userManager = userManager;
+        _bookingService = bookingService;
     }
 
     [HttpGet("categories")]
@@ -81,19 +81,29 @@ public class ServicesController : ControllerBase
     }
 
     [HttpPost("book/{serviceId}")]
-    [Authorize]
     public async Task<IActionResult> BookService(int serviceId)
     {
-        string? userId = GetAuthenticatedUserId();
-        var user = await _userManager.FindByIdAsync(userId);
-        var service = await _serviceService.GetServiceByIdAsync(serviceId);
+        var userId = GetAuthenticatedUserId();
 
-        if (service == null) return NotFound("Service not found");
+        try
+        {
+            var success = await _bookingService.CreateBookingAsync(userId, serviceId);
 
-        var success = await _serviceService.BookServiceAsync(user, service);
-        if (!success) return BadRequest("You have already booked this service.");
+            if (success)
+            {
+                return Ok(new { success = true, message = "Service booked successfully." });
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception)
+        {
+            return NotFound(new { error = "Service not found." });
+        }
 
-        return Ok("Service booked successfully.");
+        return BadRequest("Booking failed.");
     }
 
 

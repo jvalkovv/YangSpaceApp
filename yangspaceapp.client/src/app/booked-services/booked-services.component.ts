@@ -25,22 +25,20 @@ export class BookedServicesComponent implements OnInit {
   ngOnInit(): void {
     this.currentUserTokenId = this.authService.getToken();
     this.fetchBookings();
+   
   }
-  fetchBookings(): void {
-    if (!this.currentUserTokenId) {
-      alert('You need to log in to view your bookings.');
-      return;
-    }
-  
-    this.bookingService.getBookings().subscribe({
-      next: (bookings) => {
-        this.bookings = bookings.filter(
-          (booking) => booking.userToken === this.currentUserTokenId
-        );
+  fetchBookings(status?: string): void {
+    const page = 1; // Set the page number
+    const pageSize = 10; // Set the page size
+
+    this.bookingService.getBookings(status, page, pageSize).subscribe({
+      next: (response) => {
+        this.bookings = response.bookings; // Populate the bookings list
+        console.log('Fetched bookings:', this.bookings);
       },
       error: (err) => {
         console.error('Failed to fetch bookings:', err);
-      },
+      }
     });
   }
 
