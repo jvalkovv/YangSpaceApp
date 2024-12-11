@@ -1,0 +1,33 @@
+.dashboard {
+  padding: 20px;
+}
+
+.bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+  .bookings-table th, .bookings-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+  }
+
+button {
+  padding: 5px 10px;
+  margin: 5px;
+}
+.btn-outline-primary:hover{
+    background-color: lawngreen;
+    color: green;
+}
+.status-pending {
+  color: orange;
+}
+
+.status-in-progress {
+  color: blue;
+}
+
+.status-completed {
+  color: green;
+}

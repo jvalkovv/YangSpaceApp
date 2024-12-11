@@ -1,0 +1,44 @@
+<app-navbar></app-navbar>
+<p>service-provider-dashboard works!</p>
+<div class="dashboard">
+  <h2>Service Provider Dashboard</h2>
+
+  <div *ngIf="bookings && bookings.length">
+    <table class="bookings-table">
+      <thead>
+        <tr>
+          <th>Service Name</th>
+          <th>Booking Date</th>
+          <th>Client Name</th>
+          <th>Client Email</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let booking of bookings">
+          <td>{{ booking.serviceName }}</td>
+          <td>{{ booking.bookingDate | date }}</td>
+          <td>{{booking.clientName}}</td>
+          <td>{{booking.clientEmail}}</td>
+          <td>
+            <span [ngClass]="{
+              'status-pending': booking.status === 'pending',
+              'status-in-progress': booking.status === 'in-progress',
+              'status-completed': booking.status === 'completed'
+            }">{{ booking.status }}</span>
+          </td>
+          <td>
+            <button *ngIf="booking.status.toLowerCase() === 'pending'" (click)="startService(booking)" class="btn btn-outline-primary">Start Service</button>
+            <button  *ngIf="booking.status === 'InProgress'" (click)="completeService(booking)" class="btn btn-outline-primary">Mark as Completed</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div *ngIf="!bookings || !bookings.length">
+    <p>No bookings at the moment.</p>
+  </div>
+</div>
+<app-footer></app-footer>
