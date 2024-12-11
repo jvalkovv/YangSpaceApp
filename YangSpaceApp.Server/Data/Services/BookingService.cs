@@ -69,25 +69,44 @@ public class BookingService : IBookingService
         return null;
     }
 
-    public async Task<BookingViewModel> UpdateBookingStatusAsync(int id, UpdateBookingStatusRequest request)
+    public async Task<bool> UpdateBookingStatusAsync(int bookingId, UpdateBookingStatusRequest request)
     {
-        var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.Id == id);
-        if (booking == null) return null;
+        var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId);
+        if (booking == null) return false;
 
-        booking.Status = request.Status;
+
+        if (Enum.TryParse(request.Status, true, out BookingStatus status))
+        { booking.Status = status; }
+
+
+        if (request.ResolvedDate.HasValue)
+        {
+            booking.UpdatedDate = request.ResolvedDate.Value;
+        }
         booking.UpdatedDate = DateTime.Now;
 
         await _context.SaveChangesAsync();
-
-        return null;
+        return true;
     }
 
-    public async Task<PaginatedBookingsViewModel> GetBookingsAsync(BookingStatus? status, int page, int pageSize)
+    public async Task<PaginatedBookingsViewModel> GetBookingsAsync(string status, int page, int pageSize)
     {
         var query = _context.Bookings.AsQueryable();
 
-        if (status.HasValue)
-            query = query.Where(b => b.Status == status.Value);
+
+        if (status != "all" && Enum.TryParse<BookingStatus>(status, out var statusEnum))
+        {
+            query = query.Where(b => b.Status.ToString().ToLower() == status);
+        }
+        else if (status != "all" && status!="pending" && status != "inprogress" && status != "completed")
+        {
+            // Handle invalid status case (optional, depending on your requirements)
+            return new PaginatedBookingsViewModel
+            {
+                TotalCount = 0,
+                Bookings = new List<BookingViewModel>()
+            };
+        }
 
         var totalCount = await query.CountAsync();
 
@@ -95,16 +114,18 @@ public class BookingService : IBookingService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Include(b => b.Service)
-            .Select(b=> new BookingViewModel
+            .Select(b => new BookingViewModel
             {
                 Id = b.Id,
                 ServiceName = b.Service.Title,
                 BookingDate = b.BookingDate,
                 Status = b.Status.ToString(),
+                Price = b.Service.Price,
+                UserName = $"{b.User.FirstName} {b.User.LastName}",
+                ProviderEmail = b.Service.Provider.Email,
+                UpdatedDate = b.UpdatedDate
             })
             .ToListAsync();
-
-
 
         return new PaginatedBookingsViewModel
         {
@@ -119,5 +140,25 @@ public class BookingService : IBookingService
             .Where(b => b.UserId == userId)
             .Include(b => b.Service) // Include service data in booking
             .ToListAsync();
+    }
+
+    public async Task<IEnumerable<BookingViewModel>> GetBookingsForProviderAsync(string providerId)
+    {
+        var bookings = await _context.Bookings
+            .Where(b => b.Service.ProviderId == providerId)
+            .Include(b => b.Service)
+            .Select(b => new BookingViewModel
+            {
+                Id = b.Id,
+                ServiceName = b.Service.Title,
+                BookingDate = b.BookingDate,
+                Status = b.Status.ToString(),
+                ClientName = b.User.FirstName,
+                ClientEmail = b.User.Email
+
+            })
+            .ToListAsync();
+
+        return bookings;
     }
 }

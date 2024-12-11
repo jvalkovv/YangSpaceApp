@@ -155,7 +155,7 @@ public class ServicesController : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("delete:{id}")]
     public async Task<IActionResult> DeleteService(int id)
     {
         var success = await _serviceService.DeleteServiceAsync(id);

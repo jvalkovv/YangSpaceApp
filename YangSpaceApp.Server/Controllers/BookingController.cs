@@ -20,55 +20,68 @@ public class BookingController : ControllerBase
         _userProfileService = userProfileService;
     }
 
-    //[HttpPost]
-    //public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequest request)
-    //{
-    //    if (!ModelState.IsValid)
-    //        return BadRequest(new { Error = "Invalid request" });
+    // Fetch booked services for the provider
+    [HttpGet("provider/{providerId}")]
+    public async Task<IActionResult> GetBookedServicesForProvider(string providerId)
+    {
+        var userId = GetUserIdFromToken();
+        var bookings = await _bookingService.GetBookingsForProviderAsync(userId);
+        if (bookings == null)
+        {
+            return NotFound();
+        }
+        return Ok(bookings);
+    }
 
-    //    var result = await _bookingService.CreateBookingAsync(request);
-    //    if (result == null)
-    //        return NotFound(new { Error = "Service not found" });
-
-    //    return null;
-    //}
-
-    [HttpGet("booking:{id}")]
+    // Get booking by ID
+    [HttpGet("booking/{id}")]
     public async Task<IActionResult> GetBookingById(int id)
     {
         var booking = await _bookingService.GetBookingByIdAsync(id);
         if (booking == null)
             return NotFound();
-        ;
-        return Ok();
+        return Ok(booking); // Ensure booking is passed to response
     }
 
+
+    // Get bookings for the current user
     [HttpGet("user")]
     public async Task<IActionResult> GetUserBookings()
     {
         var userId = GetUserIdFromToken();
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
         var userBookings = await _bookingService.GetUserBookingsAsync(userId);
-        return Ok();
+        return Ok(userBookings); 
     }
 
-    [HttpPut("{id}/status")]
-    public async Task<IActionResult> UpdateBookingStatus(int id, [FromBody] UpdateBookingStatusRequest request)
+
+    [HttpPatch("{bookingId}/status")]
+    public async Task<IActionResult> UpdateBookingStatus(int bookingId, [FromBody] UpdateBookingStatusRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(new { Error = "Invalid status update" });
-
-        var result = await _bookingService.UpdateBookingStatusAsync(id, request);
-        if (result == null)
-            return NotFound();
-
-        return Ok();
+        var success = await _bookingService.UpdateBookingStatusAsync(bookingId, request);
+        if (!success)
+        {
+            return BadRequest("Failed to update booking status.");
+        }
+        return NoContent();
     }
 
+    // Get all bookings with optional filters for status and pagination
     [HttpGet]
-    public async Task<IActionResult> GetBookings([FromQuery] BookingStatus? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetBookings([FromQuery] string status = "all", [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
-        var bookings = await _bookingService.GetBookingsAsync(status, page, pageSize);
+        // Validate pagination parameters
+        if (page < 1 || pageSize < 1)
+        {
+            return BadRequest("Page and pageSize must be greater than zero.");
+        }
 
+        // If status is "all", treat it as no filter, otherwise filter by enum status
+        var bookings = await _bookingService.GetBookingsAsync(status.ToLower(), page, pageSize);
         return Ok(bookings);
     }
 

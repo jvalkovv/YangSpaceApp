@@ -10,8 +10,10 @@ namespace YangSpaceApp.Server.Data.Services.Contracts
         Task<bool> CreateBookingAsync(string userId, int serviceId);
         Task<BookingViewModel> GetBookingByIdAsync(int id);
         Task<IEnumerable<BookingViewModel>> GetUserBookingsAsync(string userId);
-        Task<BookingViewModel> UpdateBookingStatusAsync(int id, UpdateBookingStatusRequest request);
-        Task<PaginatedBookingsViewModel> GetBookingsAsync(BookingStatus? status, int page, int pageSize);
+        Task<bool> UpdateBookingStatusAsync(int bookingId, UpdateBookingStatusRequest request);
+        Task<PaginatedBookingsViewModel> GetBookingsAsync(string status, int page, int pageSize);
         Task<List<Booking>> GetBookingsByUserId(string? userId);
+        public Task<IEnumerable<BookingViewModel>> GetBookingsForProviderAsync(string providerId);
+
     }
 }
