@@ -12,45 +12,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the code
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    # Step 2: Setup .NET environment
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 8.0 # Update based on your project requirements
+      # Step 2: Setup .NET environment
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0 # Ensure this matches your project's .NET version
 
-    # Step 3: Setup Node.js for Angular
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18 # Adjust to the Node.js version required by your Angular app
+      # Step 3: Setup Node.js for Angular
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18 # Adjust based on your Angular requirements
 
-    # Step 4: Install Angular dependencies and build the app
-    - name: Build Angular App
-      working-directory: yangspaceapp.client
-      run: |
-        npm install
-        npm run build -- --configuration production
+      # Step 4: Install Angular dependencies and build the app
+      - name: Build Angular App
+        working-directory: yangspaceapp.client
+        run: |
+          npm install
+          npm run build -- --configuration production
 
- # Step 5: Copy Angular build output to ASP.NET Core wwwroot
-    - name: Copy Angular Build to wwwroot
-      run: |
-        cp -R yangspaceapp.client/dist/browser/* YangSpaceApp.Server/
+      # Step 5: Copy Angular build output to ASP.NET Core wwwroot
+      - name: Copy Angular Build Output to wwwroot
+        run: |
+          cp -R yangspaceapp.client/dist/YangSpaceClient/* YangSpaceApp.Server/wwwroot/
 
-    # Step 6: Publish ASP.NET Core application
-    - name: Publish ASP.NET Core App
-      working-directory: YangSpaceApp.Server
-      run: |
-        dotnet publish -c Release -o ./publish
+      # Step 6: Publish ASP.NET Core application
+      - name: Publish ASP.NET Core App
+        working-directory: YangSpaceApp.Server
+        run: |
+          dotnet publish -c Release -o ./publish
 
-    # Step 7: Deploy to Azure
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: yangspace # Replace with your actual App Service name
-        slot-name: production
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: YangSpaceApp.Server/publish
+      # Step 7: Deploy to Azure Web App
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: yangspace # Replace with your Azure Web App name
+          slot-name: production
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: YangSpaceApp.Server/publish
