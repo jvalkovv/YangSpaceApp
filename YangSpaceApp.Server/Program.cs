@@ -82,6 +82,8 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapFallbackToFile("index.html");
+
 // Map controllers
 app.MapControllers();
 
