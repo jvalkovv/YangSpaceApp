@@ -20,7 +20,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 8.0.11 # Update based on your project requirements
+        dotnet-version: 8.0 # Update based on your project requirements
 
     # Step 3: Setup Node.js for Angular
     - name: Setup Node.js
