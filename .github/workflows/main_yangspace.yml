@@ -20,7 +20,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 8.0 # Update based on your project requirements
+        dotnet-version: 8.0.11 # Update based on your project requirements
 
     # Step 3: Setup Node.js for Angular
     - name: Setup Node.js
@@ -39,7 +39,6 @@ jobs:
     # Step 5: Copy Angular build output to ASP.NET Core wwwroot
     - name: Copy Angular Build to wwwroot
       run: |
-        mkdir YangSpaceApp.Server\wwwroot
         xcopy /E /Y yangspaceapp.client\dist\browser\* YangSpaceApp.Server\wwwroot\
 
     # Step 6: Publish ASP.NET Core application
