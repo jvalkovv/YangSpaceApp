@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-deploy:
     name: Build and Deploy
-    runs-on: ubuntu-latest
+    runs-on: windows-latest # Using Windows runner for xcopy compatibility
 
     steps:
     # Step 1: Check out the code
@@ -33,12 +33,13 @@ jobs:
       working-directory: yangspaceapp.client
       run: |
         npm install
-        npm run build -- --configuration production
+        npm run build -- --prod
 
- # Step 5: Copy Angular build output to ASP.NET Core wwwroot
+    # Step 5: Copy Angular build output to ASP.NET Core wwwroot
     - name: Copy Angular Build to wwwroot
       run: |
-        cp -R yangspaceapp.client/dist/browser/* YangSpaceApp.Server/wwwroot/
+        mkdir YangSpaceApp.Server\wwwroot
+        xcopy /E /Y yangspaceapp.client\dist\browser\* YangSpaceApp.Server\wwwroot\
 
     # Step 6: Publish ASP.NET Core application
     - name: Publish ASP.NET Core App
