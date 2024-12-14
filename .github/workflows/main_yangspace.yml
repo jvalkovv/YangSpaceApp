@@ -33,7 +33,8 @@ jobs:
       working-directory: yangspaceapp.client
       run: |
         npm install
-        npm run build -- --prod
+        npm audit fix
+        npm run build -- --configuration production
 
     # Step 5: Copy Angular build output to ASP.NET Core wwwroot
     - name: Copy Angular Build to wwwroot
