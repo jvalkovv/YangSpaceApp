@@ -3,8 +3,10 @@
 YangSpace is a web application that connects service providers with users, offering a variety of services with integrated booking and management features. Developed with ASP.NET Core and Angular, it allows service providers to list services, manage bookings, and delete services, while users can browse available services and schedule appointments.
 
 The application is deployed on Azure, providing a scalable and reliable cloud infrastructure for users to interact with the platform.
-# Application URL - 
-https://yangspace.azurewebsites.net/
+## Application URL
+Windows Server 2022 IIS: https://yangspace.gleeze.com/
+
+Azure Cloud: https://yangspace.azurewebsites.net/
 ## Features
 	•	User Authentication: Secure login and role-based authorization with JWT.
 	•	Service Management: Providers can create, update, or delete services they offer.
