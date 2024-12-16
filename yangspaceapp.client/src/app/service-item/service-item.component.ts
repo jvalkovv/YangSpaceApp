@@ -48,9 +48,6 @@ export class ServiceItemComponent {
         this.hasAccess = false;
       }
     );
-
-    console.log('Service creatorId:', this.service?.userToken);
-    console.log('Current user token:', this.authService.getToken());
   }
 
 
