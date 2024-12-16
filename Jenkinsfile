@@ -82,7 +82,7 @@ pipeline {
                     bat 'xcopy /s /y .\\publish D:\\Applications\\YangSpaceApp'
 
                     echo 'Copying Angular frontend files to wwwroot...'
-                    bat 'xcopy /s /y yangspaceapp.client\\dist\\browser\* D:\\Applications\\YangSpaceApp\\wwwroot'
+                    bat 'xcopy /s /y yangspaceapp.client\\dist\\browser\\* D:\\Applications\\YangSpaceApp\\wwwroot'
                 }
             }
         }
