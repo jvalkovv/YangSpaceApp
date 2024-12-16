@@ -1,6 +1,5 @@
 ﻿using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
-using YangSpaceApp.Server.Data;
 using YangSpaceApp.Server.Data.Extension;
 using YangSpaceApp.Server.Data.Models;
 using YangSpaceApp.Server.Data.Services.Contracts;

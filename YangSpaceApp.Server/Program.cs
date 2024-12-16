@@ -79,7 +79,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 // Use Authentication and Authorization
-app.UseAuthentication();
+app.UseAuthentication(); 
 app.UseAuthorization();
 
 app.MapFallbackToFile("index.html");

@@ -43,7 +43,7 @@ namespace YangSpaceApp.Server.Data.Services
                 return new NotFoundObjectResult(new { message = "Image not found" });
             }
 
-            var fileBytes = File.ReadAllBytes(filePath);
+            var fileBytes = await File.ReadAllBytesAsync(filePath);
             var contentType = "image/jpg";  // You can adjust this depending on your file types.
             return new FileContentResult(fileBytes, contentType);
         }
