@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Renderer2 } from '@angular/core';
 import { AbstractControl,  FormBuilder, FormGroup, ReactiveFormsModule,  Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -23,8 +23,8 @@ export class RegisterComponent {
   isUsernameChecking: boolean = false;
   errorMessage: string = '';
   successMessage: string = '';
-
-  constructor(private fb: FormBuilder, private http: HttpClient, private authService: AuthService, private router: Router) {
+  private apiUrl = environment.apiUrl;
+  constructor(private fb: FormBuilder, private http: HttpClient, private authService: AuthService, private router: Router, private renderer: Renderer2) {
     this.registerForm = this.fb.group(
       {
         username: ['', [Validators.required, Validators.minLength(3), this.noWhitespaceValidator], [this.authService.usernameValidator()]],
@@ -38,7 +38,13 @@ export class RegisterComponent {
       { validator: this.passwordMatchValidator }
     );
   }
-
+  ngOnInit(): void {
+    // Select the element and set the background image
+    const element = document.getElementsByClassName('html')[0];  // Get the first element
+    if (element) {
+      this.renderer.setStyle(element, 'background-image', `url(${this.apiUrl}/image/img4.jpg)`);
+    }
+  }
   togglePasswordVisibility(field: 'password' | 'confirmPassword') {
     if (field === 'password') {
       this.passwordVisible = !this.passwordVisible;
@@ -76,3 +82,4 @@ export class RegisterComponent {
     }
   }
 }
+

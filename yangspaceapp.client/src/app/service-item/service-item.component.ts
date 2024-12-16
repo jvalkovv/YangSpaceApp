@@ -1,11 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Component, Input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../auth/services/auth-service';
-import { Service } from '../create-service/service.model';
 import { DialogComponent } from '../dialog/dialog.component';
 import { BookingService } from '../models/booking.service';
 import { ServiceService } from '../models/service.service';

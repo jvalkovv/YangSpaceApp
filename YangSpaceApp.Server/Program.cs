@@ -22,7 +22,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularApp", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", "https://yangspace.azurewebsites.net")
+        policy.WithOrigins("http://localhost:4200", "https://yangspace.azurewebsites.net", "https://yangspace.gleeze.com")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -86,5 +86,4 @@ app.MapFallbackToFile("index.html");
 
 // Map controllers
 app.MapControllers();
-
 app.Run();
