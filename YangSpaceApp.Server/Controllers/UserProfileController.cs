@@ -66,7 +66,6 @@ namespace YangSpaceApp.Server.Controllers
                 return BadRequest("Unable to update user profile.");
             }
 
-            // Return the updated profile
             var updatedProfile = await _userProfileService.GetUserProfileAsync(userId);
 
             return Ok(updatedProfile);  // Return the updated profile
