@@ -40,7 +40,7 @@
 
   <!-- Regular Desktop View -->
   <div class="desktop-nav">
-    <ul class="left">
+    <ul>
       <li>
         <a [routerLink]="['/homepage']"
            routerLinkActive="active"
@@ -49,8 +49,6 @@
       <li><a [routerLink]="['/all-services']" *ngIf="isLoggedIn" routerLinkActive="active">Provided Services</a></li>
       <!-- Only for ServiceProvider role -->
       <li><a [routerLink]="['/create-service']" *ngIf="isLoggedIn && isServiceProvider" routerLinkActive="active">Create Service</a></li>
-    </ul>
-    <ul class="right">
       <li><a [routerLink]="['/login']" *ngIf="!isLoggedIn" routerLinkActive="active">Login</a></li>
       <li>
         <a [routerLink]="['/register']" *ngIf="!isLoggedIn" routerLinkActive="active">Register</a>

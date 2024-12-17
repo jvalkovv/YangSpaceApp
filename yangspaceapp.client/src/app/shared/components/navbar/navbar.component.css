@@ -1,37 +1,42 @@
 /* General Navbar Styling */
 .navbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-around;
   align-items: center;
   background-color: #111;
-  padding: 10px 20px;
+  padding: 5px 10px;
   font-size: 18px;
 }
 
-  .navbar .right li,
-  .navbar .left li {
+.desktop-nav {
+  display: flex;
+}
+
+  .desktop-nav ul {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 10px;
-    height: 50px;
+    list-style: none;
   }
 
-  .navbar ul {
-    list-style: none;
-    display: flex;
-    margin: 0;
-    padding: 0;
-  }
-  .navbar .left {
-    flex-grow: 1;
-  }
-  .navbar a {
-    color: white;
+    .desktop-nav ul li {
+      display: flex;
+      margin: 10px 20px 0 0px;
+    }
+
+  .desktop-nav a {
+    color: #f8f9fa;
     text-decoration: none;
-    padding: 10px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    padding: 5px;
   }
+
+    .desktop-nav a.active {
+      color: #17a2b8;
+    }
+
+    .desktop-nav a:hover {
+      background-color: #495057;
+      color: #fff;
+    }
 
 .circle {
   border-radius: 50%;
@@ -39,28 +44,11 @@
   height: 40px;
   object-fit: cover;
 }
-.navbar .right {
-  justify-content: flex-end;
-}
 
-.navbar a {
-  color: #f8f9fa;
-  text-decoration: none;
-  padding: 10px;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
 
- .navbar a.active {
-    color: #17a2b8;
-  }
-
-  .navbar a:hover {
-    background-color: #495057;
-    color: #fff;
-  }
 /* Hamburger Menu Button */
 .menu-toggle {
-  font-size: 24px;
+  font-size: 28px;
   color: white;
   cursor: pointer;
   display: none;
@@ -70,7 +58,7 @@
 .sidebar {
   position: fixed;
   top: 0;
-  left: -100%; /* Hidden by default */
+  left: -100%;
   width: 250px;
   height: 100%;
   background-color: #111;
@@ -99,12 +87,21 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    list-style: none;
   }
 
   .sidebar li {
     margin: 15px 0;
   }
 
+  .sidebar a.active {
+    color: #17a2b8;
+  }
+
+  .sidebar a:hover {
+    background-color: #495057;
+    color: #fff;
+  }
 /* Hide Desktop Navigation on Small Screens */
 @media (max-width: 768px) {
   .desktop-nav {
