@@ -13,9 +13,11 @@
   justify-content: center;
   margin: 20px 0;
 }
-span{
-    font-size: 1.4rem;
+
+span {
+  font-size: 1.4rem;
 }
+
 button {
   margin: 0 5px;
   padding: 0;
@@ -44,4 +46,62 @@ button {
 
 .error {
   color: red;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 768px) {
+  .services-page h1 {
+    padding: 10px;
+    font-size: 1.5rem;
+  }
+
+  .services-page {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .service-list {
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .item {
+    display: flex; 
+    justify-content: center;
+    align-items: center; 
+    width: 100%; 
+    margin: 10px 0;
+  }
+
+  .pagination button {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+  }
+
+  .pagination span {
+    font-size: 0.9rem;
+  }
+}
+@media (max-width: 480px) {
+  .services-page h1 {
+    font-size: 1.2rem;
+  }
+
+  .service-list {
+    grid-template-columns: 1fr;
+  }
+
+  .pagination button {
+    font-size: 0.8rem;
+    padding: 5px 10px;
+  }
+
+  .pagination span {
+    font-size: 0.8rem;
+  }
 }

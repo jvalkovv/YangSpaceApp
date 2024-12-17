@@ -76,7 +76,7 @@ export class EditProfileComponent implements OnInit {
         this.imageError = null;
         const reader = new FileReader();
         reader.onload = (e: any) => {
-          this.userProfile.profilePictureUrl = e.target.result; // Base64 image URL for preview
+          this.userProfile.profilePictureUrl = e.target.result; 
         };
         reader.readAsDataURL(file);
       } else {

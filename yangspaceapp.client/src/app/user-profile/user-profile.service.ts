@@ -31,7 +31,6 @@ export class UserProfileService {
     });
   }
 
-  // Fetch user profile (could be expanded if needed)
   getUserProfile(): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get(`${this.apiUrl}/user-profile`, { headers });

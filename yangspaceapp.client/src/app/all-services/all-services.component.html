@@ -17,8 +17,8 @@
   <div *ngIf="!errorMessage && !loading">
     <div class="service-list">
       <!-- Loop through services -->
-      <div *ngFor="let service of services; trackBy: trackById">
-        <app-service-item [service]="service"></app-service-item>
+      <div class="item" *ngFor="let service of services; trackBy: trackById">
+        <app-service-item [service]="service" ></app-service-item>
       </div>
     </div>
 
