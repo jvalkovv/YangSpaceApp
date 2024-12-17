@@ -1,23 +1,72 @@
+<!-- Navbar -->
 <div class="navbar">
-  <ul class="left">
-    <li>
-      <a
-        [routerLink]="['/homepage']"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        >Home</a
-      >
-    </li>
-    <li><a [routerLink]="['/all-services']" *ngIf="isLoggedIn" routerLinkActive="active">Provided Services</a></li>
-    <!-- Only for ServiceProvider role -->
-    <li><a [routerLink]="['/create-service']" *ngIf="isLoggedIn && isServiceProvider" routerLinkActive="active">Create Service</a></li>
-  </ul>
-  <ul class="right">
-    <li><a [routerLink]="['/login']" *ngIf="!isLoggedIn" routerLinkActive="active">Login</a></li>
-    <li>
-      <a [routerLink]="['/register']" *ngIf="!isLoggedIn" routerLinkActive="active">Register</a>
-    </li>
-    <li *ngIf="isLoggedIn"><a [routerLink]="['/user-profile']">My Profile</a></li>
-    <li *ngIf="isLoggedIn"><a href="#" (click)="logout()">Logout</a></li>
-  </ul>
+  <!-- Hamburger menu for smaller screens -->
+  <div class="menu-toggle" (click)="toggleSidebar()">
+    &#9776; <!-- Hamburger Icon -->
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" [ngClass]="{'active': isSidebarOpen}">
+    <button class="close-btn" (click)="toggleSidebar()">&#x2715;</button>
+    <ul class="left">
+      <li>
+        <a [routerLink]="['/homepage']"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      </li>
+      <li *ngIf="isLoggedIn">
+        <a [routerLink]="['/all-services']" routerLinkActive="active">Provided Services</a>
+      </li>
+      <li *ngIf="isLoggedIn && isServiceProvider">
+        <a [routerLink]="['/create-service']" routerLinkActive="active">Create Service</a>
+      </li>
+      <li *ngIf="!isLoggedIn">
+        <a [routerLink]="['/login']" routerLinkActive="active">Login</a>
+      </li>
+      <li *ngIf="!isLoggedIn">
+        <a [routerLink]="['/register']" routerLinkActive="active">Register</a>
+      </li>
+      <li *ngIf="isLoggedIn">
+        <a [routerLink]="['/user-profile']">
+          <img [src]="profilePicture" alt="Profile Picture" class="circle" />
+          {{username}}
+        </a>
+      </li>
+      <li *ngIf="isLoggedIn">
+        <a href="#" (click)="logout()">Logout</a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Regular Desktop View -->
+  <div class="desktop-nav">
+    <ul class="left">
+      <li>
+        <a [routerLink]="['/homepage']"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      </li>
+      <li><a [routerLink]="['/all-services']" *ngIf="isLoggedIn" routerLinkActive="active">Provided Services</a></li>
+      <!-- Only for ServiceProvider role -->
+      <li><a [routerLink]="['/create-service']" *ngIf="isLoggedIn && isServiceProvider" routerLinkActive="active">Create Service</a></li>
+    </ul>
+    <ul class="right">
+      <li><a [routerLink]="['/login']" *ngIf="!isLoggedIn" routerLinkActive="active">Login</a></li>
+      <li>
+        <a [routerLink]="['/register']" *ngIf="!isLoggedIn" routerLinkActive="active">Register</a>
+      </li>
+      <li *ngIf="isLoggedIn">
+        <a [routerLink]="['/user-profile']">
+          <img [src]="profilePicture"
+               alt="Profile Picture"
+               class="circle" />
+          <ng-template #noPicture>
+            <p>No profile picture available.</p>
+          </ng-template>
+          {{username}}
+        </a>
+      </li>
+      <li *ngIf="isLoggedIn"><a href="#" (click)="logout()">Logout</a></li>
+    </ul>
+  </div>
 </div>
