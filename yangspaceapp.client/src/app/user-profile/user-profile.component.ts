@@ -30,12 +30,12 @@ export class UserProfileComponent implements OnInit {
   constructor(private userProfileService: UserProfileService, private authService: AuthService) { }
 
   ngOnInit(): void {
-    this.fetchUserProfile();
     this.authService.isLoggedIn$.subscribe((isLoggedIn) => {
       this.isLoggedIn = isLoggedIn;
       this.isServiceProvider = this.authService.isServiceProvider(); 
     });
    
+    this.fetchUserProfile();
     this.fetchServicesToProvide();
     this.fetchServicesBooked();
   }

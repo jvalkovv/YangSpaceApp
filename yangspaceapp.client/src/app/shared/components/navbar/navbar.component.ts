@@ -25,9 +25,10 @@ export class NavbarComponent implements OnInit {
       this.isLoggedIn = isLoggedIn;
       this.username = localStorage.getItem(environment.usernameKey);
       this.isServiceProvider = this.authService.isServiceProvider();
-      this.fetchUserProfile();
     });
+    this.fetchUserProfile();
   }
+
   toggleSidebar() {
     this.isSidebarOpen = !this.isSidebarOpen;
   }
