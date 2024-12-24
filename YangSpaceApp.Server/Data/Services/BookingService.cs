@@ -42,6 +42,7 @@ public class BookingService : IBookingService
             ServiceId = serviceId,
             UserId = userId,
             Status = BookingStatus.Pending,
+            BookingDate = DateTime.Now
         };
 
         _context.Bookings.Add(booking);

@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using YangSpaceApp.Server.Data.Services;
 using YangSpaceApp.Server.Data.Services.Contracts;
-using static YangSpaceApp.Server.Data.Extension.Enum;
 
 namespace YangSpaceApp.Server.Controllers;
 
