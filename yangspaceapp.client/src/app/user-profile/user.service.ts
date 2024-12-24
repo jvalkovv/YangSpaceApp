@@ -20,6 +20,7 @@ export class UserService {
       Authorization: `${tokenKey}`,
     });
   }
+
   // Method to fetch users that are service providers
   getProviders(): Observable<User[]> {
     const headers = this.getAuthHeaders();

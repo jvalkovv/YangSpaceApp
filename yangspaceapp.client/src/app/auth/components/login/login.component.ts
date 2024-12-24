@@ -78,10 +78,10 @@ export class LoginComponent {
 
       this.authService.login(loginData).pipe(
         catchError((error: HttpErrorResponse) => {
-          const errorMessage = this.handleDialogError(error);  // Get the error message
-          this.openDialog(errorMessage, 'Login Failed');  // Display error message in dialog
+          const errorMessage = this.handleDialogError(error); 
+          this.openDialog(errorMessage, 'Login Failed');  
           this.isLoading = false;
-          return throwError(() => new Error(errorMessage)); // Ensure we return an observable with the error message
+          return throwError(() => new Error(errorMessage));
         })
       ).subscribe({
         next: () => {
@@ -90,7 +90,7 @@ export class LoginComponent {
           this.router.navigate(['/user-profile']);
         },
         error: () => {
-          this.isLoading = false; // Error already handled in catchError
+          this.isLoading = false; 
         }
       });
     }

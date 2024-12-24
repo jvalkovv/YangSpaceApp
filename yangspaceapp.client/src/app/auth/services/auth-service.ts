@@ -40,7 +40,7 @@ export class AuthService {
     return !!token; // Simply check for token existence (no expiration check)
   }
 
-  // Token and User Management 
+
   getToken(): string | null {
     return localStorage.getItem(this.token);
   }

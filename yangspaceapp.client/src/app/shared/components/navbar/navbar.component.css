@@ -10,8 +10,6 @@
 
 .desktop-nav {
   display: flex;
-
-
 }
 
   .desktop-nav ul {
@@ -29,7 +27,6 @@
     color: #f8f9fa;
     text-decoration: none;
     transition: background-color 0.3s ease, color 0.3s ease;
-    padding: 5px;
   }
 
     .desktop-nav a.active {
@@ -39,6 +36,7 @@
     .desktop-nav a:hover {
       background-color: #495057;
       color: #fff;
+      border-radius: 5px;
     }
 
 .circle {

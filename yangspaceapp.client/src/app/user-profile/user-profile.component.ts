@@ -30,14 +30,22 @@ export class UserProfileComponent implements OnInit {
   constructor(private userProfileService: UserProfileService, private authService: AuthService) { }
 
   ngOnInit(): void {
+
     this.authService.isLoggedIn$.subscribe((isLoggedIn) => {
       this.isLoggedIn = isLoggedIn;
-      this.isServiceProvider = this.authService.isServiceProvider(); 
+      this.isServiceProvider = this.authService.isServiceProvider();
+
+      if (isLoggedIn) {
+        this.fetchUserProfile();
+        this.fetchServicesBooked();
+
+        if (this.isServiceProvider) {
+          this.fetchServicesToProvide();
+        }
+
+        console.log('User logged in:', isLoggedIn);
+      }
     });
-   
-    this.fetchUserProfile();
-    this.fetchServicesToProvide();
-    this.fetchServicesBooked();
   }
 
   get profilePicture(): string {
