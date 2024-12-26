@@ -21,6 +21,7 @@ import { DialogComponent } from '../dialog/dialog.component';
 export class EditProfileComponent implements OnInit {
   private apiUrl = `${environment.apiUrl}/UserProfile/user-profile`;
   private editUrl = `${environment.apiUrl}/UserProfile/edit-profile`;
+
   editProfileForm: FormGroup;
   userProfile: UserProfileUpdateModel = {
     firstName: "",
@@ -56,8 +57,8 @@ export class EditProfileComponent implements OnInit {
   ngOnInit(): void {
     this.getUserProfile().subscribe(
       (profile) => {
-        this.editProfileForm.patchValue(profile);
         this.userProfile.profilePictureUrl = profile.profilePicture; // Set profile picture URL
+        this.editProfileForm.patchValue(profile);
       },
       (error) => {
         console.error('Error fetching user profile:', error);
@@ -120,7 +121,7 @@ export class EditProfileComponent implements OnInit {
 
   //Error Handling
   public handleDialogError(error: HttpErrorResponse): string {
-    const backendMessage = error.error?.message; // Extract backend message
+    const backendMessage = error.error?.message; 
     if (error && error.status === 401) {
       if (backendMessage === "Invalid username.") {
         return 'Invalid username. Please check your username again.';
@@ -151,7 +152,7 @@ export class EditProfileComponent implements OnInit {
       if (this.profilePictureFile) {
         formData.append('profilePicture', this.profilePictureFile, this.profilePictureFile.name);
       } else if (!this.profilePictureFile && this.userProfile.profilePictureUrl) {
-        // Add existing profile picture URL (if no new file is uploaded)
+      
         formData.append('profilePicture', this.userProfile.profilePictureUrl);
       }
 
