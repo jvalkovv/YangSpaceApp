@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, Subscription, debounceTime } from 'rxjs';
 import {
-  DirectoryApi, DirectoryMeta, HomepagePayload, LocationCard, PublicHighlight
+  DirectoryApi, DirectoryMeta, HomepagePayload, LocationCard, PublicHighlight, describeDirectoryFailure
 } from './directory-api.service';
 
 @Component({
@@ -112,7 +112,7 @@ import {
 
         <div class="catalog-toolbar">
           <div><strong>{{ loading ? 'Търсим в квартала…' : 'Обекти в твоя район' }}</strong>
-            <span class="results-count" *ngIf="hasLoaded && !loading">{{total}} {{total === 1 ? 'обект' : 'обекта'}}</span>
+            <span class="results-count" *ngIf="hasLoaded && !loading && !error">{{total}} {{total === 1 ? 'обект' : 'обекта'}}</span>
           </div>
           <button type="button" class="reset-button" *ngIf="hasFilters" (click)="resetFilters()">Изчисти филтрите ×</button>
         </div>
@@ -242,6 +242,7 @@ export class HomeComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly pendingText = new Subject<number>();
   private searchSubscription?: Subscription;
+  private homepageSubscription?: Subscription;
   private requestVersion = 0;
   private pendingTextVersion = 0;
 
@@ -265,11 +266,23 @@ export class HomeComponent implements OnInit {
     this.pendingText.pipe(debounceTime(280), takeUntilDestroyed()).subscribe(version => {
       if (version === this.pendingTextVersion) this.performSearch();
     });
-    this.destroyRef.onDestroy(() => this.searchSubscription?.unsubscribe());
+    this.destroyRef.onDestroy(() => {
+      this.searchSubscription?.unsubscribe();
+      this.homepageSubscription?.unsubscribe();
+    });
   }
 
-  ngOnInit(): void {
-    this.api.homepage().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+  ngOnInit(): void { this.loadHomepage(); }
+
+  private loadHomepage(): void {
+    const version = this.requestVersion;
+    this.homepageSubscription?.unsubscribe();
+    this.loading = true;
+    this.loadingExtra = true;
+    this.hasLoaded = false;
+    this.error = '';
+    this.cdr.markForCheck();
+    this.homepageSubscription = this.api.homepage().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (payload: HomepagePayload) => {
         this.meta = payload.meta;
         this.offers = payload.offers;
@@ -278,7 +291,7 @@ export class HomeComponent implements OnInit {
         this.loadingExtra = false;
         this.cdr.markForCheck();
         // Do not overwrite results if the visitor searched before bootstrap finished.
-        if (this.requestVersion === 0 && !this.hasFilters) this.acceptResults(payload.directory);
+        if (version === this.requestVersion && !this.hasFilters && this.page === 1) this.acceptResults(payload.directory);
       },
       error: (reason: unknown) => {
         this.loadingExtra = false;
@@ -290,13 +303,13 @@ export class HomeComponent implements OnInit {
             next: m => { this.meta = m; this.cdr.markForCheck(); },
             error: () => {}
           });
-          if (this.requestVersion === 0) this.performSearch();
+          if (version === this.requestVersion && !this.hasFilters) this.performSearch();
           return;
         }
-        if (this.requestVersion === 0) {
+        if (version === this.requestVersion) {
           this.loading = false;
-          this.hasLoaded = true;
-          this.error = 'Не можем да се свържем с каталога. Провери дали API работи на 127.0.0.1:5090 и опитай отново.';
+          this.hasLoaded = false;
+          this.error = describeDirectoryFailure(reason);
           this.cdr.markForCheck();
         }
       }
@@ -358,7 +371,19 @@ export class HomeComponent implements OnInit {
 
   reload(): void {
     ++this.pendingTextVersion;
-    this.performSearch();
+    if (this.hasFilters || this.page !== 1) {
+      this.performSearch();
+      if (this.meta.categories.length === 0) {
+        this.api.meta().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+          next: meta => { this.meta = meta; this.cdr.markForCheck(); },
+          error: () => { /* Directory error state already handles service unavailability. */ }
+        });
+      }
+    } else {
+      ++this.requestVersion;
+      this.searchSubscription?.unsubscribe();
+      this.loadHomepage();
+    }
   }
 
   changePage(page: number): void {
@@ -407,11 +432,11 @@ export class HomeComponent implements OnInit {
         }
         this.acceptResults(result);
       },
-      error: () => {
+      error: (reason: unknown) => {
         if (version !== this.requestVersion) return;
         this.loading = false;
-        this.error = 'API заявката не завърши успешно. Провери дали .NET приложението работи на 127.0.0.1:5090 и опитай пак.';
-        this.hasLoaded = true;
+        this.error = describeDirectoryFailure(reason);
+        this.hasLoaded = false;
         this.cdr.markForCheck();
       }
     });

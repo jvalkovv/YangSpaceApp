@@ -127,3 +127,23 @@ Angular 22 is zoneless/OnPush by default. All async HTTP subscriptions updating 
 After pulling this fix, run `npm install` (Angular dependencies changed), then `npm run typecheck` and `npm start`. Chrome should display the 6 seeded entries **without any click or focus/blur**, and `/obekt/bike-demo` must resolve without an additional UI interaction.
 
 Optional local browser regression tests: `npm run test:e2e` after installing the browser with `npx playwright install chromium`. These tests mock backend HTTP responses and specifically cover zoneless rendering and filter/result consistency.
+
+## Local troubleshooting: API unavailable / "0 обекта"
+
+If Angular renders an error while a previously working demo catalog is empty, **do not reset the database or reinstall dependencies**. The browser app (port 4200) and the .NET API (port 5090) are independent processes; running Angular does not automatically start the API.
+
+Run from repository root:
+
+```powershell
+powershell -NoProfile -File scripts/Test-Local-Stack.ps1
+```
+
+The diagnostic compares direct API availability and the frontend proxy. `ROOT_CAUSE=API_NOT_READY_OR_NOT_LISTENING` means start the .NET process in its own terminal:
+
+```powershell
+dotnet run --project apps/api/YangSpace.Api.csproj --launch-profile http
+```
+
+If direct API checks pass but `ANGULAR_PROXY_HOMEPAGE` fails, restart Angular (`npm start` in `apps/web`), check its proxy configuration and verify `http://127.0.0.1:4200/api/v1/homepage`. A loading error is **not** a legitimate zero-location search result.
+
+The homepage shows the backend/proxy error class and the Retry action reloads homepage facets, listings and highlights. No automatic database modifications or API restarts occur.

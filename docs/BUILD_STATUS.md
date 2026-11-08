@@ -48,3 +48,6 @@ User confirmed read-only API performance: first request **28 ms**, warm median *
 ## 2026-11-08 — Visual QA follow-up
 
 Additional browser screenshots show a selected category with an incompatible, previously cached card still visible while loading. Control event handlers now receive explicit `ngModelChange` values; filter/type/search actions synchronously invalidate displayed results, and cards render only when the current search has finished. Results are also validated against the requested category/neighborhood. Brand badge and desktop hero sizing corrected; sparse grid centered. Runtime acceptance remains pending.
+
+## 2026-11-08 — Connectivity UX and local diagnostics
+Screenshot shows Angular running on `127.0.0.1:4200`, but homepage data request failed. Root cause remains unconfirmed without same-time .NET status/logs; direct and proxied API addresses are consistent in source. Corrected failure status, misleading zero-count display, bootstrap Retry behavior; added local direct/proxy probe and 503/502 regression scenarios. No API/PVE modifications.

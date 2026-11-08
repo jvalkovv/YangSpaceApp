@@ -77,3 +77,20 @@ Required regression checks, not automatically accepted:
 - [ ] Header brand period stays inside its 37px dark square at 375/390/768/1440px.
 - [ ] Desktop hero at 1440px wraps cleanly; no horizontal overflow, clipping or floating-card collisions.
 - [ ] Single filtered card is centered on desktop and full width on mobile.
+
+## 2026-11-08 — API connectivity failure captured
+
+A browser screenshot of `127.0.0.1:4200/#catalog` shows a service request failure and a misleading "0 обекта" count. Earlier user-run API benchmark passed (6 locations, 28 ms cold and 4.4 ms warm), but that benchmark **does not establish that the API was still running when this screenshot was captured**. The Angular proxy still targets `127.0.0.1:5090`, matching the .NET HTTP launch profile.
+
+Remediation:
+- Status-aware error text (HTTP 0 network, 502/503/504 proxy/availability, timeout, 404 version drift, 500 backend).
+- No success-style count when the request failed.
+- Retry on an unfiltered directory reloads `/api/v1/homepage` to restore facets and highlights (instead of refreshing only the listings).
+- New read-only `scripts/Test-Local-Stack.ps1` diagnoses direct API readiness, homepage, Angular server and proxy separately.
+- Playwright regression scenarios for initial 503 → recovery and filtered 502 → recovery.
+
+Acceptance:
+- [ ] With .NET running: direct `http://127.0.0.1:5090/health/ready` and via-proxy `http://127.0.0.1:4200/api/v1/homepage` return HTTP 200.
+- [ ] With .NET deliberately stopped: Angular shows a recoverable service error, **not** "0 обекта".
+- [ ] After restarting .NET and clicking Retry: six demo locations and category facets appear without page reload.
+- [ ] `scripts/Test-Local-Stack.ps1` reports `LOCAL_STACK=PASS`.

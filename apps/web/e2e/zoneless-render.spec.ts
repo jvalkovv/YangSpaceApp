@@ -181,3 +181,47 @@ test('brand badge is one centered text item and desktop/mobile layouts do not ov
   );
   expect(mobileOverflow).toBe(false);
 });
+
+test('a failed initial API load does not pretend that zero locations exist; retry restores all sections', async ({ page }) => {
+  let online = false;
+  await page.route('**/api/v1/homepage', async route => {
+    if (!online) {
+      await route.fulfill({ status: 503, body: 'Service Unavailable' });
+      return;
+    }
+    await route.fulfill({ json: homepage });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('alert')).toContainText('API или локалният proxy');
+  await expect(page.locator('.results-count')).toHaveCount(0);
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(0);
+  online = true;
+  await page.getByRole('button', { name: 'Опитай отново' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(3);
+  await expect(page.locator('.results-count')).toHaveText('3 обекта');
+});
+
+test('filtered API 502 shows a service error, not an authoritative empty result, then recovers', async ({ page }) => {
+  let online = false;
+  await page.route('**/api/v1/homepage', route => route.fulfill({ json: homepage }));
+  await page.route('**/api/v1/locations?*', async route => {
+    if (!online) {
+      await route.fulfill({ status: 502, body: 'Bad Gateway' });
+      return;
+    }
+    const category = new URL(route.request().url()).searchParams.get('category');
+    const items = category ? seed.filter(item => item.category === category) : seed;
+    await route.fulfill({ json: { page: 1, pageSize: 12, total: items.length, items } });
+  });
+  await page.goto('/');
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(3);
+  await page.getByRole('button', { name: /Красота/ }).click();
+  await expect(page.getByRole('alert')).toContainText('HTTP 502');
+  await expect(page.locator('.results-count')).toHaveCount(0);
+  online = true;
+  await page.getByRole('button', { name: 'Опитай отново' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(1);
+  await expect(page.locator('.location-card').filter({ hasText: 'Студио „Линия“' })).toBeVisible();
+});
