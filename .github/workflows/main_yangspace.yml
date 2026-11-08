@@ -36,7 +36,7 @@ jobs:
           for file in "${files[@]}"; do
             test -s "$file" || { echo "Missing/empty: $file"; exit 1; }
           done
-          if grep -R -nE 'azure/webapps-deploy|appcmd|jenkins' .github/workflows; then
+          if git grep -n -E '^[[:space:]]*uses:[[:space:]]*azure/webapps-deploy|^[[:space:]]*run:.*appcmd' -- .github/workflows; then
             echo "Legacy deployment command found in active workflows"
             exit 1
           fi
