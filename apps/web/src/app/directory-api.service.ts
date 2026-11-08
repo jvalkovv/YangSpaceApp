@@ -1,5 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { timeout } from 'rxjs';
 
 export interface LocationCard {
   id: string;
@@ -34,17 +35,42 @@ export interface DirectoryMeta {
 export interface Paged<T> {
   items: T[]; page: number; pageSize: number; total: number;
 }
+export interface PublicHighlight {
+  slug: string;
+  locationName: string;
+  neighborhood: string;
+  category: string;
+  title: string;
+  expiresAtUtc: string;
+}
+export interface HomepagePayload {
+  meta: DirectoryMeta;
+  directory: Paged<LocationCard>;
+  offers: PublicHighlight[];
+  brochures: PublicHighlight[];
+  jobs: PublicHighlight[];
+}
+
+const REQUEST_TIMEOUT_MS = 10000;
 
 @Injectable({ providedIn: 'root' })
 export class DirectoryApi {
   private readonly http = inject(HttpClient);
-  meta() { return this.http.get<DirectoryMeta>('/api/v1/meta'); }
+
+  homepage() {
+    return this.http.get<HomepagePayload>('/api/v1/homepage').pipe(timeout(REQUEST_TIMEOUT_MS));
+  }
+  meta() {
+    return this.http.get<DirectoryMeta>('/api/v1/meta').pipe(timeout(REQUEST_TIMEOUT_MS));
+  }
   search(filters: { neighborhood?: string; category?: string; q?: string; page?: number }) {
     let params = new HttpParams().set('page', filters.page ?? 1).set('pageSize', 12);
     if (filters.neighborhood) params = params.set('neighborhood', filters.neighborhood);
     if (filters.category) params = params.set('category', filters.category);
     if (filters.q) params = params.set('q', filters.q);
-    return this.http.get<Paged<LocationCard>>('/api/v1/locations', { params });
+    return this.http.get<Paged<LocationCard>>('/api/v1/locations', { params }).pipe(timeout(REQUEST_TIMEOUT_MS));
   }
-  location(slug: string) { return this.http.get<LocationDetail>(`/api/v1/locations/${encodeURIComponent(slug)}`); }
+  location(slug: string) {
+    return this.http.get<LocationDetail>(`/api/v1/locations/${encodeURIComponent(slug)}`).pipe(timeout(REQUEST_TIMEOUT_MS));
+  }
 }

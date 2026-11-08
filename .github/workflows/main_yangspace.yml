@@ -70,7 +70,7 @@ jobs:
           test -s infra/pve/README.md
           test -s apps/api/YangSpace.Api.csproj
           test -s apps/web/package.json
-          if grep -R -nE '^[[:space:]]*uses:[[:space:]]*azure/webapps-deploy|appcmd stop|appcmd start' .github/workflows; then
+          if git grep -n -E '^[[:space:]]*uses:[[:space:]]*azure/webapps-deploy|^[[:space:]]*run:[[:space:]]*appcmd' -- .github/workflows; then
             echo "Legacy deployment step detected." >&2; exit 1
           fi
           echo "No auto-deploy targets configured."

@@ -43,6 +43,7 @@ dotnet run --project apps/api/YangSpace.Api.csproj --launch-profile http
 
 - API: `http://127.0.0.1:5090`
 - Readiness: `http://127.0.0.1:5090/health/ready`
+- Homepage API (single request): `http://127.0.0.1:5090/api/v1/homepage`
 - Public list: `http://127.0.0.1:5090/api/v1/locations`
 - Development-only preview data се създават в `yangspace-preview.db` в working directory.
 
@@ -54,6 +55,8 @@ npm install --no-audit --no-fund
 npm run typecheck
 npm start
 ```
+
+`npm start` listens on **127.0.0.1 only**. For an intentionally isolated LAN test, use `npm run start:lan` after ensuring Windows Firewall/VPN access restrictions. The default localhost server must not be published to the Internet.
 
 Ако `node -v` все още показва `v24.14.1`, затвори всички PowerShell терминали и провери коя инсталация е първа в PATH (`where.exe node`).
 
@@ -74,6 +77,7 @@ npm start
 | Route | Access |
 |---|---|
 | `GET /health/live`, `GET /health/ready` | Public |
+| `GET /api/v1/homepage` | Public — initial directory, facets, active offers/brochures/jobs in one response |
 | `GET /api/v1/meta` | Public |
 | `GET /api/v1/locations` | Public |
 | `GET /api/v1/locations/{slug}` | Public |
@@ -81,6 +85,18 @@ npm start
 | `GET/POST/PUT /api/v1/admin/locations` | Preview + PlatformAdmin |
 | `POST /api/v1/admin/locations/{id}/hide` | Preview + PlatformAdmin |
 | `POST /api/v1/admin/locations/{id}/offers|brochures|jobs` | Preview + PlatformAdmin |
+
+## Homepage QA
+
+The homepage uses a single `/api/v1/homepage` request on initial load, bounded API request timeouts, cancellation of superseded searches, stable skeleton cards, desktop/mobile layouts, local category filters, and real demo-data-driven offer/brochure/job sections. It does **not** require third-party fonts or remote hero images.
+
+On Windows, start the API and run:
+
+```powershell
+powershell -NoProfile -File scripts/Test-Homepage.ps1
+```
+
+Then inspect the browser at **375 / 390 / 768 / 1024 / 1440 px** per [Homepage Acceptance](docs/HOMEPAGE_ACCEPTANCE.md). Do not mark production visual acceptance without screenshot/runtime evidence.
 
 ## PVE / LXC plan
 

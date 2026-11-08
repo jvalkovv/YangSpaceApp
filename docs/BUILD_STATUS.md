@@ -31,3 +31,12 @@ SQLite `EnsureCreated` is intentionally enabled only in non-production `Preview:
 - **API:** Windows `dotnet run` failed with NU1903 because EF Core SQLite transitive dependency resolved `SQLitePCLRaw.lib.e_sqlite3 2.1.11` (GHSA-2m69-gcr7-jv3q). Remediation added: direct native-only reference **3.53.3** in `apps/api/YangSpace.Api.csproj`, without disabling security audits or mixing SQLitePCLRaw managed major versions. **Build/restore still needs re-test.**
 - **Web:** `npm install` completed (reported zero vulnerabilities), but Angular CLI refused Node **24.14.1**; its actual supported ranges are Node 22.22.3+, 24.15.0+ or 26.0.0+. `package.json engines` and PVE validation are now aligned. **Node upgrade on local Windows host and Angular typecheck/build are still needed.**
 - **CI:** pending passing run evidence; no production/PVE deployment.
+
+## Homepage v2 design/performance source update (2026-11-08)
+
+- Single `/api/v1/homepage` API for initial metadata, first page and offer/brochure/job highlights. `/api/v1/locations` remains for filtered pagination.
+- EF Core `AsSplitQuery()` added for details with multiple related collections, reducing accidental cartesian multiplication.
+- Angular homepage: cancel stale searches, debounce typing, 10s timeout + retry, nonempty loading skeleton instead of misleading “0 обекта”, responsive directory, categories, highlights, how-it-works and business CTA.
+- New navigation anchors, focus states, reduced motion, mobile menu, no remote font import, localhost-only default dev server.
+- Added API smoke assertions and read-only PowerShell timing script. **No local browser screenshots, build logs or latency numbers have been collected through GitHub connector.**
+- Until the exact commit passes CI + manual viewport/browser acceptance, homepage status is **SOURCE COMPLETE / RUNTIME QA PENDING**, not 100% accepted.
