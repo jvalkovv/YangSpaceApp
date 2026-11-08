@@ -61,3 +61,19 @@ Acceptance **requires** browser evidence after the fix:
 - [ ] Rapid category switching and text searches show the latest response, never an older one.
 - [ ] Browser errors and preview admin HTTP results update without unrelated interaction.
 - [ ] Automated Playwright regression checks pass in local Chromium.
+
+## 2026-11-08 — Desktop visual/filter follow-up
+
+User-supplied screenshots exposed:
+1. Selected `Магазини` in chip and select while a `Красота` card was still visible and the interface showed "Обновяваме резултатите…". This requires both exact control-value forwarding and a rendering invariant: *never render result cards during a pending filter request*.
+2. The `Y.` brand badge rendered its period below the dark badge because the `Y` text and nested `span` were separate children of CSS Grid. Render the badge as a single text item.
+3. Hero line wraps were too tall for the desktop column. Reduce maximum heading size, increase copy width, and tighten tracking.
+4. Single-result directory should center the card instead of leaving an oversized empty right column.
+
+Required regression checks, not automatically accepted:
+- [ ] `Магазини` chip/select sends `category=Магазини` on the first interaction; no `Красота` card in a pending or finished state.
+- [ ] Selecting a category and changing it rapidly never leaks results from another category.
+- [ ] Search text invalidates currently displayed cards immediately, including during 280ms debounce.
+- [ ] Header brand period stays inside its 37px dark square at 375/390/768/1440px.
+- [ ] Desktop hero at 1440px wraps cleanly; no horizontal overflow, clipping or floating-card collisions.
+- [ ] Single filtered card is centered on desktop and full width on mobile.

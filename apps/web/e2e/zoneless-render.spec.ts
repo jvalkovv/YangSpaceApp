@@ -112,3 +112,72 @@ test('preview admin async login/list renders without another click', async ({ pa
   await page.getByRole('button', { name: 'Вход' }).click();
   await expect(page.getByRole('heading', { name: 'Обекти (1)' })).toBeVisible();
 });
+
+test('first category click and dropdown change send the selected value, never stale content', async ({ page }) => {
+  const shop = {
+    ...bike,
+    id: '55555555-5555-4555-8555-555555555555',
+    slug: 'market-demo',
+    name: 'Магазин „При нас“',
+    category: 'Магазини',
+    neighborhood: 'Цветен квартал'
+  };
+  const items = [...seed, shop];
+  const seenCategories: string[] = [];
+  await page.route('**/api/v1/homepage', route => route.fulfill({
+    json: {
+      ...homepage,
+      meta: { ...homepage.meta, categories: [...homepage.meta.categories, 'Магазини'] },
+      directory: { ...homepage.directory, total: items.length, items }
+    }
+  }));
+  await page.route('**/api/v1/locations?*', async route => {
+    const category = new URL(route.request().url()).searchParams.get('category') ?? '';
+    seenCategories.push(category);
+    await new Promise(resolve => setTimeout(resolve, 320));
+    try {
+      const result = category ? items.filter(item => item.category === category) : items;
+      await route.fulfill({ json: { page: 1, pageSize: 12, total: result.length, items: result } });
+    } catch {
+      // An obsolete request can be aborted by Angular when selection changes.
+    }
+  });
+
+  await page.goto('/');
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(4);
+
+  // Click a category chip: the corresponding dropdown must follow the same state.
+  await page.getByRole('button', { name: /Магазини/ }).click();
+  await expect(page.getByRole('combobox', { name: 'Избери категория' })).toHaveValue('Магазини');
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(0);
+  await expect(page.locator('.skeleton-card')).toHaveCount(6);
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(1);
+  await expect(page.locator('.location-card').filter({ hasText: 'Магазин „При нас“' })).toBeVisible();
+  await expect(page.locator('.location-card').filter({ hasText: 'Студио „Линия“' })).toHaveCount(0);
+  expect(seenCategories).toContain('Магазини');
+
+  // Change the dropdown directly: never read a stale two-way ngModel field.
+  await page.getByRole('combobox', { name: 'Избери категория' }).selectOption('Красота');
+  await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(0);
+  await expect(page.locator('.location-card').filter({ hasText: 'Студио „Линия“' })).toBeVisible();
+  await expect(page.locator('.location-card').filter({ hasText: 'Магазин „При нас“' })).toHaveCount(0);
+  expect(seenCategories.at(-1)).toBe('Красота');
+});
+
+test('brand badge is one centered text item and desktop/mobile layouts do not overflow', async ({ page }) => {
+  await page.route('**/api/v1/homepage', route => route.fulfill({ json: homepage }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const brand = page.locator('.brand-mark');
+  await expect(brand).toHaveText('Y.');
+  await expect(brand.locator('span')).toHaveCount(0);
+  const desktopOverflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth > document.documentElement.clientWidth
+  );
+  expect(desktopOverflow).toBe(false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileOverflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth > document.documentElement.clientWidth
+  );
+  expect(mobileOverflow).toBe(false);
+});

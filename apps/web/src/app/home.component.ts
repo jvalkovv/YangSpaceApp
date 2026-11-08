@@ -90,19 +90,19 @@ import {
           <label class="search-field search-main">
             <span class="search-icon" aria-hidden="true">⌕</span>
             <span class="sr-only">Име на обект или ключова дума</span>
-            <input type="search" name="q" [(ngModel)]="q" (ngModelChange)="queueSearch()"
+            <input type="search" name="q" [ngModel]="q" (ngModelChange)="queueSearch($event)"
                    placeholder="Магазин, кафе, фризьор..." maxlength="100" autocomplete="off" />
           </label>
           <label class="search-field">
             <span class="sr-only">Квартал</span>
-            <select name="neighborhood" [(ngModel)]="neighborhood" (ngModelChange)="filterChanged()" aria-label="Избери квартал">
+            <select name="neighborhood" [ngModel]="neighborhood" (ngModelChange)="onNeighborhoodChange($event)" aria-label="Избери квартал">
               <option value="">Всички квартали</option>
               <option *ngFor="let item of meta.neighborhoods" [value]="item">{{item}}</option>
             </select>
           </label>
           <label class="search-field">
             <span class="sr-only">Категория</span>
-            <select name="category" [(ngModel)]="category" (ngModelChange)="filterChanged()" aria-label="Избери категория">
+            <select name="category" [ngModel]="category" (ngModelChange)="onCategoryChange($event)" aria-label="Избери категория">
               <option value="">Всички категории</option>
               <option *ngFor="let item of meta.categories" [value]="item">{{item}}</option>
             </select>
@@ -111,20 +111,20 @@ import {
         </form>
 
         <div class="catalog-toolbar">
-          <div><strong>{{ loading && !hasLoaded ? 'Откриваме местата…' : 'Обекти в твоя район' }}</strong>
-            <span class="results-count" *ngIf="hasLoaded">{{total}} {{total === 1 ? 'обект' : 'обекта'}}</span>
+          <div><strong>{{ loading ? 'Търсим в квартала…' : 'Обекти в твоя район' }}</strong>
+            <span class="results-count" *ngIf="hasLoaded && !loading">{{total}} {{total === 1 ? 'обект' : 'обекта'}}</span>
           </div>
           <button type="button" class="reset-button" *ngIf="hasFilters" (click)="resetFilters()">Изчисти филтрите ×</button>
         </div>
 
-        <div role="status" class="update-status" *ngIf="loading && hasLoaded">Обновяваме резултатите…</div>
+        <div role="status" class="update-status" *ngIf="loading">Зареждаме резултатите за избраните филтри…</div>
         <div *ngIf="error" class="state-card error-state" role="alert">
           <span class="state-icon">!</span>
           <div><strong>Не успяхме да заредим обектите.</strong><p>{{error}}</p></div>
           <button type="button" class="btn btn-outline" (click)="reload()">Опитай отново</button>
         </div>
 
-        <div class="locations-grid skeleton-grid" *ngIf="loading && !hasLoaded" aria-label="Зареждане на каталога" aria-busy="true">
+        <div class="locations-grid skeleton-grid" *ngIf="loading && !error" aria-label="Зареждане на каталога" aria-busy="true">
           <div class="location-card skeleton-card" *ngFor="let i of skeletons">
             <div class="skeleton-cover shimmer"></div>
             <div class="card-content"><div class="skeleton-line shimmer short"></div><div class="skeleton-line shimmer medium"></div><div class="skeleton-line shimmer"></div></div>
@@ -137,7 +137,7 @@ import {
           <button type="button" class="btn btn-outline" (click)="resetFilters()">Покажи всички</button>
         </div>
 
-        <div class="locations-grid" *ngIf="hasLoaded && locations.length > 0" [class.results-refreshing]="loading" aria-label="Намерени търговски обекти">
+        <div class="locations-grid" *ngIf="!loading && !error && hasLoaded && locations.length > 0" [class.is-single]="locations.length === 1" aria-label="Намерени търговски обекти">
           <a *ngFor="let item of locations; trackBy: trackLocation" [routerLink]="['/obekt', item.slug]" class="location-card">
             <div class="card-cover" [ngClass]="cover(item.category)">
               <span class="cover-pattern" aria-hidden="true"></span>
@@ -278,7 +278,7 @@ export class HomeComponent implements OnInit {
         this.loadingExtra = false;
         this.cdr.markForCheck();
         // Do not overwrite results if the visitor searched before bootstrap finished.
-        if (this.requestVersion === 0) this.acceptResults(payload.directory);
+        if (this.requestVersion === 0 && !this.hasFilters) this.acceptResults(payload.directory);
       },
       error: (reason: unknown) => {
         this.loadingExtra = false;
@@ -316,9 +316,27 @@ export class HomeComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  queueSearch(): void {
+  // All UI controls pass their fresh value explicitly. This avoids the
+  // ngModelChange two-listener ordering issue with [(ngModel)] + a second handler.
+  queueSearch(value: string): void {
+    this.q = value;
     this.page = 1;
+    this.invalidateVisibleResults();
     this.pendingText.next(++this.pendingTextVersion);
+  }
+
+  onNeighborhoodChange(value: string): void {
+    this.neighborhood = value;
+    ++this.pendingTextVersion;
+    this.page = 1;
+    this.performSearch();
+  }
+
+  onCategoryChange(value: string): void {
+    this.category = value;
+    ++this.pendingTextVersion;
+    this.page = 1;
+    this.performSearch();
   }
 
   submitSearch(): void {
@@ -327,18 +345,7 @@ export class HomeComponent implements OnInit {
     this.performSearch();
   }
 
-  filterChanged(): void {
-    ++this.pendingTextVersion;
-    this.page = 1;
-    this.performSearch();
-  }
-
-  chooseCategory(value: string): void {
-    ++this.pendingTextVersion;
-    this.category = value;
-    this.page = 1;
-    this.performSearch();
-  }
+  chooseCategory(value: string): void { this.onCategoryChange(value); }
 
   resetFilters(): void {
     ++this.pendingTextVersion;
@@ -349,30 +356,57 @@ export class HomeComponent implements OnInit {
     this.performSearch();
   }
 
-  reload(): void { ++this.pendingTextVersion; this.performSearch(); }
+  reload(): void {
+    ++this.pendingTextVersion;
+    this.performSearch();
+  }
 
   changePage(page: number): void {
-    ++this.pendingTextVersion;
     if (page < 1 || page > this.pages || page === this.page) return;
+    ++this.pendingTextVersion;
     this.page = page;
     this.performSearch();
   }
 
-  private performSearch(): void {
+  private invalidateVisibleResults(): number {
+    // Invalidate homepage/bootstrap and in-flight search immediately, including
+    // the 280ms period before the next text-search request is sent.
     const version = ++this.requestVersion;
     this.searchSubscription?.unsubscribe();
-    // The previous cards no longer match the selected filters. Never show
-    // a cafe under the "Красота" filter while an async response is pending.
     this.locations = [];
     this.total = 0;
     this.loading = true;
     this.hasLoaded = false;
     this.error = '';
     this.cdr.markForCheck();
-    this.searchSubscription = this.api.search({
-      q: this.q.trim(), category: this.category, neighborhood: this.neighborhood, page: this.page
-    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: result => { if (version === this.requestVersion) this.acceptResults(result); },
+    return version;
+  }
+
+  private performSearch(): void {
+    const version = this.invalidateVisibleResults();
+    const snapshot = {
+      q: this.q.trim(),
+      category: this.category,
+      neighborhood: this.neighborhood,
+      page: this.page
+    };
+
+    this.searchSubscription = this.api.search(snapshot).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: result => {
+        if (version !== this.requestVersion) return;
+        // Never render a mismatched category/neighborhood even if the backend
+        // or a proxy accidentally returns an outdated response.
+        if (result.items.some(item =>
+          (snapshot.category && item.category !== snapshot.category) ||
+          (snapshot.neighborhood && item.neighborhood !== snapshot.neighborhood))) {
+          this.loading = false;
+          this.hasLoaded = true;
+          this.error = 'Получихме несъвместими данни за избраните филтри. Опитай отново.';
+          this.cdr.markForCheck();
+          return;
+        }
+        this.acceptResults(result);
+      },
       error: () => {
         if (version !== this.requestVersion) return;
         this.loading = false;

@@ -10,7 +10,7 @@ import { RouterLink, RouterOutlet } from '@angular/router';
     <header class="topbar">
       <div class="shell topbar-inner">
         <a routerLink="/" class="wordmark" aria-label="YangSpace — начална страница" (click)="closeMenu()">
-          <span class="brand-mark">Y<span>.</span></span>
+          <span class="brand-mark" aria-hidden="true">Y.</span>
           <span>Yang<span class="brand-accent">Space</span></span>
         </a>
         <nav class="mainnav" [class.open]="menuOpen" aria-label="Основна навигация" id="primary-nav">
