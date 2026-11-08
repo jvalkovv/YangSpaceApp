@@ -18,7 +18,9 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Restore and build .NET 10
         run: |
-          dotnet restore apps/api/YangSpace.Api.csproj
+          dotnet restore apps/api/YangSpace.Api.csproj -warnaserror
+          dotnet list apps/api/YangSpace.Api.csproj package --include-transitive | tee /tmp/yangspace-packages.txt
+          grep -E "SQLitePCLRaw.lib.e_sqlite3[[:space:]]+3[.]53[.]3" /tmp/yangspace-packages.txt
           dotnet build apps/api/YangSpace.Api.csproj -c Release --no-restore -warnaserror
       - name: Start isolated preview API and smoke
         shell: bash

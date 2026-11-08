@@ -29,9 +29,12 @@ YangSpace.slnx    .NET solution
 
 ## Стартиране локално за Live Preview
 
-**Изисквания:** .NET SDK 10, Node.js **22.22.3+** (или официално съвместима Node 24/26), npm.
+**Изисквания:** .NET SDK 10, Node.js **22.22.3+ (22.x) / 24.15.0+ (24.x) / 26.0.0+**, npm. Node 24.14.1 НЕ се поддържа от Angular 22. При Windows: [официален Node 24.15.0 installer](https://nodejs.org/en/download/archive/v24.15.0), нов PowerShell терминал, `node -v` и `where.exe node`.
 
 ### Terminal A — .NET API
+
+**SQLite security fix:** в `apps/api/YangSpace.Api.csproj` е фиксирана актуална native SQLite библиотека `SQLitePCLRaw.lib.e_sqlite3 3.53.3`, защото EF Core 10.0.0 дърпа уязвимата 2.1.11. Не изключвайте NU1903 или warnings-as-errors. След `dotnet restore` проверете транзитивната версия с `dotnet list apps/api/YangSpace.Api.csproj package --include-transitive`.
+
 
 ```bash
 dotnet restore apps/api/YangSpace.Api.csproj
@@ -48,8 +51,11 @@ dotnet run --project apps/api/YangSpace.Api.csproj --launch-profile http
 ```bash
 cd apps/web
 npm install --no-audit --no-fund
+npm run typecheck
 npm start
 ```
+
+Ако `node -v` все още показва `v24.14.1`, затвори всички PowerShell терминали и провери коя инсталация е първа в PATH (`where.exe node`).
 
 Отвори **http://localhost:4200**. Angular proxy пренасочва `/api` и `/health` към .NET API. Страницата има 6 **измислени demo обекта**, маркирани като примерни. Няма фиктивни телефонни номера или реални адреси.
 

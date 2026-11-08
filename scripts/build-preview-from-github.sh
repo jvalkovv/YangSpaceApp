@@ -11,7 +11,7 @@ if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 command -v git >/dev/null && command -v dotnet >/dev/null && command -v node >/dev/null && command -v npm >/dev/null
 [[ -d "$REPO/.git" ]] || { echo "Not a Git clone: $REPO" >&2; exit 2; }
-node -e 'const a=process.versions.node.split(".").map(Number);if(a[0]===22&&(a[1]<22||(a[1]===22&&a[2]<3))) process.exit(1); if(a[0]<22||a[0]===23||a[0]===25) process.exit(1)' || { echo "Node runtime does not meet Angular 22 requirement" >&2; exit 2; }
+node -e 'const [major,minor,patch]=process.versions.node.split(".").map(Number);const supported=(major===22&&(minor>22||(minor===22&&patch>=3)))||(major===24&&minor>=15)||(major>=26);if(!supported)process.exit(1)' || { echo "Node runtime does not meet Angular 22 requirement" >&2; exit 2; }
 git -C "$REPO" fetch --prune origin main
 git -C "$REPO" cat-file -e "$SHA^{commit}"
 git -C "$REPO" merge-base --is-ancestor "$SHA" origin/main || { echo "SHA not on origin/main" >&2; exit 3; }

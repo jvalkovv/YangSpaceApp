@@ -25,3 +25,9 @@ Business-owner verification & memberships, production DB migrations and storage,
 ## Major caveat
 
 SQLite `EnsureCreated` is intentionally enabled only in non-production `Preview:Enabled`; not a production migration strategy. Admin preview uses bearer token in memory (no localStorage). These are developer-preview controls, not authorization for public production launch.
+
+## Local feedback — 2026-11-08
+
+- **API:** Windows `dotnet run` failed with NU1903 because EF Core SQLite transitive dependency resolved `SQLitePCLRaw.lib.e_sqlite3 2.1.11` (GHSA-2m69-gcr7-jv3q). Remediation added: direct native-only reference **3.53.3** in `apps/api/YangSpace.Api.csproj`, without disabling security audits or mixing SQLitePCLRaw managed major versions. **Build/restore still needs re-test.**
+- **Web:** `npm install` completed (reported zero vulnerabilities), but Angular CLI refused Node **24.14.1**; its actual supported ranges are Node 22.22.3+, 24.15.0+ or 26.0.0+. `package.json engines` and PVE validation are now aligned. **Node upgrade on local Windows host and Angular typecheck/build are still needed.**
+- **CI:** pending passing run evidence; no production/PVE deployment.

@@ -10,7 +10,7 @@
 - Осигури достъп до apt/npm/NuGet/GitHub от LXC, TLS пред публичен достъп и firewall.
 - **Preview access ограничен** (например Cloudflare Access/VPN/ACL), защото има demo admin и временно `EnsureCreated` SQLite.
 - Създай service account `yangspace` и отделен deploy/operator account; без `npm install` като root.
-- Инсталирай .NET 10 SDK/ASP.NET runtime, Node **22.22.3+**, npm, Git, Nginx и SQLite backup tooling чрез одобрения OS package план.
+- Инсталирай .NET 10 SDK/ASP.NET runtime, Node **22.22.3+ (22.x) / 24.15.0+ (24.x) / >=26.0.0**, npm, Git, Nginx и SQLite backup tooling чрез одобрения OS package план.
 
 ## File layout
 
