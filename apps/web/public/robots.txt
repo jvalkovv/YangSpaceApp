@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /
+# Preview-only. Remove noindex/robots restrictions after SEO/SSR + data validation go-live gate.

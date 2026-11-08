@@ -1,68 +1,99 @@
 # YangSpace 2.0
 
-**Локалната бизнес платформа за квартала — с възможност за разрастване към Варна и България.**
+**Градът около теб.** Първо квартал във Варна, после цяла Варна и България.
 
-> **Статус: PRODUCT / ARCHITECTURE BASELINE — NOT PRODUCTION READY.** Текущият код е legacy прототип на платформа за услуги и резервации. Новият модел, модернизацията и security remediation предстоят. Не внедрявайте публично, преди да изпълним P0 условията в [Security Baseline](docs/SECURITY_BASELINE.md).
+> **STATUS: FUNCTIONAL PREVIEW FOUNDATION — NOT PRODUCTION READY.** Новият .NET + Angular код е в `apps/`. Съдържа публичен каталог, страници на обекти и изолирана preview администрация. Реалните обекти, verified ownership, production persistence, SEO/SSR, jobs lifecycle и billing не са завършени. Инсталация на публичен адрес е забранена до security / QA gates.
 
-## Какво изграждаме
+## Технологии и hosting
 
-Единно място за:
-- **Жители:** откриване на обекти, работно време, контакти, локации, активни оферти, брошури и свободни позиции в квартала.
-- **Търговци:** заявяване/управление на профил, публикуване на актуални кампании и обяви, статистика за интереса.
-- **Администратори:** проверка на обекти и собственици, модерация, контрол на качеството и експлоатация.
+- **Backend:** ASP.NET Core **.NET 10 LTS**, EF Core, SQLite само за локален/изолиран demo preview.
+- **Frontend:** **Angular 22**, TypeScript 6, mobile-first, без UI framework.
+- **Host:** съществуващ **Proxmox VE (PVE)**, един отделен Linux **LXC** за preview; Nginx + systemd.
+- **GitHub:** source, PR и CI. LXC е Git clone/fetch client; **няма автоматичен deploy при push**.
+- **Изключени:** Azure, IIS, Jenkins, Kubernetes, Docker като deployment изискване.
+- **Production database:** остава архитектурно решение (PostgreSQL или SQL Server). Preview SQLite **не** е миграционна основа за live данни.
 
-**Първи обхват:** пилотен квартал във Варна. Следват други квартали, цяла Варна и България, само след валидиране на потребителската стойност и устойчив модел за поддръжка на данните.
+## Проектна структура
 
-**Ценообразуването е отворено решение.** Евентуални абонаменти се разглеждат на по-късен етап, без фиксирана цена и без billing модул в първия MVP.
+```text
+apps/
+  api/           .NET 10 REST API, EF Core, preview identity
+  web/           Angular 22 public directory + preview CMS
+infra/pve/        Nginx/systemd templates и LXC deployment runbook
+scripts/          Local API smoke и pinned GitHub build
+docs/             Product, security, architecture, domain, roadmap
+YangSpace.slnx    .NET solution
+```
 
-## Технологичен избор
+Наследената версия 2024 (стар booking app, .NET 8/Angular 18, IIS/Azure) е запазена чрез Git history и `archive/yangspace-v1-2024` branch; не участва в новата build/deployment конфигурация.
 
-| Слой | Целева посока |
+## Стартиране локално за Live Preview
+
+**Изисквания:** .NET SDK 10, Node.js **22.22.3+** (или официално съвместима Node 24/26), npm.
+
+### Terminal A — .NET API
+
+```bash
+dotnet restore apps/api/YangSpace.Api.csproj
+dotnet run --project apps/api/YangSpace.Api.csproj --launch-profile http
+```
+
+- API: `http://127.0.0.1:5090`
+- Readiness: `http://127.0.0.1:5090/health/ready`
+- Public list: `http://127.0.0.1:5090/api/v1/locations`
+- Development-only preview data се създават в `yangspace-preview.db` в working directory.
+
+### Terminal B — Angular
+
+```bash
+cd apps/web
+npm install --no-audit --no-fund
+npm start
+```
+
+Отвори **http://localhost:4200**. Angular proxy пренасочва `/api` и `/health` към .NET API. Страницата има 6 **измислени demo обекта**, маркирани като примерни. Няма фиктивни телефонни номера или реални адреси.
+
+### Preview CMS
+
+- За вход в `/admin` се ползва **само локален bootstrap admin**, създаден чрез `Bootstrap__AdminEmail` и `Bootstrap__AdminPassword` в environment / user secrets. Няма default парола.
+- Задай стойностите **преди първия старт на API**; не ги записвай в Git. Паролата трябва да отговаря на Identity policy.
+- Preview API включва `/api/auth/login` и admin-only location/offer/brochure/job creation и hide. Access token е само в паметта на Angular и се губи при refresh.
+- **Няма публичен owner signup, upload или billing.** Identity registration routes са достъпни само в изолирана preview среда; новорегистрирани потребители нямат admin role.
+- Публикуването от preview CMS е само за демо данни; не внасяйте реална лична информация.
+
+> В момента няма надеждно заключен lockfile; `npm install` е временна bootstrap стъпка. За production трябва да се генерира/commit-не `package-lock.json` и CI да мине на `npm ci`.
+
+## API
+
+| Route | Access |
 |---|---|
-| Backend | ASP.NET Core **.NET 10 LTS**, C#, EF Core |
-| Frontend | **Angular** (поддържана версия), mobile-first; SSR за SEO |
-| Database | Релационна база; SQL Server като наследен вариант, PostgreSQL като кандидат (ADR преди миграция) |
-| Architecture | Modular Monolith, API-first, domain boundaries |
-| Hosting | **Собствен Proxmox VE / Linux LXC**, Nginx, systemd |
-| Delivery | GitHub за source/CI; контролирано внедряване на PVE |
-| Files | Поверително и публично медийно хранилище с валидация и backup |
+| `GET /health/live`, `GET /health/ready` | Public |
+| `GET /api/v1/meta` | Public |
+| `GET /api/v1/locations` | Public |
+| `GET /api/v1/locations/{slug}` | Public |
+| `POST /api/auth/login` | Preview only |
+| `GET/POST/PUT /api/v1/admin/locations` | Preview + PlatformAdmin |
+| `POST /api/v1/admin/locations/{id}/hide` | Preview + PlatformAdmin |
+| `POST /api/v1/admin/locations/{id}/offers|brochures|jobs` | Preview + PlatformAdmin |
 
-**Изрично извън целевата инфраструктура:** Azure, IIS, Jenkins, Kubernetes и Docker като изискване за deployment. Първият MVP може да работи в един изолиран LXC, при осигурени backup, restore, monitoring и security controls.
+## PVE / LXC plan
 
-## Документация
+1. Подготвяме отделен CT и инвентаризираме DNS, TLS, storage, backups.
+2. Правим Git clone в контейнера. `origin` сочи GitHub, но няма webhook auto-deploy.
+3. От конкретен проверен commit SHA пускаме `scripts/build-preview-from-github.sh`; той **само build-ва** версия под `/srv/yangspace/releases`.
+4. След backup и QA операторът активира версията чрез симлинк и systemd reload (runbook).
+5. Изолирана preview среда, защитена от публично индексиране; production release само след P0/MVP acceptance.
 
-1. [Продукт и функционалности](docs/PRODUCT.md)
-2. [Целева архитектура](docs/ARCHITECTURE.md)
-3. [Данни и бизнес правила](docs/DOMAIN_MODEL.md)
-4. [MVP roadmap и release gates](docs/MVP_ROADMAP.md)
-5. [PVE / LXC операции](docs/PVE_OPERATIONS.md)
-6. [Security baseline и блокери](docs/SECURITY_BASELINE.md)
-7. [Валидиране на бизнес хипотезите](docs/VALIDATION.md)
-8. [Архитектурни решения (ADR)](docs/DECISIONS.md)
+[**PVE инструкции**](infra/pve/README.md) · [**Security gates**](docs/SECURITY_BASELINE.md)
 
-## Какво има в репото днес
+## Product scope
 
-- `YangSpaceApp.Server/`: ASP.NET Core 8 прототип (потребители, услуги, категории, резервации).
-- `yangspaceapp.client/`: Angular 18 прототип с профили и доставчици.
-- `YangSpaceApp.sln`: съществуващ solution.
-- `.github/workflows/main_yangspace.yml`: **CI-only**, без deployment.
+Публичен каталог по квартали и категории, профили, активни оферти, брошури, работни позиции; търговците ще управляват собствените си обекти след claim/ownership workflow в следващ milestone. Точните тарифи са **TBD**, billing не е част от preview.
 
-**Наследеният код не е целевият продукт и не се счита за защитен.** Има установени P0 проблеми с authorization, upload и secrets. Освен това част от старите API/Angular връзки са несъвместими. Преди функционално развитие е нужен baseline fix, миграционен план и работеща CI проверка.
+Документи: [Product](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md) · [Domain](docs/DOMAIN_MODEL.md) · [Roadmap](docs/MVP_ROADMAP.md) · [Validation](docs/VALIDATION.md) · [Decisions](docs/DECISIONS.md)
 
-### Development policy
+## Release policy
 
-- Новата работа се прави в feature branches с PR, тестове, ADR при промяна на архитектурата и ясни acceptance criteria.
-- Няма директен deployment от `main` към PVE. Deployment се задейства отделно, след успешно валидиране и backup.
-- Никакви production secrets, реални клиентски данни, пароли, токени или медии в Git.
-- Не използвайте примерните акаунти или конфигурационните тайни от legacy историята; потенциално използваните ключове трябва да бъдат ротирани.
-- Инструкции за пускане на **новия** продукт ще бъдат добавени след foundation milestone. Старите README команди не са валидни за YangSpace 2.0.
+Работим чрез GitHub PR, CI и документирани commit IDs. Без смесване на preview и live data. GitHub сам по себе си не публикува върху PVE. Не твърдим production readiness без build/test/runtime evidence.
 
-## Първо следващо действие
-
-Изпълняваме **M0 — Security & Build Baseline** и проверяваме работещ .NET + Angular build, тестове, миграции и secrets management. Чак след това започва новият business-location домейн.
-
-Техническите решения са документирани, **но кодова миграция или инсталация на PVE не е изпълнявана с този commit**.
-
-## License
-
-В текущото дърво не е открит `LICENSE` файл. Правният режим на проекта трябва да бъде изяснен преди външно разпространение или приемане на външни приноси.
+**Лиценз:** преди публично разпространение трябва да бъде добавен и потвърден коректен LICENSE файл.

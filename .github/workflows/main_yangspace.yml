@@ -1,47 +1,74 @@
-# YangSpace 2.0: documentation gate only until M0 security/build remediation.
-# Intentionally NO deploy credentials, NO Azure, NO IIS, NO Jenkins.
-name: YangSpace baseline checks (no deploy)
-
+# YangSpace 2.0: CI only. NEVER deploy to Azure, PVE, IIS or any production host.
+name: YangSpace v2 - API and Angular validation
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
-  baseline-docs:
+  api:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Check baseline files and links
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore and build .NET 10
+        run: |
+          dotnet restore apps/api/YangSpace.Api.csproj
+          dotnet build apps/api/YangSpace.Api.csproj -c Release --no-restore -warnaserror
+      - name: Start isolated preview API and smoke
+        shell: bash
+        env:
+          ASPNETCORE_ENVIRONMENT: Staging
+          ASPNETCORE_URLS: http://127.0.0.1:5090
+          Preview__Enabled: 'true'
+          ConnectionStrings__Main: Data Source=/tmp/yangspace-ci.db
+        run: |
+          set -euo pipefail
+          dotnet run --no-launch-profile --no-build -c Release --project apps/api/YangSpace.Api.csproj > /tmp/yangspace-api.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true; tail -n 50 /tmp/yangspace-api.log' EXIT
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:5090/health/ready >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          bash scripts/api-smoke.sh
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+      - name: Bootstrap Angular dependencies (lockfile pending)
+        working-directory: apps/web
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        working-directory: apps/web
+        run: npm run typecheck
+      - name: Build
+        working-directory: apps/web
+        run: npm run build
+      - name: Check deploy output
+        run: test -s apps/web/dist/yangspace-web/browser/index.html
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard against reintroducing legacy pipelines
         shell: bash
         run: |
           set -euo pipefail
-          files=(
-            README.md
-            docs/PRODUCT.md
-            docs/ARCHITECTURE.md
-            docs/DOMAIN_MODEL.md
-            docs/MVP_ROADMAP.md
-            docs/PVE_OPERATIONS.md
-            docs/SECURITY_BASELINE.md
-            docs/VALIDATION.md
-            docs/DECISIONS.md
-          )
-          for file in "${files[@]}"; do
-            test -s "$file" || { echo "Missing/empty: $file"; exit 1; }
-          done
-          if git grep -n -E '^[[:space:]]*uses:[[:space:]]*azure/webapps-deploy|^[[:space:]]*run:.*appcmd' -- .github/workflows; then
-            echo "Legacy deployment command found in active workflows"
-            exit 1
+          test ! -f Jenkinsfile
+          test -s README.md
+          test -s infra/pve/README.md
+          test -s apps/api/YangSpace.Api.csproj
+          test -s apps/web/package.json
+          if grep -R -nE '^[[:space:]]*uses:[[:space:]]*azure/webapps-deploy|appcmd stop|appcmd start' .github/workflows; then
+            echo "Legacy deployment step detected." >&2; exit 1
           fi
-          echo "YangSpace docs and deployment-safety gate PASS"
-      - name: Runtime build is explicitly deferred to M0
-        run: |
-          echo "Legacy .NET 8 / Angular 18 source has known issues."
-          echo "Full build/tests must be re-enabled as a required gate before deployment."
+          echo "No auto-deploy targets configured."
