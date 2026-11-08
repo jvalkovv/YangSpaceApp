@@ -1,115 +1,68 @@
-## YangSpace
+# YangSpace 2.0
 
-YangSpace is a web application that connects service providers with users, offering a variety of services with integrated booking and management features. Developed with ASP.NET Core and Angular, it allows service providers to list services, manage bookings, and delete services, while users can browse available services and schedule appointments.
+**Локалната бизнес платформа за квартала — с възможност за разрастване към Варна и България.**
 
-The application is deployed on Azure, providing a scalable and reliable cloud infrastructure for users to interact with the platform.
-## Application URL
-Windows Server 2022 IIS: https://yangspace.gleeze.com/
+> **Статус: PRODUCT / ARCHITECTURE BASELINE — NOT PRODUCTION READY.** Текущият код е legacy прототип на платформа за услуги и резервации. Новият модел, модернизацията и security remediation предстоят. Не внедрявайте публично, преди да изпълним P0 условията в [Security Baseline](docs/SECURITY_BASELINE.md).
 
-Azure Cloud: https://yangspace.azurewebsites.net/
-## Features
-	•	User Authentication: Secure login and role-based authorization with JWT.
-	•	Service Management: Providers can create, update, or delete services they offer.
-	•	Booking System: Users can view service availability and book appointments.
-	•	User Profiles: Each user has a profile, and service providers can manage their listings.
-	•	Dynamic UI: Fully responsive interface built with Angular for seamless user experience.
+## Какво изграждаме
 
-## App Functionality
-    User Authentication and Authorization
-	•	Users log in with their credentials, and their roles (e.g., provider or customer) are determined.
-	•	Service providers can manage their listed services.
-	•	JWT tokens are used for secure authentication and API interaction.
+Единно място за:
+- **Жители:** откриване на обекти, работно време, контакти, локации, активни оферти, брошури и свободни позиции в квартала.
+- **Търговци:** заявяване/управление на профил, публикуване на актуални кампании и обяви, статистика за интереса.
+- **Администратори:** проверка на обекти и собственици, модерация, контрол на качеството и експлоатация.
 
-## Service Management
-	•	Service providers can create, edit, and delete services.
-	•	Services include detailed descriptions, available time slots, and pricing.
+**Първи обхват:** пилотен квартал във Варна. Следват други квартали, цяла Варна и България, само след валидиране на потребителската стойност и устойчив модел за поддръжка на данните.
 
-## Booking System
-	•	Users can book services by selecting available time slots.
-	•	Booking details are stored and accessible in the user profile.
+**Ценообразуването е отворено решение.** Евентуални абонаменти се разглеждат на по-късен етап, без фиксирана цена и без billing модул в първия MVP.
 
-## Administrative Features
-	•	Providers can view all bookings and delete services if needed.
-	•	Service providers can only modify or delete services they created.
+## Технологичен избор
 
-## User Roles
-# Client
-	•	Book Services: Browse available services and schedule appointments with service providers.
-	•	View Bookings: Manage current and past bookings.
-username: cuser
-password: cuser1A
+| Слой | Целева посока |
+|---|---|
+| Backend | ASP.NET Core **.NET 10 LTS**, C#, EF Core |
+| Frontend | **Angular** (поддържана версия), mobile-first; SSR за SEO |
+| Database | Релационна база; SQL Server като наследен вариант, PostgreSQL като кандидат (ADR преди миграция) |
+| Architecture | Modular Monolith, API-first, domain boundaries |
+| Hosting | **Собствен Proxmox VE / Linux LXC**, Nginx, systemd |
+| Delivery | GitHub за source/CI; контролирано внедряване на PVE |
+| Files | Поверително и публично медийно хранилище с валидация и backup |
 
-# Service Provider
-	•	Manage Services: Create, update, or delete services they offer.
-	•	View Bookings: View client bookings for their services and manage availability.
-	•	Admin Features: Providers can delete their services if no longer required.
-usename: spuser
-password: spuser1A
+**Изрично извън целевата инфраструктура:** Azure, IIS, Jenkins, Kubernetes и Docker като изискване за deployment. Първият MVP може да работи в един изолиран LXC, при осигурени backup, restore, monitoring и security controls.
 
-## Getting Started
+## Документация
 
-Follow the instructions below to set up the project on your local machine.
+1. [Продукт и функционалности](docs/PRODUCT.md)
+2. [Целева архитектура](docs/ARCHITECTURE.md)
+3. [Данни и бизнес правила](docs/DOMAIN_MODEL.md)
+4. [MVP roadmap и release gates](docs/MVP_ROADMAP.md)
+5. [PVE / LXC операции](docs/PVE_OPERATIONS.md)
+6. [Security baseline и блокери](docs/SECURITY_BASELINE.md)
+7. [Валидиране на бизнес хипотезите](docs/VALIDATION.md)
+8. [Архитектурни решения (ADR)](docs/DECISIONS.md)
 
-### Prerequisites
+## Какво има в репото днес
 
-Make sure you have the following software installed:
-- [Node.js](https://nodejs.org/)
-- [.NET Core SDK](https://dotnet.microsoft.com/download)
-- SQL Server (or use Docker to run a SQL Server instance)
-You can check if .NET Core SDK is installed by running:
+- `YangSpaceApp.Server/`: ASP.NET Core 8 прототип (потребители, услуги, категории, резервации).
+- `yangspaceapp.client/`: Angular 18 прототип с профили и доставчици.
+- `YangSpaceApp.sln`: съществуващ solution.
+- `.github/workflows/main_yangspace.yml`: **CI-only**, без deployment.
 
-```bash
-dotnet --version
-```
+**Наследеният код не е целевият продукт и не се счита за защитен.** Има установени P0 проблеми с authorization, upload и secrets. Освен това част от старите API/Angular връзки са несъвместими. Преди функционално развитие е нужен baseline fix, миграционен план и работеща CI проверка.
 
-### Running the Backend
-1. Ensure you have a SQL Server instance running. You can either install SQL Server locally or use Docker. For Docker, you can run:
-   
-   ```bash
-   docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=My@Password123!' -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
-   ```
-   
-3. Open a terminal and navigate to the backend folder:
+### Development policy
 
-    ```bash
-    cd YangSpaceBackEnd
-    ```
+- Новата работа се прави в feature branches с PR, тестове, ADR при промяна на архитектурата и ясни acceptance criteria.
+- Няма директен deployment от `main` към PVE. Deployment се задейства отделно, след успешно валидиране и backup.
+- Никакви production secrets, реални клиентски данни, пароли, токени или медии в Git.
+- Не използвайте примерните акаунти или конфигурационните тайни от legacy историята; потенциално използваните ключове трябва да бъдат ротирани.
+- Инструкции за пускане на **новия** продукт ще бъдат добавени след foundation milestone. Старите README команди не са валидни за YangSpace 2.0.
 
-4. Install dependencies and run the backend server:
+## Първо следващо действие
 
-    ```bash
-    dotnet restore
-    dotnet ef database update
-    dotnet run
-    ```
+Изпълняваме **M0 — Security & Build Baseline** и проверяваме работещ .NET + Angular build, тестове, миграции и secrets management. Чак след това започва новият business-location домейн.
 
-### Running the Frontend
-
-1. Open a new terminal and navigate to the frontend folder:
-
-    ```bash
-    cd YangSpaceClient
-    ```
-
-2. Install the necessary packages:
-
-    ```bash
-    npm install
-    ```
-
-3. Start the Angular development server:
-
-    ```bash
-    ng serve
-    ```
-
-### Additional Information
-
-- The backend server runs on `http://localhost:5290`
-- The frontend server runs on `http://localhost:4200`
+Техническите решения са документирани, **но кодова миграция или инсталация на PVE не е изпълнявана с този commit**.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
+В текущото дърво не е открит `LICENSE` файл. Правният режим на проекта трябва да бъде изяснен преди външно разпространение или приемане на външни приноси.

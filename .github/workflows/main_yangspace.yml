@@ -1,57 +1,47 @@
-name: Build and Deploy YangSpaceApp
+# YangSpace 2.0: documentation gate only until M0 security/build remediation.
+# Intentionally NO deploy credentials, NO Azure, NO IIS, NO Jenkins.
+name: YangSpace baseline checks (no deploy)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build-and-deploy:
-    name: Build and Deploy
-    runs-on: windows-latest # Using Windows runner for xcopy compatibility
-
+  baseline-docs:
+    runs-on: ubuntu-latest
     steps:
-    # Step 1: Check out the code
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    # Step 2: Setup .NET environment
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 8.0.11 # Update based on your project requirements
-
-    # Step 3: Setup Node.js for Angular
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18 # Adjust to the Node.js version required by your Angular app
-
-    # Step 4: Install Angular dependencies and build the app
-    - name: Build Angular App
-      working-directory: yangspaceapp.client
-      run: |
-        npm install
-        npm audit fix
-        npm run build -- --configuration production
-
-    # Step 5: Copy Angular build output to ASP.NET Core wwwroot
-    - name: Copy Angular Build to wwwroot
-      run: |
-        xcopy /E /Y yangspaceapp.client\dist\browser\* YangSpaceApp.Server\wwwroot\
-
-    # Step 6: Publish ASP.NET Core application
-    - name: Publish ASP.NET Core App
-      working-directory: YangSpaceApp.Server
-      run: |
-        dotnet publish -c Release -o ./publish
-
-    # Step 7: Deploy to Azure
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: yangspace # Replace with your actual App Service name
-        slot-name: production
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: YangSpaceApp.Server/publish
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check baseline files and links
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            README.md
+            docs/PRODUCT.md
+            docs/ARCHITECTURE.md
+            docs/DOMAIN_MODEL.md
+            docs/MVP_ROADMAP.md
+            docs/PVE_OPERATIONS.md
+            docs/SECURITY_BASELINE.md
+            docs/VALIDATION.md
+            docs/DECISIONS.md
+          )
+          for file in "${files[@]}"; do
+            test -s "$file" || { echo "Missing/empty: $file"; exit 1; }
+          done
+          if grep -R -nE 'azure/webapps-deploy|appcmd|jenkins' .github/workflows; then
+            echo "Legacy deployment command found in active workflows"
+            exit 1
+          fi
+          echo "YangSpace docs and deployment-safety gate PASS"
+      - name: Runtime build is explicitly deferred to M0
+        run: |
+          echo "Legacy .NET 8 / Angular 18 source has known issues."
+          echo "Full build/tests must be re-enabled as a required gate before deployment."
