@@ -119,3 +119,11 @@ Then inspect the browser at **375 / 390 / 768 / 1024 / 1440 px** per [Homepage A
 Работим чрез GitHub PR, CI и документирани commit IDs. Без смесване на preview и live data. GitHub сам по себе си не публикува върху PVE. Не твърдим production readiness без build/test/runtime evidence.
 
 **Лиценз:** преди публично разпространение трябва да бъде добавен и потвърден коректен LICENSE файл.
+
+## Angular 22: zoneless rendering
+
+Angular 22 is zoneless/OnPush by default. All async HTTP subscriptions updating template-visible component fields must notify change detection. Home, business detail and preview admin explicitly call `ChangeDetectorRef.markForCheck()` following network results or errors. The unused ZoneJS polyfill and dependency have been removed. The default local frontend still runs on `127.0.0.1:4200`.
+
+After pulling this fix, run `npm install` (Angular dependencies changed), then `npm run typecheck` and `npm start`. Chrome should display the 6 seeded entries **without any click or focus/blur**, and `/obekt/bike-demo` must resolve without an additional UI interaction.
+
+Optional local browser regression tests: `npm run test:e2e` after installing the browser with `npx playwright install chromium`. These tests mock backend HTTP responses and specifically cover zoneless rendering and filter/result consistency.

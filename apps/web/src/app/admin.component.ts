@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 interface TokenResponse { accessToken: string; tokenType: string; expiresIn: number; refreshToken: string }
@@ -76,6 +76,7 @@ interface AdminLocation {
 })
 export class AdminComponent {
   private readonly http = inject(HttpClient);
+  private readonly cdr = inject(ChangeDetectorRef);
   // Preview auth only: token stays in memory; it is intentionally not stored in localStorage.
   token = ''; email = ''; password = ''; busy = false; message = ''; isError = false;
   locations: AdminLocation[] = []; selectedId = '';
@@ -85,7 +86,7 @@ export class AdminComponent {
   jobTitle = ''; jobDescription = ''; jobApplyUrl = '';
   brochureTitle = ''; brochureUrl = '';
   private get auth() { return { headers: new HttpHeaders({ Authorization: 'Bearer ' + this.token }) }; }
-  private status(message: string, isError = false) { this.message = message; this.isError = isError; this.busy = false; }
+  private status(message: string, isError = false) { this.message = message; this.isError = isError; this.busy = false; this.cdr.markForCheck(); }
   login() {
     if (!this.email.trim() || !this.password) return this.status('Попълни имейл и парола.', true);
     this.busy = true;
@@ -96,7 +97,7 @@ export class AdminComponent {
   }
   reload() {
     this.http.get<AdminLocation[]>('/api/v1/admin/locations', this.auth).subscribe({
-      next: items => this.locations = items,
+      next: items => { if (!this.token) return; this.locations = items; this.cdr.markForCheck(); },
       error: () => this.status('Няма достъп до администраторските обекти.', true)
     });
   }

@@ -1,7 +1,9 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { catchError, distinctUntilChanged, map, of, switchMap } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { DirectoryApi, LocationDetail } from './directory-api.service';
 
@@ -60,23 +62,51 @@ import { DirectoryApi, LocationDetail } from './directory-api.service';
     </section>
   `
 })
-export class DetailComponent implements OnInit, OnDestroy {
+export class DetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(DirectoryApi);
   private readonly title = inject(Title);
-  private subscription?: Subscription;
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
+
   location: LocationDetail | null = null;
-  loading = true; error = '';
+  loading = true;
+  error = '';
+
   ngOnInit(): void {
-    this.subscription = this.route.paramMap.subscribe(params => {
-      const slug = params.get('slug');
-      if (!slug) { this.loading = false; this.error = 'Липсва идентификатор на обекта.'; return; }
-      this.loading = true; this.location = null; this.error = '';
-      this.api.location(slug).subscribe({
-        next: value => { this.location = value; this.title.setTitle(value.name + ' | YangSpace'); this.loading = false; },
-        error: () => { this.error = 'Обектът не е намерен или е скрит.'; this.loading = false; }
-      });
+    this.route.paramMap.pipe(
+      map(params => params.get('slug')),
+      distinctUntilChanged(),
+      switchMap(slug => {
+        this.location = null;
+        this.loading = true;
+        this.error = '';
+        this.cdr.markForCheck();
+
+        if (!slug) return of({ kind: 'missing' as const });
+
+        return this.api.location(slug).pipe(
+          map(location => ({ kind: 'loaded' as const, location })),
+          catchError((reason: unknown) => of({
+            kind: 'failed' as const,
+            notFound: reason instanceof HttpErrorResponse && reason.status === 404
+          }))
+        );
+      }),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(result => {
+      this.loading = false;
+      if (result.kind === 'loaded') {
+        this.location = result.location;
+        this.title.setTitle(result.location.name + ' | YangSpace');
+      } else if (result.kind === 'missing') {
+        this.error = 'Липсва идентификатор на обекта.';
+      } else {
+        this.error = result.notFound
+          ? 'Обектът не е намерен или е скрит.'
+          : 'Неуспешно зареждане. Провери връзката с API и опитай отново.';
+      }
+      this.cdr.markForCheck();
     });
   }
-  ngOnDestroy() { this.subscription?.unsubscribe(); }
 }

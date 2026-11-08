@@ -40,3 +40,7 @@ SQLite `EnsureCreated` is intentionally enabled only in non-production `Preview:
 - New navigation anchors, focus states, reduced motion, mobile menu, no remote font import, localhost-only default dev server.
 - Added API smoke assertions and read-only PowerShell timing script. **No local browser screenshots, build logs or latency numbers have been collected through GitHub connector.**
 - Until the exact commit passes CI + manual viewport/browser acceptance, homepage status is **SOURCE COMPLETE / RUNTIME QA PENDING**, not 100% accepted.
+
+## 2026-11-08 — Angular 22 zoneless repair
+
+User confirmed read-only API performance: first request **28 ms**, warm median **4.4 ms**; `/api/v1/homepage` contract PASS. Screenshots revealed rendering after focus/blur and a detail page stuck on loading. Corrective source changes now explicitly notify Angular change detection after async HTTP results/errors; detail cancels prior route fetches; filters hide stale cards during pending requests. Removed unnecessary ZoneJS runtime polyfill. Real browser verification on this commit remains pending.

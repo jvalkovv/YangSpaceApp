@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -238,6 +238,7 @@ import {
 })
 export class HomeComponent implements OnInit {
   private readonly api = inject(DirectoryApi);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly pendingText = new Subject<number>();
   private searchSubscription?: Subscription;
@@ -275,16 +276,18 @@ export class HomeComponent implements OnInit {
         this.brochures = payload.brochures;
         this.jobs = payload.jobs;
         this.loadingExtra = false;
+        this.cdr.markForCheck();
         // Do not overwrite results if the visitor searched before bootstrap finished.
         if (this.requestVersion === 0) this.acceptResults(payload.directory);
       },
       error: (reason: unknown) => {
         this.loadingExtra = false;
+        this.cdr.markForCheck();
         // A 404 indicates a temporarily older API; search can still be used.
         // A timeout/network error must NOT trigger another 10-second wait.
         if (reason instanceof HttpErrorResponse && reason.status === 404) {
           this.api.meta().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-            next: m => this.meta = m,
+            next: m => { this.meta = m; this.cdr.markForCheck(); },
             error: () => {}
           });
           if (this.requestVersion === 0) this.performSearch();
@@ -294,6 +297,7 @@ export class HomeComponent implements OnInit {
           this.loading = false;
           this.hasLoaded = true;
           this.error = 'Не можем да се свържем с каталога. Провери дали API работи на 127.0.0.1:5090 и опитай отново.';
+          this.cdr.markForCheck();
         }
       }
     });
@@ -309,6 +313,7 @@ export class HomeComponent implements OnInit {
     this.loading = false;
     this.hasLoaded = true;
     this.error = '';
+    this.cdr.markForCheck();
   }
 
   queueSearch(): void {
@@ -356,8 +361,14 @@ export class HomeComponent implements OnInit {
   private performSearch(): void {
     const version = ++this.requestVersion;
     this.searchSubscription?.unsubscribe();
+    // The previous cards no longer match the selected filters. Never show
+    // a cafe under the "Красота" filter while an async response is pending.
+    this.locations = [];
+    this.total = 0;
     this.loading = true;
+    this.hasLoaded = false;
     this.error = '';
+    this.cdr.markForCheck();
     this.searchSubscription = this.api.search({
       q: this.q.trim(), category: this.category, neighborhood: this.neighborhood, page: this.page
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -366,6 +377,8 @@ export class HomeComponent implements OnInit {
         if (version !== this.requestVersion) return;
         this.loading = false;
         this.error = 'API заявката не завърши успешно. Провери дали .NET приложението работи на 127.0.0.1:5090 и опитай пак.';
+        this.hasLoaded = true;
+        this.cdr.markForCheck();
       }
     });
   }

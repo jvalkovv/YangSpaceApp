@@ -45,3 +45,19 @@ It reports HTTP times, backend payload counts and a median over warm calls. Thes
 - This is a client-side Angular preview; SSR/indexable SEO is postponed.
 - Offer/job data in preview are fictional. There are no real merchant uploads, business verification or pricing plans.
 - Actual local performance cannot be determined from the attached screenshot alone.
+
+## 2026-11-08 — Reported runtime regression: Angular 22 change detection
+
+User measured **cold 28 ms / warm median 4.4 ms** on `GET /api/v1/homepage`, contract PASS (6 locations/6 categories/3 offers/1 brochure/1 job). Slow/stuck rendering is **not** supported as a DB latency issue by these metrics.
+
+User browser evidence: initial cards require an unrelated click/blur to appear; detail `/obekt/bike-demo` remains on Loading; selected `Красота` can display stale `Заведения` card during refresh.
+
+Root cause verified against Angular 22 defaults: zoneless + OnPush requires a change-notification after asynchronous subscriptions update fields. Fix: `markForCheck()` in Home/Detail/Admin; detail uses `switchMap` to cancel outdated route requests; filter changes clear stale items before pending query; ZoneJS polyfill removed as unnecessary.
+
+Acceptance **requires** browser evidence after the fix:
+- [ ] Six cards load without clicking any field.
+- [ ] Detail loads on fresh URL without click/blur.
+- [ ] Category selection does not display stale-category cards while the request is pending.
+- [ ] Rapid category switching and text searches show the latest response, never an older one.
+- [ ] Browser errors and preview admin HTTP results update without unrelated interaction.
+- [ ] Automated Playwright regression checks pass in local Chromium.
