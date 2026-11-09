@@ -129,3 +129,17 @@ Reviewed the actual Playwright full-page PNGs supplied in `YangSpace-Viewport-QA
 **Changes in follow-up:** remove the tablet horizontal translation; constrain map to a 225px grid cell, shrink its interior callouts, reduce Jobs minimum height at tablet widths. Add 768px bounding-box regression (detects children cropped inside the overflow-hidden hero) and 390/768/1440 populated-content screenshot tests. Existing five screenshot tests use **empty** mocked offers, brochures and jobs, so populated-section visual acceptance was not supported by that ZIP.
 
 **Scope of evidence:** source screenshot inspection, not an automated performance audit. New CSS and tests still require a new Playwright run and screenshots for final visual acceptance.
+
+## 2026-11-09 — Post-fix Playwright execution (Windows operator evidence)
+
+**Commit under test:** `20aa30c7da581316ba31900b6953025a3d1f3b00` (`feat/yangspace-v2-foundation-20261108`, confirmed by successful fast-forward pull).
+
+- **Command:** `npm run test:e2e`, Windows PowerShell, `apps/web`.
+- **Result:** **17 passed / 0 failed in 18.2 seconds**.
+- **Five viewport layout tests PASS:** 375, 390, 768, 1024, 1440 CSS px.
+- **768px-specific clipping assertions PASS**: tablet hero map and feature callout stay within their bounding boxes.
+- **Three populated-content cases PASS:** offers, brochures, jobs at 390, 768 and 1440 px.
+- **Nine functional browser regressions PASS:** first-load rendering, filter race handling, detail route, admin UI rendering, failed HTTP cases and retry.
+- Tests use mocked API responses: this is **browser regression evidence**, not real content/DB acceptance or production Lighthouse data.
+
+**Open gates:** inspect the newly generated PNG screenshots from this run (particularly `yangspace-home-768.png` and `yangspace-populated-{390,768,1440}.png`), verify real unmocked owner/admin lifecycle, record GitHub CI evidence, commit reviewed npm lockfile, and finish PVE release safeguards. Do not claim 100% visual/production acceptance yet.
