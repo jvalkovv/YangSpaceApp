@@ -220,3 +220,7 @@ Read [S0 Manual QA](docs/S0_MANUAL_QA_RUNBOOK.md) and [ADR-018](docs/ADR-018-NO-
 ### Windows QA process runner regression (2026-11-09)
 
 If the manual API wrapper prints `STAGE_FAILED=api-restore EXIT=` after `Restored ...`, this is a missing process exit-code reporting bug, not evidence that restore failed. After pulling the latest reviewed branch, run `scripts/Test-Process-Runner.ps1` to test success, non-zero exit and `npm.cmd` handling. A shared `System.Diagnostics.Process` runner replaces `Start-Process -PassThru` in both clean-source and API QA wrappers. Only proceed when `PROCESS_RUNNER_SELFTEST=PASS`; then run the actual isolated API verification.
+
+### Native API integration — no Python requirement
+
+The Windows manual API integration flow uses `scripts/Invoke-Api-Integration.ps1` through `Verify-Api-Local.ps1`. Windows Microsoft Store alias `python.exe` (exit 9009) is not a valid Python interpreter and no longer blocks the integration flow. First execute `scripts/Test-Api-Native-Guard.ps1` to verify syntax and refusal of unsafe DB targets, then run the isolated API test. Linux/manual Python contract is separate and optional. **No GitHub Actions.**

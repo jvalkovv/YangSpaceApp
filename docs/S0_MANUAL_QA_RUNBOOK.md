@@ -40,9 +40,9 @@ A successful run proves source compilation/browser QA, not admin DB authorizatio
 .\scripts\Verify-Api-Local.ps1
 ~~~
 
-The script builds from a separate committed archive, creates a new OS-TEMP sandbox prefixed yangspace-ci-, picks an ephemeral 127.0.0.1-only port, creates a random non-logged bootstrap secret, and launches Staging Preview from the isolated build. It runs scripts/api-integration.py prepare, terminates only the test API, restarts the same isolated DB, and runs verify.
+The script builds from a separate committed archive, creates a new OS-TEMP sandbox prefixed yangspace-ci-, picks an ephemeral 127.0.0.1-only port, creates a random non-logged bootstrap secret, and launches Staging Preview from the isolated build. It runs native `scripts/Invoke-Api-Integration.ps1 -Phase prepare`, terminates only the test API, restarts the same isolated DB, and runs `-Phase verify`. **No Python installation is needed on Windows.**
 
-Python's strict guard rejects unexpected DB paths, missing sandbox marker, non-loopback URLs, mismatched config or absent secrets. Its write actions must never run against real business data.
+PowerShell's strict guard rejects unexpected DB paths, missing sandbox marker, non-loopback URLs, mismatched config or absent secrets. Its write actions must never run against real business data.
 
 **Required result:** REAL_API_INTEGRATION=PASS; matching COMMIT_SHA in manifest; expected guest/nonadmin denial, create/edit/publish/expiry/hide and persistence after restart.
 
@@ -113,3 +113,17 @@ git pull --ff-only origin feat/yangspace-v2-foundation-20261108
 ~~~
 
 Expected: `STAGE_PASS=runner-success`, a deliberate `STAGE_FAILED=runner-failure EXIT=7` caught by the self-test, `STAGE_PASS=runner-npm-cmd`, and `PROCESS_RUNNER_SELFTEST=PASS`. This is non-destructive, operates solely within a temporary scratch directory and never touches the live API or DB. Then run `Verify-Api-Local.ps1`; only after its PASS re-run `Verify-Source-Local.ps1` for the exact same latest SHA. The original source PASS for `133cfd6` remains valid for that historical commit.
+
+## 2026-11-09 — Native Windows API QA (Python not required)
+
+Windows `python.exe` can be a Microsoft Store App Execution Alias; it returns exit 9009. The Windows API wrapper now runs a native PowerShell HTTP contract, without Python. After pulling the latest approved source:
+
+~~~powershell
+cd D:\GitHub\YangSpaceApp
+.\scripts\Test-Api-Native-Guard.ps1
+.\scripts\Verify-Api-Local.ps1
+~~~
+
+The guard test first parses the native test file and then expects a **failure** when disposable-test conditions are disabled. Required output is `NATIVE_API_INTEGRATION_PARSE=PASS`, `NATIVE_API_INTEGRATION_GUARD=PASS`, `NATIVE_API_SELFTEST=PASS`. Only then execute real API integration; the wrapper starts its own random loopback instance and an isolated temp SQLite database, never your local API on port 5090. Required result: `REAL_API_INTEGRATION=PASS`. All run logs are retained under `logs/yangspace/api-integration/`.
+
+The earlier `scripts/api-integration.py` is not used by Windows validation and remains optional for Linux/manual environments. Runtime PASS is pending.

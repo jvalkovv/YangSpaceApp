@@ -15,7 +15,7 @@
 | YS-B-04 | Automated browser regressions | DONE | 17/17 Playwright PASS on `20aa30c`, 18.2s; mocked API |
 | YS-B-05 | Public read-only demo API | PARTIAL | 6 fictional locations/3 offers/1 brochure/1 job; no real public-data acceptance |
 | YS-B-06 | Preview administrator UI + API | PARTIAL | Source present; Playwright auth test mocks backend; real CRUD lifecycle unverified |
-| YS-B-07 | Manual source and API validation | PARTIAL | Source runner 8/8 PASS on `133cfd6`; API integration stalled at build stage (cause pending log inspection), runner wait fix prepared; no GitHub Actions |
+| YS-B-07 | Manual source and API validation | PARTIAL | Source 8/8 PASS on `133cfd6`; runner self-test PASS and API restore/build PASS on `5b07716`; API integration blocked by Python alias, native PowerShell replacement unverified; no GitHub Actions |
 | YS-B-08 | PVE LXC deployment | TODO | No CT inventory or deployment executed; runbook/templates only |
 
 ## S0 — Engineering reproducibility and risk closure (START HERE)
@@ -25,7 +25,7 @@
 | YS-S0-01 | P0 | Record baseline, source/QA scope, branch protection and current blockers | PR #1 has precise accepted homepage SHA; release gates and documentation agreed | DONE |
 | YS-S0-02 | P0 | Freeze dependency graph | Commit lockfile; validate npm ci from a clean SHA archive, dependency audit and .NET restore | DONE for verified `133cfd6`: committed lockfile, clean Git archive, npm ci, audit and .NET restore/build all PASS; revalidate when selecting a new release SHA |
 | YS-S0-03 | P0 | Manual reproducible source QA | `Verify-Source-Local.ps1` on exact SHA: npm ci, npm audit, Angular build, 17+ Playwright, .NET restore/build and logs | PASS on `133cfd65a590883fcfd9b1263dd3d389ce360b46` (operator logs, 8/8 stages); new HEAD must be rechecked for release |
-| YS-S0-04 | P0 | Real .NET API integration | `Verify-Api-Local.ps1`: isolated temp DB, random loopback port, guest/admin auth, publish/expiry/hide, process restart | HOLD — first run stalled after a successful .NET build; second run at `a9132a3` completed restore but returned a null ExitCode, causing false FAIL; shared explicit .NET process runner and self-tests prepared; runtime PASS pending |
+| YS-S0-04 | P0 | Real .NET API integration | `Verify-Api-Local.ps1`: isolated temp DB, random loopback port, guest/admin auth, publish/expiry/hide, process restart | HOLD — first run stalled after a successful .NET build; second run at `a9132a3` completed restore but returned a null ExitCode, causing false FAIL; shared .NET process runner self-test PASS; isolated .NET restore/build PASS at `5b07716`; API integration blocked by Windows Python Store alias (EXIT=9009). Native PowerShell contract and guard tests added; runtime PASS pending |
 | YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Rotate reused secrets, scan tracked/history configs, review Identity register scope, policies, rate limiting, no high/critical unresolved findings | TODO |
 | YS-S0-06 | P1 | Correct PVE release candidate policy | Approved draft-branch SHA can be built only when reviewed manual QA evidence matches, without permitting arbitrary/untrusted refs or auto-deploy | TODO |
 | YS-S0-07 | P1 | Repo hygiene and legal ownership | LICENSE decision, review/branch policy, pinned SDK/node docs, changelog and manual QA instructions | TODO |

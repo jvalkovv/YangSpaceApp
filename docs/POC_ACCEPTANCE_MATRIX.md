@@ -115,3 +115,7 @@ The earlier CI references in historical notes above are retired. **Required: cle
 ## 2026-11-09 — Manual Windows process runner exit-code contract
 
 The API integration wrapper produced `STAGE_FAILED=api-restore EXIT=` even though .NET restore had completed successfully. The old Process object returned no usable exit code. New acceptance requires a separate self-test `scripts/Test-Process-Runner.ps1` proving correct propagation for process exit `0`, process exit `7` (must fail), and successful `npm.cmd` invocation. Only then run the API lifecycle against a fresh disposable DB. The helper must capture stdout/stderr separately, timeout a stalled stage, and must not kill existing unrelated .NET/Angular processes. **Runtime checks pending.**
+
+## 2026-11-09 — Native Windows test execution requirement
+
+The shared process runner and `api-restore` / `api-build` have been verified successful on Windows at `5b07716`. Real API checks were blocked by Windows Microsoft Store alias for `python.exe` (exit 9009), not by the API. The Windows wrapper now uses `Invoke-Api-Integration.ps1` instead of Python, with strict OS-TEMP/SQLite/loopback guards and explicit negative-auth/expiry/persistence assertions. Acceptance requires first `Test-Api-Native-Guard.ps1` (parser and fail-closed check) then `Verify-Api-Local.ps1` on the same reviewed commit SHA. No status upgrade until runtime output and logs are inspected.

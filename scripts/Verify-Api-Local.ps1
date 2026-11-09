@@ -1,18 +1,18 @@
 # YangSpace manual API integration — isolated snapshot, random loopback port,
 # random bootstrap identity and disposable SQLite. NEVER touches live DB/PVE.
-# Requirements: Windows PowerShell 5.1+, git, tar, dotnet 10, python 3.11+.
+# Requirements: Windows PowerShell 5.1+, git, tar, dotnet 10. No Python.
 [CmdletBinding()]
 param([string]$CommitSha='', [switch]$KeepSandbox)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-foreach($name in @('git.exe','tar.exe','dotnet.exe','python.exe')){
+foreach($name in @('git.exe','tar.exe','dotnet.exe','powershell.exe')){
     if(-not (Get-Command $name -ErrorAction SilentlyContinue)){throw "REQUIRED_TOOL_MISSING=$name"}
 }
 $Git=(Get-Command git.exe).Source
 $Tar=(Get-Command tar.exe).Source
 $Dotnet=(Get-Command dotnet.exe).Source
-$Python=(Get-Command python.exe).Source
+$WindowsPS=(Get-Command powershell.exe).Source
 if(-not $CommitSha){
     $CommitSha=(& $Git -C $Repo rev-parse HEAD).Trim()
     if($LASTEXITCODE -ne 0){throw 'GIT_HEAD_NOT_FOUND'}
@@ -90,9 +90,9 @@ try {
         }
         if(-not $ready){throw 'ISOLATED_API_READINESS_TIMEOUT'}
         if($cycle -eq 1){
-            Step 'api-prepare' $Python @('scripts/api-integration.py','prepare') $Source
+            Step 'api-prepare' $WindowsPS @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','scripts/Invoke-Api-Integration.ps1','-Phase','prepare') $Source
         }else{
-            Step 'api-restart-verify' $Python @('scripts/api-integration.py','verify') $Source
+            Step 'api-restart-verify' $WindowsPS @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','scripts/Invoke-Api-Integration.ps1','-Phase','verify') $Source
         }
         Stop-Api
         $ApiProcess=$null
