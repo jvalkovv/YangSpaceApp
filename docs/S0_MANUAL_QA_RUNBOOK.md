@@ -162,3 +162,7 @@ The previous policy test's first valid synthetic fixture was rejected on Windows
 ## S0-06 — Git Bash NTFS mode semantics
 
 On Windows Git Bash the mode-bit `chmod 666` negative fixture may not change the reported `stat -c %a` value. The synthetic policy test now injects `stat` mode 666 **for its temporary approval fixture only**, checks that the injected function is active, and expects the normal validator to reject it. This is reported as `POLICY_PERMISSION_SOURCE=SIMULATED_MSYS_NTFS`. A real release build is Linux-only and will not run from Git Bash; genuine Linux permission enforcement and operator approval remain independent acceptance steps. The rest of the test still rejects duplicated/altered/absent evidence and returns `PREVIEW_RELEASE_POLICY_TEST=PASS` only if all selected platform cases pass. No PVE deployment.
+
+## S0-06 — Windows checkout path regression
+
+The final synthetic negative case `evidence_inside_checkout` must use a real POSIX-absolute, readable file under the repository; a `D:/...` string from Git for Windows is not an acceptable fixture. The test now canonicalizes REPO with `pwd -P` / `realpath -e`, verifies the deliberate file truly resolves inside this root, and expects the exact `SOURCE: evidence inside Git checkout is untrusted` rejection. Do **not** loosen the release validator's absolute-path restriction. Run `bash -n` and `scripts/test-preview-release-evidence.sh` again from the updated commit. Linux ACL acceptance and any PVE activation still require separate approval.

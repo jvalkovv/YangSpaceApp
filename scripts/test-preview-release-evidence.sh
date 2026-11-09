@@ -3,7 +3,15 @@
 # Uses synthetic TEMP fixtures, not operator QA evidence. NO PVE, fetch or build.
 set -Eeuo pipefail
 umask 077
-REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-parse --show-toplevel)"
+# Git for Windows may return a drive-qualified path (D:/...) from git,
+# which is not a Bash absolute path matching /*. Normalize to POSIX here,
+# exactly as the release verifier canonicalizes its trusted repository root.
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+REPO="$(realpath -e -- "$REPO")"
+[[ "$REPO" == /* && -d "$REPO/.git" ]] || {
+  echo 'POLICY_TEST_FAIL=repo_root_not_posix_absolute' >&2
+  exit 1
+}
 HELPER="$REPO/scripts/verify-preview-release-evidence.sh"
 SHA="$(git -C "$REPO" rev-parse HEAD)"
 REF=feat/yangspace-v2-foundation-20261108
@@ -175,7 +183,15 @@ expect_block missing_approval 'APPROVAL: absolute readable regular file'
 
 export YANGSPACE_RELEASE_APPROVAL_FILE="$TMP/approval.txt"
 write_fixtures
-export YANGSPACE_SOURCE_QA_MANIFEST="$REPO/.git/config"
+# Deliberately supply a readable regular file INSIDE the canonical checkout,
+# so this case tests the repository-boundary refusal, not a path-syntax error.
+inside_repo_fixture="$(realpath -e -- "$REPO/scripts/test-preview-release-evidence.sh")"
+[[ "$inside_repo_fixture" == "$REPO/"* && -r "$inside_repo_fixture" &&
+   -f "$inside_repo_fixture" && ! -L "$inside_repo_fixture" ]] || {
+  echo 'POLICY_TEST_FAIL=inside_checkout_fixture_invalid' >&2
+  exit 1
+}
+export YANGSPACE_SOURCE_QA_MANIFEST="$inside_repo_fixture"
 expect_block evidence_inside_checkout 'SOURCE: evidence inside Git checkout is untrusted'
 
 printf 'PREVIEW_RELEASE_POLICY_TEST=PASS\n'
