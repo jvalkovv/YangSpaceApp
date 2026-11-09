@@ -101,3 +101,7 @@ Operator observed `EPERM unlink @lmdb/lmdb-win32-x64/node.napi.node` from a dire
 ### 2026-11-09 — S0-02 operator verification
 
 Local Windows clean-temporary-directory `npm ci`, TypeScript check and Angular production build **all PASS** with lockfile SHA-256 consistency. Operator's `apps/web/angular.json` is locally modified, so a clean checkout + tracked lockfile + CI build remains required before release acceptance. `package-lock.json` is still untracked; G0 remains HOLD. Evidence comes from the supplied PowerShell command output, not a GitHub workflow run.
+
+### 2026-11-09 — GitHub lockfile supply-chain acceptance
+
+Lockfile v3 was committed at `94f710e` and the root manifest/registry/integrity records were inspected. CI has been tightened to require **tracked** lockfile, run `node scripts/verify-lock.mjs`, install with `npm ci`, then run `npm audit --audit-level=high`, typecheck, production build and Playwright. PVE release checks the same lock manifest before installation. **Acceptance remains conditional on a real green CI execution**; GitHub Actions returned no workflow runs in the observed period.

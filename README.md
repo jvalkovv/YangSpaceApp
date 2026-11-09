@@ -61,7 +61,7 @@ dotnet run --project apps/api/YangSpace.Api.csproj --launch-profile http
 
 ```bash
 cd apps/web
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund
 npm run typecheck
 npm start
 ```
@@ -80,7 +80,7 @@ npm start
 - **Няма публичен owner signup, upload или billing.** Identity registration routes са достъпни само в изолирана preview среда; новорегистрирани потребители нямат admin role.
 - Публикуването от preview CMS е само за демо данни; не внасяйте реална лична информация.
 
-> В момента няма надеждно заключен lockfile; `npm install` е временна bootstrap стъпка. За production трябва да се генерира/commit-не `package-lock.json` и CI да мине на `npm ci`.
+> От commit `94f710e` имаме source-tracked `package-lock.json`; за чиста инсталация използвай `npm ci`. CI остава HOLD, докато не видим успешен workflow върху точния HEAD.
 
 ## API
 
@@ -134,7 +134,7 @@ Then inspect the browser at **375 / 390 / 768 / 1024 / 1440 px** per [Homepage A
 
 Angular 22 is zoneless/OnPush by default. All async HTTP subscriptions updating template-visible component fields must notify change detection. Home, business detail and preview admin explicitly call `ChangeDetectorRef.markForCheck()` following network results or errors. The unused ZoneJS polyfill and dependency have been removed. The default local frontend still runs on `127.0.0.1:4200`.
 
-After pulling this fix, run `npm install` (Angular dependencies changed), then `npm run typecheck` and `npm start`. Chrome should display the 6 seeded entries **without any click or focus/blur**, and `/obekt/bike-demo` must resolve without an additional UI interaction.
+After pulling this fix on a fresh checkout, run `npm ci` (with the dev server stopped), then `npm run typecheck` and `npm start`. Chrome should display the 6 seeded entries **without any click or focus/blur**, and `/obekt/bike-demo` must resolve without an additional UI interaction.
 
 Optional local browser regression tests: `npm run test:e2e` after installing the browser with `npx playwright install chromium`. These tests mock backend HTTP responses and specifically cover zoneless rendering and filter/result consistency.
 
@@ -163,7 +163,7 @@ The homepage shows the backend/proxy error class and the Retry action reloads ho
 If `npm run test:e2e` prints `'playwright' is not recognized`, the project `devDependencies` were not reinstalled after `@playwright/test` was added to `package.json`. This is a **missing local test runner**, not a failed browser test. From `apps/web`:
 
 ```powershell
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund
 npx playwright --version
 npx playwright install chromium
 npm run test:e2e
@@ -171,11 +171,11 @@ npm run test:e2e
 
 The Playwright suite launches its **own temporary Angular dev server at `127.0.0.1:4300`** and uses mocked API data. The .NET API on `5090` is not needed for these isolated browser regression cases. Keep `4200` for manual integration testing.
 
-Automated viewport checks run at **375, 390, 768, 1024 and 1440 CSS pixels**, verify no horizontal document overflow, and produce screenshots under `apps/web/test-results/`. These screenshots provide reproducible visual evidence, not automatic approval of aesthetics or Core Web Vitals. GitHub CI also runs the browser tests without deployment. A committed `package-lock.json` and migration from `npm install` to `npm ci` are still required before a production release.
+Automated viewport checks run at **375, 390, 768, 1024 and 1440 CSS pixels**, verify no horizontal document overflow, and produce screenshots under `apps/web/test-results/`. These screenshots provide reproducible visual evidence, not automatic approval of aesthetics or Core Web Vitals. The GitHub CI workflow is configured to run browser tests without deployment and now uses the committed `package-lock.json` with `npm ci`; its execution still needs independent verification.
 
 ## S0 execution: reproducible npm and real API integration (2026-11-09)
 
-The production release build **requires** a source-tracked `apps/web/package-lock.json` and uses `npm ci`. No lockfile is committed yet; private PVE release remains **blocked intentionally**.
+The production release build **requires** a source-tracked `apps/web/package-lock.json` and uses `npm ci`. Lockfile is now committed (first introduced at `94f710e`). Private PVE release remains blocked by the unresolved exact-SHA CI/security and candidate-branch release gates, not by missing npm dependency metadata.
 
 After pulling the S0 branch on a Windows machine with supported Node, run from the repository root:
 
@@ -184,7 +184,7 @@ After pulling the S0 branch on a Windows machine with supported Node, run from t
 git status --short
 ```
 
-The script runs `npm install --package-lock-only --ignore-scripts`, validates a clean `npm ci`, typecheck and build. Review the resulting `apps/web/package-lock.json` before committing; never invent/transcribe a lockfile by hand. CI also uploads an artifact `yangspace-npm-lock-candidate` if no lockfile is tracked, for review. Only a **committed** lockfile closes `YS-S0-02`.
+The script runs `npm install --package-lock-only --ignore-scripts`, validates a clean `npm ci`, typecheck and build. The lockfile was reviewed and committed at `94f710e`. CI no longer generates replacement dependency locks: it verifies the tracked file and executes `npm ci`. Do not regenerate or silently update the lockfile during a normal build; changes require a separate reviewed dependency-update commit.
 
 The CI API job now runs `scripts/api-integration.py` against an **isolated temporary database**, including write operations and process restart. It refuses to operate on normal/local/merchant data. See [PoC Tracker](docs/POC_TRACKER.md). No real admin credentials are stored in Git.
 
@@ -194,4 +194,8 @@ The CI API job now runs `scripts/api-integration.py` against an **isolated tempo
 
 The updated `scripts/Prepare-Web-Lock.ps1` runs `npm ci`/typecheck/build in an isolated temporary folder. It leaves the live `node_modules` and Angular preview untouched. **Do not forcibly delete locked DLLs, kill unrelated Node processes or elevate PowerShell.**
 
-After a successful run, review the generated `apps/web/package-lock.json` and add it to the same reviewed GitHub branch. Until committed and verified via clean CI, `YS-S0-02` stays PARTIAL and any PVE release remains blocked.
+The generated lockfile has been committed and reviewed. The source/reproducibility sub-gate is satisfied; the final S0 gate remains PARTIAL until exact-SHA CI succeeds and dependency audit results are reviewed.
+
+### Immutable npm dependency CI gate
+
+Since commit `94f710e`, `apps/web/package-lock.json` is tracked. CI/release no longer invent a lockfile if missing: they run `node apps/web/scripts/verify-lock.mjs` (with CWD `apps/web`), followed by `npm ci`; CI additionally runs `npm audit --audit-level=high`. The lock validator rejects manifest drift, non-registry tarballs and missing package integrity. **Do not use `npm audit fix` automatically**; review and commit dependency upgrades separately. CI absence remains a release blocker, not a skipped passing check.

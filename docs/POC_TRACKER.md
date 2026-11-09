@@ -23,7 +23,7 @@
 | ID | Priority | Work package | Acceptance / evidence | State |
 |---|---|---|---|---|
 | YS-S0-01 | P0 | Record baseline, source/QA scope, branch protection and current blockers | PR #1 has precise accepted homepage SHA; release gates and documentation agreed | DONE |
-| YS-S0-02 | P0 | Freeze dependency graph | Review and commit `apps/web/package-lock.json`; CI/release use `npm ci`; fresh clone builds; NuGet audit clean | PARTIAL — Windows isolated `npm ci` + typecheck + build + lock SHA-256 PASS (operator 2026-11-09); **tracked lockfile missing and exact-SHA CI not verified** |
+| YS-S0-02 | P0 | Freeze dependency graph | Review and commit `apps/web/package-lock.json`; CI/release use `npm ci`; fresh clone builds; NuGet audit clean | PARTIAL — lockfile committed `94f710e`, 366 dependency records reviewed (manifest match, npm registry, integrity); Windows isolated `npm ci` + typecheck + build PASS; **clean CI still unverified** |
 | YS-S0-03 | P0 | Make CI verifiable | GitHub Actions API build/smoke, web typecheck/build, 17+ Playwright, security guard pass on exact HEAD | BLOCKED |
 | YS-S0-04 | P0 | Add real .NET API integration tests | Clean ephemeral DB; auth 401/403, create/update/hide/publish, expiry and persistence after process restart | PARTIAL — isolated CI test script created and wired; **runtime execution pending** |
 | YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Rotate reused secrets, scan tracked/history configs, review Identity register scope, policies, rate limiting, no high/critical unresolved findings | TODO |
@@ -108,8 +108,8 @@
 
 ## Current active queue (strict order)
 
-1. `YS-S0-02` — commit lockfile, deterministic local+CI+release install.
-2. `YS-S0-03` — prove complete GitHub CI PASS at exact SHA.
+1. `YS-S0-02` — source lockfile committed/reviewed; finish exact-SHA clean CI `npm ci` and dependency audit (local isolated PASS).
+2. `YS-S0-03` — investigate zero GitHub Actions runs via [S0 CI Runbook](S0_CI_RUNBOOK.md), then prove all jobs PASS on exact SHA.
 3. `YS-S0-04` — real .NET API/integration contract & admin behavior.
 4. `YS-S0-05` — auth/secrets/preview exposure review.
 5. `YS-S0-06` — solve Draft PR ↔ PVE approved SHA restriction.

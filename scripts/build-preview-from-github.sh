@@ -40,6 +40,7 @@ dotnet publish "$STAGE/source/apps/api/YangSpace.Api.csproj" -c Release -o "$STA
     echo "RELEASE_BLOCKED: npm lockfile exists but is not tracked by the reviewed commit." >&2
     exit 10
   }
+  node scripts/verify-lock.mjs
   npm ci --no-audit --no-fund
   npm run typecheck
   npm run build

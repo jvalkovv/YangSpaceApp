@@ -74,28 +74,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.3'
-      - name: Resolve npm lockfile for repeatable run
+      - name: Verify source-tracked lockfile
         working-directory: apps/web
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -s package-lock.json ]]; then
-            echo "LOCKFILE_MODE=TRACKED"
-          else
-            echo "LOCKFILE_MODE=TRANSITIONAL_ARTIFACT_ONLY"
-            echo "G0 remains HOLD until package-lock.json is reviewed and committed." >> "$GITHUB_STEP_SUMMARY"
-            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          fi
-      - name: Upload resolved lockfile for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: yangspace-npm-lock-candidate
-          path: apps/web/package-lock.json
-          if-no-files-found: error
-          retention-days: 7
-      - name: Install from resolved lockfile
+          test -s package-lock.json
+          git -C ../.. ls-files --error-unmatch apps/web/package-lock.json >/dev/null
+          node scripts/verify-lock.mjs
+          echo "LOCKFILE_TRACKED=PASS"
+      - name: Install exactly locked dependencies
         working-directory: apps/web
         run: npm ci --no-audit --no-fund
+      - name: Dependency advisory gate
+        working-directory: apps/web
+        run: npm audit --audit-level=high
       - name: Typecheck
         working-directory: apps/web
         run: npm run typecheck
