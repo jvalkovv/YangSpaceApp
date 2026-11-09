@@ -64,20 +64,50 @@ Service account `yangspace` reads release contents; deploy account owns git/rele
 
 **Sizing initial hypothesis (not allocation):** 2 vCPU, 3–4GB RAM and 20GB+ disk for preview; revisit after measured build peak/RAM/disk use. If Angular building inside CT is too heavy, use a controlled artifact build and transfer with SHA checks rather than enlarging the CT blindly.
 
-## 4. Approved SHA build gate
+## 4. Approved SHA build gate — current implementation (S0-06)
 
-**Current blocker:** `scripts/build-preview-from-github.sh` fetches `origin/main` and requires `git merge-base --is-ancestor <sha> origin/main`. The v2 app exists in Draft PR #1, so this script cannot build that reviewed feature commit as-is.
+**Script status:** source implementation and synthetic negative-policy tests are prepared; Linux/PVE runtime acceptance has **not** been performed. There is no YangSpace CT or deployed release. The last operator-confirmed QA source and API PASS pair is `b30c1c819aa1aac1cd056c4fb8a03c4b7a469dd9`.
 
-Required S0 fix:
-1. Separate **candidate ref** from **candidate SHA**, e.g. an explicit allowlisted PR branch or an approved merge to `main`.
-2. Fetch the allowlisted ref and assert that the full SHA exists and is its ancestor/tip as the chosen release policy requires.
-3. Require matching manual source/API PASS manifests for that exact SHA, code review and signed/recorded operator approval (technical implementation determined in S0).
-4. Refuse partial SHA, remote URL substitution, ref drift, missing manual QA evidence or protected branch mismatch.
-5. Build from detached immutable worktree into `releases/<40-char-sha>`; never execute arbitrary branch `postinstall` with production secrets.
-6. After lockfile review, use `npm ci` with frozen dependencies; `dotnet restore` with audit and release profile.
-7. The **build script must never change the `current` symlink, restart a service, migrate production DB or deploy itself**.
+`scripts/build-preview-from-github.sh <FULL_40_SHA> <ALLOWLISTED_REF>` is **BUILD ONLY**. It:
+1. Requires a full 40-character commit SHA and one exact source ref: `main` or `feat/yangspace-v2-foundation-20261108`.
+2. Accepts only the canonical `jvalkovv/YangSpaceApp` GitHub origin (HTTPS/SSH), fetches the ref and requires **remote tip = SHA**, not a historical ancestor.
+3. Verifies that both **executing gate scripts** match the approved commit bytes before any package build.
+4. Requires source/API manifest files **outside the Git checkout**, plus a separate protected operator-owned approval file. The approval must bind the same SHA, exact source ref, SHA-256 of each manifest, a reviewer identifier and `APPROVAL=BUILD_ONLY`.
+5. Requires unique manifest fields, full matching SHA, `SOURCE_VALIDATION=PASS`, full web lock/npm/audit/build evidence, `WEB_BROWSER=PASS` (never `SKIPPED`), `REAL_API_INTEGRATION=PASS`, lifecycle/restart PASS, and the two bootstrap non-escalation PASS markers.
+6. Builds from a detached worktree into an immutable SHA directory using a committed npm lockfile and `npm ci`. Records a code/content hash inventory and hashes of the reviewed QA and approval evidence in the release directory.
+7. Rechecks the evidence before publishing the **built, inactive** directory. It **never** changes `current`, restarts a service, runs DB migrations or activates the candidate.
 
-If exact-SHA manual source/API evidence is absent, stop. No `git pull && systemctl restart` shortcut.
+### Protected operator approval — format and trust boundary
+
+The approval is a manually reviewed file owned by the deploy operator (or root), not a Git-supplied document, symlink or path under the Git checkout. Group/world *write* access is rejected; prefer file mode `0600` and a directory with restricted traversal. Transfer operator-generated manifests to protected paths, verify the full logs in a trusted context, then create an approval record containing exactly:
+
+~~~text
+COMMIT_SHA=<40-hex approved SHA>
+SOURCE_REF=feat/yangspace-v2-foundation-20261108
+SOURCE_QA_SHA256=<sha256 of reviewed Source manifest>
+API_QA_SHA256=<sha256 of reviewed API manifest>
+APPROVAL=BUILD_ONLY
+REVIEWER_ID=<operator identity>
+~~~
+
+The fields are not credentials. **A text approval file is not a cryptographic signature or independent proof that QA actually ran.** File permissions and SHA-256 digests protect against accidental mismatch and obvious alteration only within the trusted operator boundary. Confirm actual log provenance, access controls, reviewer identity and approval out of band; never accept evidence merely because a file says PASS. An eventual signed attestation may be added through a separate accepted decision, not GitHub Actions.
+
+Environment for manual *future* build (illustrative Linux paths, not yet provisioned):
+
+~~~bash
+export YANGSPACE_REPO=/srv/yangspace/repo
+export YANGSPACE_SOURCE_QA_MANIFEST=/secure/yangspace/qa/source.manifest
+export YANGSPACE_API_QA_MANIFEST=/secure/yangspace/qa/api.manifest
+export YANGSPACE_RELEASE_APPROVAL_FILE=/secure/yangspace/approvals/<sha>.approved
+
+# Policy-only synthetic-fixture tests: no network, no build, no PVE writes.
+bash scripts/test-preview-release-evidence.sh
+
+# After deliberate human approval and all S0/G-PREVIEW preflights:
+bash scripts/build-preview-from-github.sh <FULL_40_SHA> feat/yangspace-v2-foundation-20261108
+~~~
+
+Synthetic fixtures **do not substitute** for actual manual QA or security approval. A first real private PVE build remains HOLD until inventory, trusted evidence transfer, local policy test and operator review. Before building, ensure the local executing scripts match the pinned commit; otherwise the build refuses. Always run the build as an unprivileged deploy account with no application DB/bootstrap secrets in its environment. Public exposure is not authorized.
 
 ## 5. Provisioning sequence (only after inventory & authorization)
 
@@ -98,8 +128,8 @@ Do not add a second LXC per plugin/module. For public pilot, consider a separate
 ## 6. Manual release, verify and rollback
 
 ### Preflight: refuse unless all hold
-- Approved full 40-character SHA matches reviewed source and matching manual QA.
-- No uncommitted release source, no environment secret in repo, signed/offline evidence of code review.
+- Approved full 40-character SHA matches an allowlisted remote ref tip, reviewer approval file and both externally reviewed matching manual QA manifests (with Playwright and SEC-02 assertions).
+- Executed build/approval gate scripts match the approved Git commit, with no environment secret in repo. Review record is operator-controlled; no cryptographic signature is claimed.
 - Valid `release/<sha>` build and hash manifest; enough disk and RAM, service account permissions checked.
 - Private access policy and TLS tested; no Internet-facing open preview registration/admin.
 - Healthy current release and **fresh verified** consistent DB backup, off-host copy and media/config protection.

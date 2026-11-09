@@ -43,6 +43,7 @@ git -C /srv/yangspace/repo rev-parse origin/main
 ```bash
 YANGSPACE_SOURCE_QA_MANIFEST=/secure/source-manifest.txt \\
 YANGSPACE_API_QA_MANIFEST=/secure/api-manifest.txt \\
+YANGSPACE_RELEASE_APPROVAL_FILE=/secure/approval.manifest \
 bash /srv/yangspace/repo/scripts/build-preview-from-github.sh <FULL_40_CHAR_COMMIT_SHA> feat/yangspace-v2-foundation-20261108
 ```
 
@@ -74,3 +75,7 @@ bash /srv/yangspace/repo/scripts/build-preview-from-github.sh <FULL_40_CHAR_COMM
 - Разделни logs за build, deploy/verify, API, Nginx.
 - Редовни SQLite online backups + media backup + offsite copy + restore drill преди production.
 - Fail closed: при липсващи secrets/schema/container permissions — не стартираме release.
+
+### S0-06 Release approval boundary
+
+The build script now also requires a separate manually reviewed **operator approval** file with SHA-256 of both source/API QA manifests and exact SHA/ref, located outside the Git checkout. `WEB_BROWSER=SKIPPED` and missing bootstrap-denial evidence are rejected. The manifest and approval files must be transferred to protected Linux paths; the approval file should be owned by the deploy operator or root with mode 0600. Check [PVE release runbook](../../docs/POC_PVE_RELEASE_RUNBOOK.md) for the exact fields and private-preview HOLD policy. `test-preview-release-evidence.sh` only exercises synthetic policy fixtures, not the real deployment. No GitHub Actions or automatic deployment.

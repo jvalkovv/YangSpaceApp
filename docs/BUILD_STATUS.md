@@ -167,3 +167,9 @@ Operator executed `Test-Api-Native-Guard.ps1` and `Verify-Api-Local.ps1 -CommitS
 **Source remediation pending Windows runtime:** replaced only the bootstrap probe's `Start-Process -RedirectStandardOutput/-RedirectStandardError` with owned `System.Diagnostics.Process` and asynchronously drained stdout/stderr. A 20-second parent wait and bounded output drain prevent hangs, require nonzero exit plus exact privilege-denial string, and persist logs only *after* both output streams are closed. `Stop-Api` also disposes the test-owned process handle before TEMP cleanup. No application source/PVE/Actions change.
 
 Required acceptance: `BOOTSTRAP_PRIVILEGE_ESCALATION_DENIED=PASS`, `BOOTSTRAP_NONADMIN_ROLE_RETAINED=PASS`, `REAL_API_INTEGRATION=PASS`, followed by same-new-SHA `SOURCE_VALIDATION=PASS`. Do not treat the previous file-read error as evidence of success or failure of authorization.
+
+## 2026-11-09 — S0-06 release evidence hardening (source only)
+
+Last matching operator Source QA and Real API Integration: `b30c1c819aa1aac1cd056c4fb8a03c4b7a469dd9`, both PASS; SEC-02 bootstrap denial and recovery PASS. No PVE action.
+
+The new `verify-preview-release-evidence.sh` blocks missing/unreviewed QA/approval file paths, mismatched SHA/ref/manifest hashes, Playwright SKIPPED, missing SEC-02 markers, mutable approval files and files inside Git checkout. The build script additionally pins the canonical GitHub remote, requires executing shell gates to match the approved commit, and writes build-only QA/hash inventory. It still makes no `current` switch, restart or DB modification. The synthetic `test-preview-release-evidence.sh` exercises success and negative cases; **Linux runtime not yet observed** and evidence-signing/approval is not cryptographic. `YS-S0-06=PARTIAL` until local policy test and later approved private build evidence; `G0=HOLD` due to issues #2/#3 and remaining S0 gate checks. All earlier GitHub Actions notes are superseded by ADR-018.

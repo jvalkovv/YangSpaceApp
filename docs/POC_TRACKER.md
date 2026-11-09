@@ -15,7 +15,7 @@
 | YS-B-04 | Automated browser regressions | DONE | 17/17 Playwright PASS on `20aa30c`, 18.2s; mocked API |
 | YS-B-05 | Public read-only demo API | PARTIAL | 6 fictional locations/3 offers/1 brochure/1 job; no real public-data acceptance |
 | YS-B-06 | Preview administrator UI + API | PARTIAL | Source present; Playwright auth test mocks backend; real CRUD lifecycle unverified |
-| YS-B-07 | Manual source and API validation | DONE at `6e8ba7b` | Both clean-source 8/8 and real API/guard integration PASS on exact commit `6e8ba7bf2b82773a087e19737bb64e29b732e7d1`; new SEC-02 runtime test requires rerun |
+| YS-B-07 | Manual source and API validation | DONE at `b30c1c8` | Exact same SHA source 8/8 PASS, API real integration and bootstrap non-escalation PASS; operator logs `logs/yangspace/verify/b30c1c819aa1-20261109-160220-9e00ef05` and `logs/yangspace/api-integration/b30c1c819aa1-20261109-160130-c608197c` |
 | YS-B-08 | PVE LXC deployment | TODO | No CT inventory or deployment executed; runbook/templates only |
 
 ## S0 — Engineering reproducibility and risk closure (START HERE)
@@ -24,10 +24,10 @@
 |---|---|---|---|---|
 | YS-S0-01 | P0 | Record baseline, source/QA scope, branch protection and current blockers | PR #1 has precise accepted homepage SHA; release gates and documentation agreed | DONE |
 | YS-S0-02 | P0 | Freeze dependency graph | Commit lockfile; validate npm ci from a clean SHA archive, dependency audit and .NET restore | DONE for verified `133cfd6`: committed lockfile, clean Git archive, npm ci, audit and .NET restore/build all PASS; source, npm ci, audit and .NET verified again at `6e8ba7b`; revalidate next HEAD |
-| YS-S0-03 | P0 | Manual reproducible source QA | `Verify-Source-Local.ps1` on exact SHA: npm ci, npm audit, Angular build, 17+ Playwright, .NET restore/build and logs | DONE at `9fd0a84`: 8/8 stages PASS, `logs/yangspace/verify/9fd0a84c2752-20261109-154528-a9c2af60`; rerun for next candidate SHA |
-| YS-S0-04 | P0 | Real .NET API integration | `Verify-Api-Local.ps1`: isolated temp DB, random loopback port, guest/admin auth, publish/expiry/hide, process restart | DONE baseline at `6e8ba7b`; new `9fd0a84` run: guard, restore/build/prepare/restart-verify PASS, SEC-02 bootstrap probe HOLD due to stderr file-lock race. Probe now reads process pipes asynchronously; runtime retest pending |
-| YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Default-deny preview registration, fail-closed bootstrap, legacy secret assessment/rotation, protected preview, ownership/rate-limit plan | PARTIAL — registration guard verified at `6e8ba7b`; SEC-02 negative bootstrap probe reached but its log-read race prevented verdict at `9fd0a84`; legacy secrets/private network security/tenant ownership unresolved |
-| YS-S0-06 | P1 | Correct PVE release candidate policy | Approved draft-branch SHA can be built only when reviewed manual QA evidence matches, without permitting arbitrary/untrusted refs or auto-deploy | TODO |
+| YS-S0-03 | P0 | Manual reproducible source QA | `Verify-Source-Local.ps1` on exact SHA: npm ci, npm audit, Angular build, 17+ Playwright, .NET restore/build and logs | DONE at `b30c1c8`: 8/8 stages PASS, `logs/yangspace/verify/b30c1c819aa1-20261109-160220-9e00ef05`; new release-policy HEAD requires revalidation before build |
+| YS-S0-04 | P0 | Real .NET API integration | `Verify-Api-Local.ps1`: isolated temp DB, random loopback port, guest/admin auth, publish/expiry/hide, process restart | DONE at `b30c1c8`: guard, restore/build, real API prepare/restart and bootstrap denial + nonadmin recovery PASS; `logs/yangspace/api-integration/b30c1c819aa1-20261109-160130-c608197c`; new release-policy HEAD needs its own SHA evidence |
+| YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Default-deny preview registration, fail-closed bootstrap, legacy secret assessment/rotation, protected preview, ownership/rate-limit plan | PARTIAL — SEC-01 registration deny and SEC-02 nonadmin anti-promotion both runtime PASS at `b30c1c8`; legacy secret reuse/rotation, private preview network boundary and future tenant authorization still open |
+| YS-S0-06 | P1 | Correct PVE release candidate policy | Remote-tip SHA, reviewed-source/script identity, verified QA scope, protected reviewer approval bound to two SHA-256 manifest digests; inactive build only | PARTIAL — source gate and synthetic negative-case test prepared; Linux runtime tests / trusted approval process / PVE inventory pending |
 | YS-S0-07 | P1 | Repo hygiene and legal ownership | LICENSE decision, review/branch policy, pinned SDK/node docs, changelog and manual QA instructions | TODO |
 
 **S0 exit:** S0-02/03/04/05/06 verified by manual evidence, not Actions; no open P0 defect; only then mark G0 PASS. Source code and local browser success alone are insufficient.
@@ -143,3 +143,7 @@ The operator's API and source logs **both PASS** for `f3f4e1c9e29a640bab2637fac9
 ### 2026-11-09 — Matched-SHA S0 acceptance and SEC-02 regression extension
 
 Operator-confirmed on `6e8ba7bf2b82773a087e19737bb64e29b732e7d1`: source QA eight stages PASS and real API test/negative registration guard PASS, with matching manifest commit. A follow-on SEC-02 test now exercises bootstrap with an existing regular identity on **the same disposable SQLite DB**, requires startup refusal, then restores original bootstrap settings and verifies both admin login and ordinary-user denial. **New test source only; runtime PASS pending on the next commit.** Historical secrets, private TLS/ACL access and merchant ownership remain open. No PVE or GitHub Actions.
+
+### 2026-11-09 — S0-06 manual release evidence policy
+
+Current verified operator candidate `b30c1c819aa1aac1cd056c4fb8a03c4b7a469dd9` Source and API integration both PASS, including SEC-02. A new **source-only** S0-06 release gate requires a protected operator approval with exact SHA/ref and SHA-256 of both manifests; rejects Playwright SKIPPED and missing SEC-02 assertions; verifies origin and that executing scripts match candidate bytes; never activates. Synthetic negative-case Bash test added. Linux/PVE execution **NOT TESTED**, keep G0 HOLD and the private preview undispatched. See [PVE runbook](POC_PVE_RELEASE_RUNBOOK.md) and [Issue #5](https://github.com/jvalkovv/YangSpaceApp/issues/5).

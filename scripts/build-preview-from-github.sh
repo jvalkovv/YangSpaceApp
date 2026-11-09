@@ -9,20 +9,6 @@ case "$SOURCE_REF" in
   main|feat/yangspace-v2-foundation-20261108) ;;
   *) echo "RELEASE_BLOCKED: unapproved source ref" >&2; exit 3 ;;
 esac
-for MANIFEST in "${YANGSPACE_SOURCE_QA_MANIFEST:-}" "${YANGSPACE_API_QA_MANIFEST:-}"; do
-  [[ -n "$MANIFEST" && -f "$MANIFEST" ]] || {
-    echo "RELEASE_BLOCKED: missing manually reviewed QA evidence" >&2; exit 3;
-  }
-  grep -Fqx "COMMIT_SHA=$SHA" "$MANIFEST" || {
-    echo "RELEASE_BLOCKED: QA evidence SHA mismatch" >&2; exit 3;
-  }
-done
-grep -Fqx "SOURCE_VALIDATION=PASS" "$YANGSPACE_SOURCE_QA_MANIFEST" || {
-  echo "RELEASE_BLOCKED: source QA not passed" >&2; exit 3;
-}
-grep -Fqx "REAL_API_INTEGRATION=PASS" "$YANGSPACE_API_QA_MANIFEST" || {
-  echo "RELEASE_BLOCKED: real API integration not passed" >&2; exit 3;
-}
 REPO="${YANGSPACE_REPO:-/srv/yangspace/repo}"
 RELEASES="${YANGSPACE_RELEASES:-/srv/yangspace/releases}"
 
@@ -32,13 +18,39 @@ fi
 command -v git >/dev/null && command -v dotnet >/dev/null && command -v node >/dev/null && command -v npm >/dev/null
 [[ -d "$REPO/.git" ]] || { echo "Not a Git clone: $REPO" >&2; exit 2; }
 node -e 'const [major,minor,patch]=process.versions.node.split(".").map(Number);const supported=(major===22&&(minor>22||(minor===22&&patch>=3)))||(major===24&&minor>=15)||(major>=26);if(!supported)process.exit(1)' || { echo "Node runtime does not meet Angular 22 requirement" >&2; exit 2; }
+# Lock the remote to the project repository; allow HTTPS and canonical SSH forms.
+ORIGIN_URL="$(git -C "$REPO" remote get-url origin)"
+case "$ORIGIN_URL" in
+  https://github.com/jvalkovv/YangSpaceApp|https://github.com/jvalkovv/YangSpaceApp.git|git@github.com:jvalkovv/YangSpaceApp|git@github.com:jvalkovv/YangSpaceApp.git|ssh://git@github.com/jvalkovv/YangSpaceApp.git) ;;
+  *) echo "RELEASE_BLOCKED: unapproved Git remote origin" >&2; exit 3 ;;
+esac
 git -C "$REPO" fetch --no-tags origin "refs/heads/$SOURCE_REF:refs/remotes/origin/$SOURCE_REF"
 git -C "$REPO" cat-file -e "$SHA^{commit}"
 TIP="$(git -C "$REPO" rev-parse "refs/remotes/origin/$SOURCE_REF")"
 [[ "$TIP" == "$SHA" ]] || {
   echo "RELEASE_BLOCKED: SHA is not exact remote ref tip ($SOURCE_REF)" >&2; exit 3;
 }
+# The script that runs and its evidence validator must be byte-for-byte
+# identical to the approved commit, not locally edited or from another branch.
+SCRIPT_PATH="$(realpath -e -- "${BASH_SOURCE[0]}")"
+[[ "$SCRIPT_PATH" == "$(realpath -e -- "$REPO/scripts/build-preview-from-github.sh")" ]] || {
+  echo "RELEASE_BLOCKED: build script is not the reviewed repository script" >&2; exit 3;
+}
+for REL in scripts/build-preview-from-github.sh scripts/verify-preview-release-evidence.sh; do
+  EXPECTED="$(git -C "$REPO" show "$SHA:$REL" | sha256sum | cut -d' ' -f1)"
+  ACTUAL="$(sha256sum "$REPO/$REL" | cut -d' ' -f1)"
+  [[ "$EXPECTED" == "$ACTUAL" ]] || {
+    echo "RELEASE_BLOCKED: executing unreviewed release gate ($REL)" >&2; exit 3;
+  }
+done
+# External evidence + reviewer approval are required before any build command.
+bash "$REPO/scripts/verify-preview-release-evidence.sh" "$SHA" "$SOURCE_REF"
+
 mkdir -p "$RELEASES"
+# No two operators may build/publish a candidate concurrently.
+command -v flock >/dev/null || { echo "RELEASE_BLOCKED: flock unavailable" >&2; exit 3; }
+exec 9>"$RELEASES/.build.lock"
+flock -n 9 || { echo "RELEASE_BLOCKED: another candidate build holds the lock" >&2; exit 3; }
 TARGET="$RELEASES/$SHA"
 [[ ! -e "$TARGET" ]] || { echo "Release already exists: $TARGET" >&2; exit 4; }
 STAGE="$(mktemp -d "$RELEASES/.build.XXXXXXXX")"
@@ -72,6 +84,19 @@ cp -a "$STAGE/source/apps/web/dist/yangspace-web/browser" "$STAGE/release/web/br
 test -s "$STAGE/release/api/YangSpace.Api.dll"
 test -s "$STAGE/release/web/browser/index.html"
 printf '%s\n' "$SHA" > "$STAGE/release/commit.sha"
+# Traceability for this immutable, build-only artifact: no user credentials.
+printf 'COMMIT_SHA=%s\nSOURCE_REF=%s\nSOURCE_QA_SHA256=%s\nAPI_QA_SHA256=%s\nAPPROVAL_FILE_SHA256=%s\nAPPROVAL_SCOPE=BUILD_ONLY\n' \
+  "$SHA" "$SOURCE_REF" \
+  "$(sha256sum "$YANGSPACE_SOURCE_QA_MANIFEST" | cut -d' ' -f1)" \
+  "$(sha256sum "$YANGSPACE_API_QA_MANIFEST" | cut -d' ' -f1)" \
+  "$(sha256sum "$YANGSPACE_RELEASE_APPROVAL_FILE" | cut -d' ' -f1)" \
+  > "$STAGE/release/release-evidence.txt"
+(
+  cd "$STAGE/release"
+  find api web -type f -print0 | sort -z | xargs -0 sha256sum > files.sha256
+)
+# Repeat the approval check just before publishing the immutable build dir.
+bash "$REPO/scripts/verify-preview-release-evidence.sh" "$SHA" "$SOURCE_REF"
 mv "$STAGE/release" "$TARGET"
 echo "BUILT=$TARGET"
 echo "ACTIVATED=NO"

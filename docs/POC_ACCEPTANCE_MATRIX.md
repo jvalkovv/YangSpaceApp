@@ -127,3 +127,7 @@ S0-02/03/04 PASS evidence is linked to the same operator-reported `f3f4e1c9e29a6
 ## 2026-11-09 — SEC-02 expected bootstrap denial acceptance
 
 Baseline `6e8ba7bf2b82773a087e19737bb64e29b732e7d1` Source QA and API QA both PASS (operator). The updated API integration runner now requires three independent observations before recording overall PASS: ordinary user initially receives 403, attempt to bootstrap that existing account as PlatformAdmin aborts with the exact denial message, then subsequent normal admin startup and nonadmin authorization check succeed against the unchanged disposable SQLite DB. Source-only until operator executes. G0 still HOLD for separate P0 security/release obligations.
+
+## 2026-11-09 — S0-06 manual operator approval verification
+
+Build-only review requires: exact remote-tip SHA on an allowlisted GitHub origin/ref; executing script bytes identical to candidate commit; two externally reviewed matching QA manifests with browser `PASS`, real API lifecycle and bootstrap escalation prevention `PASS`; separate protected operator approval matching SHA/ref and SHA-256 digests of both manifests. Missing, mismatched, duplicated, or skipped fields must fail closed. A synthetic Bash test of negative cases is added; runtime execution is pending. No public access, automatic activation or PVE writes are authorized by this test. The only QA-accepted **prior** SHA is `b30c1c8`; newly authored release code requires fresh exact-SHA evidence if nominated as a candidate. G0 remains HOLD.
