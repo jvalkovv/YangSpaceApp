@@ -129,8 +129,45 @@ sed -i 's/SOURCE_REF=feat\/yangspace-v2-foundation-20261108/SOURCE_REF=main/' "$
 expect_block wrong_approved_ref 'expected unique SOURCE_REF value'
 
 write_fixtures
-chmod 666 "$YANGSPACE_RELEASE_APPROVAL_FILE"
-expect_block mutable_approval_file 'approval file must not be group/world writable'
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    # Git Bash uses simulated POSIX bits on NTFS. chmod 666 may leave
+    # stat -c %a unchanged, so a real chmod test would give a false PASS.
+    # Exercise the guard with an exported test-only function instead.
+    stat() {
+      if [[ "${1:-}" == '-c' && "${2:-}" == '%a' &&
+            "${3:-}" == '--' && "${4:-}" == "$YANGSPACE_RELEASE_APPROVAL_FILE" ]]; then
+        printf '666\n'
+      else
+        command stat "$@"
+      fi
+    }
+    export -f stat
+    observed="$(bash -c 'stat -c %a -- "$YANGSPACE_RELEASE_APPROVAL_FILE"')"
+    [[ "$observed" == 666 ]] || {
+      echo 'POLICY_TEST_FAIL=windows_permission_simulation_unavailable' >&2
+      exit 1
+    }
+    expect_block mutable_approval_file 'approval file must not be group/world writable'
+    unset -f stat
+    printf 'POLICY_PERMISSION_SOURCE=SIMULATED_MSYS_NTFS\n'
+    ;;
+  Linux)
+    # Linux permission checks MUST be real, never simulated.
+    chmod 666 "$YANGSPACE_RELEASE_APPROVAL_FILE"
+    observed="$(stat -c '%a' -- "$YANGSPACE_RELEASE_APPROVAL_FILE")"
+    [[ "$observed" =~ ^[0-7]{3,4}$ ]] && (( (8#$observed & 022) != 0 )) || {
+      echo 'POLICY_TEST_FAIL=linux_chmod_did_not_set_write_bits' >&2
+      exit 1
+    }
+    expect_block mutable_approval_file 'approval file must not be group/world writable'
+    printf 'POLICY_PERMISSION_SOURCE=REAL_LINUX_MODE\n'
+    ;;
+  *)
+    echo 'POLICY_TEST_FAIL=unknown_platform_permission_semantics' >&2
+    exit 1
+    ;;
+esac
 
 write_fixtures
 export YANGSPACE_RELEASE_APPROVAL_FILE=''

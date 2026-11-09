@@ -4,6 +4,13 @@ set -Eeuo pipefail
 umask 027
 SHA="${1:-}"
 SOURCE_REF="${2:-main}"
+# BUILD ONLY on a trusted Linux/GNU host. On Git Bash/NTFS, stat/chmod
+# cannot prove the Unix ACL boundary required for protected approval files.
+# The separate synthetic policy regression remains runnable on Windows.
+case "$(uname -s)" in
+  Linux) ;;
+  *) echo "RELEASE_BLOCKED: Linux runtime required for protected approval enforcement" >&2; exit 3 ;;
+esac
 # Build-only operation from allowlisted refs. No GitHub Actions.
 case "$SOURCE_REF" in
   main|feat/yangspace-v2-foundation-20261108) ;;

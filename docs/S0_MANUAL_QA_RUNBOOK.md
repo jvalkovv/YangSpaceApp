@@ -158,3 +158,7 @@ For a real build, use manually reviewed manifest copies **outside the Git checko
 ## S0-06 Git Bash positive-fixture regression
 
 The previous policy test's first valid synthetic fixture was rejected on Windows Git Bash with an `expected unique COMMIT_SHA` error despite successful `bash -n` checks. The new pure Bash comparator removes GNU/MSYS grep-based LF/CRLF ambiguity; positive fixture tests include LF, CRLF-only source and all-CRLF manifests/approval; negatives assert the **expected reason** for rejection. No real QA evidence files are modified or submitted. Retest the three gate scripts with `bash -n` and run `bash scripts/test-preview-release-evidence.sh`. Required `PREVIEW_RELEASE_POLICY_TEST=PASS`; until then `YS-S0-06=PARTIAL` and G0 remains HOLD.
+
+## S0-06 — Git Bash NTFS mode semantics
+
+On Windows Git Bash the mode-bit `chmod 666` negative fixture may not change the reported `stat -c %a` value. The synthetic policy test now injects `stat` mode 666 **for its temporary approval fixture only**, checks that the injected function is active, and expects the normal validator to reject it. This is reported as `POLICY_PERMISSION_SOURCE=SIMULATED_MSYS_NTFS`. A real release build is Linux-only and will not run from Git Bash; genuine Linux permission enforcement and operator approval remain independent acceptance steps. The rest of the test still rejects duplicated/altered/absent evidence and returns `PREVIEW_RELEASE_POLICY_TEST=PASS` only if all selected platform cases pass. No PVE deployment.
