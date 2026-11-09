@@ -123,3 +123,11 @@ New local operator gates: `scripts/Verify-Source-Local.ps1` builds a **clean Git
 PVE build-only script now accepts only `main` or explicit approved feature ref whose **remote tip equals exact SHA**, and requires matching source/API PASS manifest paths before building. It still does not activate any release. No production DB/PVE changes.
 
 **Actual state:** New scripts and revised runbook are **source prepared, runtime NOT TESTED**. Last accepted browser test remains 17/17 on earlier homepage code. G0 HOLD until both new local checks PASS and security/release reviews close.
+
+## 2026-11-09 — Manual Source PASS and API build-stage stall investigation
+
+Operator executed `Verify-Source-Local.ps1` from reviewed `133cfd65a590883fcfd9b1263dd3d389ce360b46`. All eight stages passed: tracked npm lock, npm ci, npm audit, TypeScript, Angular production build, Playwright browser regressions, .NET restore and Release build. Evidence directory: `logs/yangspace/verify/133cfd65a590-20261109-125436-cdc40482`. **Source validation PASS for that exact SHA.**
+
+Next operator run `Verify-Api-Local.ps1` produced `STAGE_PASS=api-restore` and then `STAGE=api-build` without reported completion or failure. Because output is redirected to `logs/yangspace/api-integration/<run-id>/api-build.stdout.log` and `api-build.stderr.log`, lack of console progress alone cannot prove a compilation error. The script used `Start-Process -Wait`, which on Windows can wait for descendant process trees (e.g., persistent MSBuild servers) even after the main process exits. The actual cause remains pending inspection of the operator's build log.
+
+**Remediation:** both manual QA wrappers now use direct process `.WaitForExit(600000)`, bounded parent PID wait, fail-closed stage timeout, per-command log tail on failure, and dispose process handles. The timeout cleanup targets only the process launched by the test runner. Does not modify app/DB/PVE, does not kill existing Angular or the separately running API. **New source has not been runtime tested; S0-04 HOLD until success.**

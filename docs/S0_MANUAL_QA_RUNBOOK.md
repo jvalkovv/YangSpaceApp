@@ -89,3 +89,15 @@ Both manifests must match the SHA and PASS values. The script fetches the exact 
 | PVE build refuses | Unapproved branch, missing matching QA or not-exact remote tip |
 
 The workflow **does not require GitHub Actions** at any point.
+
+## S0 build-stage apparent hang (Windows)
+
+The API runner redirects build output to `logs/yangspace/api-integration/<run-id>/api-build.stdout.log` and `api-build.stderr.log`. In another PowerShell console, inspect the newest run before stopping anything:
+
+~~~powershell
+$D = Get-ChildItem .\logs\yangspace\api-integration -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+Get-Content (Join-Path $D.FullName 'api-build.stdout.log') -Tail 30
+Get-Content (Join-Path $D.FullName 'api-build.stderr.log') -Tail 20
+~~~
+
+If stdout already says `Build succeeded.` with `0 Error(s)` but the test session is still blocked at `STAGE=api-build`, interrupt **only that test shell** with Ctrl+C, update GitHub branch and rerun the patched script. The updated wrapper does not use `Start-Process -Wait`: it waits for the direct command PID with bounded timeout and logs the failure, avoiding indefinite process-tree waits. If stdout shows errors/ongoing build, diagnose the log rather than assuming a wait bug. Never taskkill all dotnet processes or stop API port 5090.
