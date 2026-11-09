@@ -142,3 +142,9 @@ After `api-restart-verify`, the updated `Verify-Api-Local.ps1` performs:
 4. Required final markers: `BOOTSTRAP_NONADMIN_ROLE_RETAINED=PASS`, `REAL_API_INTEGRATION=PASS`; both must appear with matching new SHA. A failure in any step is HOLD.
 
 The negative bootstrap startup exception is **expected**, not an application regression. The nonadmin identity and database are fictional and disposable, not live. Run the guard and API scripts against the next reviewed commit, followed by the full source QA on that exact SHA. No GitHub Actions.
+
+## SEC-02 Windows stdout/stderr file-lock regression
+
+The first `9fd0a84` SEC-02 run passed normal API integration through `api-restart-verify` but was interrupted at `api-bootstrap-denial`: `ReadAllText` could not open the still-locked redirected stderr file. This is a **harness failure**, not an assertion of successful or failed escalation. The updated probe starts its own `System.Diagnostics.Process`, reads both pipes asynchronously, waits with a timeout, then writes closed-stream logs. The ordinary user's role and admin recovery still require a full runtime PASS. The QA wrapper now disposes the normal test API process handle before deleting its own temp sandbox. No action should be taken against arbitrary `dotnet` processes or other databases.
+
+Rerun `Test-Api-Native-Guard.ps1`, `Verify-Api-Local.ps1` and `Verify-Source-Local.ps1` on the updated full SHA and compare manifest evidence. Do not delete old test directories while a process is still using them; after verifying only the isolated test process is gone, manual cleanup may remove that specific `yangspace-ci-*` folder.

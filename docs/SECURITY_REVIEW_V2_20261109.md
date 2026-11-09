@@ -36,3 +36,7 @@
 ## SEC-02 negative regression — newly prepared
 
 The isolated API QA runner persists the nonadmin user's **fictional email** in its disposable state file (not a password). It starts a temporary .NET process on the same random loopback port, switches only the *process-local* admin bootstrap email, and demands that startup fail with the expected promotion refusal. It restores the original bootstrap identity, restarts again and checks login, registration disabled, hidden content and nonadmin HTTP 403. A timeout kills **only the test-owned probe process**. `REAL_API_INTEGRATION=PASS` is impossible until these assertions pass. No trusted credentials or external DB are used. The change is source-only pending fresh Windows PASS.
+
+## SEC-02 Windows file-lock finding (2026-11-09)
+
+The operator's `9fd0a84` test reached the expected bootstrap denial probe after guard/restore/build/prepare/restart verification PASSED. Before inspecting the process's exception text, `ReadAllText` on its redirected `bootstrap-denial.stderr.log` raised a file-in-use exception. The overall integration verdict is **HOLD**, even if the application had actually rejected the escalation; no negative privilege proof can be claimed. The refreshed harness reads both process pipes asynchronously and requires a nonzero exit plus the explicit existing-user refusal; it then restarts the API and tests nonadmin HTTP 403. Latest harness runtime pending. This does not close SEC-03/04 network/legacy secret gates or approve a public pilot.

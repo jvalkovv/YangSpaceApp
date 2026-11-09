@@ -40,9 +40,19 @@ function Step([string]$Label,[string]$Exe,[string[]]$Arguments,[string]$Wd){
 }
 
 function Stop-Api {
-    if($null -ne $ApiProcess -and -not $ApiProcess.HasExited){
-        Stop-Process -Id $ApiProcess.Id -Force -ErrorAction Stop
-        [void]$ApiProcess.WaitForExit(10000)
+    if ($null -eq $ApiProcess) { return }
+    try {
+        if (-not $ApiProcess.HasExited) {
+            Stop-Process -Id $ApiProcess.Id -Force -ErrorAction Stop
+            if (-not $ApiProcess.WaitForExit(10000)) {
+                throw 'TEST_API_PROCESS_STOP_TIMEOUT'
+            }
+        }
+    }
+    finally {
+        # Start-Process -Redirect* retains file handles through its process
+        # object. Dispose it before cleaning the temporary test workspace.
+        $ApiProcess.Dispose()
     }
 }
 try {
@@ -116,38 +126,65 @@ try {
         throw 'SEC02_INVALID_DISPOSABLE_NONADMIN_IDENTITY'
     }
     $OriginalBootstrapEmail=[Environment]::GetEnvironmentVariable('Bootstrap__AdminEmail','Process')
-    $ProbeProcess=$null
     $ProbeOut=Join-Path $Evidence 'bootstrap-denial.stdout.log'
     $ProbeErr=Join-Path $Evidence 'bootstrap-denial.stderr.log'
+    $ProbeProcess=[System.Diagnostics.Process]::new()
+    $ProbeStarted=$false
     try {
         [Environment]::SetEnvironmentVariable('Bootstrap__AdminEmail',$ReaderEmail,'Process')
+        $ProbeInfo=[System.Diagnostics.ProcessStartInfo]::new()
+        $ProbeInfo.FileName=$Dotnet
+        $ProbeInfo.Arguments='"'+$Dll+'"'
+        $ProbeInfo.WorkingDirectory=(Split-Path $Dll -Parent)
+        $ProbeInfo.UseShellExecute=$false
+        $ProbeInfo.CreateNoWindow=$true
+        $ProbeInfo.RedirectStandardOutput=$true
+        $ProbeInfo.RedirectStandardError=$true
+        $ProbeProcess.StartInfo=$ProbeInfo
+
         Write-Host 'STAGE=api-bootstrap-denial'
-        $ProbeProcess=Start-Process -FilePath $Dotnet -ArgumentList ('"'+$Dll+'"') -WorkingDirectory (Split-Path $Dll -Parent) -NoNewWindow -PassThru -RedirectStandardOutput $ProbeOut -RedirectStandardError $ProbeErr
-        $Deadline=[DateTime]::UtcNow.AddSeconds(20)
-        while (-not $ProbeProcess.HasExited -and [DateTime]::UtcNow -lt $Deadline) {
-            Start-Sleep -Milliseconds 200
-        }
-        if (-not $ProbeProcess.HasExited) {
+        # Read both pipes asynchronously while the child is running:
+        # never open Start-Process -Redirect* files before handles are closed.
+        $ProbeStarted=$ProbeProcess.Start()
+        if (-not $ProbeStarted) { throw 'SEC02_FAIL: BOOTSTRAP_PROBE_FAILED_TO_START' }
+        $OutTask=$ProbeProcess.StandardOutput.ReadToEndAsync()
+        $ErrTask=$ProbeProcess.StandardError.ReadToEndAsync()
+        if (-not $ProbeProcess.WaitForExit(20000)) {
             throw 'SEC02_FAIL: EXISTING_NONADMIN_BOOTSTRAP_DID_NOT_ABORT'
         }
-        $ProbeError=''
-        foreach ($Log in @($ProbeErr,$ProbeOut)) {
-            if (Test-Path -LiteralPath $Log) {
-                $ProbeError += [IO.File]::ReadAllText($Log) + [char]10
-            }
+        $ProbeProcess.Refresh()
+        $ProbeExitCode=[int]$ProbeProcess.ExitCode
+        if (-not $OutTask.Wait(5000) -or -not $ErrTask.Wait(5000)) {
+            throw 'SEC02_FAIL: BOOTSTRAP_OUTPUT_DRAIN_TIMEOUT'
         }
-        if ($ProbeError -cnotmatch 'Existing non-admin account cannot be promoted through bootstrap\.') {
+        $ProbeStdout=$OutTask.GetAwaiter().GetResult()
+        $ProbeStderr=$ErrTask.GetAwaiter().GetResult()
+        # Logs are written only after the child has exited and both streams
+        # are fully drained; no file-handle race with the process.
+        [IO.File]::WriteAllText($ProbeOut,$ProbeStdout)
+        [IO.File]::WriteAllText($ProbeErr,$ProbeStderr)
+        if ($ProbeExitCode -eq 0) {
+            throw 'SEC02_FAIL: EXISTING_NONADMIN_BOOTSTRAP_EXITED_SUCCESSFULLY'
+        }
+        if (($ProbeStderr+[char]10+$ProbeStdout) -cnotmatch
+            'Existing non-admin account cannot be promoted through bootstrap\.') {
             throw 'SEC02_FAIL: EXPECTED_PRIVILEGE_ESCALATION_DENIAL_NOT_OBSERVED'
         }
         Write-Host 'STAGE_PASS=api-bootstrap-denial'
         Write-Host 'BOOTSTRAP_PRIVILEGE_ESCALATION_DENIED=PASS'
     }
     finally {
-        if ($null -ne $ProbeProcess -and -not $ProbeProcess.HasExited) {
-            Stop-Process -Id $ProbeProcess.Id -Force -ErrorAction Stop
-            [void]$ProbeProcess.WaitForExit(10000)
+        try {
+            if ($ProbeStarted -and -not $ProbeProcess.HasExited) {
+                # Only stop this test-owned probe PID. Never kill all dotnet.
+                $ProbeProcess.Kill()
+                [void]$ProbeProcess.WaitForExit(5000)
+            }
         }
-        [Environment]::SetEnvironmentVariable('Bootstrap__AdminEmail',$OriginalBootstrapEmail,'Process')
+        finally {
+            $ProbeProcess.Dispose()
+            [Environment]::SetEnvironmentVariable('Bootstrap__AdminEmail',$OriginalBootstrapEmail,'Process')
+        }
     }
 
     # SEC-02: recovery must preserve admin access, registration denial,
