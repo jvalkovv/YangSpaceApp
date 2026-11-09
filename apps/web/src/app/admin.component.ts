@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { map, switchMap, timeout } from 'rxjs';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 
 interface TokenResponse { accessToken: string; tokenType: string; expiresIn: number; refreshToken: string }
@@ -119,6 +120,7 @@ function blankLocation(): LocationDraft {
 export class AdminComponent {
   private readonly http = inject(HttpClient);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly requestTimeout = 10000;
   private sessionVersion = 0;
 
@@ -224,12 +226,14 @@ export class AdminComponent {
     }
     const attempt = ++this.sessionVersion;
     this.busy = true;
+    this.cdr.markForCheck();
     this.message = '';
     this.cdr.markForCheck();
     this.http.post<TokenResponse>('/api/auth/login', {
       email: this.email.trim(), password: this.password
     }).pipe(
       timeout(this.requestTimeout),
+      takeUntilDestroyed(this.destroyRef),
       switchMap(response => {
         if (!response.accessToken) throw new Error('Missing access token');
         const headers = new HttpHeaders({ Authorization: 'Bearer ' + response.accessToken });
@@ -261,7 +265,7 @@ export class AdminComponent {
     const expectedToken = this.token;
     if (!expectedToken) return;
     this.http.get<AdminLocation[]>('/api/v1/admin/locations', this.auth)
-      .pipe(timeout(this.requestTimeout)).subscribe({
+      .pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
         next: items => {
           if (this.token !== expectedToken) return;
           this.locations = items;
@@ -281,8 +285,9 @@ export class AdminComponent {
     const problem = this.validate(input);
     if (problem) { this.status(problem, true); return; }
     this.busy = true;
+    this.cdr.markForCheck();
     this.http.post('/api/v1/admin/locations', input, this.auth)
-      .pipe(timeout(this.requestTimeout)).subscribe({
+      .pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.draft = blankLocation();
           this.status('Обектът е създаден.');
@@ -320,8 +325,9 @@ export class AdminComponent {
     const problem = this.validate(input);
     if (problem) { this.status(problem, true); return; }
     this.busy = true;
+    this.cdr.markForCheck();
     this.http.put('/api/v1/admin/locations/' + encodeURIComponent(id), input, this.auth)
-      .pipe(timeout(this.requestTimeout)).subscribe({
+      .pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.editDraft = null;
           this.editingId = '';
@@ -335,8 +341,9 @@ export class AdminComponent {
   private setPublication(id: string, action: 'hide' | 'restore'): void {
     if (this.busy || !this.token) return;
     this.busy = true;
+    this.cdr.markForCheck();
     this.http.post('/api/v1/admin/locations/' + encodeURIComponent(id) + '/' + action, {}, this.auth)
-      .pipe(timeout(this.requestTimeout)).subscribe({
+      .pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           if (this.editingId === id && this.editDraft) {
             this.editDraft.isPublished = action === 'restore';
@@ -364,10 +371,11 @@ export class AdminComponent {
       return;
     }
     this.busy = true;
+    this.cdr.markForCheck();
     this.http.post('/api/v1/admin/locations/' + encodeURIComponent(this.selectedId) + '/offers', {
       title: this.offerTitle, description: this.offerDescription,
       startsAtUtc: from.toISOString(), endsAtUtc: to.toISOString(), isPublished: true
-    }, this.auth).pipe(timeout(this.requestTimeout)).subscribe({
+    }, this.auth).pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.status('Промоцията е публикувана.'),
       error: reason => this.fail('Промоцията не е записана', reason)
     });
@@ -376,10 +384,11 @@ export class AdminComponent {
   addJob(): void {
     if (!this.selectedId || this.busy || !this.token) return;
     this.busy = true;
+    this.cdr.markForCheck();
     this.http.post('/api/v1/admin/locations/' + encodeURIComponent(this.selectedId) + '/jobs', {
       title: this.jobTitle, description: this.jobDescription, applyUrl: this.jobApplyUrl,
       expiresAtUtc: new Date(Date.now() + 30 * 86400000).toISOString(), isPublished: true
-    }, this.auth).pipe(timeout(this.requestTimeout)).subscribe({
+    }, this.auth).pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.status('Обявата за работа е публикувана.'),
       error: reason => this.fail('Обявата не е записана', reason)
     });
@@ -388,11 +397,12 @@ export class AdminComponent {
   addBrochure(): void {
     if (!this.selectedId || this.busy || !this.token) return;
     this.busy = true;
+    this.cdr.markForCheck();
     this.http.post('/api/v1/admin/locations/' + encodeURIComponent(this.selectedId) + '/brochures', {
       title: this.brochureTitle, url: this.brochureUrl,
       validFromUtc: new Date(Date.now() - 3600000).toISOString(),
       validToUtc: new Date(Date.now() + 7 * 86400000).toISOString(), isPublished: true
-    }, this.auth).pipe(timeout(this.requestTimeout)).subscribe({
+    }, this.auth).pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.status('Брошурата е публикувана.'),
       error: reason => this.fail('Брошурата не е записана', reason)
     });
