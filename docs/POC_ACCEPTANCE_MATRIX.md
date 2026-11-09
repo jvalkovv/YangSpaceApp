@@ -111,3 +111,7 @@ Lockfile v3 was committed at `94f710e` and the root manifest/registry/integrity 
 ## 2026-11-09 — Current binding acceptance policy (ADR-018)
 
 The earlier CI references in historical notes above are retired. **Required: clean committed snapshot, npm ci + high-severity audit, Angular typecheck/build/17+ Playwright, .NET restore/build, separate real API integration sandbox and matching SHA manifests**. No GitHub Actions. Results are NOT yet runtime PASS for the new scripts.
+
+## 2026-11-09 — Manual Windows process runner exit-code contract
+
+The API integration wrapper produced `STAGE_FAILED=api-restore EXIT=` even though .NET restore had completed successfully. The old Process object returned no usable exit code. New acceptance requires a separate self-test `scripts/Test-Process-Runner.ps1` proving correct propagation for process exit `0`, process exit `7` (must fail), and successful `npm.cmd` invocation. Only then run the API lifecycle against a fresh disposable DB. The helper must capture stdout/stderr separately, timeout a stalled stage, and must not kill existing unrelated .NET/Angular processes. **Runtime checks pending.**

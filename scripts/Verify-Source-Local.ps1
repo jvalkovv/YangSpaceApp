@@ -39,35 +39,9 @@ $Pass = $false
 
 New-Item -ItemType Directory -Path $Evidence -Force | Out-Null
 
-function Invoke-Stage([string]$Label, [string]$Exe, [string[]]$Arguments, [string]$Directory) {
-    $OutFile = Join-Path $Evidence ($Label + '.stdout.log')
-    $ErrFile = Join-Path $Evidence ($Label + '.stderr.log')
-    Write-Host ('STAGE=' + $Label)
-    # Start-Process -Wait may include long-lived child processes on Windows.
-    # Wait for the direct command process, never an entire MSBuild process tree.
-    $Process = Start-Process -FilePath $Exe -ArgumentList $Arguments -WorkingDirectory $Directory -PassThru -NoNewWindow -RedirectStandardOutput $OutFile -RedirectStandardError $ErrFile
-    try {
-        $Finished = $Process.WaitForExit(600000)
-        if (-not $Finished) {
-            $StalledPid = $Process.Id
-            try { $Process.Kill(); [void]$Process.WaitForExit(5000) }
-            catch { Write-Warning ('TEST_PROCESS_CLEANUP_FAILED=' + $StalledPid) }
-            if (Test-Path $ErrFile) { Get-Content $ErrFile -Tail 25 }
-            if (Test-Path $OutFile) { Get-Content $OutFile -Tail 25 }
-            throw ('STAGE_TIMEOUT=' + $Label + ' PID=' + $StalledPid)
-        }
-        $Process.WaitForExit()
-        $Code = $Process.ExitCode
-        if ($Code -ne 0) {
-            Write-Host ('STAGE_FAILED=' + $Label + ' EXIT=' + $Code)
-            if (Test-Path $ErrFile) { Get-Content $ErrFile -Tail 30 }
-            if (Test-Path $OutFile) { Get-Content $OutFile -Tail 30 }
-            throw ('STAGE_FAILED=' + $Label)
-        }
-        Write-Host ('STAGE_PASS=' + $Label)
-    } finally {
-        $Process.Dispose()
-    }
+. (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
+function Invoke-Stage([string]$Label,[string]$Exe,[string[]]$Arguments,[string]$Directory){
+    Invoke-YangSpaceStage -Label $Label -Executable $Exe -CommandArguments $Arguments -WorkingDirectory $Directory -EvidenceDirectory $Evidence -TimeoutSeconds 600
 }
 
 try {

@@ -101,3 +101,15 @@ Get-Content (Join-Path $D.FullName 'api-build.stderr.log') -Tail 20
 ~~~
 
 If stdout already says `Build succeeded.` with `0 Error(s)` but the test session is still blocked at `STAGE=api-build`, interrupt **only that test shell** with Ctrl+C, update GitHub branch and rerun the patched script. The updated wrapper does not use `Start-Process -Wait`: it waits for the direct command PID with bounded timeout and logs the failure, avoiding indefinite process-tree waits. If stdout shows errors/ongoing build, diagnose the log rather than assuming a wait bug. Never taskkill all dotnet processes or stop API port 5090.
+
+## 2026-11-09 — Process runner self-test (required before retesting API)
+
+A successful .NET restore can be misreported as failed if `Start-Process -PassThru` leaves `ExitCode` empty in Windows PowerShell 5.1. The shared `Invoke-YangSpaceStage.ps1` uses an explicit .NET process handle and a short temporary CMD launcher with separate log streams, a bounded timeout and a real exit code. Test positive and negative exits **before** the more expensive integration flow:
+
+~~~powershell
+cd D:\GitHub\YangSpaceApp
+git pull --ff-only origin feat/yangspace-v2-foundation-20261108
+.\scripts\Test-Process-Runner.ps1
+~~~
+
+Expected: `STAGE_PASS=runner-success`, a deliberate `STAGE_FAILED=runner-failure EXIT=7` caught by the self-test, `STAGE_PASS=runner-npm-cmd`, and `PROCESS_RUNNER_SELFTEST=PASS`. This is non-destructive, operates solely within a temporary scratch directory and never touches the live API or DB. Then run `Verify-Api-Local.ps1`; only after its PASS re-run `Verify-Source-Local.ps1` for the exact same latest SHA. The original source PASS for `133cfd6` remains valid for that historical commit.

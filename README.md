@@ -216,3 +216,7 @@ git pull --ff-only origin feat/yangspace-v2-foundation-20261108
 Source QA validates committed lockfile, `npm ci`, dependency audit, Angular build/Playwright and .NET build. API QA creates its own random local-only port, temporary SQLite and bootstrap identity, verifies auth, publication, expiration, hide and process restart. Logs are separated in `logs/yangspace/verify/` and `logs/yangspace/api-integration/` and are not tracked. **No GitHub Actions, no live DB writes, no PVE deployment.** Both PASS manifests must reference the same full SHA before release review.
 
 Read [S0 Manual QA](docs/S0_MANUAL_QA_RUNBOOK.md) and [ADR-018](docs/ADR-018-NO-GITHUB-ACTIONS.md).
+
+### Windows QA process runner regression (2026-11-09)
+
+If the manual API wrapper prints `STAGE_FAILED=api-restore EXIT=` after `Restored ...`, this is a missing process exit-code reporting bug, not evidence that restore failed. After pulling the latest reviewed branch, run `scripts/Test-Process-Runner.ps1` to test success, non-zero exit and `npm.cmd` handling. A shared `System.Diagnostics.Process` runner replaces `Start-Process -PassThru` in both clean-source and API QA wrappers. Only proceed when `PROCESS_RUNNER_SELFTEST=PASS`; then run the actual isolated API verification.

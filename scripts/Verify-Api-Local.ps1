@@ -34,38 +34,11 @@ $EnvNames=@('ASPNETCORE_ENVIRONMENT','ASPNETCORE_URLS','Preview__Enabled','Conne
     'YANGSPACE_TEST_SANDBOX','YANGSPACE_TEST_DB_PATH','YANGSPACE_TEST_STATE','YANGSPACE_TEST_BASE_URL')
 $EnvOriginal=@{}
 foreach($name in $EnvNames){$EnvOriginal[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+. (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
 function Step([string]$Label,[string]$Exe,[string[]]$Arguments,[string]$Wd){
-    $out=Join-Path $Evidence ($Label+'.stdout.log')
-    $err=Join-Path $Evidence ($Label+'.stderr.log')
-    Write-Host "STAGE=$Label"
-    # Do not use Start-Process -Wait here: on Windows it can wait for the
-    # complete descendant process tree (including reusable MSBuild servers).
-    # Wait only for the actual command process, with a bounded timeout.
-    $p=Start-Process -FilePath $Exe -ArgumentList $Arguments -WorkingDirectory $Wd -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
-    try {
-        $timeoutMs=600000
-        $finished=$p.WaitForExit($timeoutMs)
-        if(-not $finished){
-            $stalledPid=$p.Id
-            try{$p.Kill(); [void]$p.WaitForExit(5000)}
-            catch{Write-Warning "TEST_PROCESS_CLEANUP_FAILED=$stalledPid"}
-            if(Test-Path $err){Get-Content $err -Tail 25}
-            if(Test-Path $out){Get-Content $out -Tail 25}
-            throw "STAGE_TIMEOUT=$Label PID=$stalledPid"
-        }
-        # Flush redirected streams and check *the process itself*, not descendants.
-        $p.WaitForExit()
-        $exitCode=$p.ExitCode
-        if($exitCode -ne 0){
-            if(Test-Path $err){Get-Content $err -Tail 30}
-            if(Test-Path $out){Get-Content $out -Tail 30}
-            throw "STAGE_FAILED=$Label EXIT=$exitCode"
-        }
-        Write-Host "STAGE_PASS=$Label"
-    }finally{
-        $p.Dispose()
-    }
+    Invoke-YangSpaceStage -Label $Label -Executable $Exe -CommandArguments $Arguments -WorkingDirectory $Wd -EvidenceDirectory $Evidence -TimeoutSeconds 600
 }
+
 function Stop-Api {
     if($null -ne $ApiProcess -and -not $ApiProcess.HasExited){
         Stop-Process -Id $ApiProcess.Id -Force -ErrorAction Stop
