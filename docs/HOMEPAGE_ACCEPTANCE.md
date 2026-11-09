@@ -100,8 +100,19 @@ Acceptance:
 - [x] Windows local backend / Angular dev server / proxy health: all 5 checks PASS, including HTTP 200 homepage payload through the proxy.
 - [x] `npm run typecheck`: PASS (user console output).
 - [x] `npm run build`: PASS; 407.56 kB initial raw bundles / 100.61 kB estimated transfer. This is not a runtime page-load benchmark.
-- [ ] `npm run test:e2e`: NOT RUN because Playwright binary was not installed in that local `node_modules`; install project devDependencies and Chromium.
+- [x] `npm run test:e2e`: **14/14 PASS** on Windows after `npm install` and `npx playwright install chromium`, 2026-11-09 user console evidence. Includes 5 responsive width tests, change detection, filtering, error recovery and preview admin. Browser screenshot artifacts are local and have **not** been manually inspected here.
 - [ ] Visual QA at actual browser CSS viewport widths 375/390/768/1024/1440 using `apps/web/e2e/responsive-preview.spec.ts`; inspect screenshots before acceptance.
 - [ ] Document acceptance of navigation, mobile controls, text wrapping and visual spacing from real browser captures.
 
 Screenshot dimensions differ from CSS viewport width: a 727×2048 image shows desktop-style content, but it could have been resized/cropped. Use Playwright `page.setViewportSize` to validate real breakpoints rather than assuming a responsive CSS defect from that file alone.
+
+## 2026-11-09 — Regression acceptance evidence (user console)
+
+- **Executed:** `npm run test:e2e` from `D:\GitHub\YangSpaceApp\apps\web` on Windows.
+- **Result:** 14 passed, 0 failed, 16.0 seconds; Playwright 1.65.0, Chromium Headless Shell build 1254 installed locally.
+- **Responsive:** 375, 390, 768, 1024 and 1440 CSS px — all PASS (no document/body overflow according to automated assertions).
+- **Functional:** initial cards without focus, exact category filtering (including first chip click vs dropdown), detail route, admin async display, HTTP failure states and retry — PASS under mocked API fixtures.
+- **Separate actual local stack evidence:** API live/ready/homepage and Angular server/proxy all returned HTTP 200.
+- **Remaining checks:** screenshots themselves need human review for visual quality; mocked Playwright flows do not replace admin end-to-end validation against the real API; CI branch status not yet green; lockfile still absent.
+
+**Decision:** automated homepage browser regression gate **PASS**; complete visual and production acceptance **PENDING**.
