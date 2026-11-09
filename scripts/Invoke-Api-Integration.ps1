@@ -176,6 +176,68 @@ if ($Phase -eq 'prepare') {
         @($detail.brochures).Count -ne 1 -or @($detail.jobs).Count -ne 1) {
         throw ('Validity filtering failed; active offer count=' + $titles.Count)
     }
+    # S1-03 content lifecycle: all records remain visible to the administrator,
+    # including expired/hidden records, but only valid published records go public.
+    $base='/api/v1/admin/locations/'+$id
+    $content=Assert-Status 'GET' ($base+'/content') @(200) $null $token
+    [void](Assert-Status 'GET' ($base+'/content') @(403) $null ([string]$member.accessToken))
+    [void](Assert-Status 'GET' ('/api/v1/admin/locations/'+[Guid]::NewGuid().ToString()+'/content') @(404) $null $token)
+    $active=@($content.offers | Where-Object {$_.title -ceq 'Active CI offer'})
+    $expired=@($content.offers | Where-Object {$_.title -ceq 'Expired CI offer'})
+    $brochure=@($content.brochures | Where-Object {$_.title -ceq 'CI brochure'})
+    $job=@($content.jobs | Where-Object {$_.title -ceq 'CI temporary job'})
+    if ($active.Count -ne 1 -or $expired.Count -ne 1 -or $brochure.Count -ne 1 -or $job.Count -ne 1) {
+        throw 'CMS_CONTENT_INVENTORY_MISMATCH'
+    }
+
+    $offerUrl=$base+'/offers/'+[string]$active[0].id
+    $offerInput=@{title='Updated CI offer';description='Updated from CMS API';startsAtUtc=(Utc-Date -1);endsAtUtc=(Utc-Date 12);isPublished=$true}
+    [void](Assert-Status 'PUT' $offerUrl @(403) $offerInput ([string]$member.accessToken))
+    [void](Assert-Status 'PUT' ('/api/v1/admin/locations/'+[Guid]::NewGuid().ToString()+'/offers/'+[string]$active[0].id) @(404) $offerInput $token)
+    [void](Assert-Status 'PUT' $offerUrl @(204) $offerInput $token)
+    $detail=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if (@($detail.offers | Where-Object {$_.title -ceq 'Updated CI offer'}).Count -ne 1) { throw 'OFFER_UPDATE_NOT_PUBLIC' }
+    [void](Assert-Status 'POST' ($offerUrl+'/hide') @(204) @{} $token)
+    [void](Assert-Status 'POST' ($offerUrl+'/hide') @(204) @{} $token)
+    $detail=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if (@($detail.offers | Where-Object {$_.title -ceq 'Updated CI offer'}).Count -ne 0) { throw 'HIDDEN_OFFER_LEAK' }
+    [void](Assert-Status 'POST' ($offerUrl+'/restore') @(403) @{} ([string]$member.accessToken))
+    [void](Assert-Status 'POST' ($offerUrl+'/restore') @(204) @{} $token)
+    [void](Assert-Status 'POST' ($offerUrl+'/restore') @(204) @{} $token)
+    $detail=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if (@($detail.offers | Where-Object {$_.title -ceq 'Updated CI offer'}).Count -ne 1) { throw 'RESTORED_OFFER_MISSING' }
+
+    $expiredUrl=$base+'/offers/'+[string]$expired[0].id
+    [void](Assert-Status 'POST' ($expiredUrl+'/hide') @(204) @{} $token)
+    [void](Assert-Status 'POST' ($expiredUrl+'/restore') @(409) @{} $token)
+    [void](Assert-Status 'PUT' $expiredUrl @(400) @{
+        title='Expired CI offer';description='No';startsAtUtc=(Utc-Date 2);endsAtUtc=(Utc-Date 1);isPublished=$true
+    } $token)
+
+    $brochureUrl=$base+'/brochures/'+[string]$brochure[0].id
+    $brochureInput=@{title='Updated CI brochure';url='https://example.org/updated.pdf';validFromUtc=(Utc-Date -1);validToUtc=(Utc-Date 10);isPublished=$true}
+    [void](Assert-Status 'PUT' $brochureUrl @(400) @{
+        title='Updated CI brochure';url='http://example.org/unsafe.pdf';validFromUtc=(Utc-Date -1);validToUtc=(Utc-Date 10);isPublished=$true
+    } $token)
+    [void](Assert-Status 'PUT' $brochureUrl @(204) $brochureInput $token)
+    [void](Assert-Status 'POST' ($brochureUrl+'/hide') @(204) @{} $token)
+    $detail=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if (@($detail.brochures).Count -ne 0) { throw 'HIDDEN_BROCHURE_LEAK' }
+    [void](Assert-Status 'POST' ($brochureUrl+'/restore') @(204) @{} $token)
+    $detail=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if (@($detail.brochures | Where-Object {$_.title -ceq 'Updated CI brochure'}).Count -ne 1) { throw 'BROCHURE_RESTORE_MISSING' }
+
+    $jobUrl=$base+'/jobs/'+[string]$job[0].id
+    $jobInput=@{title='Updated CI job';description='Updated';applyUrl='https://example.org/updated-job';expiresAtUtc=(Utc-Date 14);isPublished=$true}
+    [void](Assert-Status 'PUT' $jobUrl @(204) $jobInput $token)
+    [void](Assert-Status 'POST' ($jobUrl+'/hide') @(204) @{} $token)
+    $detail=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if (@($detail.jobs).Count -ne 0) { throw 'HIDDEN_JOB_LEAK' }
+    [void](Assert-Status 'POST' ($jobUrl+'/restore') @(204) @{} $token)
+    $detail=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if (@($detail.jobs | Where-Object {$_.title -ceq 'Updated CI job'}).Count -ne 1) { throw 'JOB_RESTORE_MISSING' }
+
+    Write-Host 'CONTENT_LIFECYCLE_INTEGRATION=PASS'
     [void](Assert-Status 'POST' ('/api/v1/admin/locations/'+$id+'/hide') @(204) @{} $token)
     Assert-Hidden $slug
     # S1-02: restoring a hidden location must restore public visibility,
@@ -210,6 +272,13 @@ if ($Phase -eq 'prepare') {
     $entry=@($locations | Where-Object {$_.id -eq $record.id -and $_.isPublished -eq $false})
     if ($entry.Count -ne 1) { throw 'Persisted hidden location not found after restart' }
     Assert-Hidden ([string]$record.slug)
+    $persistedContent=Assert-Status 'GET' ('/api/v1/admin/locations/'+[string]$record.id+'/content') @(200) $null $token
+    if (@($persistedContent.offers | Where-Object {$_.title -ceq 'Updated CI offer' -and $_.isPublished}).Count -ne 1 -or
+        @($persistedContent.brochures | Where-Object {$_.title -ceq 'Updated CI brochure' -and $_.isPublished}).Count -ne 1 -or
+        @($persistedContent.jobs | Where-Object {$_.title -ceq 'Updated CI job' -and $_.isPublished}).Count -ne 1) {
+        throw 'CONTENT_RESTART_PERSISTENCE_MISMATCH'
+    }
+    Write-Host 'CONTENT_LIFECYCLE_PERSISTENCE=PASS'
     [void](Assert-Status 'GET' '/api/v1/admin/locations' @(401,403))
     if ([string]$record.readerEmail -cnotmatch '^ci-reader-[0-9a-f]{12}@example\.invalid$') {
         throw 'INVALID_PERSISTED_NONADMIN_TEST_IDENTITY'

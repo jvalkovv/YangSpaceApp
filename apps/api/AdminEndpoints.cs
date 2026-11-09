@@ -9,6 +9,7 @@ public static class AdminEndpoints
     {
         var admin = app.MapGroup("/api/v1/admin").RequireAuthorization("PlatformAdmin").WithTags("Admin (preview only)");
         admin.MapGet("/me", (System.Security.Claims.ClaimsPrincipal user) => Results.Ok(new { email = user.Identity?.Name, role = "PlatformAdmin" }));
+        admin.MapContentManagement();
         admin.MapGet("/locations", async (DirectoryDb db, CancellationToken ct) =>
         {
             var items = await db.Locations.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct);

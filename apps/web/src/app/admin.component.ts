@@ -4,6 +4,7 @@ import { map, switchMap, timeout } from 'rxjs';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { AdminPublicationsComponent } from './admin-publications.component';
 
 interface TokenResponse { accessToken: string; tokenType: string; expiresIn: number; refreshToken: string }
 interface AdminLocation {
@@ -20,7 +21,7 @@ function blankLocation(): LocationDraft {
 @Component({
   selector: 'ys-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AdminPublicationsComponent],
   template: `
     <section class="shell admin-shell">
       <span class="kicker">PREVIEW КОНЗОЛА</span><h1>Управление на квартала</h1>
@@ -75,6 +76,7 @@ function blankLocation(): LocationDraft {
             <button class="btn btn-outline" [disabled]="busy || !selectedId" (click)="addBrochure()">Публикувай брошура</button>
           </section>
         </div>
+        <ys-admin-publications [locationId]="selectedId" [token]="token" [revision]="contentRevision"></ys-admin-publications>
         <section class="panel admin-list">
           <h2>Обекти ({{locations.length}})</h2>
           <div *ngFor="let x of locations; trackBy: trackLocation" class="admin-list-row">
@@ -134,6 +136,7 @@ export class AdminComponent {
 
   locations: AdminLocation[] = [];
   selectedId = '';
+  contentRevision = 0;
   draft: LocationDraft = blankLocation();
   editDraft: LocationDraft | null = null;
   editingId = '';
@@ -376,7 +379,7 @@ export class AdminComponent {
       title: this.offerTitle, description: this.offerDescription,
       startsAtUtc: from.toISOString(), endsAtUtc: to.toISOString(), isPublished: true
     }, this.auth).pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => this.status('Промоцията е публикувана.'),
+      next: () => { this.contentRevision++; this.status('Промоцията е публикувана.'); },
       error: reason => this.fail('Промоцията не е записана', reason)
     });
   }
@@ -389,7 +392,7 @@ export class AdminComponent {
       title: this.jobTitle, description: this.jobDescription, applyUrl: this.jobApplyUrl,
       expiresAtUtc: new Date(Date.now() + 30 * 86400000).toISOString(), isPublished: true
     }, this.auth).pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => this.status('Обявата за работа е публикувана.'),
+      next: () => { this.contentRevision++; this.status('Обявата за работа е публикувана.'); },
       error: reason => this.fail('Обявата не е записана', reason)
     });
   }
@@ -403,7 +406,7 @@ export class AdminComponent {
       validFromUtc: new Date(Date.now() - 3600000).toISOString(),
       validToUtc: new Date(Date.now() + 7 * 86400000).toISOString(), isPublished: true
     }, this.auth).pipe(timeout(this.requestTimeout), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => this.status('Брошурата е публикувана.'),
+      next: () => { this.contentRevision++; this.status('Брошурата е публикувана.'); },
       error: reason => this.fail('Брошурата не е записана', reason)
     });
   }
@@ -413,6 +416,7 @@ export class AdminComponent {
     this.token = '';
     this.password = '';
     this.locations = [];
+    this.contentRevision++;
     this.selectedId = '';
     this.editDraft = null;
     this.editingId = '';

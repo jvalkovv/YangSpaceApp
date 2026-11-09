@@ -144,3 +144,16 @@ Build-only review requires: exact remote-tip SHA on an allowlisted GitHub origin
 | UI viewport | Browser 375/390/768/1024/1440 | Responsive editor/controls, keyboard use, accessible labels and status/error feedback |
 
 All scenarios are prepared in source where applicable but need executed evidence from the future YangSpace CT. No additional permanent QA environment; protected hostname `yangspace.gndstore.eu` is the future browser acceptance target, not currently attested as deployed.
+
+## 2026-11-09 — S1-03 Publication management acceptance (source only)
+
+| Scenario | REST/UI | Required result |
+|---|---|---|
+| Admin read | `GET /api/v1/admin/locations/{id}/content` | All records including archived/expired; nonadmin 403; unknown location 404 |
+| Update | `PUT /api/v1/admin/locations/{id}/{kind}/{recordId}` | Persist title/body/URL/dates/publication; wrong location ID 404; invalid HTTPS/dates 400 |
+| Archive | `POST .../{recordId}/hide` | Idempotent 204; public detail + homepage no longer expose item; record remains in CMS |
+| Restore | `POST .../{recordId}/restore` | Idempotent 204 while valid; expired item 409; nonadmin 403 |
+| Persistence | Stop/start isolated API with same disposable SQLite | Edited/archived state retained; public listing hides archived/expired |
+| UI | Create/edit/archive/restore with role check | All 3 collection types, conflict/error feedback, responsive keyboard flow |
+
+**New code remains UNVERIFIED at runtime**, including shell/Bash compatibility and browser UI. Confirm exact SHA and perform independent real acceptance on the dedicated YangSpace CT only after authorization, private admin access, backups and correct isolation. Site currently not accepted as public Production merely because Cloudflare A record exists.

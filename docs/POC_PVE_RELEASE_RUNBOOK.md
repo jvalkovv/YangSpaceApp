@@ -228,3 +228,9 @@ The target is `yangspace.gndstore.eu`. Only after read-only PVE inventory and se
 - On-CT integration/promotion: confirm backups, public/proxy configuration, service-user permissions, rollback pointer, health, DB schema compatibility; then manually activate only after operator approval. A successful test is not permission to deploy automatically.
 - Browser acceptance: check logged-in admin editing, hidden vs visible public details, refresh persistence, mobile layout, forbidden nonadmin access and logout through protected `yangspace.gndstore.eu` after activation.
 - Security: untrusted traffic must not reach preview bootstrap/login before private gateway/VPN/ACL/TLS is verified. Do not mark preview or public GO from hostname visibility alone.
+
+## 2026-11-09 — Single active YangSpace application instance
+
+The operator has explicitly chosen **one active application on one YangSpace LXC**, addressed as `yangspace.gndstore.eu`. No second persistent QA/staging/dev container is planned. Cloudflare proxied A record is configured to the shared public origin, but the YangSpace service's readiness, reverse-proxy routing and secure admin boundary have not been checked. DNS does not authorize deployment.
+
+When the CT is explicitly approved, keep verification on the **same CT** but use an ephemeral loopback listener, temporary workspace and disposable SQLite DB for destructive integration checks. Do not test fake registration/CRUD on the publicly active database or listener. Deployment must remain manual: verified SHA, secure runtime identity, origin access restriction/Cloudflare TLS posture, private admin access, DB snapshot, release candidate, rollback and smoke. Current admin routes exist **only in preview mode**; do not turn on preview in ASP.NET Production just to make CMS work publicly. Release remains HOLD until that issue has a reviewed Production-safe solution.
