@@ -119,3 +119,7 @@ The API integration wrapper produced `STAGE_FAILED=api-restore EXIT=` even thoug
 ## 2026-11-09 — Native Windows test execution requirement
 
 The shared process runner and `api-restore` / `api-build` have been verified successful on Windows at `5b07716`. Real API checks were blocked by Windows Microsoft Store alias for `python.exe` (exit 9009), not by the API. The Windows wrapper now uses `Invoke-Api-Integration.ps1` instead of Python, with strict OS-TEMP/SQLite/loopback guards and explicit negative-auth/expiry/persistence assertions. Acceptance requires first `Test-Api-Native-Guard.ps1` (parser and fail-closed check) then `Verify-Api-Local.ps1` on the same reviewed commit SHA. No status upgrade until runtime output and logs are inspected.
+
+## 2026-11-09 — Exact-SHA source/API acceptance and auth hardening regression
+
+S0-02/03/04 PASS evidence is linked to the same operator-reported `f3f4e1c9e29a640bab2637fac9ff98098747e41a` source/API SHA. The next code change modifies preview auth registration and admin bootstrap. The **new SHA is not accepted** until `Verify-Source-Local.ps1` (all eight stages) and `Verify-Api-Local.ps1` (registration allowed only in isolated preparation phase, denied after restart, real authorization and persistence) pass again. The default `appsettings.json` must set `Preview:AllowRegistration=false`, and the PVE sample env must do the same. No Actions.

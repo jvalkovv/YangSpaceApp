@@ -5,6 +5,9 @@ using YangSpace.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 var preview = builder.Configuration.GetValue<bool>("Preview:Enabled");
+var allowPreviewRegistration = builder.Configuration.GetValue<bool>("Preview:AllowRegistration");
+if (allowPreviewRegistration && !preview)
+    throw new InvalidOperationException("Preview self-registration cannot be enabled outside preview mode.");
 if (preview && builder.Environment.IsProduction())
     throw new InvalidOperationException("Preview mode must not run in Production.");
 
@@ -54,7 +57,22 @@ app.MapDirectory();
 // identity/ownership model, migrations and audit logs have passed the M0 security gate.
 if (preview)
 {
-    app.MapGroup("/api/auth").MapIdentityApi<IdentityUser>().RequireRateLimiting("auth");
+    // Self-registration is explicitly opt-in for private, isolated QA only.
+    // Staging/preview is not a trust boundary: the default must remain CLOSED.
+    var auth = app.MapGroup("/api/auth");
+    auth.RequireRateLimiting("auth");
+    auth.AddEndpointFilter(async (context, next) =>
+    {
+        var request = context.HttpContext.Request;
+        if (HttpMethods.IsPost(request.Method)
+            && string.Equals(request.Path.Value, "/api/auth/register", StringComparison.OrdinalIgnoreCase)
+            && !allowPreviewRegistration)
+        {
+            return Results.NotFound();
+        }
+        return await next(context);
+    });
+    auth.MapIdentityApi<IdentityUser>();
     app.MapAdmin();
 }
 await PreviewBootstrap.Initialize(app);

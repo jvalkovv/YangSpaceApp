@@ -61,13 +61,22 @@ internal static class PreviewBootstrap
         if (!await roles.RoleExistsAsync("PlatformAdmin"))
             Check(await roles.CreateAsync(new IdentityRole("PlatformAdmin")));
         var user = await users.FindByEmailAsync(email);
+        var createdByBootstrap = user is null;
         if (user is null)
         {
             user = new IdentityUser { UserName = email, Email = email, EmailConfirmed = true };
             Check(await users.CreateAsync(user, password));
         }
+        // Bootstrap is not an upgrade path for accounts created by self-registration.
+        // Fail closed if the configured identity already exists without the admin role.
+        // This prevents turning an arbitrary ordinary account into PlatformAdmin.
         if (!await users.IsInRoleAsync(user, "PlatformAdmin"))
+        {
+            if (!createdByBootstrap)
+                throw new InvalidOperationException(
+                    "Existing non-admin account cannot be promoted through bootstrap.");
             Check(await users.AddToRoleAsync(user, "PlatformAdmin"));
+        }
     }
 
     private static void Check(IdentityResult result)

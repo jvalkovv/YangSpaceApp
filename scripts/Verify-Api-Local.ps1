@@ -30,7 +30,7 @@ $Created=$false
 $Pass=$false
 $ApiProcess=$null
 $EnvNames=@('ASPNETCORE_ENVIRONMENT','ASPNETCORE_URLS','Preview__Enabled','ConnectionStrings__Main',
-    'Bootstrap__AdminEmail','Bootstrap__AdminPassword','YANGSPACE_TEST_ISOLATED_DB',
+    'Bootstrap__AdminEmail','Bootstrap__AdminPassword','Preview__AllowRegistration','YANGSPACE_TEST_ISOLATED_DB',
     'YANGSPACE_TEST_SANDBOX','YANGSPACE_TEST_DB_PATH','YANGSPACE_TEST_STATE','YANGSPACE_TEST_BASE_URL')
 $EnvOriginal=@{}
 foreach($name in $EnvNames){$EnvOriginal[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
@@ -67,7 +67,7 @@ try {
     $Password='Aa!1'+[BitConverter]::ToString($bytes).Replace('-','').ToLowerInvariant()
     $values=@{
         'ASPNETCORE_ENVIRONMENT'='Staging';'ASPNETCORE_URLS'=$BaseUrl;
-        'Preview__Enabled'='true';'ConnectionStrings__Main'=('Data Source='+$Db);
+        'Preview__Enabled'='true';'Preview__AllowRegistration'='true';'ConnectionStrings__Main'=('Data Source='+$Db);
         'Bootstrap__AdminEmail'='ci-admin@example.invalid';
         'Bootstrap__AdminPassword'=$Password;'YANGSPACE_TEST_ISOLATED_DB'='YES';
         'YANGSPACE_TEST_SANDBOX'=$Sandbox;'YANGSPACE_TEST_DB_PATH'=$Db;
@@ -97,6 +97,9 @@ try {
         Stop-Api
         $ApiProcess=$null
         if($cycle -eq 1){
+            # The same test database is reused to verify disabled-by-default
+            # registration while existing admin authentication remains functional.
+            [Environment]::SetEnvironmentVariable('Preview__AllowRegistration','false','Process')
             $stillListening=$false
             try {
                 $resp=Invoke-WebRequest -UseBasicParsing -Uri ($BaseUrl+'/health/ready') -TimeoutSec 2 -ErrorAction Stop

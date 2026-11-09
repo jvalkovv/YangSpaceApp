@@ -224,3 +224,7 @@ If the manual API wrapper prints `STAGE_FAILED=api-restore EXIT=` after `Restore
 ### Native API integration — no Python requirement
 
 The Windows manual API integration flow uses `scripts/Invoke-Api-Integration.ps1` through `Verify-Api-Local.ps1`. Windows Microsoft Store alias `python.exe` (exit 9009) is not a valid Python interpreter and no longer blocks the integration flow. First execute `scripts/Test-Api-Native-Guard.ps1` to verify syntax and refusal of unsafe DB targets, then run the isolated API test. Linux/manual Python contract is separate and optional. **No GitHub Actions.**
+
+### Preview authentication security gate (S0-05)
+
+Self-registration is **disabled by default** through `Preview:AllowRegistration=false`. An isolated QA process temporarily enables it to create a non-admin test identity, then verifies registration returns 404 after the process restarts with the flag disabled. Existing user accounts lacking the `PlatformAdmin` role are not elevated through bootstrap. This new change requires fresh source and API validation on its own exact commit before accepting G0. See [Security review](docs/SECURITY_REVIEW_V2_20261109.md).

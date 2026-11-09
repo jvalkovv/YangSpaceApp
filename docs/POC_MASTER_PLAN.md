@@ -262,3 +262,7 @@ See [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md) for executable scenario
 **Start with `YS-S0-01` through `YS-S0-05` in [POC_TRACKER.md](POC_TRACKER.md):** freeze source QA, pin npm dependencies, run exact-commit source and API integration QA locally, test the real .NET API/admin lifecycle, audit secrets/Identity and adjust pinned-SHA branch release policy. Then transition to `YS-S1` for complete live-data CMS, before any LXC provisioning.
 
 Do not merge PR #1 into `main`, create a PVE CT, invent a CT ID or claim production readiness as part of adopting this plan.
+
+## 2026-11-09 — S0 status and preview registration safeguard
+
+`S0-02/03/04` have operator-confirmed matching-SHA PASS at `f3f4e1c9e29a640bab2637fac9ff98098747e41a`. The next security commit adds an explicit opt-in registration gate for **disposable private QA** and blocks auto-promotion of existing unprivileged accounts through admin bootstrap. This is not a replacement for ownership/tenant isolation, secret rotation, private preview ACL/TLS or restore acceptance. Both source and API QA must be rerun for that new HEAD; G0 remains HOLD. [S0 security review](SECURITY_REVIEW_V2_20261109.md).

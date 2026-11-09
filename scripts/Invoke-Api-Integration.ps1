@@ -185,6 +185,14 @@ if ($Phase -eq 'prepare') {
 } else {
     if (-not (Test-Path -LiteralPath $state -PathType Leaf)) { throw 'Prepared-state fixture missing' }
     $record=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($state))
+    if ($env:Preview__AllowRegistration -cne 'false') {
+        throw 'SECOND_CYCLE_REGISTRATION_GATE_NOT_DISABLED'
+    }
+    $blockedEmail='blocked-'+[Guid]::NewGuid().ToString('N').Substring(0,12)+'@example.invalid'
+    [void](Assert-Status 'POST' '/api/auth/register' @(404) @{
+        email=$blockedEmail; password=$env:Bootstrap__AdminPassword
+    })
+    Write-Host 'PREVIEW_SELF_REGISTRATION_DISABLED=PASS'
     $token=Admin-Token
     $locations=Assert-Status 'GET' '/api/v1/admin/locations' @(200) $null $token
     $entry=@($locations | Where-Object {$_.id -eq $record.id -and $_.isPublished -eq $false})
