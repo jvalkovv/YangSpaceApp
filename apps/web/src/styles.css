@@ -229,6 +229,27 @@ p { line-height: 1.7; }
 .admin-shell{padding:60px 0 100px;min-height:75vh}.admin-lead{color:#6a7e73;margin-bottom:30px}.auth-panel{max-width:480px}.auth-panel p{color:#6a7f72;font-size:13px;line-height:1.6}.panel label{display:flex;flex-direction:column;font-size:12px;font-weight:800;color:#4e665b;gap:7px;margin:12px 0}.panel input:not([type=checkbox]),.panel select,.panel textarea{width:100%;padding:12px;border-radius:9px;border:1px solid #dce6dc;background:#fdfefc;color:#1c3229;outline-color:#7fac8f}.panel .checkline{flex-direction:row;align-items:center;font-weight:600}.admin-actions{display:flex;justify-content:space-between;align-items:center;margin:20px 0}.admin-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}.admin-divider{border-top:1px solid #dce5df;padding-top:20px;margin-top:25px;color:#315f50;font-weight:800}.admin-list{margin-top:20px}.admin-list-row{padding:15px 0;border-top:1px solid #ecf0eb;display:flex;justify-content:space-between;gap:15px}.admin-list-row small{display:block;color:#7c8d82;padding-top:4px}.form-message{position:sticky;bottom:18px;margin-top:20px;background:#dfece1;padding:17px;border-radius:12px;color:#235040;box-shadow:0 8px 18px #192d261a}.form-message.error{background:#fbe8e5;color:#943d35}
 
 
+/* S1 preview CMS: editable location forms and explicit publish workflow. */
+.admin-help{font-size:12px;line-height:1.55;color:#698073;margin:0 0 16px}
+.admin-edit{margin-top:20px}
+.admin-edit-header{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:16px}
+.admin-edit-header h2{margin:8px 0 0}
+.admin-edit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}
+.admin-edit-fields label{min-width:0}
+.admin-field-wide{grid-column:1/-1}
+.admin-publish-toggle{margin:20px 0!important}
+.admin-edit-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.admin-row-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.admin-row-actions .text-button{min-height:40px;padding:6px 9px;border-radius:8px}
+.admin-row-actions .text-button:focus-visible,.admin-edit button:focus-visible{outline:3px solid #315f50;outline-offset:3px}
+.admin-list-row{align-items:center}
+@media (max-width: 760px){
+  .admin-edit-fields{grid-template-columns:1fr}
+  .admin-edit-header{flex-direction:column}
+  .admin-list-row{align-items:start;flex-direction:column}
+  .admin-row-actions{justify-content:flex-start}
+}
+
 @media (max-width: 1130px) {
   .floating-left { left: 0; }.floating-right { right: 0; }
   .hero-inner { grid-template-columns: minmax(0,1fr) minmax(320px,.82fr); }

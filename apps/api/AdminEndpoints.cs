@@ -35,6 +35,20 @@ public static class AdminEndpoints
             return Results.Ok(new { x.Id, x.Slug });
         });
         // Non-destructive publication change; no public hard delete.
+        // Restore is intentionally idempotent: returning to a published state
+        // must not require resubmitting the entire location and risking stale edits.
+        admin.MapPost("/locations/{id:guid}/restore", async (DirectoryDb db, Guid id, CancellationToken ct) =>
+        {
+            var x = await db.Locations.FindAsync(new object?[] { id }, ct);
+            if (x is null) return Results.NotFound();
+            if (!x.IsPublished)
+            {
+                x.IsPublished = true;
+                x.UpdatedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(ct);
+            }
+            return Results.NoContent();
+        });
         admin.MapPost("/locations/{id:guid}/hide", async (DirectoryDb db, Guid id, CancellationToken ct) =>
         {
             var x = await db.Locations.FindAsync(new object?[] { id }, ct);

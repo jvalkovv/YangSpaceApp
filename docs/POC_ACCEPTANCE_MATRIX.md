@@ -131,3 +131,16 @@ Baseline `6e8ba7bf2b82773a087e19737bb64e29b732e7d1` Source QA and API QA both PA
 ## 2026-11-09 — S0-06 manual operator approval verification
 
 Build-only review requires: exact remote-tip SHA on an allowlisted GitHub origin/ref; executing script bytes identical to candidate commit; two externally reviewed matching QA manifests with browser `PASS`, real API lifecycle and bootstrap escalation prevention `PASS`; separate protected operator approval matching SHA/ref and SHA-256 digests of both manifests. Missing, mismatched, duplicated, or skipped fields must fail closed. A synthetic Bash test of negative cases is added; runtime execution is pending. No public access, automatic activation or PVE writes are authorized by this test. The only QA-accepted **prior** SHA is `b30c1c8`; newly authored release code requires fresh exact-SHA evidence if nominated as a candidate. G0 remains HOLD.
+
+## 2026-11-09 — S1 location CMS acceptance scenarios (new source; runtime pending)
+
+| Scenario | Target | Expected |
+|---|---|---|
+| Role gate | Admin UI / real API | Ordinary user with a valid login token cannot open admin workspace; admin `/me` check must succeed first |
+| Location edit | Admin UI → PUT → DB | Existing location fields persist after reload; validation errors and duplicate slug 409 keep the edit draft |
+| Publish/restore | POST admin `/{id}/restore` | Hidden location becomes publicly readable; repeated restore yields 204; nonadmin 403, missing ID 404 |
+| Hide + reverify | POST admin `/{id}/hide` | Public detail returns 404 and catalog does not leak hidden location |
+| Persistence | Separate API process on same **disposable** DB | Restore/hide state and edited fields survive restart; no live records touched |
+| UI viewport | Browser 375/390/768/1024/1440 | Responsive editor/controls, keyboard use, accessible labels and status/error feedback |
+
+All scenarios are prepared in source where applicable but need executed evidence from the future YangSpace CT. No additional permanent QA environment; protected hostname `yangspace.gndstore.eu` is the future browser acceptance target, not currently attested as deployed.

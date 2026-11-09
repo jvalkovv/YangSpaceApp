@@ -2,7 +2,8 @@
 
 > **ADR-018:** GitHub Actions prohibited. All QA evidence comes from operator-run exact-SHA local tests, not hosted workflows.
 
-**Status:** PREPARATION ONLY — no CT provisioned and no deployment performed.  
+**Status:** PREPARATION ONLY — no CT provisioned and no deployment performed.
+**Target hostname:** `yangspace.gndstore.eu` (owner-designated destination, not proof of DNS readiness, TLS, availability or deployment). The project will use its dedicated YangSpace LXC when authorized; no additional permanent QA LXC or Ubuntu/WSL is required.  
 **Scope:** PVE LXC proof-of-concept. A future public pilot has stricter release gates.  
 **Authority:** [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md), [POC_TRACKER.md](POC_TRACKER.md), [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md).
 
@@ -218,3 +219,12 @@ Windows `PREVIEW_RELEASE_POLICY_TEST=PASS` proves only the content policy decisi
 ## 2026-11-09 — Git Bash-only fixture path correction
 
 At `0c57743`, the policy test now passed writable-mode simulation on NTFS, but the last inside-repository negative fixture failed prematurely at the absolute-path preflight. The test normalizes `REPO` to a POSIX-absolute canonical root so the **correct** prohibition is exercised. The real release validator was intentionally left strict; this synthetic test fix does not authorize any build or PVE activity. Exact-case runtime PASS remains pending.
+
+## 2026-11-09 — In-container QA policy for direct YangSpace rollout
+
+The target is `yangspace.gndstore.eu`. Only after read-only PVE inventory and separate deployment approval, provision the application in its own dedicated LXC, wire private access/TLS, then test **on the same YangSpace CT**. Avoid adding a persistent QA container or touching services in another CT.
+
+- On-CT API regression: build approved exact-SHA candidate; run negative admin/non-admin and publish/hide/restore tests on a **separate loopback port** with **disposable SQLite** under a restricted temporary directory. Do not touch the active SQLite file, default API port, admin credentials, production records or public listener.
+- On-CT integration/promotion: confirm backups, public/proxy configuration, service-user permissions, rollback pointer, health, DB schema compatibility; then manually activate only after operator approval. A successful test is not permission to deploy automatically.
+- Browser acceptance: check logged-in admin editing, hidden vs visible public details, refresh persistence, mobile layout, forbidden nonadmin access and logout through protected `yangspace.gndstore.eu` after activation.
+- Security: untrusted traffic must not reach preview bootstrap/login before private gateway/VPN/ACL/TLS is verified. Do not mark preview or public GO from hostname visibility alone.

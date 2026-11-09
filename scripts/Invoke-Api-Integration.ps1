@@ -178,6 +178,18 @@ if ($Phase -eq 'prepare') {
     }
     [void](Assert-Status 'POST' ('/api/v1/admin/locations/'+$id+'/hide') @(204) @{} $token)
     Assert-Hidden $slug
+    # S1-02: restoring a hidden location must restore public visibility,
+    # reject non-admins and unknown IDs, and remain safe on repeated calls.
+    $restore='/api/v1/admin/locations/'+$id+'/restore'
+    [void](Assert-Status 'POST' $restore @(403) @{} ([string]$member.accessToken))
+    [void](Assert-Status 'POST' ('/api/v1/admin/locations/'+[Guid]::NewGuid().ToString()+'/restore') @(404) @{} $token)
+    [void](Assert-Status 'POST' $restore @(204) @{} $token)
+    [void](Assert-Status 'POST' $restore @(204) @{} $token)
+    $restored=Assert-Status 'GET' ('/api/v1/locations/'+$slug) @(200)
+    if ($restored.slug -cne $slug) { throw 'RESTORED_LOCATION_PUBLIC_READ_MISMATCH' }
+    Write-Host 'LOCATION_RESTORE_API=PASS'
+    [void](Assert-Status 'POST' ('/api/v1/admin/locations/'+$id+'/hide') @(204) @{} $token)
+    Assert-Hidden $slug
     $listing=Assert-Status 'GET' '/api/v1/locations?category=Services' @(200)
     if (@($listing.items | Where-Object {$_.slug -ceq $slug}).Count -gt 0) { throw 'Hidden business leaked in listing' }
     [IO.File]::WriteAllText($state,(ConvertTo-Json @{id=$id;slug=$slug;readerEmail=$readerEmail} -Compress))

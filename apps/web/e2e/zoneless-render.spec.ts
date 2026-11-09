@@ -103,6 +103,9 @@ test('preview admin async login/list renders without another click', async ({ pa
   await page.route('**/api/auth/login', route => route.fulfill({
     json: { accessToken: 'mock-preview-token', tokenType: 'Bearer', expiresIn: 3600, refreshToken: 'unused' }
   }));
+  await page.route('**/api/v1/admin/me', route => route.fulfill({ json: {
+    email: 'preview@example.invalid', role: 'PlatformAdmin'
+  } }));
   await page.route('**/api/v1/admin/locations', route => route.fulfill({ json: [{
     ...bike, isPublished: true, openingHours: 'Демо', description: bike.description
   }] }));
