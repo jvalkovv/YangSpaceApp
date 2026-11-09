@@ -143,3 +143,26 @@ Reviewed the actual Playwright full-page PNGs supplied in `YangSpace-Viewport-QA
 - Tests use mocked API responses: this is **browser regression evidence**, not real content/DB acceptance or production Lighthouse data.
 
 **Open gates:** inspect the newly generated PNG screenshots from this run (particularly `yangspace-home-768.png` and `yangspace-populated-{390,768,1440}.png`), verify real unmocked owner/admin lifecycle, record GitHub CI evidence, commit reviewed npm lockfile, and finish PVE release safeguards. Do not claim 100% visual/production acceptance yet.
+
+## 2026-11-09 — Final visual acceptance from post-fix Playwright screenshots
+
+**Verdict: HOMEPAGE PREVIEW VISUAL QA — PASS** for the four reviewed full-page PNGs attached by the operator in `YangSpace-Final-Visual-QA.zip`. This acceptance applies to **source commit `20aa30c7da581316ba31900b6953025a3d1f3b00`**, tested by Playwright (17/17 PASS), plus later documentation-only changes. It is **not** a claim of production readiness or acceptance of other application modules.
+
+| Artifact | Actual PNG dimensions | Manual findings | Verdict |
+|---|---:|---|---|
+| `yangspace-home-768.png` | 768×5031 | Previously clipped map and callout now fully within hero. Header/nav, category wraps and catalog structure remain legible. | PASS |
+| `yangspace-populated-390.png` | 390×7451 | Mobile header and menu affordance, single-column search/listings, three populated highlight panels, steps, business CTA and footer fit without visible horizontal clipping. | PASS |
+| `yangspace-populated-768.png` | 768×5082 | Tablet hero map no longer clipped; categories, two-column directory and populated offers/brochures/jobs panels lay out consistently. | PASS |
+| `yangspace-populated-1440.png` | 1440×4302 | Desktop header/hero, 3-column catalog, populated content panels, step section, business CTA and footer maintain alignment and whitespace. | PASS |
+
+**Observations:** all four screenshots use Playwright mocked demo data and show intended preview labeling. No new blocking overflow, clipping or content collision was found in those captures. No further stylesheet changes were needed after the previous tablet correction.
+
+**Supporting automated evidence:** operator's Windows Playwright run on `20aa30c` — 17 passed in 18.2 s, including 5 viewport checks, 3 populated-content checks and 9 functional regressions. Earlier local .NET/Angular/proxy integration checks, Angular typecheck and production frontend build also PASS.
+
+**Separately open release gates (NOT visual defects):**
+- Real unmocked admin/business creation/edit/publish/hide and end-to-end persistence/security QA.
+- Full production data/ownership, SSR/SEO, migrations, license, dependency lockfile and immutable builds.
+- GitHub Actions CI run for exact release commit (connector returned no runs).
+- PVE provisioning, TLS/access protection, backups/restore and staging deployment.
+
+**Scope decision:** approve homepage responsive/functional **preview** baseline. Keep PR #1 Draft until repository-wide integration/security/CI release gates pass.

@@ -71,3 +71,9 @@ Received and inspected all five PNG artifacts from the user (375/390/768/1024/14
 ## 2026-11-09 — New tablet fix & populated-content Playwright PASS
 
 User Windows terminal confirms `git pull --ff-only` advanced `dfe8e60..20aa30c`, then `npm run test:e2e` executed **17 browser tests, all PASS (18.2 seconds)**. Five viewport tests including the new 768px hero-element containment assertion passed. Three new populated offers/brochures/jobs cases passed (390/768/1440px). Nine prior functionality regressions passed. This supersedes the prior 14/14 result for regression acceptance. QA is PASS for this exact source commit only; fresh visual screenshots still require review. GitHub connector currently reports no CI workflow runs for this commit. No deployment or merge.
+
+## 2026-11-09 — Final homepage preview visual review: PASS
+
+Operator provided four post-fix full-page Playwright screenshots in `YangSpace-Final-Visual-QA.zip`: `home-768` (768×5031), `populated-390` (390×7451), `populated-768` (768×5082), and `populated-1440` (1440×4302). Manually reviewed: 768px hero map/callouts are no longer cropped, and mobile/tablet/desktop layouts are visually coherent with populated offers, brochure and jobs cards. No blocking clipping or overlaps found. **Homepage PREVIEW visual acceptance: PASS** on source `20aa30c`; no new CSS changes required.
+
+Operator reported Playwright **17/17 PASS (18.2 s)**, Angular typecheck/build PASS and local API/proxy checks PASS. This does **not** constitute full product or production acceptance: CI runs absent, real unmocked admin/data flows, lockfile, production persistence/security and PVE deployment remain open. PR #1 must stay Draft pending those gates.
