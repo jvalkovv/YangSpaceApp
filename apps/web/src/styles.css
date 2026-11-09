@@ -237,16 +237,25 @@ p { line-height: 1.7; }
   .business-action { grid-column: 2; }
 }
 @media (max-width: 950px) {
-  .hero-inner { min-height: 500px; grid-template-columns: minmax(0,1fr) 260px; }
+  /* Tablet: constrain the decorative map to its grid cell.
+     The old 300px map + translateX(40px) was visibly clipped at 768px. */
+  .hero-inner { min-height: 500px; grid-template-columns: minmax(0,1fr) 225px; gap: 16px; }
   .hero-copy { padding: 65px 0; }
-  .hero-visual { min-height: 350px; transform: translateX(40px); }
-  .neighborhood-map { width: 300px; }.floating-card { display: none; }
+  .hero-visual { min-width: 0; min-height: 310px; transform: none; }
+  .neighborhood-map { width: min(220px,100%); }
+  .map-feature { left: 12%; padding: 8px 10px; gap: 7px; border-radius: 11px; }
+  .map-feature-icon { width: 28px; height: 28px; font-size: 19px; }
+  .map-feature strong { font-size: 11px; }
+  .map-feature small { font-size: 9px; }
+  .map-dot { width: 36px; height: 36px; border-width: 3px; font-size: 16px; }
+  .map-label { font-size: 9px; }
+  .floating-card { display: none; }
   .hero-points { gap: 12px; }
   .search-panel { grid-template-columns: 1fr 1fr auto; }
   .search-main { grid-column: 1/-1; }
   .locations-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .discover-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .discover-jobs { grid-column: 1/-1; }
+  .discover-jobs { grid-column: 1/-1; min-height: 245px; }
 }
 @media (max-width: 760px) {
   .shell { width: min(100% - 32px,1160px); }

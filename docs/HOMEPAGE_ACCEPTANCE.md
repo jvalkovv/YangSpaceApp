@@ -116,3 +116,16 @@ Screenshot dimensions differ from CSS viewport width: a 727×2048 image shows de
 - **Remaining checks:** screenshots themselves need human review for visual quality; mocked Playwright flows do not replace admin end-to-end validation against the real API; CI branch status not yet green; lockfile still absent.
 
 **Decision:** automated homepage browser regression gate **PASS**; complete visual and production acceptance **PENDING**.
+
+## 2026-11-09 — Manual visual review of five uploaded viewport screenshots
+
+Reviewed the actual Playwright full-page PNGs supplied in `YangSpace-Viewport-QA.zip`:
+- `yangspace-home-375.png` (375×7344): mobile navigation, hero, category wraps, vertical search form, single-column listings/offer cards and footer all fit the viewport; no visible horizontal clipping.
+- `yangspace-home-390.png` (390×7351): same expected mobile behavior, with readable CTA and content hierarchy.
+- `yangspace-home-768.png` (768×5126): **VISUAL DEFECT** — hero map and right-side decorative content clipped by `.hero { overflow:hidden }`; the old `translateX(40px)` and 300px map overflowed the allocated 260px visual column. The third full-width Jobs card also had disproportionate empty vertical height.
+- `yangspace-home-1024.png` (1024×4326): hero, navigation, directory and content sections are visible without obvious clipping.
+- `yangspace-home-1440.png` (1440×4250): desktop composition, card grid, section spacing and footer appear consistent.
+
+**Changes in follow-up:** remove the tablet horizontal translation; constrain map to a 225px grid cell, shrink its interior callouts, reduce Jobs minimum height at tablet widths. Add 768px bounding-box regression (detects children cropped inside the overflow-hidden hero) and 390/768/1440 populated-content screenshot tests. Existing five screenshot tests use **empty** mocked offers, brochures and jobs, so populated-section visual acceptance was not supported by that ZIP.
+
+**Scope of evidence:** source screenshot inspection, not an automated performance audit. New CSS and tests still require a new Playwright run and screenshots for final visual acceptance.
