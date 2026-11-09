@@ -94,3 +94,14 @@ Acceptance:
 - [ ] With .NET deliberately stopped: Angular shows a recoverable service error, **not** "0 обекта".
 - [ ] After restarting .NET and clicking Retry: six demo locations and category facets appear without page reload.
 - [ ] `scripts/Test-Local-Stack.ps1` reports `LOCAL_STACK=PASS`.
+
+## 2026-11-09 — Integration/build confirmation and Playwright activation
+
+- [x] Windows local backend / Angular dev server / proxy health: all 5 checks PASS, including HTTP 200 homepage payload through the proxy.
+- [x] `npm run typecheck`: PASS (user console output).
+- [x] `npm run build`: PASS; 407.56 kB initial raw bundles / 100.61 kB estimated transfer. This is not a runtime page-load benchmark.
+- [ ] `npm run test:e2e`: NOT RUN because Playwright binary was not installed in that local `node_modules`; install project devDependencies and Chromium.
+- [ ] Visual QA at actual browser CSS viewport widths 375/390/768/1024/1440 using `apps/web/e2e/responsive-preview.spec.ts`; inspect screenshots before acceptance.
+- [ ] Document acceptance of navigation, mobile controls, text wrapping and visual spacing from real browser captures.
+
+Screenshot dimensions differ from CSS viewport width: a 727×2048 image shows desktop-style content, but it could have been resized/cropped. Use Playwright `page.setViewportSize` to validate real breakpoints rather than assuming a responsive CSS defect from that file alone.

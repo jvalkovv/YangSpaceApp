@@ -147,3 +147,18 @@ dotnet run --project apps/api/YangSpace.Api.csproj --launch-profile http
 If direct API checks pass but `ANGULAR_PROXY_HOMEPAGE` fails, restart Angular (`npm start` in `apps/web`), check its proxy configuration and verify `http://127.0.0.1:4200/api/v1/homepage`. A loading error is **not** a legitimate zero-location search result.
 
 The homepage shows the backend/proxy error class and the Retry action reloads homepage facets, listings and highlights. No automatic database modifications or API restarts occur.
+
+## Browser QA — Playwright on Windows
+
+If `npm run test:e2e` prints `'playwright' is not recognized`, the project `devDependencies` were not reinstalled after `@playwright/test` was added to `package.json`. This is a **missing local test runner**, not a failed browser test. From `apps/web`:
+
+```powershell
+npm install --no-audit --no-fund
+npx playwright --version
+npx playwright install chromium
+npm run test:e2e
+```
+
+The Playwright suite launches its **own temporary Angular dev server at `127.0.0.1:4300`** and uses mocked API data. The .NET API on `5090` is not needed for these isolated browser regression cases. Keep `4200` for manual integration testing.
+
+Automated viewport checks run at **375, 390, 768, 1024 and 1440 CSS pixels**, verify no horizontal document overflow, and produce screenshots under `apps/web/test-results/`. These screenshots provide reproducible visual evidence, not automatic approval of aesthetics or Core Web Vitals. GitHub CI also runs the browser tests without deployment. A committed `package-lock.json` and migration from `npm install` to `npm ci` are still required before a production release.

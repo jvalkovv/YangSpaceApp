@@ -51,3 +51,9 @@ Additional browser screenshots show a selected category with an incompatible, pr
 
 ## 2026-11-08 — Connectivity UX and local diagnostics
 Screenshot shows Angular running on `127.0.0.1:4200`, but homepage data request failed. Root cause remains unconfirmed without same-time .NET status/logs; direct and proxied API addresses are consistent in source. Corrected failure status, misleading zero-count display, bootstrap Retry behavior; added local direct/proxy probe and 503/502 regression scenarios. No API/PVE modifications.
+
+## 2026-11-09 — Windows integration evidence + browser QA bootstrap
+
+User-provided logs confirm the local PVE-independent stack: `LOCAL_STACK=PASS`, direct homepage and Angular proxy HTTP 200, Angular `npm run typecheck` **PASS**, Angular production `npm run build` **PASS** (407.56 kB raw total; estimated 100.61 kB transfer; 2.621s compile on the local machine). These are **build and local HTTP metrics**, not browser LCP/FCP measurements.
+
+`npm run test:e2e` did not execute: Windows reported `'playwright' is not recognized`. Root cause is missing locally installed test-runner executable after a `package.json` change; run `npm install` from `apps/web`, then `npx playwright install chromium` before retrying. Source now adds GitHub CI Chromium test execution and responsive viewport screenshots; green CI/browser evidence is still pending. Screenshots show a working directory and a correctly centered single matching card. The 727px-wide tall screenshot contains desktop-style layout and is not sufficient by itself to conclude mobile breakpoint failure without its CSS viewport width.
