@@ -91,3 +91,11 @@ Task `YS-S0-04`: introduced guarded Python stdlib integration tests that only ru
 Task `YS-S0-03`: CI trigger now includes the active branch in addition to PRs targeting main; **a GitHub Actions green run still has to be observed**. No secrets/credentials were committed. All application binaries and homepage UI remain untouched. No PVE mutations.
 
 **Status:** source implementation prepared; npm lockfile absent, full CI runtime evidence pending, G0 HOLD. Do not mark these tasks DONE until checks pass.
+
+## 2026-11-09 — S0-02 Windows LMDB lock failure and isolated validation
+
+Operator ran the previous `Prepare-Web-Lock.ps1`; real `npm install --package-lock-only` returned success, but direct `npm ci` failed with `EPERM unlink apps/web/node_modules/@lmdb/lmdb-win32-x64/node.napi.node`. Windows denied replacement of a native file in the live dev-server dependency tree. The specific lock owner was not independently identified, but an active Angular dev server is a likely cause.
+
+**Remediation committed:** the PowerShell script now creates the registry-resolved lockfile using `--package-lock-only` in the real web folder, copies source into a unique TEMP validation workspace excluding active `node_modules` and build caches, compares lockfile SHA-256, then runs `npm ci`, typecheck and build only in that isolated workspace. Robocopy uses standard exit code checks; clean-up is best-effort. No elevated privileges or process termination required.
+
+**Evidence status:** source change only, Windows rerun required. A local untracked `apps/web/package-lock.json` may already exist from the first successful command; it is not committed. `YS-S0-02=PARTIAL`; G0 HOLD.

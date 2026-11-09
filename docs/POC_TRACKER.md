@@ -23,7 +23,7 @@
 | ID | Priority | Work package | Acceptance / evidence | State |
 |---|---|---|---|---|
 | YS-S0-01 | P0 | Record baseline, source/QA scope, branch protection and current blockers | PR #1 has precise accepted homepage SHA; release gates and documentation agreed | DONE |
-| YS-S0-02 | P0 | Freeze dependency graph | Review and commit `apps/web/package-lock.json`; CI/release use `npm ci`; fresh clone builds; NuGet audit clean | PARTIAL — generator + CI artifact + release fail-closed ready; **tracked lockfile missing** |
+| YS-S0-02 | P0 | Freeze dependency graph | Review and commit `apps/web/package-lock.json`; CI/release use `npm ci`; fresh clone builds; NuGet audit clean | PARTIAL — isolated Windows validation added after LMDB EPERM; runtime rerun needed; **tracked lockfile missing** |
 | YS-S0-03 | P0 | Make CI verifiable | GitHub Actions API build/smoke, web typecheck/build, 17+ Playwright, security guard pass on exact HEAD | BLOCKED |
 | YS-S0-04 | P0 | Add real .NET API integration tests | Clean ephemeral DB; auth 401/403, create/update/hide/publish, expiry and persistence after process restart | PARTIAL — isolated CI test script created and wired; **runtime execution pending** |
 | YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Rotate reused secrets, scan tracked/history configs, review Identity register scope, policies, rate limiting, no high/critical unresolved findings | TODO |

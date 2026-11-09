@@ -93,3 +93,7 @@ VERDICT: PASS | HOLD | NO-GO
 - CI web job can temporarily produce a lockfile artifact for review, but G0 remains **HOLD** until it is committed and a fresh clone performs `npm ci` with no manifest drift.
 - PVE build script fails closed without tracked lockfile and cannot activate a release automatically.
 - **Evidence gap:** CI is not yet verified green on this code; don't mark BUILD-01, API-02..06 or G0 PASS.
+
+### S0-02: Windows locked native dependency regression
+
+Operator observed `EPERM unlink @lmdb/lmdb-win32-x64/node.napi.node` from a direct `npm ci` while the Angular development server may have been running. Run the corrected `scripts/Prepare-Web-Lock.ps1` **without stopping** live Angular. Required outputs: `VALIDATION_MODE=ISOLATED_WORKSPACE`, `LIVE_NODE_MODULES_MUTATED=NO`, `ISOLATED_NPM_CI=PASS`, `ISOLATED_ANGULAR_TYPECHECK=PASS`, `ISOLATED_ANGULAR_BUILD=PASS` and `LOCKFILE_SHA256_VERIFIED=YES`. A reviewed committed lockfile and clean CI `npm ci` are still required for G0.

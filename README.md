@@ -187,3 +187,11 @@ git status --short
 The script runs `npm install --package-lock-only --ignore-scripts`, validates a clean `npm ci`, typecheck and build. Review the resulting `apps/web/package-lock.json` before committing; never invent/transcribe a lockfile by hand. CI also uploads an artifact `yangspace-npm-lock-candidate` if no lockfile is tracked, for review. Only a **committed** lockfile closes `YS-S0-02`.
 
 The CI API job now runs `scripts/api-integration.py` against an **isolated temporary database**, including write operations and process restart. It refuses to operate on normal/local/merchant data. See [PoC Tracker](docs/POC_TRACKER.md). No real admin credentials are stored in Git.
+
+### Windows LMDB `EPERM` on `npm ci`
+
+`ng serve` can keep `@lmdb/lmdb-win32-x64/node.napi.node` open. Direct `npm ci` in `apps/web` removes `node_modules` and can fail with `EPERM unlink` if Angular is still running. This is a Windows file-lock problem, not evidence of a corrupt lockfile.
+
+The updated `scripts/Prepare-Web-Lock.ps1` runs `npm ci`/typecheck/build in an isolated temporary folder. It leaves the live `node_modules` and Angular preview untouched. **Do not forcibly delete locked DLLs, kill unrelated Node processes or elevate PowerShell.**
+
+After a successful run, review the generated `apps/web/package-lock.json` and add it to the same reviewed GitHub branch. Until committed and verified via clean CI, `YS-S0-02` stays PARTIAL and any PVE release remains blocked.
