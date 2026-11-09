@@ -1,11 +1,13 @@
 # MVP Roadmap — Gates, Not Dates
 
-> **Execution precedence (2026-11-09):** This is the original strategic milestone outline. Use [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md) and [POC_TRACKER.md](POC_TRACKER.md) as the current executable plan. The original M0 legacy remediation items below describe historical risks; the old app is archived, not compiled in YangSpace 2.0. The active engineering work is dependency determinism/CI/real v2 auth and data integration, not patching old booking endpoints back into production.
+> **ADR-018:** GitHub Actions не се ползват. Проверки с exact-SHA локален runner, evidence logs и ръчен release.
+
+> **Execution precedence (2026-11-09):** This is the original strategic milestone outline. Use [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md) and [POC_TRACKER.md](POC_TRACKER.md) as the current executable plan. The original M0 legacy remediation items below describe historical risks; the old app is archived, not compiled in YangSpace 2.0. The active engineering work is dependency determinism/manual clean-SHA QA/real v2 auth and data integration, not patching old booking endpoints back into production.
 
 
 **Не се поемат срокове до оценка на кода и работа по P0 дефектите.** Първо пилотен квартал, после доказано повторяемо разрастване.
 
-## M0 — Legacy Recovery / Security / CI
+## M0 — Legacy Recovery / Security / Manual QA
 
 - [ ] Branch protection, restore point/tag на наследения baseline, зависимостите са инвентаризирани.
 - [ ] Ротация на потенциално компрометирани DB/JWT credentials и премахване на secrets от tracked configuration.
@@ -13,9 +15,9 @@
 - [ ] Upload validation, storage isolation, ограничения и malicious-file testing.
 - [ ] Кохерентна JWT/Identity конфигурация; ролеви политики и integration tests.
 - [ ] Миграционен път от .NET 8 към .NET 10 и Angular 18 към поддържана версия.
-- [ ] Зелен build + automated test baseline; повтаряем dependency restore, без `npm audit fix` в CI.
+- [ ] Зелен build + automated test baseline; повтаряем dependency restore, без автоматичен `npm audit fix`.
 - [ ] Публикувани безопасни local development инструкции, без demo credentials.
-**Exit gate:** никакви отворени P0 auth/upload/secrets дефекти; CI зелено; няма production deploy.
+**Exit gate:** никакви отворени P0 auth/upload/secrets дефекти; локалните exact-SHA source/API тестове са PASS; няма production deploy.
 
 ## M1 — Foundations
 

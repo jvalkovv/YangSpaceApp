@@ -1,5 +1,7 @@
 # YangSpace 2.0 — Private PVE Preview / Controlled Release Runbook
 
+> **ADR-018:** GitHub Actions prohibited. All QA evidence comes from operator-run exact-SHA local tests, not hosted workflows.
+
 **Status:** PREPARATION ONLY — no CT provisioned and no deployment performed.  
 **Scope:** PVE LXC proof-of-concept. A future public pilot has stricter release gates.  
 **Authority:** [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md), [POC_TRACKER.md](POC_TRACKER.md), [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md).
@@ -27,7 +29,7 @@
 | Backup | PVE schedule, off-host target, retention, test restore location | TODO |
 | Host credentials | Non-root deployment model and read-only GitHub access | TODO |
 | DB policy | SQLite preview only or reviewed production DB spike; data location | TODO |
-| Repository SHA | Exact reviewed commit with CI/test evidence | TODO |
+| Repository SHA | Exact reviewed commit with manual source/API QA evidence | TODO |
 
 Safe commands only after authorized console access: `hostname -s`, `pveversion -v`, `pct list`, `pvesm status`, `ip -br addr`, `df -h`. These do **not** choose resources or create containers. Avoid printing secrets or internal addresses in shared logs.
 
@@ -69,13 +71,13 @@ Service account `yangspace` reads release contents; deploy account owns git/rele
 Required S0 fix:
 1. Separate **candidate ref** from **candidate SHA**, e.g. an explicit allowlisted PR branch or an approved merge to `main`.
 2. Fetch the allowlisted ref and assert that the full SHA exists and is its ancestor/tip as the chosen release policy requires.
-3. Require successful CI for that exact SHA, code review and signed/recorded operator approval (technical implementation determined in S0).
-4. Refuse partial SHA, remote URL substitution, ref drift, missing CI or protected branch mismatch.
+3. Require matching manual source/API PASS manifests for that exact SHA, code review and signed/recorded operator approval (technical implementation determined in S0).
+4. Refuse partial SHA, remote URL substitution, ref drift, missing manual QA evidence or protected branch mismatch.
 5. Build from detached immutable worktree into `releases/<40-char-sha>`; never execute arbitrary branch `postinstall` with production secrets.
 6. After lockfile review, use `npm ci` with frozen dependencies; `dotnet restore` with audit and release profile.
 7. The **build script must never change the `current` symlink, restart a service, migrate production DB or deploy itself**.
 
-If the SHA has no verified CI, stop. No `git pull && systemctl restart` shortcut.
+If exact-SHA manual source/API evidence is absent, stop. No `git pull && systemctl restart` shortcut.
 
 ## 5. Provisioning sequence (only after inventory & authorization)
 
@@ -96,7 +98,7 @@ Do not add a second LXC per plugin/module. For public pilot, consider a separate
 ## 6. Manual release, verify and rollback
 
 ### Preflight: refuse unless all hold
-- Approved full 40-character SHA matches reviewed source and exact CI.
+- Approved full 40-character SHA matches reviewed source and matching manual QA.
 - No uncommitted release source, no environment secret in repo, signed/offline evidence of code review.
 - Valid `release/<sha>` build and hash manifest; enough disk and RAM, service account permissions checked.
 - Private access policy and TLS tested; no Internet-facing open preview registration/admin.
@@ -133,7 +135,7 @@ Do not add a second LXC per plugin/module. For public pilot, consider a separate
 | PVE root/deploy user can be abused by app | Separate least-privilege service accounts, restricted paths |
 | Secrets leaked in logs/URLs/Git | Protected env and scan; rotate reused legacy secrets |
 | Invalid uploads or file/path traversal | No public upload until content validation/quarantine/scan controls exist |
-| Malicious commit or dependency injection | Allowlisted approved SHA, `npm ci`, CI and code review |
+| Malicious commit or dependency injection | Allowlisted approved SHA, `npm ci`, manual QA and code review |
 | Incompatible DB rollback | Forward/backward migration review and successful restore drill |
 | Old/unsupported runtime dependency | Verify .NET/Angular/Node compatibility and patch servicing |
 | Data retention/copyright violations | Only fictional preview; legal/product gate before pilot |
@@ -142,7 +144,7 @@ Do not add a second LXC per plugin/module. For public pilot, consider a separate
 
 This runbook only authorizes an **authenticated/private preview** after G-PREVIEW. For an Internet-visible YangSpace pilot, require **G-PILOT** from [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md): production DB migrations and backups, scoped business-owner authorization, moderated real publication workflows, privacy/legal/content-rights review, no preview bootstrap/EnsureCreated, SEO/indexability policy and actual monitored load. Private preview success **never automatically promotes** a candidate to public traffic. The public release needs an independent explicit GO/NO-GO decision.
 
-**No push-to-deploy is permitted.** GitHub CI remains validation-only; operator-approved release actions are separate.
+**No push-to-deploy is permitted.** GitHub Actions are not used; manual QA is required; operator-approved release actions are separate.
 
 ## 10. Initial operator worksheet (to fill in later, not fabricate)
 
@@ -159,7 +161,8 @@ BACKUP_STORAGE_AND_RETENTION:
 OFF_HOST_DESTINATION:
 GITHUB_APPROVED_REF:
 CANDIDATE_FULL_SHA:
-CI_JOB_LINKS:
+SOURCE_QA_MANIFEST:
+API_QA_MANIFEST:
 BUILD_LOG:
 CURRENT_RELEASE:
 NEW_RELEASE:
@@ -170,4 +173,4 @@ ROLLBACK_REFERENCE:
 GATE_DECISION: PASS | HOLD | NO-GO
 ```
 
-**The next infra action is READ-ONLY INVENTORY, not container creation.** Source and verified CI gate first, then protected provisioning.
+**The next infra action is READ-ONLY INVENTORY, not container creation.** Source and verified manual QA gate first, then protected provisioning.

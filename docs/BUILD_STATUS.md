@@ -1,5 +1,7 @@
 # YangSpace 2.0 — Verification Status
 
+> **CURRENT RULE (ADR-018, 2026-11-09): NO GitHub Actions.** Earlier hosted-CI notes below are historical and superseded. Source/API checks are operator-run from clean pinned commits with local evidence.
+
 ## Implemented (source, not yet acceptance-tested)
 
 - `apps/api`: .NET 10 minimal API; EF Core SQLite **preview**; public catalog/meta/detail; demo data; Identity-based isolated PlatformAdmin content creation and hide.
@@ -111,3 +113,13 @@ Operator ran `scripts/Prepare-Web-Lock.ps1` on branch `6449990` after fast-forwa
 Operator committed and pushed `apps/web/package-lock.json` at `94f710e505a2df81b1cc542e7d4a1ae479a37536`. Independent GitHub source inspection: lockfile v3, root `dependencies`/`devDependencies`/`engines` match package.json, 366 dependency entries, all resolved URL-based packages hosted on npm registry with integrity hashes; Playwright resolved at 1.65.0. Operator's isolated Windows `npm ci`, typecheck and production build previously PASS.
 
 The transitional GitHub CI step that generated a new lockfile in the runner was **removed**. CI and PVE release now require source-tracked lockfile, validate manifest/registry/integrity through `apps/web/scripts/verify-lock.mjs`, and use frozen `npm ci`. CI includes `npm audit --audit-level=high` to uncover vulnerable dependencies rather than silently passing audit omissions. **No successful GitHub Actions workflow run exists yet (REST API reported 0)**; YS-S0-02 remains PARTIAL pending exact-commit clean CI. No PVE changes.
+
+## 2026-11-09 — Binding direction changed: NO GitHub Actions (ADR-018)
+
+Owner explicitly disallowed GitHub Actions and requested this to be treated as persistent project policy. Deleted the v2 workflow from the feature branch and retired S0 CI runbook. GitHub is **source/PR/commits only**. The old workflow file may remain on `main` until this Draft PR is merged; no workflow execution is requested.
+
+New local operator gates: `scripts/Verify-Source-Local.ps1` builds a **clean Git archive** and runs npm lock validation, clean `npm ci`, `npm audit --audit-level=high`, Angular typecheck/build/Playwright, .NET restore/build; `scripts/Verify-Api-Local.ps1` launches isolated local-only Staging API/SQLite with random bootstrap identity and confirms auth/content lifecycle and persistence across restart. Logs and SHA manifests are kept in separate `logs/yangspace/verify` and `logs/yangspace/api-integration` folders. Real API Python guard now supports OS TEMP on Windows/Linux but requires disposable sandbox marker and matching loopback endpoint.
+
+PVE build-only script now accepts only `main` or explicit approved feature ref whose **remote tip equals exact SHA**, and requires matching source/API PASS manifest paths before building. It still does not activate any release. No production DB/PVE changes.
+
+**Actual state:** New scripts and revised runbook are **source prepared, runtime NOT TESTED**. Last accepted browser test remains 17/17 on earlier homepage code. G0 HOLD until both new local checks PASS and security/release reviews close.

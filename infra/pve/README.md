@@ -36,15 +36,17 @@ git -C /srv/yangspace/repo fetch --prune origin main
 git -C /srv/yangspace/repo rev-parse origin/main
 ```
 
-Проверява се конкретен SHA, използван в CI; няма `git pull && restart` cron, webhook или директен deployment от push. Ако репото стане private — read-only deploy key / GitHub App, **не** personal access token в URL.
+Проверява се конкретен SHA със source/API PASS evidence от локалните операторски проверки; няма `git pull && restart` cron, webhook или директен deployment от push. Ако репото стане private — read-only deploy key / GitHub App, **не** personal access token в URL.
 
 ## Build на versioned release
 
 ```bash
-bash /srv/yangspace/repo/scripts/build-preview-from-github.sh <FULL_40_CHAR_COMMIT_SHA>
+YANGSPACE_SOURCE_QA_MANIFEST=/secure/source-manifest.txt \\
+YANGSPACE_API_QA_MANIFEST=/secure/api-manifest.txt \\
+bash /srv/yangspace/repo/scripts/build-preview-from-github.sh <FULL_40_CHAR_COMMIT_SHA> feat/yangspace-v2-foundation-20261108
 ```
 
-Скриптът проверява, че SHA е ancestor на `origin/main`, build-ва в отделна директория и не активира нищо.
+Скриптът допуска само allowlisted ref (`main` или активния v2 feature branch) и изисква SHA да е **точният remote tip**, плюс два ръчно проверени PASS manifests (source и API QA) за същия SHA. Само build-ва в отделна директория, **не активира нищо**.
 
 ## Manual activation след backup и review
 

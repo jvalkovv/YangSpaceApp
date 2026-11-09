@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Destructive API contract test, strictly isolated to disposable CI preview DB.
+"""Manual API integration test on an isolated OS-temp sandbox and loopback API.
 
-Run only when ASPNETCORE_ENVIRONMENT=Staging, the app uses the matching
-/tmp/yangspace-ci-* DB, and YANGSPACE_TEST_ISOLATED_DB=YES. No third-party deps.
-Never use against a live/merchant database.
+Requires explicit disposable sandbox marker, matching DB, Staging-only mode,
+random bootstrap admin and a loopback-only URL. No third-party dependencies.
+Never run against a live or merchant database.
 """
 from __future__ import annotations
 
@@ -12,12 +12,13 @@ import json
 import os
 import pathlib
 import sys
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 
-BASE = "http://127.0.0.1:5090"
+BASE = os.environ.get("YANGSPACE_TEST_BASE_URL", "http://127.0.0.1:5090")
 UTC = dt.timezone.utc
 
 
@@ -26,24 +27,44 @@ class ContractFailure(RuntimeError):
 
 
 def require_isolated_ci() -> pathlib.Path:
-    db = pathlib.Path(os.environ.get("YANGSPACE_TEST_DB_PATH", ""))
-    state = pathlib.Path(os.environ.get("YANGSPACE_TEST_STATE", ""))
+    """Fail closed unless the target is a disposable test sandbox in OS TEMP."""
+    db_raw = os.environ.get("YANGSPACE_TEST_DB_PATH", "")
+    state_raw = os.environ.get("YANGSPACE_TEST_STATE", "")
+    sandbox_raw = os.environ.get("YANGSPACE_TEST_SANDBOX", "")
+    if not db_raw or not state_raw or not sandbox_raw:
+        raise ContractFailure("REFUSED: missing isolated DB/state/sandbox paths")
+    db = pathlib.Path(db_raw)
+    state = pathlib.Path(state_raw)
+    sandbox = pathlib.Path(sandbox_raw)
+    parsed = urllib.parse.urlsplit(BASE)
     if (
-        os.environ.get("YANGSPACE_TEST_ISOLATED_DB") != "YES"
+        parsed.scheme != "http"
+        or parsed.hostname != "127.0.0.1"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in ("", "/")
+        or parsed.query or parsed.fragment
+        or parsed.port is None or parsed.port <= 1024 or parsed.port > 65535
+        or os.environ.get("YANGSPACE_TEST_ISOLATED_DB") != "YES"
         or os.environ.get("ASPNETCORE_ENVIRONMENT") != "Staging"
         or os.environ.get("Preview__Enabled", "").lower() != "true"
+        or not sandbox.is_dir()
+        or not sandbox.name.startswith("yangspace-ci-")
+        or sandbox.resolve().parent != pathlib.Path(tempfile.gettempdir()).resolve()
+        or not (sandbox / ".yangspace-disposable-test").is_file()
+        or (sandbox / ".yangspace-disposable-test").read_text(encoding="utf-8") != "YES\n"
         or not db.is_absolute()
-        or str(db.parent) != "/tmp"
-        or not db.name.startswith("yangspace-ci-")
-        or state.parent != pathlib.Path("/tmp")
-        or not state.name.startswith("yangspace-ci-")
+        or db.name != "preview.db"
+        or db.resolve().parent != sandbox.resolve()
+        or not state.is_absolute()
+        or state.name != "state.json"
+        or state.resolve().parent != sandbox.resolve()
         or os.environ.get("ConnectionStrings__Main") != f"Data Source={db}"
         or not os.environ.get("Bootstrap__AdminEmail")
         or not os.environ.get("Bootstrap__AdminPassword")
     ):
-        raise ContractFailure("REFUSED: isolated CI DB, test guard and secret configuration required")
+        raise ContractFailure("REFUSED: isolated Staging/loopback API test guard failed")
     return state
-
 
 def request(method: str, path: str, payload: object | None = None, bearer: str | None = None):
     headers = {"Accept": "application/json"}

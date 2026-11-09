@@ -98,7 +98,7 @@ try {
     Write-Host 'LOCKFILE_GENERATION=PASS'
     Write-Host 'LOCKFILE_SHA256_VERIFIED=YES'
     Write-Host 'LOCKFILE_PATH=apps/web/package-lock.json'
-    Write-Host 'NEXT=Review and commit apps/web/package-lock.json; then rerun CI.'
+    Write-Host 'NEXT=Review tracked lockfile; run Verify-Source-Local.ps1 on exact SHA. GitHub Actions are not used.'
 }
 finally {
     Pop-Location

@@ -1,5 +1,7 @@
 # YangSpace 2.0
 
+> **Accepted owner direction — NO GitHub Actions.** GitHub is for source/PR/commits only. Quality checks are **operator-run on a clean exact-SHA source snapshot**, with separate logs and real API integration in a disposable database. This supersedes old README sections mentioning CI. [ADR-018](docs/ADR-018-NO-GITHUB-ACTIONS.md) · [S0 Manual QA Runbook](docs/S0_MANUAL_QA_RUNBOOK.md).
+
 ## Execution plan — canonical documents (2026-11-09)
 
 - **[PoC & Technical Master Plan](docs/POC_MASTER_PLAN.md)** — scope, real baseline, user flows, domain, phases S0–S7, security/release gates and business validation.
@@ -7,7 +9,7 @@
 - **[Acceptance Matrix](docs/POC_ACCEPTANCE_MATRIX.md)** — objective API, browser, authorization, data, SEO, PVE and pilot test scenarios.
 - **[PVE Release Runbook](docs/POC_PVE_RELEASE_RUNBOOK.md)** — private preview topology, reviewed SHA, inventory, backup, verify and rollback.
 
-**Current gate:** Homepage preview visual QA PASS, operator Playwright 17/17 PASS; API/Angular/proxy local health PASS. **Overall product PoC is not finished.** Active work starts at tracker `YS-S0-02`: dependency lockfile / deterministic CI, followed by real .NET integration and CMS. **No CT deployed, no production data or payments.**
+**Current gate:** Homepage preview visual QA PASS, operator Playwright 17/17 PASS; API/Angular/proxy local health PASS. **Overall product PoC is not finished.** Active work starts at tracker `YS-S0-02`: dependency lockfile / deterministic manual source validation, followed by real .NET integration and CMS. **No CT deployed, no production data or payments.**
 
 
 **Градът около теб.** Първо квартал във Варна, после цяла Варна и България.
@@ -19,7 +21,7 @@
 - **Backend:** ASP.NET Core **.NET 10 LTS**, EF Core, SQLite само за локален/изолиран demo preview.
 - **Frontend:** **Angular 22**, TypeScript 6, mobile-first, без UI framework.
 - **Host:** съществуващ **Proxmox VE (PVE)**, един отделен Linux **LXC** за preview; Nginx + systemd.
-- **GitHub:** source, PR и CI. LXC е Git clone/fetch client; **няма автоматичен deploy при push**.
+- **GitHub:** source и PR; GitHub Actions не се използват. LXC е Git clone/fetch client; **няма автоматичен deploy при push**.
 - **Изключени:** Azure, IIS, Jenkins, Kubernetes, Docker като deployment изискване.
 - **Production database:** остава архитектурно решение (PostgreSQL или SQL Server). Preview SQLite **не** е миграционна основа за live данни.
 
@@ -80,7 +82,7 @@ npm start
 - **Няма публичен owner signup, upload или billing.** Identity registration routes са достъпни само в изолирана preview среда; новорегистрирани потребители нямат admin role.
 - Публикуването от preview CMS е само за демо данни; не внасяйте реална лична информация.
 
-> От commit `94f710e` имаме source-tracked `package-lock.json`; за чиста инсталация използвай `npm ci`. CI остава HOLD, докато не видим успешен workflow върху точния HEAD.
+> От commit `94f710e` имаме source-tracked `package-lock.json`; за чиста инсталация използвай `npm ci`. S0 source QA остава HOLD до локални clean-SHA PASS logs за същия commit.
 
 ## API
 
@@ -126,7 +128,7 @@ Then inspect the browser at **375 / 390 / 768 / 1024 / 1440 px** per [Homepage A
 
 ## Release policy
 
-Работим чрез GitHub PR, CI и документирани commit IDs. Без смесване на preview и live data. GitHub сам по себе си не публикува върху PVE. Не твърдим production readiness без build/test/runtime evidence.
+Работим чрез GitHub PR, локално изпълнени проверки и документирани commit IDs. Без смесване на preview и live data. GitHub сам по себе си не публикува върху PVE. Не твърдим production readiness без build/test/runtime evidence.
 
 **Лиценз:** преди публично разпространение трябва да бъде добавен и потвърден коректен LICENSE файл.
 
@@ -171,11 +173,11 @@ npm run test:e2e
 
 The Playwright suite launches its **own temporary Angular dev server at `127.0.0.1:4300`** and uses mocked API data. The .NET API on `5090` is not needed for these isolated browser regression cases. Keep `4200` for manual integration testing.
 
-Automated viewport checks run at **375, 390, 768, 1024 and 1440 CSS pixels**, verify no horizontal document overflow, and produce screenshots under `apps/web/test-results/`. These screenshots provide reproducible visual evidence, not automatic approval of aesthetics or Core Web Vitals. The GitHub CI workflow is configured to run browser tests without deployment and now uses the committed `package-lock.json` with `npm ci`; its execution still needs independent verification.
+Automated viewport checks run at **375, 390, 768, 1024 and 1440 CSS pixels**, verify no horizontal document overflow, and produce screenshots under `apps/web/test-results/`. These screenshots provide reproducible visual evidence, not automatic approval of aesthetics or Core Web Vitals. Browser tests run manually from the reviewed commit by `scripts/Verify-Source-Local.ps1` using a disposable clean archive, with retained local evidence.
 
 ## S0 execution: reproducible npm and real API integration (2026-11-09)
 
-The production release build **requires** a source-tracked `apps/web/package-lock.json` and uses `npm ci`. Lockfile is now committed (first introduced at `94f710e`). Private PVE release remains blocked by the unresolved exact-SHA CI/security and candidate-branch release gates, not by missing npm dependency metadata.
+The production release build **requires** a source-tracked `apps/web/package-lock.json` and uses `npm ci`. Lockfile is now committed (first introduced at `94f710e`). Private PVE release remains blocked by the remaining manual exact-SHA QA/security and operator release gates, not by missing npm dependency metadata.
 
 After pulling the S0 branch on a Windows machine with supported Node, run from the repository root:
 
@@ -184,9 +186,9 @@ After pulling the S0 branch on a Windows machine with supported Node, run from t
 git status --short
 ```
 
-The script runs `npm install --package-lock-only --ignore-scripts`, validates a clean `npm ci`, typecheck and build. The lockfile was reviewed and committed at `94f710e`. CI no longer generates replacement dependency locks: it verifies the tracked file and executes `npm ci`. Do not regenerate or silently update the lockfile during a normal build; changes require a separate reviewed dependency-update commit.
+The script runs `npm install --package-lock-only --ignore-scripts`, validates a clean `npm ci`, typecheck and build. The lockfile was reviewed and committed at `94f710e`. Operator QA never generates replacement dependency locks: it verifies the tracked file and executes `npm ci`. Do not regenerate or silently update the lockfile during a normal build; changes require a separate reviewed dependency-update commit.
 
-The CI API job now runs `scripts/api-integration.py` against an **isolated temporary database**, including write operations and process restart. It refuses to operate on normal/local/merchant data. See [PoC Tracker](docs/POC_TRACKER.md). No real admin credentials are stored in Git.
+Manual `scripts/Verify-Api-Local.ps1` runs `scripts/api-integration.py` against a **disposable temporary database and loopback-only test API**, including writes and process restart. It refuses to operate on normal/local/merchant data. See [PoC Tracker](docs/POC_TRACKER.md). No real admin credentials are stored in Git.
 
 ### Windows LMDB `EPERM` on `npm ci`
 
@@ -194,8 +196,23 @@ The CI API job now runs `scripts/api-integration.py` against an **isolated tempo
 
 The updated `scripts/Prepare-Web-Lock.ps1` runs `npm ci`/typecheck/build in an isolated temporary folder. It leaves the live `node_modules` and Angular preview untouched. **Do not forcibly delete locked DLLs, kill unrelated Node processes or elevate PowerShell.**
 
-The generated lockfile has been committed and reviewed. The source/reproducibility sub-gate is satisfied; the final S0 gate remains PARTIAL until exact-SHA CI succeeds and dependency audit results are reviewed.
+The generated lockfile has been committed and reviewed. The source/reproducibility sub-gate is satisfied; the final S0 gate remains PARTIAL until exact-SHA local QA, real API integration and dependency audit have PASS evidence.
 
-### Immutable npm dependency CI gate
+### Immutable npm dependency manual QA gate
 
-Since commit `94f710e`, `apps/web/package-lock.json` is tracked. CI/release no longer invent a lockfile if missing: they run `node apps/web/scripts/verify-lock.mjs` (with CWD `apps/web`), followed by `npm ci`; CI additionally runs `npm audit --audit-level=high`. The lock validator rejects manifest drift, non-registry tarballs and missing package integrity. **Do not use `npm audit fix` automatically**; review and commit dependency upgrades separately. CI absence remains a release blocker, not a skipped passing check.
+Since commit `94f710e`, `apps/web/package-lock.json` is tracked. Manual QA and the release builder do not invent a lockfile: they run `node scripts/verify-lock.mjs` from `apps/web`, followed by `npm ci`; `Verify-Source-Local.ps1` additionally runs `npm audit --audit-level=high`. The lock validator rejects manifest drift, non-registry tarballs and missing package integrity. **Do not use `npm audit fix` automatically**; review and commit dependency upgrades separately. Missing manual QA evidence remains a release blocker; GitHub Actions are never used.
+
+## S0 — Run the manual QA gate (no hosted pipeline)
+
+Run only after fetching the reviewed branch; both scripts archive the **committed HEAD** into isolated OS TEMP, ignoring local uncommitted changes and active dev-server `node_modules`:
+
+```powershell
+cd D:\GitHub\YangSpaceApp
+git pull --ff-only origin feat/yangspace-v2-foundation-20261108
+.\scripts\Verify-Source-Local.ps1
+.\scripts\Verify-Api-Local.ps1
+```
+
+Source QA validates committed lockfile, `npm ci`, dependency audit, Angular build/Playwright and .NET build. API QA creates its own random local-only port, temporary SQLite and bootstrap identity, verifies auth, publication, expiration, hide and process restart. Logs are separated in `logs/yangspace/verify/` and `logs/yangspace/api-integration/` and are not tracked. **No GitHub Actions, no live DB writes, no PVE deployment.** Both PASS manifests must reference the same full SHA before release review.
+
+Read [S0 Manual QA](docs/S0_MANUAL_QA_RUNBOOK.md) and [ADR-018](docs/ADR-018-NO-GITHUB-ACTIONS.md).

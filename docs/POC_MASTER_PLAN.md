@@ -1,5 +1,7 @@
 # YangSpace 2.0 — Product PoC & Technical Master Plan
 
+> **Accepted project rule — ADR-018:** GitHub is source/PR only. **GitHub Actions are NOT USED.** QA is operator-run against a pinned SHA with retained logs. See [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md) and [S0 Manual QA](S0_MANUAL_QA_RUNBOOK.md). Any prior hosted CI requirement below is superseded.
+
 **Version:** 1.0 · **Baseline date:** 2026-11-09 · **Plan status:** ADOPTED FOR EXECUTION · **Release status:** PRIVATE PREVIEW NOT YET DEPLOYED
 
 > This document is the canonical execution plan. [POC_TRACKER.md](POC_TRACKER.md) tracks the work, [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md) defines test evidence and [POC_PVE_RELEASE_RUNBOOK.md](POC_PVE_RELEASE_RUNBOOK.md) defines infrastructure/release gates. Existing PRODUCT, DOMAIN_MODEL, ARCHITECTURE, PVE_OPERATIONS and MVP_ROADMAP documents provide supporting design rationale. A plan or source commit is not runtime acceptance.
@@ -23,7 +25,7 @@
 | Architecture | **Modular monolith** with directory, organizations/ownership, publications, moderation, media, search and operations as logical boundaries |
 | Hosting | Existing **Proxmox VE**; controlled **unprivileged Linux LXC** preferred where feasible |
 | Gateway | Nginx, systemd, TLS / authenticated access gateway, no public dev server |
-| Source/CI | GitHub PR and CI, fixed commit SHA, **no push-to-production** |
+| Source and verification | GitHub source/PR, clean exact-SHA local validation with logs, **no GitHub Actions and no push-to-production** |
 | Production DB | **OPEN ADR**: compare PostgreSQL vs SQL Server with migration/spatial/backup/ops/total cost criteria; SQLite is **temporary isolated-preview only** |
 | Storage | Protected local media for small pilot or S3-compatible later; approval via threat/backup model |
 | Legacy | Old .NET 8 / Angular 18 archived; no blind migration of booking/service tables |
@@ -40,10 +42,10 @@ The official supported .NET and Angular lifecycle must be rechecked on upgrade/r
 - Angular typecheck and production build: PASS in operator log.
 - Playwright **17/17 PASS** against mocked APIs; viewport visual review at 375/390/768/1024/1440; last tablet visual defect corrected.
 - Six fictional seed businesses and fake offers/brochures/jobs; homepage visual/functional preview accepted at source commit `20aa30c7da581316ba31900b6953025a3d1f3b00`.
-- **Not proven:** real admin create/edit/publish/hide against actual DB, CI workflow green on exact SHA, deployment readiness, real data/owner access.
+- **Not proven:** real admin create/edit/publish/hide against actual DB, manual clean-source and real API evidence on exact SHA, deployment readiness, real data/owner access.
 
 ### B. CLOSED PVE PoC — GATE G-PREVIEW
-An authenticated / VPN-only preview running on its own PVE LXC, with actual DB-backed create→publish→read→unpublish flows, reproducible CI/build, restore evidence, basic logging and rollback. **No public indexing or real production data.**
+An authenticated / VPN-only preview running on its own PVE LXC, with actual DB-backed create→publish→read→unpublish flows, reproducible locally verified build, restore evidence, basic logging and rollback. **No public indexing or real production data.**
 
 ### C. PUBLIC NEIGHBORHOOD PILOT — GATE G-PILOT
 Real verified businesses and owners, production migrations/storage, server-side tenant authorization, moderated lifecycle, SEO/indexability, ops monitoring, legal/privacy/content rights and documented release/rollback. Not equivalent to closed preview.
@@ -121,7 +123,7 @@ Visitor / Merchant / Moderator
         |
   Backup + restore / metrics + logs + alarms
 
-GitHub PR → CI/build/test → approved SHA → operator-controlled PVE LXC release
+GitHub PR → clean-SHA local QA logs → operator approval → controlled PVE LXC release
 (no Jenkins, IIS, Azure, Kubernetes, webhook auto-deployment)
 ```
 
@@ -133,13 +135,13 @@ GitHub PR → CI/build/test → approved SHA → operator-controlled PVE LXC rel
 **Priority P0; dependency:** none.
 1. Record last accepted homepage source `20aa30c` and QA docs SHA; no redesign.
 2. Protect `main`; keep PR #1 Draft until exact merge/release gates.
-3. Create/commit reviewed `apps/web/package-lock.json`; change CI/PVE build from `npm install` to `npm ci`; pin SDK/toolchain where possible.
+3. Create/commit reviewed `apps/web/package-lock.json`; use `npm ci` in local QA/PVE build; pin SDK/toolchain where possible.
 4. Audit transitive NuGet dependencies, SQLite native security pin, secrets history, license and repository permissions; ensure warnings-as-errors remain.
-5. Make GitHub CI visible/reproducible on PR HEAD; backend test + Angular typecheck/build + 17 browser regressions; upload failure evidence.
+5. Make operator-run exact-commit validation reproducible; archive backend, Angular and 17+ Playwright logs locally per app. Do not use hosted CI.
 6. Add real API integration test project + isolated database fixture (do not rely only on HTTP-mocked Playwright).
-7. Fix deployment policy conflict: existing `scripts/build-preview-from-github.sh` only accepts commits already in `origin/main`, while code is in Draft PR. For approved preview candidate either explicit reviewed branch ref + SHA/CI verification or merge after gate; **never remove identity checks**.
+7. Fix deployment policy conflict: existing `scripts/build-preview-from-github.sh` only accepts commits already in `origin/main`, while code is in Draft PR. For an approved preview candidate use the allowlisted branch ref, exact SHA and manually reviewed source/API evidence or merge after gate; **never remove identity checks**.
 
-**Exit G0:** deterministic dependency restore; CI all green on exact SHA; no open P0 secret/auth build findings; release script SHA policy resolves draft-branch preview without weakening verification. **Blocked today.**
+**Exit G0:** deterministic dependency restore; clean local source and real API verification PASS for the same exact SHA; no open P0 secret/auth build findings; release script SHA policy resolves draft-branch preview without weakening verification. **Blocked today.**
 
 ### S1 — Real local admin vertical slice (CLOSED POC functionality)
 **Priority P0; dependency G0 or parallel safe local development.**
@@ -193,7 +195,7 @@ GitHub PR → CI/build/test → approved SHA → operator-controlled PVE LXC rel
 1. Read-only PVE inventory: unused CT ID, host resources, storage, backups, DNS, gateway, ACL, network.
 2. Provision isolated unprivileged LXC; OS + .NET runtime/build toolchain + Node + Nginx + systemd and separate service/deploy users.
 3. Private network and TLS/auth gateway; no direct public exposure of admin, database or Angular dev server.
-4. Git clone/fetch with read-only credentials; validate approved SHA/CI status; build into immutable `releases/<sha>`, never build over `current`.
+4. Git clone/fetch with read-only credentials; validate approved SHA + matching local source/API QA manifests; build into immutable `releases/<sha>`, never build over `current`.
 5. Persist DB/media/config outside release tree; secrets via protected environment, no config in Git.
 6. Offline/host-consistent DB backup + off-host copy; restore dry run; check logs and monitoring.
 7. Operator activation, smoke / rollback; document CT, host, SHA, config hash, backup ref, verification and recovery.
@@ -222,7 +224,7 @@ Test layers:
 - **Browser:** mocked frontend regressions for deterministic UI + **separate unmocked E2E** for API/CMS/auth.
 - **Visual/a11y:** screenshots at 375/390/768/1024/1440; keyboard focus, semantics, contrast, no overflow; populated and empty states.
 - **Security:** privilege escalation, CSRF/token policies, upload MIME/path/traversal/size, rate limits, secrets scanning.
-- **Performance:** measure p50/p95 API, browser LCP/CLS/INP, DB query counts, CI baseline; define thresholds with representative pilot hardware, don't assert estimates as measurements.
+- **Performance:** measure p50/p95 API, browser LCP/CLS/INP, DB query counts, manual QA baseline; define thresholds with representative pilot hardware, don't assert estimates as measurements.
 - **Operations:** reboot, backup, restore, disk-full simulation, restart loops, bad release rollback, credential rotation.
 
 Each completed item records: **task ID → commit SHA/PR → test command + result → screenshot/log artifact → runtime target → reviewer → gate decision**. No "100%" claim based on source alone.
@@ -236,10 +238,10 @@ See [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md) for executable scenario
 | Preview admin endpoints exposed publicly | P0 | Private ACL by default; audit Identity route map; remove/gate unverified registration; auth negative tests |
 | Historical credentials from legacy repo | P0 if real/reused | Inventory, rotate actual reused secrets, no demo credential reuse; historical secrets remain in Git history |
 | Cross-business unauthorized access | P0 | Organization membership policies, query scoping, IDOR regression |
-| Nonrepeatable npm dependencies | P1 | Commit lockfile, `npm ci`, dependency audit and CI |
+| Nonrepeatable npm dependencies | P1 | Commit lockfile, `npm ci`, dependency audit and local QA |
 | Preview SQLite/EnsureCreated used for public data | P0 | Production DB ADR, EF migrations, restore drills, no automatic production seed |
 | Brochure and image upload risks | P0 | Quarantine, content sniffing, limits, malware scanning where appropriate, private media storage |
-| CI lacks verified runs | P1 | Determine Actions availability/permissions/trigger, prove exact SHA, branch protection |
+| Manual QA evidence missing | P1 | Run clean source + real API tests and retain exact-SHA logs, no hosted pipeline |
 | Draft PR commit cannot pass current PVE build script | P1 | Resolve approved-branch SHA policy before private CT deploy |
 | Paid plans before proof of value | P2 | Defer billing; measure conversion/retention/support before price |
 | Unverified stale offers/contacts | P1 | Source/verified_at, expiry worker, reporting, update reminders |
@@ -251,12 +253,12 @@ See [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md) for executable scenario
 - **No silent design rewrites**: homepage accepted, changes to shared visual system require targeted QA.
 - Implement in vertical slices, not simultaneous module-wide rewrites.
 - Each phase is blocked until its gate is evidenced; parallel work is allowed when dependencies are clearly isolated.
-- PVE is a deployment target, not a substitute for local and CI QA. No direct DB mutation without migration/backup review.
+- PVE is a deployment target, not a substitute for local manual QA. No direct DB mutation without migration/backup review.
 - Update [POC_TRACKER.md](POC_TRACKER.md) at each accepted commit; add decision records for DB/storage/SEO/hosting.
 - Costs, subscription plans, and public launch date stay open until business and technical evidence supports commitments.
 
 ## 12. Immediate execution packet (NEXT TURN)
 
-**Start with `YS-S0-01` through `YS-S0-05` in [POC_TRACKER.md](POC_TRACKER.md):** freeze source QA, pin npm dependencies, get the exact PR CI green, test the real .NET API/admin lifecycle, audit secrets/Identity and adjust pinned-SHA branch release policy. Then transition to `YS-S1` for complete live-data CMS, before any LXC provisioning.
+**Start with `YS-S0-01` through `YS-S0-05` in [POC_TRACKER.md](POC_TRACKER.md):** freeze source QA, pin npm dependencies, run exact-commit source and API integration QA locally, test the real .NET API/admin lifecycle, audit secrets/Identity and adjust pinned-SHA branch release policy. Then transition to `YS-S1` for complete live-data CMS, before any LXC provisioning.
 
 Do not merge PR #1 into `main`, create a PVE CT, invent a CT ID or claim production readiness as part of adopting this plan.

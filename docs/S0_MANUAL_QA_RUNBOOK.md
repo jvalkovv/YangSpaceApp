@@ -1,0 +1,91 @@
+# YangSpace — S0 Manual QA and exact-SHA release gate
+
+**GitHub Actions: NOT USED.** This is the canonical replacement for the retired S0 CI runbook.
+
+## Scope and safety
+
+Validation uses the **committed source** from GitHub with a detached clean copy. The current Windows working tree may contain unsaved changes to Angular configuration, test ZIPs and a running dev server; these are neither staged nor modified by the scripts.
+
+- No direct npm ci against the active apps/web/node_modules while Angular is running.
+- No tests against a running merchant DB, local preview database or PVE production instance.
+- No secret passwords passed as arguments or committed to Git.
+- No GitHub hosted jobs, webhook deployment, or implicit release on push.
+- Logs stored under logs/yangspace/verify/ and logs/yangspace/api-integration/ (ignored by Git, retained by the operator).
+
+## Step 1 — Exact-commit clean-source validation (Windows)
+
+From repository root, after fetching the approved feature branch:
+
+~~~powershell
+cd D:\GitHub\YangSpaceApp
+git pull --ff-only origin feat/yangspace-v2-foundation-20261108
+git rev-parse HEAD
+.\scripts\Verify-Source-Local.ps1
+~~~
+
+The script:
+- archives the local HEAD commit into disposable OS TEMP (does not copy local uncommitted files);
+- checks source-tracked npm lock manifest/integrity and runs npm ci, high-severity audit, typecheck, production build, and Playwright;
+- runs .NET restore and Release build with warnings-as-errors;
+- records exact SHA and per-command stdout/stderr evidence;
+- cleans the isolated source tree (unless explicitly retained for debugging).
+
+**Required result:** SOURCE_VALIDATION=PASS, manifest contains matching full COMMIT_SHA and SOURCE_VALIDATION=PASS. If browser testing is deliberately skipped, mark the gate HOLD until browser evidence exists. A dependency advisory failure is a real HOLD, not an excuse to remove npm audit.
+
+A successful run proves source compilation/browser QA, not admin DB authorization.
+
+## Step 2 — Real API integration in disposable SQLite (Windows)
+
+~~~powershell
+.\scripts\Verify-Api-Local.ps1
+~~~
+
+The script builds from a separate committed archive, creates a new OS-TEMP sandbox prefixed yangspace-ci-, picks an ephemeral 127.0.0.1-only port, creates a random non-logged bootstrap secret, and launches Staging Preview from the isolated build. It runs scripts/api-integration.py prepare, terminates only the test API, restarts the same isolated DB, and runs verify.
+
+Python's strict guard rejects unexpected DB paths, missing sandbox marker, non-loopback URLs, mismatched config or absent secrets. Its write actions must never run against real business data.
+
+**Required result:** REAL_API_INTEGRATION=PASS; matching COMMIT_SHA in manifest; expected guest/nonadmin denial, create/edit/publish/expiry/hide and persistence after restart.
+
+## Step 3 — Evidence acceptance
+
+Check that both scripts tested the *same* full SHA, both returned PASS and the audit did not fail. Review unexpected HTTP statuses/advisories and preserve logs in the corresponding app directory. The operator records:
+
+~~~text
+TASK=YS-S0-03/YS-S0-04
+CANDIDATE_SHA=40 hex
+SOURCE_VALIDATION_MANIFEST=logs/yangspace/verify/.../manifest.txt
+API_INTEGRATION_MANIFEST=logs/yangspace/api-integration/.../manifest.txt
+DEPENDENCY_AUDIT=PASS/HOLD
+PLAYWRIGHT=17+ PASS/HOLD
+REAL_API_INTEGRATION=PASS/HOLD
+SECURITY_REVIEW=PASS/HOLD
+DECISION=PASS/HOLD
+~~~
+
+Do not declare G0 PASS until the security review and release candidate policy are approved.
+
+## Step 4 — PVE private preview build (later; no deployment now)
+
+The build-only script supports **allowlisted branch refs** or main. The current branch is feat/yangspace-v2-foundation-20261108. Required operator-provided environment references:
+
+~~~bash
+export YANGSPACE_SOURCE_QA_MANIFEST=/secure/operator-evidence/source-manifest.txt
+export YANGSPACE_API_QA_MANIFEST=/secure/operator-evidence/api-manifest.txt
+bash scripts/build-preview-from-github.sh FULL_40_HEX_SHA feat/yangspace-v2-foundation-20261108
+~~~
+
+Both manifests must match the SHA and PASS values. The script fetches the exact allowlisted remote branch tip, verifies it matches the SHA, builds an immutable release directory and prints ACTIVATED=NO. No PVE CT ID, DNS, TLS or backup values are invented by this document. Activation requires separate backup/rollback and private-access approval.
+
+## Failure classification
+
+| Symptom | Root-cause area |
+|---|---|
+| npm ci EPERM on LMDB | Wrong working directory (live node_modules); use clean snapshot |
+| npm audit HIGH/CRITICAL | Review pinned dependency vulnerabilities; upgrade in reviewed commit |
+| Playwright failure | Browser cache, reserved test port 4300, async UI contracts |
+| API restore/build failure | NuGet/SDK/SQLite native package constraints |
+| Real API integration failure | Auth/endpoint/DB behavior; inspect per-stage local logs |
+| SHA mismatch | Git HEAD, detached snapshot, manifests or remote ref drift |
+| PVE build refuses | Unapproved branch, missing matching QA or not-exact remote tip |
+
+The workflow **does not require GitHub Actions** at any point.

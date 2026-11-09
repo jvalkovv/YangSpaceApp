@@ -47,3 +47,6 @@ Thumbs.db
 
 # Local browser QA screenshot bundles are evidence artifacts, not source files.
 apps/web/YangSpace-*-QA.zip
+
+# Operator QA evidence (per-app logs and manifests, never publish secrets).
+/logs/

@@ -15,7 +15,7 @@
 | YS-B-04 | Automated browser regressions | DONE | 17/17 Playwright PASS on `20aa30c`, 18.2s; mocked API |
 | YS-B-05 | Public read-only demo API | PARTIAL | 6 fictional locations/3 offers/1 brochure/1 job; no real public-data acceptance |
 | YS-B-06 | Preview administrator UI + API | PARTIAL | Source present; Playwright auth test mocks backend; real CRUD lifecycle unverified |
-| YS-B-07 | GitHub CI | BLOCKED | Workflow source present, no successful exact-SHA run verified via connector |
+| YS-B-07 | Manual source and API validation | PARTIAL | Two independent isolated Windows operator scripts prepared; runtime PASS on exact HEAD pending; no GitHub Actions |
 | YS-B-08 | PVE LXC deployment | TODO | No CT inventory or deployment executed; runbook/templates only |
 
 ## S0 — Engineering reproducibility and risk closure (START HERE)
@@ -23,14 +23,14 @@
 | ID | Priority | Work package | Acceptance / evidence | State |
 |---|---|---|---|---|
 | YS-S0-01 | P0 | Record baseline, source/QA scope, branch protection and current blockers | PR #1 has precise accepted homepage SHA; release gates and documentation agreed | DONE |
-| YS-S0-02 | P0 | Freeze dependency graph | Review and commit `apps/web/package-lock.json`; CI/release use `npm ci`; fresh clone builds; NuGet audit clean | PARTIAL — lockfile committed `94f710e`, 366 dependency records reviewed (manifest match, npm registry, integrity); Windows isolated `npm ci` + typecheck + build PASS; **clean CI still unverified** |
-| YS-S0-03 | P0 | Make CI verifiable | GitHub Actions API build/smoke, web typecheck/build, 17+ Playwright, security guard pass on exact HEAD | BLOCKED |
-| YS-S0-04 | P0 | Add real .NET API integration tests | Clean ephemeral DB; auth 401/403, create/update/hide/publish, expiry and persistence after process restart | PARTIAL — isolated CI test script created and wired; **runtime execution pending** |
+| YS-S0-02 | P0 | Freeze dependency graph | Commit lockfile; validate npm ci from a clean SHA archive, dependency audit and .NET restore | PARTIAL — lockfile committed `94f710e`; isolated Windows npm ci/typecheck/build PASS; exact-SHA source and audit run pending |
+| YS-S0-03 | P0 | Manual reproducible source QA | `Verify-Source-Local.ps1` on exact SHA: npm ci, npm audit, Angular build, 17+ Playwright, .NET restore/build and logs | PARTIAL — tooling added; operator execution pending |
+| YS-S0-04 | P0 | Real .NET API integration | `Verify-Api-Local.ps1`: isolated temp DB, random loopback port, guest/admin auth, publish/expiry/hide, process restart | PARTIAL — cross-platform guarded API test and Windows operator wrapper in source; runtime PASS pending |
 | YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Rotate reused secrets, scan tracked/history configs, review Identity register scope, policies, rate limiting, no high/critical unresolved findings | TODO |
-| YS-S0-06 | P1 | Correct PVE release candidate policy | Approved draft-branch SHA can be built only when reviewed & CI verified, without permitting arbitrary/untrusted refs or auto-deploy | TODO |
-| YS-S0-07 | P1 | Repo hygiene and legal ownership | LICENSE decision, CODEOWNERS/review/branch policy, action versions, pinned SDK/node docs, changelog | TODO |
+| YS-S0-06 | P1 | Correct PVE release candidate policy | Approved draft-branch SHA can be built only when reviewed manual QA evidence matches, without permitting arbitrary/untrusted refs or auto-deploy | TODO |
+| YS-S0-07 | P1 | Repo hygiene and legal ownership | LICENSE decision, review/branch policy, pinned SDK/node docs, changelog and manual QA instructions | TODO |
 
-**S0 exit:** S0-02/03/04/05/06 verified; no open P0 defect; only then mark G0 PASS. Source code and local browser success alone are insufficient.
+**S0 exit:** S0-02/03/04/05/06 verified by manual evidence, not Actions; no open P0 defect; only then mark G0 PASS. Source code and local browser success alone are insufficient.
 
 ## S1 — Authenticated real CMS vertical slice
 
@@ -83,7 +83,7 @@
 |---|---|---|---|---|
 | YS-S5-01 | P0 | Read-only PVE inventory and topology decision | Available CT ID, OS, IP, storage, backup, gateway/DNS/TLS and resource budget documented | TODO |
 | YS-S5-02 | P0 | Provision isolated LXC and services | Unprivileged where feasible, systemd, Nginx, correct service/deploy user, secrets and private network | BLOCKED |
-| YS-S5-03 | P0 | GitHub pinned-SHA controlled release | Exact approved SHA + CI evidence, `releases/<sha>`, atomic activation, no auto-pull/restart | BLOCKED |
+| YS-S5-03 | P0 | GitHub pinned-SHA controlled release | Exact approved SHA + manual QA manifests, `releases/<sha>`, atomic activation, no auto-pull/restart | BLOCKED |
 | YS-S5-04 | P0 | Backup/restore/rollback exercise | Consistent DB/media backup, off-host copy, restore into scratch, bad-release revert, command logs | BLOCKED |
 | YS-S5-05 | P1 | Observability/maintenance | Separate API/proxy/deploy/verify logs, health, error-rate/latency/disk alert, restart policy | TODO |
 | YS-S5-06 | P0 | Protected preview acceptance | Browser on private TLS/ACL endpoint, persistence after reboot, auth denied to outsiders, smoke PASS | BLOCKED |
@@ -108,9 +108,9 @@
 
 ## Current active queue (strict order)
 
-1. `YS-S0-02` — source lockfile committed/reviewed; finish exact-SHA clean CI `npm ci` and dependency audit (local isolated PASS).
-2. `YS-S0-03` — investigate zero GitHub Actions runs via [S0 CI Runbook](S0_CI_RUNBOOK.md), then prove all jobs PASS on exact SHA.
-3. `YS-S0-04` — real .NET API/integration contract & admin behavior.
+1. `YS-S0-02` — lockfile committed; verify clean exact-SHA npm ci, audit and .NET restore.
+2. `YS-S0-03` — run [S0 Manual QA](S0_MANUAL_QA_RUNBOOK.md) with `Verify-Source-Local.ps1` and inspect logs.
+3. `YS-S0-04` — run `Verify-Api-Local.ps1` and inspect auth/DB/expiry/restart evidence.
 4. `YS-S0-05` — auth/secrets/preview exposure review.
 5. `YS-S0-06` — solve Draft PR ↔ PVE approved SHA restriction.
 6. `YS-S1-01..05` — finish real content CRUD and workflow.

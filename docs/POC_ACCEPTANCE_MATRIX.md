@@ -1,12 +1,14 @@
 # YangSpace 2.0 — PoC / Pilot Acceptance Matrix
 
+> **ADR-018 overrides all prior hosted CI references.** GitHub Actions are excluded. Tests run manually from an exact SHA; proof is local command logs and manifests.
+
 **Purpose:** objective pass/fail checks. Each row has a test owner, target environment and evidence artifact. Existing Playwright screenshots use mocked HTTP responses. A browser screenshot is NOT a substitute for real API/database or security validation.
 
 ## Gate definitions
 
 | Gate | Scope | Required result |
 |---|---|---|
-| G0 Engineering | Lockfile, SDK/npm, CI, backend tests, security inventory, pinned SHA policy | PASS before trusting deployable candidate |
+| G0 Engineering | Lockfile, SDK/npm, manual exact-SHA QA, backend tests, security inventory, pinned SHA policy | PASS before trusting deployable candidate |
 | G1 Real local CMS PoC | DB-backed admin operations, auth negative tests, persisted lifecycle | PASS for private preview |
 | G2 Production domain | Provider ADR, migrations, memberships, cross-tenant isolation, audit | PASS before real owner data |
 | G3 Content + moderation | Full offer/brochure/job lifecycle, safe media, review queue | PASS before real business self-service |
@@ -19,8 +21,8 @@
 | Test ID | Environment / actor | Scenario | Expected assertion | Evidence/status |
 |---|---|---|---|---|
 | BUILD-01 | Clean checkout | `npm ci`, Angular typecheck/build | Reproducible with committed lockfile; no arbitrary mutation of dependency tree | TODO |
-| BUILD-02 | Clean checkout | `dotnet restore`/build/test with audit as errors | No high/critical package issue; release compiles | PARTIAL: local API runs, CI not verified |
-| CI-01 | GitHub PR | API smoke, tests, Angular build, browser regressions | All green on exact SHA, logs/artifacts retained | TODO |
+| BUILD-02 | Clean checkout | `dotnet restore`/build/test with audit as errors | No high/critical package issue; release compiles | PARTIAL: local API runs, exact-SHA manual QA pending |
+| QA-01 | Operator clean source | `Verify-Source-Local.ps1`, `Verify-Api-Local.ps1` against identical SHA | PASS manifests, logs and isolated DB; no Actions | TODO |
 | WEB-01 | Headless Chromium | Full homepage at 375/390/768/1024/1440 | No overflow, correct mobile/nav/hero/card layout | PASS: 17/17 suite evidence on 20aa30c |
 | WEB-02 | Headless Chromium | Populated offers/brochures/jobs 390/768/1440 | Panels visible, no clipping, valid links | PASS on mocked content |
 | WEB-03 | Headless Chromium | First load, filters, text query, rapid interactions | Correct cards and counts; never stale/mismatched | PASS on mocked content |
@@ -88,20 +90,24 @@ VERDICT: PASS | HOLD | NO-GO
 
 ## 2026-11-09 — Added S0 executable tests (source stage)
 
-- `scripts/Prepare-Web-Lock.ps1` creates the true registry-resolved npm lockfile on a supported Windows Node installation, validates `npm ci`, Angular typecheck and build. **Do not synthesize a lockfile or treat CI artifact as committed.**
-- `scripts/api-integration.py prepare|verify` accepts only a disposable `/tmp/yangspace-ci-*` DB with explicit `YANGSPACE_TEST_ISOLATED_DB=YES`, Staging and matching connection string. The CI API job creates a random bootstrap credential, runs smoke, executes real data mutations, restarts the API process, then confirms persistence and denied guest access.
-- CI web job can temporarily produce a lockfile artifact for review, but G0 remains **HOLD** until it is committed and a fresh clone performs `npm ci` with no manifest drift.
+- `scripts/Prepare-Web-Lock.ps1` creates the true registry-resolved npm lockfile on a supported Windows Node installation, validates `npm ci`, Angular typecheck and build. **Do not synthesize a lockfile or treat untracked temporary artifact as committed.**
+- `scripts/api-integration.py prepare|verify` accepts only a disposable `/tmp/yangspace-ci-*` DB with explicit `YANGSPACE_TEST_ISOLATED_DB=YES`, Staging and matching connection string. The manual API integration run creates a random bootstrap credential, runs smoke, executes real data mutations, restarts the API process, then confirms persistence and denied guest access.
+- manual source validation can temporarily produce a lockfile artifact for review, but G0 remains **HOLD** until it is committed and a fresh clone performs `npm ci` with no manifest drift.
 - PVE build script fails closed without tracked lockfile and cannot activate a release automatically.
-- **Evidence gap:** CI is not yet verified green on this code; don't mark BUILD-01, API-02..06 or G0 PASS.
+- **Evidence gap:** manual exact-SHA QA has not yet passed on this code; don't mark BUILD-01, API-02..06 or G0 PASS.
 
 ### S0-02: Windows locked native dependency regression
 
-Operator observed `EPERM unlink @lmdb/lmdb-win32-x64/node.napi.node` from a direct `npm ci` while the Angular development server may have been running. Run the corrected `scripts/Prepare-Web-Lock.ps1` **without stopping** live Angular. Required outputs: `VALIDATION_MODE=ISOLATED_WORKSPACE`, `LIVE_NODE_MODULES_MUTATED=NO`, `ISOLATED_NPM_CI=PASS`, `ISOLATED_ANGULAR_TYPECHECK=PASS`, `ISOLATED_ANGULAR_BUILD=PASS` and `LOCKFILE_SHA256_VERIFIED=YES`. A reviewed committed lockfile and clean CI `npm ci` are still required for G0.
+Operator observed `EPERM unlink @lmdb/lmdb-win32-x64/node.napi.node` from a direct `npm ci` while the Angular development server may have been running. Run the corrected `scripts/Prepare-Web-Lock.ps1` **without stopping** live Angular. Required outputs: `VALIDATION_MODE=ISOLATED_WORKSPACE`, `LIVE_NODE_MODULES_MUTATED=NO`, `ISOLATED_NPM_CI=PASS`, `ISOLATED_ANGULAR_TYPECHECK=PASS`, `ISOLATED_ANGULAR_BUILD=PASS` and `LOCKFILE_SHA256_VERIFIED=YES`. A reviewed committed lockfile and clean exact-commit `npm ci` are still required for G0.
 
 ### 2026-11-09 — S0-02 operator verification
 
-Local Windows clean-temporary-directory `npm ci`, TypeScript check and Angular production build **all PASS** with lockfile SHA-256 consistency. Operator's `apps/web/angular.json` is locally modified, so a clean checkout + tracked lockfile + CI build remains required before release acceptance. `package-lock.json` is still untracked; G0 remains HOLD. Evidence comes from the supplied PowerShell command output, not a GitHub workflow run.
+Local Windows clean-temporary-directory `npm ci`, TypeScript check and Angular production build **all PASS** with lockfile SHA-256 consistency. Operator's `apps/web/angular.json` is locally modified, so a clean checkout + tracked lockfile + manual clean-commit build remains required before release acceptance. `package-lock.json` is still untracked; G0 remains HOLD. Evidence comes from the supplied PowerShell command output, not a GitHub workflow run.
 
 ### 2026-11-09 — GitHub lockfile supply-chain acceptance
 
-Lockfile v3 was committed at `94f710e` and the root manifest/registry/integrity records were inspected. CI has been tightened to require **tracked** lockfile, run `node scripts/verify-lock.mjs`, install with `npm ci`, then run `npm audit --audit-level=high`, typecheck, production build and Playwright. PVE release checks the same lock manifest before installation. **Acceptance remains conditional on a real green CI execution**; GitHub Actions returned no workflow runs in the observed period.
+Lockfile v3 was committed at `94f710e` and the root manifest/registry/integrity records were inspected. local source validation has been tightened to require **tracked** lockfile, run `node scripts/verify-lock.mjs`, install with `npm ci`, then run `npm audit --audit-level=high`, typecheck, production build and Playwright. PVE release checks the same lock manifest before installation. **Acceptance remains conditional on real local exact-SHA PASS manifests**; GitHub Actions returned no workflow runs in the observed period.
+
+## 2026-11-09 — Current binding acceptance policy (ADR-018)
+
+The earlier CI references in historical notes above are retired. **Required: clean committed snapshot, npm ci + high-severity audit, Angular typecheck/build/17+ Playwright, .NET restore/build, separate real API integration sandbox and matching SHA manifests**. No GitHub Actions. Results are NOT yet runtime PASS for the new scripts.

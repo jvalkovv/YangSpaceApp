@@ -13,7 +13,7 @@
 | ADR-007 | База данни: оставаме с SQL Server или мигрираме към PostgreSQL | Open |
 | ADR-008 | Media storage: file-backed vs S3-compatible object storage | Open |
 | ADR-009 | Търговски профил безплатен; платени опции/цени след pilot | Pricing TBD |
-| ADR-010 | No automated deploy from `main`; CI on GitHub, audited PVE release | Accepted |
+| ADR-010 | No automatic deploy; GitHub-hosted CI clause superseded by ADR-018 | Superseded in part |
 | ADR-011 | Native mobile app, booking, in-platform CV collection, payments out of MVP | Accepted |
 
 ## Change protocol
@@ -24,11 +24,13 @@
 
 | ID | Topic | Status | Decision evidence required |
 |---|---|---|---|
-| ADR-012 | Private PVE preview from Draft PR SHA vs merge-first candidate | OPEN | Reviewed ref/SHA/CI gate; existing build script only accepts ancestor of `origin/main` |
+| ADR-012 | Private PVE build from allowlisted Draft PR tip or main | Implemented in source, runtime pending | Exact remote-tip SHA and matching manual source/API PASS manifests |
 | ADR-013 | Production DB PostgreSQL vs SQL Server | OPEN | EF migrations, restore, spatial/search, license/ops cost and operator familiarity |
 | ADR-014 | Angular public SSR/prerender approach | OPEN | SEO indexability and deployment cost/test evidence |
 | ADR-015 | Preview/private topology vs public-pilot DB isolation | OPEN | PVE inventory, persistence/backup, fault isolation and recovery tests |
 | ADR-016 | Media provider and upload safety workflow | OPEN | File rights, quarantine, scan, backup and safe serving |
 | ADR-017 | Pricing/subscription and billing | DEFERRED | Pilot conversion, business willingness-to-pay and support economics |
+| ADR-018 | **Never use GitHub Actions**; GitHub only source/PR; manual pinned-SHA QA and PVE operator release | **Accepted (owner directive)** | [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md) |
 
 **Canonical plan:** [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md). No existing accepted architecture decisions were overwritten by this planning commit.
+
