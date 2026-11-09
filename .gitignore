@@ -44,3 +44,6 @@ Thumbs.db
 **/test-results/
 **/playwright-report/
 **/blob-report/
+
+# Local browser QA screenshot bundles are evidence artifacts, not source files.
+apps/web/YangSpace-*-QA.zip

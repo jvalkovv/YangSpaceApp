@@ -97,3 +97,7 @@ VERDICT: PASS | HOLD | NO-GO
 ### S0-02: Windows locked native dependency regression
 
 Operator observed `EPERM unlink @lmdb/lmdb-win32-x64/node.napi.node` from a direct `npm ci` while the Angular development server may have been running. Run the corrected `scripts/Prepare-Web-Lock.ps1` **without stopping** live Angular. Required outputs: `VALIDATION_MODE=ISOLATED_WORKSPACE`, `LIVE_NODE_MODULES_MUTATED=NO`, `ISOLATED_NPM_CI=PASS`, `ISOLATED_ANGULAR_TYPECHECK=PASS`, `ISOLATED_ANGULAR_BUILD=PASS` and `LOCKFILE_SHA256_VERIFIED=YES`. A reviewed committed lockfile and clean CI `npm ci` are still required for G0.
+
+### 2026-11-09 — S0-02 operator verification
+
+Local Windows clean-temporary-directory `npm ci`, TypeScript check and Angular production build **all PASS** with lockfile SHA-256 consistency. Operator's `apps/web/angular.json` is locally modified, so a clean checkout + tracked lockfile + CI build remains required before release acceptance. `package-lock.json` is still untracked; G0 remains HOLD. Evidence comes from the supplied PowerShell command output, not a GitHub workflow run.

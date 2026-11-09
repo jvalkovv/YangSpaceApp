@@ -99,3 +99,9 @@ Operator ran the previous `Prepare-Web-Lock.ps1`; real `npm install --package-lo
 **Remediation committed:** the PowerShell script now creates the registry-resolved lockfile using `--package-lock-only` in the real web folder, copies source into a unique TEMP validation workspace excluding active `node_modules` and build caches, compares lockfile SHA-256, then runs `npm ci`, typecheck and build only in that isolated workspace. Robocopy uses standard exit code checks; clean-up is best-effort. No elevated privileges or process termination required.
 
 **Evidence status:** source change only, Windows rerun required. A local untracked `apps/web/package-lock.json` may already exist from the first successful command; it is not committed. `YS-S0-02=PARTIAL`; G0 HOLD.
+
+## 2026-11-09 — S0-02 isolated Windows verification: PASS; Git lock gate still HOLD
+
+Operator ran `scripts/Prepare-Web-Lock.ps1` on branch `6449990` after fast-forward pull. Results: `VALIDATION_MODE=ISOLATED_WORKSPACE`, `LIVE_NODE_MODULES_MUTATED=NO`, `ISOLATED_NPM_CI=PASS` (243 packages), `ISOLATED_ANGULAR_TYPECHECK=PASS`, `ISOLATED_ANGULAR_BUILD=PASS`, `LOCKFILE_GENERATION=PASS`, `LOCKFILE_SHA256_VERIFIED=YES`. Production web bundles: 407.88 kB raw and 100.68 kB estimated transfer, compiled in 2.994 s. Build was run in a temporary copy sourced from the operator's working tree and is not independently equivalent to a clean checkout of the commit.
+
+`git status --short` reports `?? apps/web/package-lock.json`, `M apps/web/angular.json`, and two untracked visual QA ZIP archives. The Angular manifest differs locally; do not discard or stage it without reviewing its diff. The lockfile exists **only on the operator's machine**, not in GitHub, and must be reviewed+committed to close `YS-S0-02`. GitHub Actions REST still reports `total_count=0`; do not assert CI PASS. No PVE or DB change.
