@@ -1,5 +1,8 @@
 # MVP Roadmap — Gates, Not Dates
 
+> **Execution precedence (2026-11-09):** This is the original strategic milestone outline. Use [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md) and [POC_TRACKER.md](POC_TRACKER.md) as the current executable plan. The original M0 legacy remediation items below describe historical risks; the old app is archived, not compiled in YangSpace 2.0. The active engineering work is dependency determinism/CI/real v2 auth and data integration, not patching old booking endpoints back into production.
+
+
 **Не се поемат срокове до оценка на кода и работа по P0 дефектите.** Първо пилотен квартал, после доказано повторяемо разрастване.
 
 ## M0 — Legacy Recovery / Security / CI

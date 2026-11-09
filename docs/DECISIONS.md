@@ -19,3 +19,16 @@
 ## Change protocol
 
 За всяко изменение: `ADR-NNN`, причина, алтернативи, security/privacy/ops impact, owner, дата и одобрение. Не променяме съществуващия `main` application runtime без целево PR и regression evidence.
+
+## Proposed follow-up decisions — not silently approved
+
+| ID | Topic | Status | Decision evidence required |
+|---|---|---|---|
+| ADR-012 | Private PVE preview from Draft PR SHA vs merge-first candidate | OPEN | Reviewed ref/SHA/CI gate; existing build script only accepts ancestor of `origin/main` |
+| ADR-013 | Production DB PostgreSQL vs SQL Server | OPEN | EF migrations, restore, spatial/search, license/ops cost and operator familiarity |
+| ADR-014 | Angular public SSR/prerender approach | OPEN | SEO indexability and deployment cost/test evidence |
+| ADR-015 | Preview/private topology vs public-pilot DB isolation | OPEN | PVE inventory, persistence/backup, fault isolation and recovery tests |
+| ADR-016 | Media provider and upload safety workflow | OPEN | File rights, quarantine, scan, backup and safe serving |
+| ADR-017 | Pricing/subscription and billing | DEFERRED | Pilot conversion, business willingness-to-pay and support economics |
+
+**Canonical plan:** [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md). No existing accepted architecture decisions were overwritten by this planning commit.

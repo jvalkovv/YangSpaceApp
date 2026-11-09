@@ -1,0 +1,137 @@
+# YangSpace 2.0 — Execution Tracker
+
+**Tracked source baseline:** `20aa30c7da581316ba31900b6953025a3d1f3b00` (homepage code) · **visual QA docs:** `e2edefb70c648199ba8e82f83d7a3396424c88c4`.  
+**Branch:** `feat/yangspace-v2-foundation-20261108` · **PR:** [#1](https://github.com/jvalkovv/YangSpaceApp/pull/1) (Draft).  
+**Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
+**Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
+
+## 0. Evidence baseline (confirmed, no rerun by this document)
+
+| ID | Item | Status | Evidence / qualification |
+|---|---|---|---|
+| YS-B-01 | Homepage green/cream design and visual acceptance | DONE | 375/390/768/1024/1440 baseline; post-fix screenshot review, docs/HOMEPAGE_ACCEPTANCE.md |
+| YS-B-02 | Local Angular typecheck and production frontend build | DONE | Windows console output, 2026-11-09 |
+| YS-B-03 | Local API + frontend + proxy operational | DONE | `LOCAL_STACK=PASS`, 5 HTTP checks |
+| YS-B-04 | Automated browser regressions | DONE | 17/17 Playwright PASS on `20aa30c`, 18.2s; mocked API |
+| YS-B-05 | Public read-only demo API | PARTIAL | 6 fictional locations/3 offers/1 brochure/1 job; no real public-data acceptance |
+| YS-B-06 | Preview administrator UI + API | PARTIAL | Source present; Playwright auth test mocks backend; real CRUD lifecycle unverified |
+| YS-B-07 | GitHub CI | BLOCKED | Workflow source present, no successful exact-SHA run verified via connector |
+| YS-B-08 | PVE LXC deployment | TODO | No CT inventory or deployment executed; runbook/templates only |
+
+## S0 — Engineering reproducibility and risk closure (START HERE)
+
+| ID | Priority | Work package | Acceptance / evidence | State |
+|---|---|---|---|---|
+| YS-S0-01 | P0 | Record baseline, source/QA scope, branch protection and current blockers | PR #1 has precise accepted homepage SHA; release gates and documentation agreed | DONE |
+| YS-S0-02 | P0 | Freeze dependency graph | Review and commit `apps/web/package-lock.json`; CI/release use `npm ci`; fresh clone builds; NuGet audit clean | TODO |
+| YS-S0-03 | P0 | Make CI verifiable | GitHub Actions API build/smoke, web typecheck/build, 17+ Playwright, security guard pass on exact HEAD | BLOCKED |
+| YS-S0-04 | P0 | Add real .NET API integration tests | Clean ephemeral DB; auth 401/403, create/update/hide/publish, expiry and persistence after process restart | TODO |
+| YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Rotate reused secrets, scan tracked/history configs, review Identity register scope, policies, rate limiting, no high/critical unresolved findings | TODO |
+| YS-S0-06 | P1 | Correct PVE release candidate policy | Approved draft-branch SHA can be built only when reviewed & CI verified, without permitting arbitrary/untrusted refs or auto-deploy | TODO |
+| YS-S0-07 | P1 | Repo hygiene and legal ownership | LICENSE decision, CODEOWNERS/review/branch policy, action versions, pinned SDK/node docs, changelog | TODO |
+
+**S0 exit:** S0-02/03/04/05/06 verified; no open P0 defect; only then mark G0 PASS. Source code and local browser success alone are insufficient.
+
+## S1 — Authenticated real CMS vertical slice
+
+| ID | Priority | Work package | Acceptance / evidence | State |
+|---|---|---|---|---|
+| YS-S1-01 | P0 | Real preview admin bootstrap and authenticated login | Bootstrap secret protected, no default credentials; admin role grant verified; non-admin denied; register endpoint gated | TODO |
+| YS-S1-02 | P0 | Location full CRUD + hide/restore | Create/edit/publish/hide/restore persist across restart, validate duplicate slug & bad input, positive/negative API tests | PARTIAL |
+| YS-S1-03 | P0 | Offers, brochure links, jobs full CRUD | Create/edit/delete/archive, valid/expired filtering and public visibility, admin UI/API status synchronization | PARTIAL |
+| YS-S1-04 | P0 | Admin page production-grade UI | Forms, validation, loading errors, status, edit modals/pages, accessibility + screenshots | PARTIAL |
+| YS-S1-05 | P0 | End-to-end unmocked workflow | Admin → DB → GET public → hide → public absent → restart → persistent; negative auth evidence | TODO |
+| YS-S1-06 | P1 | Demo fixture isolation | Fictional samples are idempotent in preview; no accidental public real-data migration, environment-switch tests | PARTIAL |
+
+**S1 exit:** admin can complete real DB-backed workflows and an unprivileged caller cannot perform them; logs + screenshots recorded.
+
+## S2 — Domain, production persistence and ownership
+
+| ID | Priority | Work package | Acceptance / evidence | State |
+|---|---|---|---|---|
+| YS-S2-01 | P0 | DB ADR: PostgreSQL vs SQL Server | Written benchmark, license/ops/spatial/backup/restore comparison and selected provider | TODO |
+| YS-S2-02 | P0 | EF Core migrations/versioning | Clean init + upgrade + rollback compatibility/drill, no `EnsureCreated` in production path | TODO |
+| YS-S2-03 | P0 | Organization/Location/Geo taxonomy | Relational constraints, seeded normalized lookups, categories/hours/geo indexes | TODO |
+| YS-S2-04 | P0 | Owner/member/claim workflow | Verified reviewer decision creates scoped membership; revoke works; audit, denial and cross-tenant tests | TODO |
+| YS-S2-05 | P0 | Policy-based tenant isolation | Tests for owner A vs owner B across all private endpoints (reads/writes); no global `IsOwner` shortcut | TODO |
+| YS-S2-06 | P1 | Data lifecycle and GDPR controls | Retention, subject access/correction, source & verified_at, traceable admin changes | TODO |
+
+## S3 — Merchant CMS, publications and moderation
+
+| ID | Priority | Work package | Acceptance / evidence | State |
+|---|---|---|---|---|
+| YS-S3-01 | P1 | Merchant dashboard/location editor | Organization and branch picker; clear edit/draft/review/publish states | TODO |
+| YS-S3-02 | P1 | Offers campaigns & automatic expiry | Draft→review→publish→expire, timezone/UTC edge-case tests, worker reconciliation | TODO |
+| YS-S3-03 | P0 | Trusted media upload/preview | MIME sniffing, file limits, safe filenames/object keys, quarantine/scan policy, rights attestation, restore | TODO |
+| YS-S3-04 | P1 | Brochures and job postings lifecycle | Verified rights, valid dates, outbound job links, no CV storage; positive/negative tests | TODO |
+| YS-S3-05 | P1 | Moderation/admin audit/reporting | Review queue, reasoned approve/reject/suspend, abuse reports, immutable audit trail | TODO |
+| YS-S3-06 | P1 | Owner/admin UX acceptance | Real multi-role scenario across 375/390/768/1024/1440px, keyboard tests, screenshot evidence | TODO |
+
+## S4 — Search, SEO and quality
+
+| ID | Priority | Work package | Acceptance / evidence | State |
+|---|---|---|---|---|
+| YS-S4-01 | P1 | Browse/search by neighborhood/category/geo | Accurate filtering, query validation, DB indexes, boundary tests, pagination & dedupe | PARTIAL |
+| YS-S4-02 | P1 | Public profile enrichment | Coordinates, map/directions, verified freshness, contacts, opening hours & exceptions | TODO |
+| YS-S4-03 | P1 | Dedicated offers/brochure/jobs indexes | Public listing/search pages, published/valid-only, no leakage of hidden entries | TODO |
+| YS-S4-04 | P1 | SEO SSR/prerender architecture | Canonicals/meta/structured data/sitemap, indexable public pages, demo/noindex isolation | TODO |
+| YS-S4-05 | P1 | Accessibility/performance & analytics | A11y, full visual QA, real browser Core Web Vitals + privacy-aware action analytics | TODO |
+
+## S5 — PVE private preview (after S0+S1)
+
+| ID | Priority | Work package | Acceptance / evidence | State |
+|---|---|---|---|---|
+| YS-S5-01 | P0 | Read-only PVE inventory and topology decision | Available CT ID, OS, IP, storage, backup, gateway/DNS/TLS and resource budget documented | TODO |
+| YS-S5-02 | P0 | Provision isolated LXC and services | Unprivileged where feasible, systemd, Nginx, correct service/deploy user, secrets and private network | BLOCKED |
+| YS-S5-03 | P0 | GitHub pinned-SHA controlled release | Exact approved SHA + CI evidence, `releases/<sha>`, atomic activation, no auto-pull/restart | BLOCKED |
+| YS-S5-04 | P0 | Backup/restore/rollback exercise | Consistent DB/media backup, off-host copy, restore into scratch, bad-release revert, command logs | BLOCKED |
+| YS-S5-05 | P1 | Observability/maintenance | Separate API/proxy/deploy/verify logs, health, error-rate/latency/disk alert, restart policy | TODO |
+| YS-S5-06 | P0 | Protected preview acceptance | Browser on private TLS/ACL endpoint, persistence after reboot, auth denied to outsiders, smoke PASS | BLOCKED |
+
+## S6 — Public pilot, first neighborhood (after G2/G3/G4/G-PREVIEW)
+
+| ID | Priority | Work package | Acceptance / evidence | State |
+|---|---|---|---|---|
+| YS-S6-01 | P1 | Confirm first neighborhood and pilot outreach | One selected neighborhood, merchant contact process, rights/source register | TODO |
+| YS-S6-02 | P1 | Recruit verified merchant content | First consented real businesses + owner verification, no copy/paste of third-party protected materials | TODO |
+| YS-S6-03 | P0 | Public security/legal review | Permissions, uploads, privacy, T&C, reports/takedown, promotions rights and accessibility checked | TODO |
+| YS-S6-04 | P0 | Production readiness drill | TLS/firewall, migrations, no demo data, restore/RPO-RTO, load, alerts, release audit | TODO |
+| YS-S6-05 | P1 | Launch KPI and iteration | Fresh profiles and useful visitor actions, merchant/owner activity and support time measured | TODO |
+
+## S7 — Varna / Bulgaria scale (gated)
+
+| ID | Work package | State |
+|---|---|---|
+| YS-S7-01 | Multi-neighborhood Varna onboarding, duplicate/quality detection | HOLD |
+| YS-S7-02 | Subscription pricing/entitlements and payment ADR after pilot evidence | HOLD |
+| YS-S7-03 | National expansion capacity/data governance/operational playbooks | HOLD |
+
+## Current active queue (strict order)
+
+1. `YS-S0-02` — commit lockfile, deterministic local+CI+release install.
+2. `YS-S0-03` — prove complete GitHub CI PASS at exact SHA.
+3. `YS-S0-04` — real .NET API/integration contract & admin behavior.
+4. `YS-S0-05` — auth/secrets/preview exposure review.
+5. `YS-S0-06` — solve Draft PR ↔ PVE approved SHA restriction.
+6. `YS-S1-01..05` — finish real content CRUD and workflow.
+7. `YS-S5-01` — begin PVE **read-only** inventory once PVE preview scope is authorized.
+
+## Per-commit evidence template
+
+```text
+TASK_ID:
+BRANCH:
+COMMIT_SHA:
+CHANGED_FILES:
+TEST_COMMANDS_AND_RESULT:
+BROWSER_SCREENSHOTS:
+API_DB_INTEGRATION_EVIDENCE:
+SECURITY_NEGATIVE_TESTS:
+RUNTIME_TARGET (local / private PVE / public):
+BACKUP_REF (if mutation):
+ROLLBACK_PATH:
+REVIEWER:
+GATE_DECISION: PASS / HOLD
+```
+
+**Never mark a task complete because only the code exists.** Record failing tests as BLOCKED with root cause, not as completed with an exception.

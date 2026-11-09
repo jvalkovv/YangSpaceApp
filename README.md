@@ -1,5 +1,15 @@
 # YangSpace 2.0
 
+## Execution plan — canonical documents (2026-11-09)
+
+- **[PoC & Technical Master Plan](docs/POC_MASTER_PLAN.md)** — scope, real baseline, user flows, domain, phases S0–S7, security/release gates and business validation.
+- **[Execution Tracker](docs/POC_TRACKER.md)** — task IDs, priority, prerequisites, DONE/PARTIAL/TODO/BLOCKED, first-action queue and evidence format.
+- **[Acceptance Matrix](docs/POC_ACCEPTANCE_MATRIX.md)** — objective API, browser, authorization, data, SEO, PVE and pilot test scenarios.
+- **[PVE Release Runbook](docs/POC_PVE_RELEASE_RUNBOOK.md)** — private preview topology, reviewed SHA, inventory, backup, verify and rollback.
+
+**Current gate:** Homepage preview visual QA PASS, operator Playwright 17/17 PASS; API/Angular/proxy local health PASS. **Overall product PoC is not finished.** Active work starts at tracker `YS-S0-02`: dependency lockfile / deterministic CI, followed by real .NET integration and CMS. **No CT deployed, no production data or payments.**
+
+
 **Градът около теб.** Първо квартал във Варна, после цяла Варна и България.
 
 > **STATUS: FUNCTIONAL PREVIEW FOUNDATION — NOT PRODUCTION READY.** Новият .NET + Angular код е в `apps/`. Съдържа публичен каталог, страници на обекти и изолирана preview администрация. Реалните обекти, verified ownership, production persistence, SEO/SSR, jobs lifecycle и billing не са завършени. Инсталация на публичен адрес е забранена до security / QA gates.
