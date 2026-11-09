@@ -204,3 +204,7 @@ GATE_DECISION: PASS | HOLD | NO-GO
 ```
 
 **The next infra action is READ-ONLY INVENTORY, not container creation.** Source and verified manual QA gate first, then protected provisioning.
+
+## 2026-11-09 — Windows Git Bash policy-test compatibility
+
+The first real Git Bash invocation of `scripts/test-preview-release-evidence.sh` at `7d60705` passed the shell syntax checks, then falsely rejected a locally generated valid `COMMIT_SHA` line. The build gate does not deploy, and no release build was attempted. This was a policy-validator/runtime compatibility defect. The revised validator compares lines with native Bash `read -r`, handles LF/CRLF without `grep -x` ambiguity, rejects duplicate keys or altered values, and retains SHA-256 binding to the *raw* manifest bytes. The test suite now validates both valid LF/CRLF fixtures and expected reasons for negative cases. A targeted Bash comparator unit check passed; **the full policy test must still pass in the operator's Git Bash runtime** before `YS-S0-06` can advance. No protected approval has been issued.

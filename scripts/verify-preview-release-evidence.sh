@@ -42,13 +42,25 @@ owner="$(stat -c '%u' -- "$APPROVAL")"
   die 'approval file must be owned by the operator or root'
 
 require_line() {
-  local path="$1" expected="$2" key="${2%%=*}" matched matched_crlf total
-  # Windows manifests may have CRLF; compare exact content for both line
-  # endings, reject duplicate keys, preserve raw bytes for SHA-256 binding.
-  matched="$(grep -Fxc -- "$expected" "$path" || true)"
-  matched_crlf="$(grep -Fxc -- "$expected"$'\r' "$path" || true)"
-  total="$(grep -c -- "^${key}=" "$path" || true)"
-  [[ "$total" == 1 ]] && (( matched + matched_crlf == 1 )) ||
+  local path="$1" expected="$2" key="${2%%=*}"
+  local line seen=0 exact=0
+
+  # Read the manifest with Bash rather than grep -x: MSYS/Git Bash may
+  # normalize CRLF during grep, making LF and CRLF patterns both match.
+  # Only strip ONE terminal CR; internal CRs and extra bytes are rejected.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == *$'\r' ]]; then
+      line="${line%$'\r'}"
+    fi
+    if [[ "$line" == "$key="* ]]; then
+      seen=$((seen + 1))
+      if [[ "$line" == "$expected" ]]; then
+        exact=$((exact + 1))
+      fi
+    fi
+  done < "$path"
+
+  [[ "$seen" -eq 1 && "$exact" -eq 1 ]] ||
     die "expected unique $key value in ${path##*/}"
 }
 for manifest in "$SOURCE" "$API"; do
@@ -75,8 +87,18 @@ require_line "$APPROVAL" "SOURCE_REF=$SOURCE_REF"
 require_line "$APPROVAL" "SOURCE_QA_SHA256=$source_hash"
 require_line "$APPROVAL" "API_QA_SHA256=$api_hash"
 require_line "$APPROVAL" 'APPROVAL=BUILD_ONLY'
-reviewer="$(sed -n 's/^REVIEWER_ID=//p' "$APPROVAL")"
-[[ "$reviewer" =~ ^[a-zA-Z0-9._@-]{3,80}$ ]] ||
+reviewer=''
+reviewer_count=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  if [[ "$line" == *$'\r' ]]; then
+    line="${line%$'\r'}"
+  fi
+  if [[ "$line" == REVIEWER_ID=* ]]; then
+    reviewer_count=$((reviewer_count + 1))
+    reviewer="${line#REVIEWER_ID=}"
+  fi
+done < "$APPROVAL"
+[[ "$reviewer_count" == 1 && "$reviewer" =~ ^[a-zA-Z0-9._@-]{3,80}$ ]] ||
   die 'unique nonempty REVIEWER_ID required in protected approval'
 
 printf 'RELEASE_EVIDENCE=PASS\n'
