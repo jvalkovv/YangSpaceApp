@@ -172,3 +172,18 @@ npm run test:e2e
 The Playwright suite launches its **own temporary Angular dev server at `127.0.0.1:4300`** and uses mocked API data. The .NET API on `5090` is not needed for these isolated browser regression cases. Keep `4200` for manual integration testing.
 
 Automated viewport checks run at **375, 390, 768, 1024 and 1440 CSS pixels**, verify no horizontal document overflow, and produce screenshots under `apps/web/test-results/`. These screenshots provide reproducible visual evidence, not automatic approval of aesthetics or Core Web Vitals. GitHub CI also runs the browser tests without deployment. A committed `package-lock.json` and migration from `npm install` to `npm ci` are still required before a production release.
+
+## S0 execution: reproducible npm and real API integration (2026-11-09)
+
+The production release build **requires** a source-tracked `apps/web/package-lock.json` and uses `npm ci`. No lockfile is committed yet; private PVE release remains **blocked intentionally**.
+
+After pulling the S0 branch on a Windows machine with supported Node, run from the repository root:
+
+```powershell
+.\scripts\Prepare-Web-Lock.ps1
+git status --short
+```
+
+The script runs `npm install --package-lock-only --ignore-scripts`, validates a clean `npm ci`, typecheck and build. Review the resulting `apps/web/package-lock.json` before committing; never invent/transcribe a lockfile by hand. CI also uploads an artifact `yangspace-npm-lock-candidate` if no lockfile is tracked, for review. Only a **committed** lockfile closes `YS-S0-02`.
+
+The CI API job now runs `scripts/api-integration.py` against an **isolated temporary database**, including write operations and process restart. It refuses to operate on normal/local/merchant data. See [PoC Tracker](docs/POC_TRACKER.md). No real admin credentials are stored in Git.

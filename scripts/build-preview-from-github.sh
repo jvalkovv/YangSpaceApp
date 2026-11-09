@@ -31,8 +31,16 @@ mkdir -p "$STAGE/release/api" "$STAGE/release/web"
 dotnet publish "$STAGE/source/apps/api/YangSpace.Api.csproj" -c Release -o "$STAGE/release/api"
 (
   cd "$STAGE/source/apps/web"
-  # TODO M0: replace npm install with npm ci after reviewed lockfile is committed.
-  npm install --no-audit --no-fund
+  # Fail closed: release artifacts require a reviewed, source-tracked lockfile.
+  [[ -s package-lock.json ]] || {
+    echo "RELEASE_BLOCKED: apps/web/package-lock.json missing; run S0-02 and commit reviewed file." >&2
+    exit 10
+  }
+  git -C "$STAGE/source" ls-files --error-unmatch apps/web/package-lock.json >/dev/null || {
+    echo "RELEASE_BLOCKED: npm lockfile exists but is not tracked by the reviewed commit." >&2
+    exit 10
+  }
+  npm ci --no-audit --no-fund
   npm run typecheck
   npm run build
 )

@@ -2,7 +2,7 @@
 name: YangSpace v2 - API and Angular validation
 on:
   push:
-    branches: [main]
+    branches: [main, feat/yangspace-v2-foundation-20261108]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -22,23 +22,51 @@ jobs:
           dotnet list apps/api/YangSpace.Api.csproj package --include-transitive | tee /tmp/yangspace-packages.txt
           grep -E "SQLitePCLRaw.lib.e_sqlite3[[:space:]]+3[.]53[.]3" /tmp/yangspace-packages.txt
           dotnet build apps/api/YangSpace.Api.csproj -c Release --no-restore -warnaserror
-      - name: Start isolated preview API and smoke
+      - name: Start isolated preview API, smoke and real DB integration
         shell: bash
-        env:
-          ASPNETCORE_ENVIRONMENT: Staging
-          ASPNETCORE_URLS: http://127.0.0.1:5090
-          Preview__Enabled: 'true'
-          ConnectionStrings__Main: Data Source=/tmp/yangspace-ci.db
         run: |
-          set -euo pipefail
-          dotnet run --no-launch-profile --no-build -c Release --project apps/api/YangSpace.Api.csproj > /tmp/yangspace-api.log 2>&1 &
-          pid=$!
-          trap 'kill $pid 2>/dev/null || true; tail -n 50 /tmp/yangspace-api.log' EXIT
-          for i in {1..40}; do
-            if curl -fsS http://127.0.0.1:5090/health/ready >/dev/null 2>&1; then break; fi
-            sleep 1
-          done
+          set -Eeuo pipefail
+          export ASPNETCORE_ENVIRONMENT=Staging
+          export ASPNETCORE_URLS=http://127.0.0.1:5090
+          export Preview__Enabled=true
+          export ConnectionStrings__Main='Data Source=/tmp/yangspace-ci-integration.db'
+          export Bootstrap__AdminEmail='ci-admin@example.invalid'
+          export Bootstrap__AdminPassword="Aa!1$(openssl rand -hex 24)"
+          export YANGSPACE_TEST_DB_PATH=/tmp/yangspace-ci-integration.db
+          export YANGSPACE_TEST_STATE=/tmp/yangspace-ci-state.json
+          export YANGSPACE_TEST_ISOLATED_DB=YES
+          rm -f /tmp/yangspace-ci-integration.db /tmp/yangspace-ci-integration.db-shm /tmp/yangspace-ci-integration.db-wal /tmp/yangspace-ci-state.json
+          pid=''
+          cleanup() {
+            if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+            tail -n 70 /tmp/yangspace-api.log || true
+          }
+          trap cleanup EXIT
+          start_api() {
+            dotnet apps/api/bin/Release/net10.0/YangSpace.Api.dll > /tmp/yangspace-api.log 2>&1 &
+            pid=$!
+            for i in {1..40}; do
+              if curl -fsS http://127.0.0.1:5090/health/ready >/dev/null 2>&1; then return 0; fi
+              sleep 1
+            done
+            echo "API readiness timeout" >&2
+            return 1
+          }
+          start_api
           bash scripts/api-smoke.sh
+          python3 scripts/api-integration.py prepare
+          kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          pid=''
+          # A direct dotnet DLL process has a stable PID; prove it stopped.
+          if curl -fsS --max-time 2 http://127.0.0.1:5090/health/ready >/dev/null 2>&1; then
+            echo "API_PROCESS_RESTART_NOT_VERIFIED" >&2
+            exit 1
+          fi
+          start_api
+          python3 scripts/api-integration.py verify
+          echo "REAL_API_INTEGRATION=PASS"
+
   web:
     runs-on: ubuntu-latest
     steps:
@@ -46,9 +74,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.3'
-      - name: Bootstrap Angular dependencies (lockfile pending)
+      - name: Resolve npm lockfile for repeatable run
         working-directory: apps/web
-        run: npm install --no-audit --no-fund
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -s package-lock.json ]]; then
+            echo "LOCKFILE_MODE=TRACKED"
+          else
+            echo "LOCKFILE_MODE=TRANSITIONAL_ARTIFACT_ONLY"
+            echo "G0 remains HOLD until package-lock.json is reviewed and committed." >> "$GITHUB_STEP_SUMMARY"
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+      - name: Upload resolved lockfile for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: yangspace-npm-lock-candidate
+          path: apps/web/package-lock.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Install from resolved lockfile
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
       - name: Typecheck
         working-directory: apps/web
         run: npm run typecheck

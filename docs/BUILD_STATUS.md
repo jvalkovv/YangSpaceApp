@@ -81,3 +81,13 @@ Operator reported Playwright **17/17 PASS (18.2 s)**, Angular typecheck/build PA
 ## 2026-11-09 — PoC execution plan published (documentation-only)
 
 Added canonical end-to-end product/technical PoC master, stateful execution tracker with task IDs, detailed acceptance matrix and private PVE release/recovery runbook. Baseline source remains `20aa30c` (homepage); user-confirmed Angular build, local API/proxy checks and 17/17 browser tests remain the only accepted runtime evidence. This is **planning, not functionality delivered**. Critical open items include npm lockfile, GitHub CI evidence, real backend-admin integration, Identity/security, production database/ownership, PVE candidate SHA policy, protected preview deployment and all public-pilot gates. PR #1 stays Draft; no runtime, credentials or PVE changes were made.
+
+## 2026-11-09 — S0 execution begins: lockfile and real API testing (source ready)
+
+Task `YS-S0-02`: added PowerShell lockfile generation/reproducibility script. GitHub CI temporarily creates an **artifact-only** `apps/web/package-lock.json` when one is missing, uploads it for review, and then runs `npm ci`. This is a transitional bootstrap **not** a release PASS until the lockfile has been reviewed and committed. PVE release build now fails closed if the reviewed SHA has no tracked lockfile; it uses `npm ci` rather than `npm install`.
+
+Task `YS-S0-04`: introduced guarded Python stdlib integration tests that only run in a temporary `/tmp/yangspace-ci-*` SQLite database in Staging preview mode with a random CI bootstrap admin password. Tests cover guest denial, login, create/edit/publish, duplicate slug and invalid input, active vs expired/future offers, brochure/job creation, hide and persistence after a **real process restart**. CI API job now runs the workflow alongside the public smoke tests.
+
+Task `YS-S0-03`: CI trigger now includes the active branch in addition to PRs targeting main; **a GitHub Actions green run still has to be observed**. No secrets/credentials were committed. All application binaries and homepage UI remain untouched. No PVE mutations.
+
+**Status:** source implementation prepared; npm lockfile absent, full CI runtime evidence pending, G0 HOLD. Do not mark these tasks DONE until checks pass.

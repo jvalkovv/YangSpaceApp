@@ -85,3 +85,11 @@ OBSERVABILITY:
 KNOWN_OPEN_ISSUES:
 VERDICT: PASS | HOLD | NO-GO
 ```
+
+## 2026-11-09 — Added S0 executable tests (source stage)
+
+- `scripts/Prepare-Web-Lock.ps1` creates the true registry-resolved npm lockfile on a supported Windows Node installation, validates `npm ci`, Angular typecheck and build. **Do not synthesize a lockfile or treat CI artifact as committed.**
+- `scripts/api-integration.py prepare|verify` accepts only a disposable `/tmp/yangspace-ci-*` DB with explicit `YANGSPACE_TEST_ISOLATED_DB=YES`, Staging and matching connection string. The CI API job creates a random bootstrap credential, runs smoke, executes real data mutations, restarts the API process, then confirms persistence and denied guest access.
+- CI web job can temporarily produce a lockfile artifact for review, but G0 remains **HOLD** until it is committed and a fresh clone performs `npm ci` with no manifest drift.
+- PVE build script fails closed without tracked lockfile and cannot activate a release automatically.
+- **Evidence gap:** CI is not yet verified green on this code; don't mark BUILD-01, API-02..06 or G0 PASS.
