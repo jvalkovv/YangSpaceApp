@@ -42,6 +42,7 @@
 | YS-S1-04 | P0 | Admin page production-grade UI | Forms, validation, loading errors, status, edit modals/pages, accessibility + screenshots | PARTIAL — real edit/publish UI, role verified login, validation, conflict handling, request timeout and responsive editor source prepared; visual/keyboard/manual CT acceptance pending |
 | YS-S1-05 | P0 | End-to-end unmocked workflow | Admin → DB → GET public → hide → public absent → restart → persistent; negative auth evidence | TODO |
 | YS-S1-06 | P1 | Demo fixture isolation | Fictional samples are idempotent in preview; no accidental public real-data migration, environment-switch tests | PARTIAL |
+| YS-S1-07 | P0 | Production-safe CMS access and first-admin enrollment | Bearer-only PlatformAdmin, gateway-origin policy, no registration, offline one-time admin grant, approved database schema, explicit security preflight | PARTIAL — source gates/operator CLI/negative startup test prepared; NO migrations, live proxy-ACL review, deployment or runtime proof |
 
 **S1 exit:** admin can complete real DB-backed workflows and an unprivileged caller cannot perform them; logs + screenshots recorded.
 
@@ -50,7 +51,7 @@
 | ID | Priority | Work package | Acceptance / evidence | State |
 |---|---|---|---|---|
 | YS-S2-01 | P0 | DB ADR: PostgreSQL vs SQL Server | Written benchmark, license/ops/spatial/backup/restore comparison and selected provider | TODO |
-| YS-S2-02 | P0 | EF Core migrations/versioning | Clean init + upgrade + rollback compatibility/drill, no `EnsureCreated` in production path | TODO |
+| YS-S2-02 | P0 | EF Core migrations/versioning | Clean init + upgrade + rollback compatibility/drill, no `EnsureCreated` in production path | PARTIAL — production code refuses zero/pending migrations and automatic DB creation; EF migration artifacts, fresh DB, backup/restore and schema rollout still NOT IMPLEMENTED |
 | YS-S2-03 | P0 | Organization/Location/Geo taxonomy | Relational constraints, seeded normalized lookups, categories/hours/geo indexes | TODO |
 | YS-S2-04 | P0 | Owner/member/claim workflow | Verified reviewer decision creates scoped membership; revoke works; audit, denial and cross-tenant tests | TODO |
 | YS-S2-05 | P0 | Policy-based tenant isolation | Tests for owner A vs owner B across all private endpoints (reads/writes); no global `IsOwner` shortcut | TODO |
@@ -177,3 +178,11 @@ S1-03 source adds PlatformAdmin-only per-location `GET /locations/{id}/content`,
 The expanded disposable-DB PowerShell integration regression covers unauthorized GET/PUT/restore 403, invalid inputs 400, cross-location 404, repeated hide/restore 204, expired-restore 409, public visibility and restart persistence. Mocked Playwright tests cover CMS changes and expired restore disabled.
 
 **Evidence:** static source/diff review only; no .NET/Angular/Playwright/API runtime for this new HEAD. Windows validation scripts are not automatically compatible with Linux. Before publishing to a live domain, implement/verify Linux-compatible isolated acceptance, backup/rollback, protected admin security and Production-safe auth (the current API's preview-only admin gate is still disabled in Production). G0/G-PREVIEW HOLD, PR Draft. No Actions, PVE mutation or deployment.
+
+### 2026-11-09 — Production CMS fail-closed separation (source only)
+
+One active dedicated YangSpace LXC and canonical `yangspace.gndstore.eu`, no extra permanent QA environments. The **public directory** remains read-only when `Admin:Enabled=false`. The new `Admin:Enabled=true` **is NOT authorized for deployment**: it requires ASP.NET Production, Preview disabled, registration disabled, explicit AllowedHosts, an environment-injected 32-byte Base64 gateway secret, and a loopback peer that supplies the correct internal header after origin-side authentication. All admin writes additionally require the PlatformAdmin **Identity bearer** scheme. Production Identity exposes only `POST /api/auth/login` and `POST /api/auth/refresh`; cookie query options and registration are denied. The reverse proxy must verify Cloudflare Access/other approved authenticated operator policy at origin and strip client-supplied internal headers. The app alone cannot prove this edge/gateway integration.
+
+Production database: an absolute SQLite file path outside releases, `Mode=ReadWrite`, existing file, actual reviewed EF migrations applied offline, and an offline-provisioned PlatformAdmin are mandatory. No PreviewBootstrap/EnsureCreated/fictional seeding in Production. First admin is created by an explicit interactive `--yangspace-provision-admin` operator command with separate consent and no HTTP listener; no existing user promotion or routine startup grants. **No EF migration has been generated**, and historical preview EnsureCreated DB must NOT be converted in place. Source-only negative startup tests added for missing/malformed gateway secret, missing SQLite DB and preview+production misconfiguration. Runtime tests, migrations, actual TLS/ACL, backup/recovery, and secrets rotation remain OPEN. G0/G-PREVIEW HOLD. No changes to PVE, actions, DNS, active service, or database.
+
+Production persistence clarification: even with the CMS disabled, Production startup requires a pre-existing external `Mode=ReadWrite` SQLite database and a reviewed, applied EF migration with no model drift. The first-admin gate applies only when Admin.Enabled=true. This source increment does **not** include a migration; G0 and production activation stay HOLD.

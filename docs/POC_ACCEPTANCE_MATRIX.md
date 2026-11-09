@@ -157,3 +157,16 @@ All scenarios are prepared in source where applicable but need executed evidence
 | UI | Create/edit/archive/restore with role check | All 3 collection types, conflict/error feedback, responsive keyboard flow |
 
 **New code remains UNVERIFIED at runtime**, including shell/Bash compatibility and browser UI. Confirm exact SHA and perform independent real acceptance on the dedicated YangSpace CT only after authorization, private admin access, backups and correct isolation. Site currently not accepted as public Production merely because Cloudflare A record exists.
+
+## 2026-11-09 — S1-07 Production CMS acceptance matrix
+
+| Gate | Required evidence | Current state |
+|---|---|---|
+| Explicit mode | Production, Preview=false, Admin.Enabled explicit, no production registration | Source-only guard present |
+| Internal request origin | TCP loopback proxy + constant-time 32-byte gateway secret, no forwarded-IP trust | Source-only; reverse proxy/edge auth unverified |
+| Identity | PlatformAdmin Identity bearer only; cookie mode and registration absent in Production | Source-only; auth negative runtime pending |
+| Database | Existing absolute SQLite Mode=ReadWrite outside release; EF migrations applied offline; no `EnsureCreated` | Source gate; **no reviewed migration yet** |
+| First admin | Operator-interactive no-listener command, no existing-user promotion, no user password in Git | Source-only; pending runtime/procedure review |
+| Resilience | Immutable release, db backup/restore, monitored health, rollback and isolated CRUD QA | Pending dedicated LXC acceptance |
+
+**G0/G-PREVIEW HOLD:** A DNS/proxy entry is not proof of secure gateway routing. `Admin:Enabled=true` must not be set on the active domain until migration, access/secret, audit and deployment gates pass.

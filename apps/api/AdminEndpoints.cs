@@ -5,9 +5,12 @@ namespace YangSpace.Api;
 
 public static class AdminEndpoints
 {
-    public static void MapAdmin(this WebApplication app)
+    public static void MapAdmin(this WebApplication app, byte[]? gatewaySecret = null)
     {
-        var admin = app.MapGroup("/api/v1/admin").RequireAuthorization("PlatformAdmin").WithTags("Admin (preview only)");
+        var admin = app.MapGroup("/api/v1/admin").RequireAuthorization("PlatformAdmin").WithTags("Admin");
+        if (gatewaySecret is not null)
+            admin.AddEndpointFilter((context, next) =>
+                ProductionAdminAccess.RequireGateway(context, next, gatewaySecret));
         admin.MapGet("/me", (System.Security.Claims.ClaimsPrincipal user) => Results.Ok(new { email = user.Identity?.Name, role = "PlatformAdmin" }));
         admin.MapContentManagement();
         admin.MapGet("/locations", async (DirectoryDb db, CancellationToken ct) =>
