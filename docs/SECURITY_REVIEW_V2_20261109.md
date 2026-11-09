@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-09  
 **Evidence baseline:** `f3f4e1c9e29a640bab2637fac9ff98098747e41a` — Source QA and real API integration both **PASS** (operator logs).  
-**Status:** **PARTIAL / G0 HOLD**. Current security hardening in the next commit has **not** yet passed runtime QA. This is a source review, not a penetration test or public exposure assessment.
+**Status:** **PARTIAL / G0 HOLD**. Registration hardening passed runtime QA on `6e8ba7b`. The new bootstrap abuse regression requires its own runtime QA. This is a source review, not a penetration test or public exposure assessment.
 
 ## Positive controls observed
 
@@ -17,7 +17,7 @@
 | ID | Severity / gate | Source evidence | Action / current disposition |
 |---|---|---|---|
 | SEC-01 | P0 / any preview reachable beyond private QA | `Program.cs` maps `MapIdentityApi` under preview, including `/api/auth/register`; Staging name does not establish privacy | **Source change prepared:** `Preview:AllowRegistration=false` default; route-group filter rejects registration unless explicitly opted in. Integration test checks enabled-only disposable phase and denial on restart. Runtime PASS pending |
-| SEC-02 | P0 / bootstrap role escalation | `PreviewBootstrap.Initialize` previously assigned PlatformAdmin to matching existing account | **Source change prepared:** refuse role assignment when account existed without admin role. Need targeted negative runtime test before closing |
+| SEC-02 | P0 / bootstrap role escalation | `PreviewBootstrap.Initialize` now refuses promotion of any pre-existing ordinary user | **Runtime test source added:** after normal integration, attempt boot with `Bootstrap__AdminEmail` of a registered nonadmin, require startup refusal, restore original admin, assert member still gets HTTP 403 after restart. Await operator evidence |
 | SEC-03 | P0 / deployment | Templates use loopback API behind Nginx, but private gateway/VPN/TLS and allowlists are not deployed or verified | No public/Staging exposure; PVE read-only inventory, private ACL/gateway and TLS verification required |
 | SEC-04 | P0 / historical secrets | `SECURITY_BASELINE.md` records legacy Git history with DB/JWT/demo credentials | **Rotation NOT VERIFIED**; inventory owners, assess if active, rotate any potentially usable secrets outside Git; never copy secrets into reports |
 | SEC-05 | P0 / merchant self-service | Only global PlatformAdmin policy exists; no resource-scoped organization/member/claim workflow | Public merchant access and cross-tenant writes remain BLOCKED; S2 requires membership/ownership and negative cross-tenant tests |
@@ -32,3 +32,7 @@
 **NOT accepted:** new default-deny registration/role hardening runtime, historical credential rotation, exposed network boundary, per-merchant authorization, production persistence, private PVE preview, and public pilot.
 
 **Next gate:** fresh clean-SHA `Verify-Source-Local.ps1` + `Verify-Api-Local.ps1` after hardening commit. Follow with precise SEC-02 negative runtime test and historical secrets decision. Keep PR Draft; no merge or deployment based solely on source review.
+
+## SEC-02 negative regression — newly prepared
+
+The isolated API QA runner persists the nonadmin user's **fictional email** in its disposable state file (not a password). It starts a temporary .NET process on the same random loopback port, switches only the *process-local* admin bootstrap email, and demands that startup fail with the expected promotion refusal. It restores the original bootstrap identity, restarts again and checks login, registration disabled, hidden content and nonadmin HTTP 403. A timeout kills **only the test-owned probe process**. `REAL_API_INTEGRATION=PASS` is impossible until these assertions pass. No trusted credentials or external DB are used. The change is source-only pending fresh Windows PASS.

@@ -123,3 +123,7 @@ The shared process runner and `api-restore` / `api-build` have been verified suc
 ## 2026-11-09 — Exact-SHA source/API acceptance and auth hardening regression
 
 S0-02/03/04 PASS evidence is linked to the same operator-reported `f3f4e1c9e29a640bab2637fac9ff98098747e41a` source/API SHA. The next code change modifies preview auth registration and admin bootstrap. The **new SHA is not accepted** until `Verify-Source-Local.ps1` (all eight stages) and `Verify-Api-Local.ps1` (registration allowed only in isolated preparation phase, denied after restart, real authorization and persistence) pass again. The default `appsettings.json` must set `Preview:AllowRegistration=false`, and the PVE sample env must do the same. No Actions.
+
+## 2026-11-09 — SEC-02 expected bootstrap denial acceptance
+
+Baseline `6e8ba7bf2b82773a087e19737bb64e29b732e7d1` Source QA and API QA both PASS (operator). The updated API integration runner now requires three independent observations before recording overall PASS: ordinary user initially receives 403, attempt to bootstrap that existing account as PlatformAdmin aborts with the exact denial message, then subsequent normal admin startup and nonadmin authorization check succeed against the unchanged disposable SQLite DB. Source-only until operator executes. G0 still HOLD for separate P0 security/release obligations.

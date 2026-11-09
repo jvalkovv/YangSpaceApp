@@ -15,7 +15,7 @@
 | YS-B-04 | Automated browser regressions | DONE | 17/17 Playwright PASS on `20aa30c`, 18.2s; mocked API |
 | YS-B-05 | Public read-only demo API | PARTIAL | 6 fictional locations/3 offers/1 brochure/1 job; no real public-data acceptance |
 | YS-B-06 | Preview administrator UI + API | PARTIAL | Source present; Playwright auth test mocks backend; real CRUD lifecycle unverified |
-| YS-B-07 | Manual source and API validation | DONE at `f3f4e1c` | Operator confirmed 8/8 source stages and real API prepare/verify with persistence on exact SHA `f3f4e1c9e29a640bab2637fac9ff98098747e41a`; latest security changes require fresh QA |
+| YS-B-07 | Manual source and API validation | DONE at `6e8ba7b` | Both clean-source 8/8 and real API/guard integration PASS on exact commit `6e8ba7bf2b82773a087e19737bb64e29b732e7d1`; new SEC-02 runtime test requires rerun |
 | YS-B-08 | PVE LXC deployment | TODO | No CT inventory or deployment executed; runbook/templates only |
 
 ## S0 — Engineering reproducibility and risk closure (START HERE)
@@ -23,10 +23,10 @@
 | ID | Priority | Work package | Acceptance / evidence | State |
 |---|---|---|---|---|
 | YS-S0-01 | P0 | Record baseline, source/QA scope, branch protection and current blockers | PR #1 has precise accepted homepage SHA; release gates and documentation agreed | DONE |
-| YS-S0-02 | P0 | Freeze dependency graph | Commit lockfile; validate npm ci from a clean SHA archive, dependency audit and .NET restore | DONE for verified `133cfd6`: committed lockfile, clean Git archive, npm ci, audit and .NET restore/build all PASS; source, npm ci, audit and .NET verified again at `f3f4e1c`; revalidate new HEAD |
-| YS-S0-03 | P0 | Manual reproducible source QA | `Verify-Source-Local.ps1` on exact SHA: npm ci, npm audit, Angular build, 17+ Playwright, .NET restore/build and logs | DONE at `f3f4e1c`: 8/8 stages PASS, `logs/yangspace/verify/f3f4e1c9e29a-20261109-140701-f8aa61a1`; new HEAD must be rechecked |
-| YS-S0-04 | P0 | Real .NET API integration | `Verify-Api-Local.ps1`: isolated temp DB, random loopback port, guest/admin auth, publish/expiry/hide, process restart | DONE at `f3f4e1c`: native guard self-test PASS, real admin/nonadmin authorization & CRUD/expiry/hide and DB persistence after API restart PASS; `logs/yangspace/api-integration/f3f4e1c9e29a-20261109-134901-71bf0807`; new hardening HEAD requires rerun |
-| YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Default-deny preview registration, fail-closed bootstrap, legacy secret assessment/rotation, protected preview, ownership/rate-limit plan | PARTIAL — source review done; default-deny register and nonadmin bootstrap promotion protection added (runtime unverified); legacy secret reuse, private preview access and tenant ownership unresolved |
+| YS-S0-02 | P0 | Freeze dependency graph | Commit lockfile; validate npm ci from a clean SHA archive, dependency audit and .NET restore | DONE for verified `133cfd6`: committed lockfile, clean Git archive, npm ci, audit and .NET restore/build all PASS; source, npm ci, audit and .NET verified again at `6e8ba7b`; revalidate next HEAD |
+| YS-S0-03 | P0 | Manual reproducible source QA | `Verify-Source-Local.ps1` on exact SHA: npm ci, npm audit, Angular build, 17+ Playwright, .NET restore/build and logs | DONE at `6e8ba7b`: 8/8 stages PASS, `logs/yangspace/verify/6e8ba7bf2b82-20261109-150237-29d92478`; rerun for next candidate SHA |
+| YS-S0-04 | P0 | Real .NET API integration | `Verify-Api-Local.ps1`: isolated temp DB, random loopback port, guest/admin auth, publish/expiry/hide, process restart | DONE at `6e8ba7b`: native guard PASS, real auth/CRUD/expiry/hide, registration disabled after restart and DB persistence PASS; `logs/yangspace/api-integration/6e8ba7bf2b82-20261109-150223-9cef9243`; new SEC-02 test pending |
+| YS-S0-05 | P0 | Security inventory of new & legacy surfaces | Default-deny preview registration, fail-closed bootstrap, legacy secret assessment/rotation, protected preview, ownership/rate-limit plan | PARTIAL — default-deny registration verified on `6e8ba7b`; privilege-promotion guard source reviewed but negative runtime test not yet executed; legacy credential reuse, private preview network acceptance and future tenant isolation unresolved |
 | YS-S0-06 | P1 | Correct PVE release candidate policy | Approved draft-branch SHA can be built only when reviewed manual QA evidence matches, without permitting arbitrary/untrusted refs or auto-deploy | TODO |
 | YS-S0-07 | P1 | Repo hygiene and legal ownership | LICENSE decision, review/branch policy, pinned SDK/node docs, changelog and manual QA instructions | TODO |
 
@@ -139,3 +139,7 @@ GATE_DECISION: PASS / HOLD
 ### 2026-11-09 — Evidence pair and security hardening state
 
 The operator's API and source logs **both PASS** for `f3f4e1c9e29a640bab2637fac9ff98098747e41a` (S0-02/03/04 accepted at that SHA only). Next source update modifies only preview authentication/bootstrap behavior, explicit default config and integration checks; before any G0 release candidacy both operator checks must re-run against the exact new HEAD. `YS-S0-05` remains PARTIAL because historical secrets/rotation, protected preview exposure and ownership model are unresolved. [Security review](SECURITY_REVIEW_V2_20261109.md). No GitHub Actions, no PVE deployment.
+
+### 2026-11-09 — Matched-SHA S0 acceptance and SEC-02 regression extension
+
+Operator-confirmed on `6e8ba7bf2b82773a087e19737bb64e29b732e7d1`: source QA eight stages PASS and real API test/negative registration guard PASS, with matching manifest commit. A follow-on SEC-02 test now exercises bootstrap with an existing regular identity on **the same disposable SQLite DB**, requires startup refusal, then restores original bootstrap settings and verifies both admin login and ordinary-user denial. **New test source only; runtime PASS pending on the next commit.** Historical secrets, private TLS/ACL access and merchant ownership remain open. No PVE or GitHub Actions.

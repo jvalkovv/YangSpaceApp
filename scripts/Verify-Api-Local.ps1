@@ -108,10 +108,73 @@ try {
             if($stillListening){throw 'API_PROCESS_RESTART_NOT_VERIFIED'}
         }
     }
+    # SEC-02: attempt a privileged bootstrap with an existing, ordinary
+    # test user on the SAME isolated SQLite DB. It MUST abort startup.
+    $saved=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($State))
+    $ReaderEmail=[string]$saved.readerEmail
+    if ($ReaderEmail -cnotmatch '^ci-reader-[0-9a-f]{12}@example\.invalid$') {
+        throw 'SEC02_INVALID_DISPOSABLE_NONADMIN_IDENTITY'
+    }
+    $OriginalBootstrapEmail=[Environment]::GetEnvironmentVariable('Bootstrap__AdminEmail','Process')
+    $ProbeProcess=$null
+    $ProbeOut=Join-Path $Evidence 'bootstrap-denial.stdout.log'
+    $ProbeErr=Join-Path $Evidence 'bootstrap-denial.stderr.log'
+    try {
+        [Environment]::SetEnvironmentVariable('Bootstrap__AdminEmail',$ReaderEmail,'Process')
+        Write-Host 'STAGE=api-bootstrap-denial'
+        $ProbeProcess=Start-Process -FilePath $Dotnet -ArgumentList ('"'+$Dll+'"') -WorkingDirectory (Split-Path $Dll -Parent) -NoNewWindow -PassThru -RedirectStandardOutput $ProbeOut -RedirectStandardError $ProbeErr
+        $Deadline=[DateTime]::UtcNow.AddSeconds(20)
+        while (-not $ProbeProcess.HasExited -and [DateTime]::UtcNow -lt $Deadline) {
+            Start-Sleep -Milliseconds 200
+        }
+        if (-not $ProbeProcess.HasExited) {
+            throw 'SEC02_FAIL: EXISTING_NONADMIN_BOOTSTRAP_DID_NOT_ABORT'
+        }
+        $ProbeError=''
+        foreach ($Log in @($ProbeErr,$ProbeOut)) {
+            if (Test-Path -LiteralPath $Log) {
+                $ProbeError += [IO.File]::ReadAllText($Log) + [char]10
+            }
+        }
+        if ($ProbeError -cnotmatch 'Existing non-admin account cannot be promoted through bootstrap\.') {
+            throw 'SEC02_FAIL: EXPECTED_PRIVILEGE_ESCALATION_DENIAL_NOT_OBSERVED'
+        }
+        Write-Host 'STAGE_PASS=api-bootstrap-denial'
+        Write-Host 'BOOTSTRAP_PRIVILEGE_ESCALATION_DENIED=PASS'
+    }
+    finally {
+        if ($null -ne $ProbeProcess -and -not $ProbeProcess.HasExited) {
+            Stop-Process -Id $ProbeProcess.Id -Force -ErrorAction Stop
+            [void]$ProbeProcess.WaitForExit(10000)
+        }
+        [Environment]::SetEnvironmentVariable('Bootstrap__AdminEmail',$OriginalBootstrapEmail,'Process')
+    }
+
+    # SEC-02: recovery must preserve admin access, registration denial,
+    # existing content and the test user's non-admin authorization.
+    Write-Host 'STAGE=api-post-bootstrap-recovery'
+    $ApiProcess=Start-Process -FilePath $Dotnet -ArgumentList ('"'+$Dll+'"') -WorkingDirectory (Split-Path $Dll -Parent) -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $Evidence 'api-recovery.stdout.log') -RedirectStandardError (Join-Path $Evidence 'api-recovery.stderr.log')
+    $Recovered=$false
+    for ($attempt=0;$attempt -lt 50;$attempt++) {
+        if ($ApiProcess.HasExited) {throw 'SEC02_FAIL: ISOLATED_API_EXITED_DURING_RECOVERY'}
+        try {
+            $resp=Invoke-WebRequest -UseBasicParsing -Uri ($BaseUrl+'/health/ready') -TimeoutSec 2 -ErrorAction Stop
+            if ([int]$resp.StatusCode -eq 200) { $Recovered=$true; break }
+        } catch {
+            Start-Sleep -Milliseconds 300
+        }
+    }
+    if (-not $Recovered) { throw 'SEC02_FAIL: ISOLATED_API_RECOVERY_TIMEOUT' }
+    Step 'api-post-bootstrap-verify' $WindowsPS @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','scripts/Invoke-Api-Integration.ps1','-Phase','verify') $Source
+    Stop-Api
+    $ApiProcess=$null
+    Write-Host 'STAGE_PASS=api-post-bootstrap-recovery'
+    Write-Host 'BOOTSTRAP_NONADMIN_ROLE_RETAINED=PASS'
     [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),@(
         ('COMMIT_SHA='+$CommitSha),'REAL_API_INTEGRATION=PASS',
         'DB_SCOPE=DISPOSABLE_OS_TEMP_SQLITE','AUTH_AND_LIFECYCLE=PASS',
-        'PROCESS_RESTART_PERSISTENCE=PASS','PVE_DEPLOYMENT=NONE'
+        'PROCESS_RESTART_PERSISTENCE=PASS','BOOTSTRAP_PRIVILEGE_ESCALATION_DENIED=PASS',
+        'BOOTSTRAP_NONADMIN_ROLE_RETAINED=PASS','PVE_DEPLOYMENT=NONE'
     ))
     $Pass=$true
     Write-Host 'REAL_API_INTEGRATION=PASS'

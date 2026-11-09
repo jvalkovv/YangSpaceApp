@@ -131,3 +131,14 @@ The earlier `scripts/api-integration.py` is not used by Windows validation and r
 ## S0-05 registration/privilege boundary regression
 
 Current hardening makes `/api/auth/register` unavailable by default even in preview. Only the disposable QA wrapper explicitly sets `Preview__AllowRegistration=true` to create a normal user for negative permission tests; before the second API restart, the wrapper switches the same flag to `false`. `Invoke-Api-Integration.ps1 -Phase verify` must then receive HTTP 404 from registration and still authenticate the previously bootstrapped administrator and confirm DB persistence. A pre-existing ordinary account can no longer be auto-promoted to `PlatformAdmin` by setting `Bootstrap__AdminEmail`. This latter case requires additional negative runtime evidence before S0-05 is DONE. For actual private preview, registration remains disabled and access must be protected at the network/gateway layer. **Do not enable self-registration in PVE or expose Staging publicly.**
+
+## SEC-02 — existing nonadmin cannot become PlatformAdmin
+
+After `api-restart-verify`, the updated `Verify-Api-Local.ps1` performs:
+
+1. `STAGE=api-bootstrap-denial`: boot isolated API using the previously created ordinary user as the configured bootstrap admin; startup **must exit** with the expected denial and must not begin serving.
+2. `BOOTSTRAP_PRIVILEGE_ESCALATION_DENIED=PASS` only if the expected exception appears in its own logs.
+3. `STAGE=api-post-bootstrap-recovery` and `api-post-bootstrap-verify`: restore original admin, restart on the same isolated SQLite DB, require admin success and persisted ordinary-user HTTP 403, confirm preview registration still returns 404.
+4. Required final markers: `BOOTSTRAP_NONADMIN_ROLE_RETAINED=PASS`, `REAL_API_INTEGRATION=PASS`; both must appear with matching new SHA. A failure in any step is HOLD.
+
+The negative bootstrap startup exception is **expected**, not an application regression. The nonadmin identity and database are fictional and disposable, not live. Run the guard and API scripts against the next reviewed commit, followed by the full source QA on that exact SHA. No GitHub Actions.

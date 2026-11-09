@@ -180,7 +180,7 @@ if ($Phase -eq 'prepare') {
     Assert-Hidden $slug
     $listing=Assert-Status 'GET' '/api/v1/locations?category=Services' @(200)
     if (@($listing.items | Where-Object {$_.slug -ceq $slug}).Count -gt 0) { throw 'Hidden business leaked in listing' }
-    [IO.File]::WriteAllText($state,(ConvertTo-Json @{id=$id;slug=$slug} -Compress))
+    [IO.File]::WriteAllText($state,(ConvertTo-Json @{id=$id;slug=$slug;readerEmail=$readerEmail} -Compress))
     Write-Host 'INTEGRATION_PREPARE=PASS'
 } else {
     if (-not (Test-Path -LiteralPath $state -PathType Leaf)) { throw 'Prepared-state fixture missing' }
@@ -199,5 +199,16 @@ if ($Phase -eq 'prepare') {
     if ($entry.Count -ne 1) { throw 'Persisted hidden location not found after restart' }
     Assert-Hidden ([string]$record.slug)
     [void](Assert-Status 'GET' '/api/v1/admin/locations' @(401,403))
+    if ([string]$record.readerEmail -cnotmatch '^ci-reader-[0-9a-f]{12}@example\.invalid$') {
+        throw 'INVALID_PERSISTED_NONADMIN_TEST_IDENTITY'
+    }
+    $reader=Assert-Status 'POST' '/api/auth/login' @(200) @{
+        email=[string]$record.readerEmail;password=$env:Bootstrap__AdminPassword
+    }
+    if (-not $reader -or [string]::IsNullOrWhiteSpace($reader.accessToken)) {
+        throw 'PERSISTED_NONADMIN_TOKEN_MISSING'
+    }
+    [void](Assert-Status 'GET' '/api/v1/admin/locations' @(403) $null ([string]$reader.accessToken))
+    Write-Host 'NONADMIN_PRIVILEGES_PERSISTENTLY_DENIED=PASS'
     Write-Host 'INTEGRATION_RESTART_PERSISTENCE=PASS'
 }
