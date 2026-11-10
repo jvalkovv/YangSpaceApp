@@ -249,3 +249,29 @@ Operator executed a narrowly scoped repair inside running unprivileged CT164:
 **Root cause:** the initial provisioning runbook had applied `umask 077` to `pct create`, causing the extracted guest `/etc` directory to be mode 0700. The corrected provisioning snippet now scopes `umask 022` to `pct create` only, retaining `umask 077` for operator evidence logs.
 
 Next: basic guest package/repository preflight, no active Nginx listener or production application. Before publishing through CT152, independently validate gateway reachability, CT firewall policy, TLS and approved off-host recovery. Keep `G0/G-PREVIEW/G-PILOT=HOLD`.
+
+## 2026-11-10 — Base OS packages: installed / confirmed
+
+Operator supplied exact `dpkg-query -W` evidence inside CT164:
+
+| Package | Installed version |
+|---|---|
+| ca-certificates | `20250419+deb13u1` |
+| curl | `8.14.1-2+deb13u7` |
+| git | `1:2.47.3-0+deb13u1` |
+| gnupg | `2.4.7-21+deb13u1` |
+| jq | `1.7.1-6+deb13u4` |
+| unzip | `6.0-29+deb13u1` |
+
+Guest `systemctl is-system-running` returned `running`. Earlier long heredoc/tee attempt produced no log and no installed packages; the operator subsequently installed the packages via shorter commands and verified them.
+
+**Status:** `CT164_BASE_PACKAGES=PASS` based on observed installed versions; `CT164_OS_HEALTH=PASS`. No .NET application, Nginx or public proxy installed/activated by this evidence.
+
+### Network constraint selected by operator
+
+- The operator confirms the actual network gateway is **`192.168.1.102`** and says **`192.168.1.107` is not an actual gateway**. CT164's last reported default route was **incorrect: `default via 192.168.1.107 dev eth0`**.
+- User explicitly declines changing router / DHCP reservations; retain **DHCP address** on CT164.
+- Proposed controlled next action: identify which networkd configuration or DHCP lease injects `.107`, correct only CT164's default route to `.102`, verify connectivity, then make route persistent using the actual existing guest network manager configuration. No automatic host-side network or router changes. CT152 and PVE host already use `.102`.
+- Gateway remediation is not yet operator-confirmed. Do not claim `CT164_NETWORK=PASS` or expose HTTP app to public traffic.
+
+Remaining public gates: firewall policy, off-host data backups, storage pool headroom, TLS/proxy and exact-SHA deployment QA.
