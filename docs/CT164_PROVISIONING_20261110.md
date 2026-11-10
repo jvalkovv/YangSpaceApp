@@ -339,3 +339,15 @@ Operator backed up `/etc/resolv.conf` to `/root/resolv.conf.before-dns-fix` and 
 Potential Proxmox interaction: PVE may also write `/etc/resolv.conf` on container start. A March 2026 PVE patch specifically addresses `dhclient` overwriting container DNS preferences; this specific CT uses guest ifupdown + dhclient. Verify effective resolver after renewal/reboot. https://lore.proxmox.com/pve-devel/20260311112057.48653-1-f.schauer%40proxmox.com/
 
 **Still HOLD:** public exposure via CT152, router-origin attack-surface evaluation, firewall ACL, off-host recovery, thin pool overcommit, app exact-SHA deployment.
+
+## 2026-11-10 — CT164 DHCP override applied; post-reboot route not yet proven
+
+Operator executed guarded `/etc/dhcp/dhclient.conf` update with `/root/dhclient.conf.before-yangspace` backup:
+```text
+# YANGSPACE_CT164_NETWORK_V1
+supersede routers 192.168.1.102;
+supersede domain-name-servers 192.168.1.102;
+```
+The guest is still DHCP-addressed; no router/CT152/host edits. Operator rebooted only CT164 and verified after restart: `/etc/resolv.conf` contains `nameserver 192.168.1.102`, `getent ahostsv4 deb.debian.org` returned `146.75.2.132`, `systemctl is-system-running` returned `running`. However the `ip -4 route` command printed **no route lines in the supplied reboot output**. A DHCP assignment timing race is possible, but *not proven*. Do not mark post-reboot IP/gateway persistence PASS until an independent fresh `ip -4 addr`, `ip -4 route`, `ip -4 route get` and HTTPS check establishes default gateway .102 and working egress.
+
+**Gate status:** DHCP override CONFIGURED; post-reboot systemd PASS; post-reboot DNS resolution PASS; post-reboot gateway/route UNVERIFIED; public/application release HOLD.
