@@ -316,3 +316,26 @@ Interpretation:
 - Safe CT164-only candidate: `supersede routers 192.168.1.102;` and `supersede domain-name-servers 192.168.1.102;` in `/etc/dhcp/dhclient.conf` (documented ISC `dhclient.conf(5)`) **after auditing existing directives**, retain `iface eth0 inet dhcp`; correct active resolver with guarded backup and verify DNS+HTTPS; confirm settings survive DHCP renewal/reboot before public release. Potential Proxmox-vs-dhclient resolver write order: https://lore.proxmox.com/pve-devel/20260311112057.48653-1-f.schauer%40proxmox.com/
 - Do not modify router settings or require a reservation. DHCP still means the container's address can change; CT152 upstream discovery must accommodate change or stay private.
 - **Status: CT164_IP_EGRESS=PASS, CT164_DNS=HOLD, CT164_ROUTE_PERSISTENCE=HOLD; app/public release remain HOLD.**
+
+## 2026-11-10 — DHCP source evidenced, manual DNS recovery PASS
+
+CT164 operator presented historical `/var/lib/dhcp/dhclient.eth0.leases` with multiple leases:
+```text
+option dhcp-server-identifier 192.168.1.107;
+option routers 192.168.1.107;
+option domain-name-servers 192.168.1.107,192.168.1.102;
+```
+Other leases offered `.107,8.8.8.8,1.1.1.1,10.0.0.1` for DNS. The DHCP server **identifier** in accepted leases is consistently `.107`; this proves that accepted leases *claim* `.107`, not which physical device sent them. The operator confirms `.102` is the real gateway and wants no router changes/reservations.
+
+Operator backed up `/etc/resolv.conf` to `/root/resolv.conf.before-dns-fix` and replaced its contents with `nameserver 192.168.1.102` (runtime-only):
+- `getent ahostsv4 deb.debian.org`: `146.75.2.132` PASS
+- `curl -4 -I https://deb.debian.org/debian/`: **HTTP/2 200** PASS.
+- Route had already been corrected to `default via 192.168.1.102 dev eth0`.
+- `CT164_IPV4_EGRESS=PASS`, `CT164_DNS_RUNTIME=PASS`.
+- `CT164_DHCP_PERSISTENCE=HOLD`: the currently running `dhclient` can overwrite route/resolv.conf on renew, and `.107` remains the source identifier.
+
+**Recommended next guest-only step:** protect the existing `/etc/dhcp/dhclient.conf` with a root-only backup, ensure it has no conflicting active `supersede` directives, then append `supersede routers 192.168.1.102;` and `supersede domain-name-servers 192.168.1.102;`. ISC confirms these statements cause local options to take precedence: https://kb.isc.org/docs/isc-dhcp-44-manual-pages-dhclientconf. This retains DHCP for the IP address. A deliberate CT164-only reboot should verify persistence. **Do not `reject 192.168.1.107` yet:** the operator has not proved the legitimate `.102` DHCP server will issue leases; rejecting `.107` blindly could leave the CT without an address. Network security remains a concern until unintended DHCP responder is audited, but does not require holding private OS preparation.
+
+Potential Proxmox interaction: PVE may also write `/etc/resolv.conf` on container start. A March 2026 PVE patch specifically addresses `dhclient` overwriting container DNS preferences; this specific CT uses guest ifupdown + dhclient. Verify effective resolver after renewal/reboot. https://lore.proxmox.com/pve-devel/20260311112057.48653-1-f.schauer%40proxmox.com/
+
+**Still HOLD:** public exposure via CT152, router-origin attack-surface evaluation, firewall ACL, off-host recovery, thin pool overcommit, app exact-SHA deployment.
