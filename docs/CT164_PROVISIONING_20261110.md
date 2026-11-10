@@ -289,3 +289,30 @@ default via 192.168.1.102 dev eth0
 However the attempted `curl -sSI --connect-timeout 5 --max-time 12 https://deb.debian.org/debian/` failed with **`curl: (28) Resolving timed out after 5000 milliseconds`**. The route is a Linux FIB entry, not proof of Internet connectivity. DNS and route persistence are **HOLD**. No router change or static IP reservation is desired by operator.
 
 Next **read-only** diagnostics: inspect guest `/etc/resolv.conf` content/symlink and guest `/etc/network/interfaces*`; identify DHCP client(s); test direct IP HTTPS egress separately from DNS; record guest default route. Apply no persistent override or nameserver change until authority and source of .107 are known. No application dependency downloads yet.
+
+## 2026-11-10 — DNS failure narrowed to offered resolver .107, direct Internet PASS
+
+Operator follow-up on CT164:
+
+```text
+/etc/resolv.conf:
+  nameserver 192.168.1.107
+  nameserver 192.168.1.102
+/etc/network/interfaces:
+  auto eth0
+  iface eth0 inet dhcp
+DHCP process:
+  /sbin/dhclient -pf /run/dhclient.eth0.pid -lf /var/lib/dhcp/dhclient.eth0.leases eth0
+Kernel route:
+  default via 192.168.1.102 dev eth0
+Direct HTTPS to https://1.1.1.1:
+  HTTP/2 301 (Cloudflare)
+```
+
+Interpretation:
+- The guest has functional IPv4 Internet connectivity over .102; earlier `curl https://deb.debian.org/debian/` timed out on *DNS resolution* with untrusted/unreachable .107 listed as primary resolver.
+- `systemd-networkd` is running but **eth0 is unmanaged**; the active DHCP client is `dhclient` launched from ifupdown. Do not use networkd unit overrides.
+- The operator has explicitly confirmed `192.168.1.102` is the actual LAN gateway and `192.168.1.107` is not a gateway. The originating **DHCP server identity** is not yet known; investigate `/var/lib/dhcp/dhclient.eth0.leases` (last lease's `option dhcp-server-identifier`, `option routers`, `option domain-name-servers`) before deciding whether to reject an unintended DHCP server or override its options.
+- Safe CT164-only candidate: `supersede routers 192.168.1.102;` and `supersede domain-name-servers 192.168.1.102;` in `/etc/dhcp/dhclient.conf` (documented ISC `dhclient.conf(5)`) **after auditing existing directives**, retain `iface eth0 inet dhcp`; correct active resolver with guarded backup and verify DNS+HTTPS; confirm settings survive DHCP renewal/reboot before public release. Potential Proxmox-vs-dhclient resolver write order: https://lore.proxmox.com/pve-devel/20260311112057.48653-1-f.schauer%40proxmox.com/
+- Do not modify router settings or require a reservation. DHCP still means the container's address can change; CT152 upstream discovery must accommodate change or stay private.
+- **Status: CT164_IP_EGRESS=PASS, CT164_DNS=HOLD, CT164_ROUTE_PERSISTENCE=HOLD; app/public release remain HOLD.**
