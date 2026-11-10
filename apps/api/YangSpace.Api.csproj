@@ -8,6 +8,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <!-- Design-time EF tooling only; not a runtime/transitive service dependency. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <!-- EF Core 10.0.0 transitively selects vulnerable e_sqlite3 2.1.11 (GHSA-2m69-gcr7-jv3q).
          Override ONLY the native binary. Keep the 2.x managed SQLitePCLRaw provider compatible with EF Core.
          Remove this pin only when upstream resolves the native dependency and NuGet audit is clean. -->

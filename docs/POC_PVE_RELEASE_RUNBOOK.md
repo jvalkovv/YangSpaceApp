@@ -249,3 +249,7 @@ The source adds production CMS entrypoints but **not automatic activation**. All
 6. Backup/restore first, then manually switch to immutable release, smoke both read/public and protected CMS, inspect HTTP status/logs/metrics and rehearse rollback. **One running app** and separate disposable test processes are not separate deployed environments.
 
 See `docs/PRODUCTION_CMS_SECURITY_20261109.md` for exact contract. **No PVE action or public release is authorized by this source work.**
+
+## 2026-11-10 — Initial migration generation is NOT a live database action
+
+Execute `scripts/New-InitialMigration-Local.ps1` only on the existing Windows .NET 10 workstation against the reviewed feature-branch SHA. The generator uses a guarded `:memory:` DbContext and writes uncommitted EF model migration files plus ignored SQL review and SHA-256 evidence; no database update, PVE, release or activation. An independently reviewed migration commit and offline bundle/script validation on a **disposable database in the one approved YangSpace CT** are required before provisioning the persistent active database. SQLite non-idempotent scripts must be applied only to a known empty/aligned schema state after backup. Do not convert an old preview `EnsureCreated` database to migration history in place. Full runbook: `docs/S2_INITIAL_MIGRATION_20261110.md`.
