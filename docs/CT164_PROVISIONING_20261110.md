@@ -370,3 +370,21 @@ systemctl is-system-running: running
 **Next permitted private guest preparation:** Microsoft APT repository for Debian 13, `aspnetcore-runtime-10.0` (runtime only, not SDK), verify `dotnet --list-runtimes`, then guarded service/deploy users and release/data/config/log directories. Do not enable internal Nginx listener before reviewing ingress security; do not deploy application from unreviewed branch. Official Debian guidance: https://learn.microsoft.com/en-us/dotnet/core/install/linux-debian?tabs=dotnet10
 
 **Remaining gates:** PVE firewall was `disabled/running`, independent off-host backup not proven, thin pool `Data%=83.77` with `VG VFree=0`; no app released, no activated service, G0/G-PREVIEW/G-PILOT remain HOLD.
+
+## 2026-11-10 — ASP.NET Core 10 runtime installed on CT164: PASS
+
+The operator installed Microsoft Debian 13 repo package `packages-microsoft-prod 1.1-debian13` and `apt-get install -y --no-install-recommends aspnetcore-runtime-10.0`. Observed:
+```text
+Microsoft.AspNetCore.App 10.0.15 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+Microsoft.NETCore.App 10.0.15 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+aspnetcore-runtime-10.0 10.0.15-1
+dotnet-runtime-10.0 10.0.15-1
+systemctl is-system-running: running
+CT164 rootfs: 20G, 941M used, ~18G available (5%)
+```
+
+APT also installed `dotnet-host 11.0.0-1` (host/muxer only); the application shared runtime remains .NET 10. APT reported 57 available updates and locale warnings because `en_US.UTF-8` is not generated; neither caused runtime install failure. **Do not run unreviewed `dist-upgrade` or change the host locale based on this.**
+
+**Status:** `CT164_ASPNETCORE_RUNTIME_10=PASS`, `CT164_SYSTEMD=PASS`, `CT164_NETWORK=PASS` from previous operator evidence. No app deployed. Next preparation: non-root `yangspace` runtime identity, separate `yangdeploy` deploy user, separate read-only release-reader group, owned release/data/log/config paths. Do not give deploy identity access to root:runtime secret files or runtime data.
+
+**Release scope:** only private OS preparation authorized. PVE firewall was `disabled/running` and storage thin pool heavily allocated; off-host backups and effective gateway ACL remain unproven. No public deployment until independent review.
