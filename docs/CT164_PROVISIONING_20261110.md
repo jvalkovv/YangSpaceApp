@@ -119,16 +119,22 @@ test ! -e "/etc/pve/lxc/$ID.conf"
 test ! -e "/etc/pve/qemu-server/$ID.conf"
 
 echo '=== CT164 CREATE ==='
-pct create "$ID" "$VOL" \
-    --hostname yangspace-app \
-    --ostype debian \
-    --unprivileged 1 \
-    --cores 2 \
-    --memory 4096 \
-    --swap 1024 \
-    --rootfs local-lvm:20 \
-    --net0 name=eth0,bridge=vmbr0,ip=dhcp,firewall=1 \
-    --onboot 0 2>&1 | tee "$OPS/create.log"
+# pct create inherits the process umask for template extraction. Using 077
+# here can produce /etc with mode 0700 and break non-root services (D-Bus).
+# Apply a safe standard 022 ONLY to pct create; operator evidence stays 077.
+(
+    umask 022
+    pct create "$ID" "$VOL" \
+        --hostname yangspace-app \
+        --ostype debian \
+        --unprivileged 1 \
+        --cores 2 \
+        --memory 4096 \
+        --swap 1024 \
+        --rootfs local-lvm:20 \
+        --net0 name=eth0,bridge=vmbr0,ip=dhcp,firewall=1 \
+        --onboot 0
+) 2>&1 | tee "$OPS/create.log"
 
 echo '=== CT164 START ==='
 pct start "$ID" 2>&1 | tee "$OPS/start.log"
@@ -205,3 +211,26 @@ If the observed failure class matches nesting-related Debian 13 systemd breakage
 **Next diagnostic only:** inspect the DBus failure `journalctl -b -u dbus.service -u dbus.socket`, systemd unit failure details and the networkd DHCP lease/router and DHCP server identity. Ask operator if `192.168.1.107` is a known router/DHCP service; compare gateway offered to CT152. Avoid `systemctl reset-failed`, package reinstall, another CT reboot, or DB/proxy/production deployment until a root-cause conclusion is supported.
 
 **Gates remain HOLD:** DBus, DHCP/gateway consistency, pve/data low physical free capacity / overcommit, effective gateway-origin firewall ACL, off-host backups, app deployment and public exposure.
+
+## 2026-11-10 — D-Bus error and template extraction umask root cause
+
+After CT164's nesting=1 restart, D-Bus still fails:
+```text
+dbus-daemon: Could not get password database information for UID 989: Permission denied
+dbus-daemon: Unknown username "root" in message bus configuration file
+dbus-daemon: Failed to open "/etc/dbus-1/system.conf": Permission denied
+dbus.socket: service-start-limit-hit
+```
+
+The initial host provisioning script ran `umask 077` **before** `pct create`. Proxmox staff confirmed that CLI `pct create` can inherit the caller's restrictive umask during template extraction, resulting in guest `/etc` not being traversable/readable by non-root users. Reference: https://forum.proxmox.com/threads/creating-a-debian-or-ubuntu-lxc-with-the-pct-create-command-makes-etc-in-the-container-not-world-readable.161231/ and https://github.com/community-scripts/ProxmoxVE/issues/16745.
+
+**RCA status:** very strong, but CT164's actual `/etc` mode not yet inspected; do not claim confirmed until `stat` shows the permissions. This is a provisioning-script defect, not necessarily a Debian 13 package defect.
+
+The historic (already executed) operator command is now corrected **for future reproducibility**: keep `umask 077` for logs/evidence, but execute **only** `pct create` inside a `(umask 022; ...)` subshell. This is not authorization to recreate CT164 or other guests.
+
+Proposed CT164-only fix (operator-run after checking actual file permissions):
+
+1. Read `stat` and `namei -l` of `/etc`, `/etc/dbus-1/system.conf`, `/etc/passwd` and `/etc/group`.
+2. Only if `/etc` is owned by root:root with mode `0700` or `0750`, change **that directory only** to normal `0755`. Never recursively `chmod` `/etc`; do not relax secret files or modify LXC security profiles.
+3. After this correction, reset the two failed D-Bus units and start socket/service again; verify D-Bus and systemd health. If `/etc` is already `0755`, stop and diagnose nested path components/ACLs instead.
+4. Independently investigate the DHCP gateway drift from `192.168.1.102` (before restart) to `192.168.1.107` (after restart) before router reservation, edge-proxy changes or application deployment.
