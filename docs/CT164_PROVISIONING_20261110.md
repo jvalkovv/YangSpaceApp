@@ -351,3 +351,22 @@ supersede domain-name-servers 192.168.1.102;
 The guest is still DHCP-addressed; no router/CT152/host edits. Operator rebooted only CT164 and verified after restart: `/etc/resolv.conf` contains `nameserver 192.168.1.102`, `getent ahostsv4 deb.debian.org` returned `146.75.2.132`, `systemctl is-system-running` returned `running`. However the `ip -4 route` command printed **no route lines in the supplied reboot output**. A DHCP assignment timing race is possible, but *not proven*. Do not mark post-reboot IP/gateway persistence PASS until an independent fresh `ip -4 addr`, `ip -4 route`, `ip -4 route get` and HTTPS check establishes default gateway .102 and working egress.
 
 **Gate status:** DHCP override CONFIGURED; post-reboot systemd PASS; post-reboot DNS resolution PASS; post-reboot gateway/route UNVERIFIED; public/application release HOLD.
+
+## 2026-11-10 — CT164 DHCP-route persistence and HTTPS verified: PASS
+
+**Operator actual post-reboot evidence** (fresh inspection, no further mutation):
+```text
+pct status 164 = status: running
+eth0@if51 UP 192.168.1.110/24
+default via 192.168.1.102 dev eth0
+1.1.1.1 via 192.168.1.102 dev eth0 src 192.168.1.110
+/etc/resolv.conf: nameserver 192.168.1.102
+curl -4 https://deb.debian.org/debian/: HTTPS=200
+systemctl is-system-running: running
+```
+
+**Accepted:** `CT164_DHCP_OVERRIDE_PERSISTENCE=PASS`, `CT164_IP_ROUTE_DNS_EGRESS=PASS`, `CT164_SYSTEMD=PASS` after a single guest-only reboot. There is still no fixed IP reservation; address may change at a later DHCP lease. The DHCP server identifier `.107` remains unexplained. A local dhclient override corrects routers/DNS but does not prevent untrusted DHCP servers from assigning addresses, and no public endpoint or CT152 proxy configuration is authorized.
+
+**Next permitted private guest preparation:** Microsoft APT repository for Debian 13, `aspnetcore-runtime-10.0` (runtime only, not SDK), verify `dotnet --list-runtimes`, then guarded service/deploy users and release/data/config/log directories. Do not enable internal Nginx listener before reviewing ingress security; do not deploy application from unreviewed branch. Official Debian guidance: https://learn.microsoft.com/en-us/dotnet/core/install/linux-debian?tabs=dotnet10
+
+**Remaining gates:** PVE firewall was `disabled/running`, independent off-host backup not proven, thin pool `Data%=83.77` with `VG VFree=0`; no app released, no activated service, G0/G-PREVIEW/G-PILOT remain HOLD.
