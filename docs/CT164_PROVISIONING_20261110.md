@@ -275,3 +275,17 @@ Guest `systemctl is-system-running` returned `running`. Earlier long heredoc/tee
 - Gateway remediation is not yet operator-confirmed. Do not claim `CT164_NETWORK=PASS` or expose HTTP app to public traffic.
 
 Remaining public gates: firewall policy, off-host data backups, storage pool headroom, TLS/proxy and exact-SHA deployment QA.
+
+## 2026-11-10 — temporary gateway correction, unresolved DNS
+
+Operator `networkctl status eth0` on CT164 returned `State: routable (unmanaged)`, `Network File: n/a`; it still displayed gateway `192.168.1.107`. No matching systemd-networkd DHCP lease attributes were printed from `/run/systemd/netif/leases/*`. **Therefore networkd is not currently managing eth0**; do not apply networkd-specific permanent rules without identifying the actual owner (ifupdown / DHCP client / PVE-generated interfaces).
+ 
+Operator then executed a **temporary guest route override**:
+```text
+ip -4 route replace default via 192.168.1.102 dev eth0
+default via 192.168.1.102 dev eth0
+1.1.1.1 via 192.168.1.102 dev eth0 src 192.168.1.110 uid 0
+```
+However the attempted `curl -sSI --connect-timeout 5 --max-time 12 https://deb.debian.org/debian/` failed with **`curl: (28) Resolving timed out after 5000 milliseconds`**. The route is a Linux FIB entry, not proof of Internet connectivity. DNS and route persistence are **HOLD**. No router change or static IP reservation is desired by operator.
+
+Next **read-only** diagnostics: inspect guest `/etc/resolv.conf` content/symlink and guest `/etc/network/interfaces*`; identify DHCP client(s); test direct IP HTTPS egress separately from DNS; record guest default route. Apply no persistent override or nameserver change until authority and source of .107 are known. No application dependency downloads yet.
