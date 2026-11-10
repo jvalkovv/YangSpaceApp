@@ -97,7 +97,7 @@ try
     var normalizedConnectionString =
         SqliteRuntimePolicy.EnableForeignKeys(disabledConnectionString);
     Check(
-        new SqliteConnectionStringBuilder(normalizedConnectionString).ForeignKeys,
+        new SqliteConnectionStringBuilder(normalizedConnectionString).ForeignKeys == true,
         "RUNTIME_CONNECTION_FORCES_FOREIGN_KEYS");
 
     ProductionSqlitePolicy.RequirePreparedDatabase(enabledConnectionString, releaseRoot);

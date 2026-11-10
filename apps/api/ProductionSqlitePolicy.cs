@@ -21,7 +21,7 @@ internal static class ProductionSqlitePolicy
             throw new InvalidOperationException(
                 "Production SQLite must use Mode=ReadWrite, not ReadWriteCreate/Memory.");
 
-        if (!parsed.ForeignKeys)
+        if (parsed.ForeignKeys != true)
             throw new InvalidOperationException(
                 "Production SQLite must use ForeignKeys=True; referential integrity is mandatory.");
 
