@@ -388,3 +388,28 @@ APT also installed `dotnet-host 11.0.0-1` (host/muxer only); the application sha
 **Status:** `CT164_ASPNETCORE_RUNTIME_10=PASS`, `CT164_SYSTEMD=PASS`, `CT164_NETWORK=PASS` from previous operator evidence. No app deployed. Next preparation: non-root `yangspace` runtime identity, separate `yangdeploy` deploy user, separate read-only release-reader group, owned release/data/log/config paths. Do not give deploy identity access to root:runtime secret files or runtime data.
 
 **Release scope:** only private OS preparation authorized. PVE firewall was `disabled/running` and storage thin pool heavily allocated; off-host backups and effective gateway ACL remain unproven. No public deployment until independent review.
+
+## 2026-11-10 — CT164 service users and directory skeleton: operator PASS
+
+Operator executed two guarded container-only snippets. Their completion markers were both observed:
+```text
+uid=999(yangspace) gid=988(yangspace) groups=988(yangspace),991(yangspace-release)
+uid=1000(yangdeploy) gid=1000(yangdeploy) groups=1000(yangdeploy),991(yangspace-release)
+yangdeploy L 2026-11-10 0 99999 7 -1
+CT164_SERVICE_IDENTITIES=PASS
+CT164_DIRECTORY_LAYOUT=PASS
+```
+
+Operator requested layout:
+- `/srv/yangspace`: root:`yangspace-release`, mode `0750`
+- `/srv/yangspace/repo`: `yangdeploy:yangdeploy`, mode `0700`
+- `/srv/yangspace/releases`: `yangdeploy:yangspace-release`, mode `2750`
+- `/var/lib/yangspace` and `media`: `yangspace:yangspace`, mode `0700`
+- `/etc/yangspace`: root:`yangspace`, mode `0750`
+- `/var/log/yangspace`: root:root, mode `0755`; `api`: yangspace, `deploy/verify`: yangdeploy, `restore`: root, all `0700`.
+
+The markers assert success but **exact directory modes and ownership were not individually shown in user logs**; accept identities and creation, with a later independent `stat` / access-negative test for permission enforcement. `yangdeploy` has a locked password and no authorized SSH key/sudo role shown. No app service or listener exists from this action.
+
+**Next integration caution:** `infra/pve/yangspace-preview.service` uses `User=yangspace` and `EnvironmentFile=/etc/yangspace/preview.env`, but this env file and the immutable `/srv/yangspace/current/api` release **do not exist yet**. Do not enable/start that service or copy an active internal `nginx-preview.conf` blindly. Nginx example listens on port 80 with no gateway authentication; first establish actual edge ACL and source-file permissions. The deploy user must create release files group-readable by `yangspace-release` (e.g. controlled `umask 027`) or setgid directory alone will not ensure runtime access.
+
+**Current gates:** CT164 base guest/network/runtime/user setup PASS at reported scope; guest permissions deep verification pending; application release, Nginx listener, Cloudflare origin TLS, firewall/ACL, off-host backup, PVE storage risk and G0/G-PREVIEW/G-PILOT remain HOLD.
