@@ -1,6 +1,54 @@
 # YangSpace CT164 — dedicated application LXC, operator-run provisioning (2026-11-10)
 
-**Status:** PREPARED, NOT EXECUTED. The user authorized beginning CT164 provisioning. No Proxmox action occurs from this document or GitHub commit. **Do not claim a running container until real PVE operator evidence is returned.**
+**Status:** CT164 OS provisioning and first boot **operator-confirmed PASS** on 2026-11-10; application installation, network ACL, backup and production release **NOT DONE**. GitHub does not execute host commands.
+
+## Actual CT164 provisioning evidence — 2026-11-10
+
+Operator ran the guarded host script from this runbook and returned PVE output with:
+- Verified template download: `local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst` (checksum verified by `pveam`).
+- `pct create 164` completed, `pct start 164` completed, `pct status 164` = **running**.
+- Guest `yangspace-app` reports **Debian 13.6 (trixie)**. `pct config`: `arch=amd64`, `cores=2`, `memory=4096`, `swap=1024`, `rootfs=local-lvm:vm-164-disk-0,size=20G`, `unprivileged=1`, `onboot=0`, `ostype=debian`.
+- Guest network: `eth0`, `vmbr0`, `firewall=1`, `hwaddr=BC:24:11:8D:FE:7B`, `ip=dhcp`; actual lease **192.168.1.110/24**, default gateway **192.168.1.102**. `192.168.1.164` was never assigned. A reservation at the DHCP server is pending; do not change the guest to static or change CT152 before this is proven.
+- Guest systemd was `starting` when captured, so boot health remains **UNVERIFIED** until repeated inspection.
+- PVE reported **LVM thin provisioning warning**: provisioned thin LV sizes total **1.03 TiB** versus a `pve/data` pool of approx. **349 GiB**, and `thin_pool_autoextend_threshold` protection is not configured. This warning is **NOT** evidence that the 20 GiB guest allocation is already exhausted, but confirms oversubscription risk. The last `pvesm status` showed `local-lvm` ~83% used with only ~58 GiB available. **Capture live data and metadata usage, VG free extents, thresholds, and growth risk before installing application dependencies or enabling onboot.** Do not alter existing thin pool/VG settings automatically.
+- Evidence (operator host): `/root/yangspace-ops/ct164/{template-download,create,start,config-after-create,guest-verification}.log` when present; chat console captured full create output. The host evidence directory is **not Git-tracked**.
+- All services in CT152 and CT161 left unchanged; no application listener, proxy vhost, DB initialization, production credentials or public website was deployed.
+
+**Gate:** `CT164_OS_CREATE=PASS`, `CT164_GUEST_HEALTH=HOLD`, `CT164_NETWORK_RESERVATION=HOLD`, `CT164_STORAGE_RISK=HOLD`, `CT164_APP_RELEASE=HOLD`, `G0/G-PREVIEW/G-PILOT=HOLD`.
+
+### Read-only follow-up
+
+On PVE, after verifying CT164 remains running:
+
+```bash
+set -Eeuo pipefail
+umask 077
+test "$(hostname -s)" = pve
+test "$(pct status 164)" = "status: running"
+echo '=== STORAGE / THIN POOL ==='
+pvesm status
+lvs -a --units g -o lv_name,lv_size,data_percent,metadata_percent,lv_attr pve
+vgs -o vg_name,vg_size,vg_free
+echo '=== CONTAINER HEALTH ==='
+pct status 164
+pct config 164
+pct exec 164 -- bash -c '
+  echo "=== GUEST ==="
+  systemctl is-system-running || true
+  systemctl --failed --no-pager || true
+  ip -4 -brief address show dev eth0
+  ip -4 route
+  cat /etc/resolv.conf
+  getent ahostsv4 deb.debian.org || true
+  df -h /
+  free -h
+  ss -lnt || true
+'
+echo '=== PVE FIREWALL STATUS ==='
+pve-firewall status
+```
+
+Do not assume `firewall=1` is sufficient: PVE datacenter/node firewall enable flags, LXC inbound/outbound policy, CT152 gateway access and LAN isolation require explicit review and negative tests.
 
 ## Verified PVE inventory (operator logs on 2026-11-10)
 

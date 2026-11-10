@@ -16,7 +16,7 @@
 | YS-B-05 | Public read-only demo API | PARTIAL | 6 fictional locations/3 offers/1 brochure/1 job; no real public-data acceptance |
 | YS-B-06 | Preview administrator UI + API | PARTIAL | Source present; Playwright auth test mocks backend; real CRUD lifecycle unverified |
 | YS-B-07 | Manual source and API validation | DONE at `b30c1c8` | Exact same SHA source 8/8 PASS, API real integration and bootstrap non-escalation PASS; operator logs `logs/yangspace/verify/b30c1c819aa1-20261109-160220-9e00ef05` and `logs/yangspace/api-integration/b30c1c819aa1-20261109-160130-c608197c` |
-| YS-B-08 | PVE LXC deployment | TODO | No CT inventory or deployment executed; runbook/templates only |
+| YS-B-08 | PVE LXC deployment | PARTIAL | CT164 created/started by operator on 2026-11-10 (Debian 13.6, DHCP 192.168.1.110, 2 vCPU/4 GB/20 GB); app/release, security, recovery and proxy remain HOLD. See docs/CT164_PROVISIONING_20261110.md |
 
 ## S0 — Engineering reproducibility and risk closure (START HERE)
 
@@ -82,8 +82,8 @@
 
 | ID | Priority | Work package | Acceptance / evidence | State |
 |---|---|---|---|---|
-| YS-S5-01 | P0 | Read-only PVE inventory and topology decision | Available CT ID, OS, IP, storage, backup, gateway/DNS/TLS and resource budget documented | TODO |
-| YS-S5-02 | P0 | Provision isolated LXC and services | Unprivileged where feasible, systemd, Nginx, correct service/deploy user, secrets and private network | BLOCKED |
+| YS-S5-01 | P0 | Read-only PVE inventory and topology decision | Available CT ID, OS, IP, storage, backup, gateway/DNS/TLS and resource budget documented | PARTIAL — host+CT+storage+bridge inventoried; actual DHCP .110, reservation/DNS, thin-pool risk, independent backup and gateway ACL still open |
+| YS-S5-02 | P0 | Provision isolated LXC and services | Unprivileged where feasible, systemd, Nginx, correct service/deploy user, secrets and private network | PARTIAL — CT164 Debian 13.6 unprivileged guest created and booted; service accounts, network ACL, OS hardening and app services pending |
 | YS-S5-03 | P0 | GitHub pinned-SHA controlled release | Exact approved SHA + manual QA manifests, `releases/<sha>`, atomic activation, no auto-pull/restart | BLOCKED |
 | YS-S5-04 | P0 | Backup/restore/rollback exercise | Consistent DB/media backup, off-host copy, restore into scratch, bad-release revert, command logs | BLOCKED |
 | YS-S5-05 | P1 | Observability/maintenance | Separate API/proxy/deploy/verify logs, health, error-rate/latency/disk alert, restart policy | TODO |
