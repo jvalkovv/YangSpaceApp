@@ -54,6 +54,10 @@ static async Task<int> ReadForeignKeysAsync(SqliteConnection connection)
         CultureInfo.InvariantCulture);
 }
 
+// SQLite stores EF Core Guid keys as uppercase TEXT. Every direct-SQL
+// parameter in this harness must use the same representation.
+static string SqliteGuidText(Guid value) => value.ToString("D").ToUpperInvariant();
+
 static string BuildConnectionString(string path, bool foreignKeys)
 {
     return new SqliteConnectionStringBuilder
@@ -175,7 +179,7 @@ try
         // canonical uppercase representation. A plain Guid.ToString() is
         // lowercase and would not match the stored key in a case-sensitive
         // SQLite TEXT comparison, making the test delete zero parent rows.
-        var cascadeLocationKey = cascadeLocation.Id.ToString("D").ToUpperInvariant();
+        var cascadeLocationKey = SqliteGuidText(cascadeLocation.Id);
 
         int deletedParents;
         await using (var delete = connection.CreateCommand())
@@ -210,6 +214,9 @@ try
         db.Locations.Add(persistedLocation);
         await db.SaveChangesAsync();
         persistedLocationId = persistedLocation.Id;
+        Check(
+            await db.Locations.AsNoTracking().AnyAsync(x => x.Id == persistedLocationId),
+            "PERSISTED_ROW_BEFORE_REOPEN");
 
         await ProductionSchemaGate.ValidateSchemaAsync(db);
     }
@@ -221,7 +228,7 @@ try
 
         await using var command = reopened.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM \"Locations\" WHERE \"Id\" = $id;";
-        command.Parameters.AddWithValue("$id", persistedLocationId.ToString());
+        command.Parameters.Add("$id", SqliteType.Text).Value = SqliteGuidText(persistedLocationId);
         var count = Convert.ToInt32(
             await command.ExecuteScalarAsync(),
             CultureInfo.InvariantCulture);
@@ -260,8 +267,8 @@ try
                 ($id, $locationId, 'Legacy orphan', 'Injected only in disposable test DB',
                  '2026-11-10T00:00:00.0000000Z', '2026-11-11T00:00:00.0000000Z', 0);
             """;
-        insert.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
-        insert.Parameters.AddWithValue("$locationId", Guid.NewGuid().ToString());
+        insert.Parameters.Add("$id", SqliteType.Text).Value = SqliteGuidText(Guid.NewGuid());
+        insert.Parameters.Add("$locationId", SqliteType.Text).Value = SqliteGuidText(Guid.NewGuid());
         await insert.ExecuteNonQueryAsync();
     }
 
