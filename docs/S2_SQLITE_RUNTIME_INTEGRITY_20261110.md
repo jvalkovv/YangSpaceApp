@@ -60,6 +60,29 @@ Evidence: ignored local directory
 
 **Verdict:** local S2-02 runtime integrity acceptance PASS. This does not approve the active database, Linux deployment, TLS, operational backup policy, or production cutover.
 
+## 2026-11-10: operator recovery rehearsal result
+
+The operator ran the exact commit `1ce3fa35421534e48c28959febf15933290c12b6` on Windows .NET 10:
+
+```text
+STAGE=runtime-test-restore
+STAGE_PASS=runtime-test-restore
+STAGE=runtime-test-build
+STAGE_PASS=runtime-test-build
+STAGE=runtime-test-run
+STAGE_PASS=runtime-test-run
+
+SQLITE_RUNTIME_INTEGRITY=PASS
+COMMIT_SHA=1ce3fa35421534e48c28959febf15933290c12b6
+```
+
+The PowerShell runner only prints the final PASS after validating each required stdout marker, including online backup creation, recovered SQLite integrity, recovered FK check, recovered schema gate, migration history, pre-backup row presence and point-in-time exclusion of the post-backup write. It then writes its local evidence manifest.
+
+Evidence directory (operator machine, ignored and not committed):
+`logs/yangspace/sqlite-runtime-integrity/1ce3fa354215-20261110-080557-2dc9f323`.
+
+**Verdict:** disposable local SQLite runtime + backup/restore recovery rehearsal PASS. This is not a PVE/LXC backup destination test and does not establish off-host durability, encryption, retention, access-control, monitoring, or production RPO/RTO.
+
 ## 2026-11-10: disposable online backup/restore rehearsal
 
 The same regression program now also tests `Microsoft.Data.Sqlite.SqliteConnection.BackupDatabase` against temporary databases only:
