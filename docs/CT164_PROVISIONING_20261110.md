@@ -192,3 +192,16 @@ pct exec 164 -- bash -c '
 If the observed failure class matches nesting-related Debian 13 systemd breakage, the next reviewed change is **only** `pct set 164 --features nesting=1` followed by **CT164-only** stop/start in an operator maintenance step. Re-evaluate systemd, network, listeners and security isolation afterwards. Do not run these mutation commands as an automatic consequence of the read-only diagnostic.
 
 **HOLD:** gateway ACL/TLS, DHCP reservation, independent off-host backups, thin-pool capacity risk, CI-less exact-SHA runtime QA, app release, public traffic.
+
+## CT164 nesting change and second boot (2026-11-10)
+
+**Operator change completed (CT164 only):** `pct stop 164`; `pct set 164 --features nesting=1`; `pct start 164`. The operator verified:
+
+- `features: nesting=1`, `unprivileged: 1`, `onboot: 0`.
+- Before: 22 failed systemd units, including `systemd-journald` exit status `243/CREDENTIALS`. After: **2 failed units** — `dbus.service` and `dbus.socket`; `systemd-journald` and `systemd-networkd` **active**. `systemctl is-system-running` remains **degraded**.
+- Network remains `192.168.1.110/24`, but default gateway **changed from `192.168.1.102` to `192.168.1.107`** across the reboot. **DHCP source and lease configuration are unknown**; do not assume the new gateway is correct or modify DHCP/router config without verification.
+- No other CT or proxy/service was changed. This is a substantially improved guest start but **NOT** `GUEST_HEALTH=PASS`.
+
+**Next diagnostic only:** inspect the DBus failure `journalctl -b -u dbus.service -u dbus.socket`, systemd unit failure details and the networkd DHCP lease/router and DHCP server identity. Ask operator if `192.168.1.107` is a known router/DHCP service; compare gateway offered to CT152. Avoid `systemctl reset-failed`, package reinstall, another CT reboot, or DB/proxy/production deployment until a root-cause conclusion is supported.
+
+**Gates remain HOLD:** DBus, DHCP/gateway consistency, pve/data low physical free capacity / overcommit, effective gateway-origin firewall ACL, off-host backups, app deployment and public exposure.
