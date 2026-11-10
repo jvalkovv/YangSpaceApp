@@ -63,9 +63,24 @@ Invoke-Stage 'runtime-test-build' @('build', $Project, '-c', 'Release', '--no-re
 Invoke-Stage 'runtime-test-run' @('run', '--project', $Project, '-c', 'Release', '--no-build', '--no-restore')
 
 $RunLog = Join-Path $Evidence 'runtime-test-run.stdout.log'
-if (-not (Test-Path -LiteralPath $RunLog -PathType Leaf) -or
-    (Get-Content -LiteralPath $RunLog -Raw) -notmatch '(?m)^SQLITE_RUNTIME_INTEGRITY=PASS\s*$') {
-    throw 'RUNTIME_INTEGRITY_MARKER_MISSING'
+if (-not (Test-Path -LiteralPath $RunLog -PathType Leaf)) {
+    throw 'RUNTIME_INTEGRITY_LOG_MISSING'
+}
+
+$RunText = Get-Content -LiteralPath $RunLog -Raw
+foreach ($Marker in @(
+    'SQLITE_RUNTIME_INTEGRITY'
+    'RECOVERY_REHEARSAL'
+    'RECOVERED_SCHEMA_GATE'
+    'RECOVERED_SQLITE_INTEGRITY'
+    'RECOVERED_FOREIGN_KEY_CHECK'
+    'RECOVERED_MIGRATION_HISTORY'
+    'RECOVERED_PRE_BACKUP_ROW'
+    'RECOVERY_POINT_IN_TIME'
+)) {
+    if ($RunText -notmatch ('(?m)^' + [regex]::Escape($Marker) + '=PASS\s*$')) {
+        throw "RUNTIME_ACCEPTANCE_MARKER_MISSING=$Marker"
+    }
 }
 
 $Manifest = @(
@@ -79,6 +94,11 @@ $Manifest = @(
     'PERSISTENCE_REOPEN=PASS'
     'DISABLED_FK_GATE=PASS'
     'LEGACY_ORPHAN_DETECTION=PASS'
+    'ONLINE_BACKUP=PASS'
+    'RECOVERY_REHEARSAL=PASS'
+    'RECOVERED_INTEGRITY_CHECK=PASS'
+    'RECOVERED_SCHEMA_GATE=PASS'
+    'RECOVERY_POINT_IN_TIME=PASS'
     'PRODUCTION_DATABASE=NOT_ACCESSED'
     'HTTP_LISTENER=NOT_STARTED'
     'PVE_DEPLOYMENT=NONE'

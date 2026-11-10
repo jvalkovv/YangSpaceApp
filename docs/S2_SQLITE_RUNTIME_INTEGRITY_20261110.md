@@ -43,6 +43,38 @@ The runner requires the exact commit and expected feature branch, a clean worktr
 - Test databases are deleted after the run.
 - This local runtime regression is not a substitute for the later approved single-LXC backup/restore rehearsal and production cutover gate.
 
+## 2026-11-10: local runtime integrity acceptance
+
+Exact commit `2069eb9a40ba0e594973cc67cd31af60e751d233` was executed on the existing Windows .NET 10 operator machine. The operator log reports:
+
+```text
+STAGE_PASS=runtime-test-restore
+STAGE_PASS=runtime-test-build
+STAGE_PASS=runtime-test-run
+SQLITE_RUNTIME_INTEGRITY=PASS
+COMMIT_SHA=2069eb9a40ba0e594973cc67cd31af60e751d233
+```
+
+Evidence: ignored local directory
+`logs/yangspace/sqlite-runtime-integrity/2069eb9a40ba-20261110-075520-ad751c09`.
+
+**Verdict:** local S2-02 runtime integrity acceptance PASS. This does not approve the active database, Linux deployment, TLS, operational backup policy, or production cutover.
+
+## 2026-11-10: disposable online backup/restore rehearsal
+
+The same regression program now also tests `Microsoft.Data.Sqlite.SqliteConnection.BackupDatabase` against temporary databases only:
+
+- Create an online snapshot of the migrated disposable DB.
+- Assert that a backup artifact exists, then commit a post-backup record in the source.
+- Restore the snapshot into a distinct new disposable DB file using the SQLite online backup API.
+- Open the recovered file with `Mode=ReadWrite;ForeignKeys=True`.
+- Run `PRAGMA integrity_check` and `PRAGMA foreign_key_check`.
+- Run Production schema gate and check the applied migration ID.
+- Confirm pre-backup data exists while the post-backup record does not (point-in-time recovery proof).
+- Delete all temporary DB, snapshot and recovered files during test cleanup.
+
+The operator must rerun the exact new commit before marking **RECOVERY_REHEARSAL=PASS**. This tests local recoverability only. Real operations still require an approved encrypted backup destination, retention, access controls, monitoring, and a restore rehearsal in the dedicated YangSpace LXC.
+
 ## 2026-11-10: persistence-test correction
 
 On exact SHA `05b51aa`, the operator Windows runtime run passed FK enablement, initial migration, orphan rejection, parent delete, SQLite-level cascade and reopened-connection FK pragma, then stopped at `DATABASE_PERSISTENCE_AFTER_REOPEN`. The raw SQL query bound `persistedLocationId.ToString()` as lowercase TEXT, unlike EF Core SQLite's uppercase GUID storage. The fix centralizes SQL GUID formatting, uses typed SQLite TEXT parameters in all direct-SQL GUID calls, and asserts the persisted row before closing and after reopening the connection. No migration or production application code was changed by this correction. **Run the exact new commit before marking runtime acceptance PASS.**

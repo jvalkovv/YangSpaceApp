@@ -82,6 +82,150 @@ static async Task ApplyMigrationAsync(string connectionString)
     await db.Database.MigrateAsync();
 }
 
+// Exercise a point-in-time, online SQLite backup and restore using only
+// temporary DB files belonging to this harness. BackupDatabase uses SQLite's
+// online backup API instead of unsafe file copying while a database is live.
+static async Task RunRecoveryRehearsalAsync(
+    string sandbox,
+    string releaseRoot,
+    string activeConnectionString,
+    Guid persistedLocationId)
+{
+    var backupPath = Path.Combine(sandbox, "directory.backup.db");
+    var recoveredPath = Path.Combine(sandbox, "directory.recovered.db");
+    Check(
+        !File.Exists(backupPath) && !File.Exists(recoveredPath),
+        "RECOVERY_PATHS_NEW");
+
+    var backupDestination = new SqliteConnectionStringBuilder
+    {
+        DataSource = backupPath,
+        Mode = SqliteOpenMode.ReadWriteCreate,
+        ForeignKeys = true,
+        Pooling = false
+    }.ConnectionString;
+
+    // The source is a migrated, existing disposable database and remains
+    // readable while the snapshot is made. All writers are blocked briefly.
+    await using (var source = new SqliteConnection(activeConnectionString))
+    {
+        await source.OpenAsync();
+        await using var backup = new SqliteConnection(backupDestination);
+        await backup.OpenAsync();
+        source.BackupDatabase(backup);
+    }
+    Check(
+        File.Exists(backupPath) && new FileInfo(backupPath).Length > 0,
+        "ONLINE_BACKUP_CREATED");
+
+    // Make a committed change AFTER the backup to prove the restored state
+    // represents the recovery point, not an accidental read of the live file.
+    var postBackupSlug = "after-backup-" + Guid.NewGuid().ToString("N");
+    await using (var active = new SqliteConnection(activeConnectionString))
+    {
+        await active.OpenAsync();
+        var activeOptions = new DbContextOptionsBuilder<DirectoryDb>()
+            .UseSqlite(active)
+            .Options;
+        await using var activeDb = new DirectoryDb(activeOptions);
+        activeDb.Locations.Add(new BusinessLocation
+        {
+            Slug = postBackupSlug,
+            Name = "After-backup fixture",
+            Category = "test",
+            Neighborhood = "test",
+            Description = "Created after backup for recovery point verification",
+            Address = "Disposable recovery fixture"
+        });
+        await activeDb.SaveChangesAsync();
+        Check(
+            await activeDb.Locations.AsNoTracking()
+                .AnyAsync(x => x.Slug == postBackupSlug),
+            "POST_BACKUP_SOURCE_MUTATION");
+    }
+
+    var backupReadOnly = new SqliteConnectionStringBuilder
+    {
+        DataSource = backupPath,
+        Mode = SqliteOpenMode.ReadOnly,
+        ForeignKeys = true,
+        Pooling = false
+    }.ConnectionString;
+    var recoveredDestination = new SqliteConnectionStringBuilder
+    {
+        DataSource = recoveredPath,
+        Mode = SqliteOpenMode.ReadWriteCreate,
+        ForeignKeys = true,
+        Pooling = false
+    }.ConnectionString;
+
+    // Restore from the snapshot into a DIFFERENT, freshly created temp file.
+    // Never overwrite an active DB or use a connection string from config.
+    await using (var backup = new SqliteConnection(backupReadOnly))
+    {
+        await backup.OpenAsync();
+        await using var recovered = new SqliteConnection(recoveredDestination);
+        await recovered.OpenAsync();
+        backup.BackupDatabase(recovered);
+    }
+    Check(
+        File.Exists(recoveredPath) && new FileInfo(recoveredPath).Length > 0,
+        "RECOVERED_DATABASE_CREATED");
+
+    var recoveredConnectionString =
+        BuildConnectionString(recoveredPath, foreignKeys: true);
+    ProductionSqlitePolicy.RequirePreparedDatabase(
+        recoveredConnectionString, releaseRoot);
+
+    await using var reopened = new SqliteConnection(recoveredConnectionString);
+    await reopened.OpenAsync();
+    Check(
+        await ReadForeignKeysAsync(reopened) == 1,
+        "RECOVERED_FOREIGN_KEYS_ON");
+
+    await using (var integrity = reopened.CreateCommand())
+    {
+        integrity.CommandText = "PRAGMA integrity_check;";
+        var value = await integrity.ExecuteScalarAsync();
+        Check(
+            string.Equals(Convert.ToString(value, CultureInfo.InvariantCulture),
+                "ok", StringComparison.OrdinalIgnoreCase),
+            "RECOVERED_SQLITE_INTEGRITY");
+    }
+
+    await using (var foreignKeyCheck = reopened.CreateCommand())
+    {
+        foreignKeyCheck.CommandText = "PRAGMA foreign_key_check;";
+        await using var reader = await foreignKeyCheck.ExecuteReaderAsync();
+        Check(!await reader.ReadAsync(), "RECOVERED_FOREIGN_KEY_CHECK");
+    }
+
+    var restoredOptions = new DbContextOptionsBuilder<DirectoryDb>()
+        .UseSqlite(reopened)
+        .Options;
+    await using var restoredDb = new DirectoryDb(restoredOptions);
+    await ProductionSchemaGate.ValidateSchemaAsync(restoredDb);
+    Console.WriteLine("RECOVERED_SCHEMA_GATE=PASS");
+
+    var applied = (await restoredDb.Database.GetAppliedMigrationsAsync()).ToArray();
+    Check(
+        applied.Length == 1 &&
+        applied[0] == "20261110043149_InitialDirectorySchema",
+        "RECOVERED_MIGRATION_HISTORY");
+
+    Check(
+        await restoredDb.Locations.AsNoTracking()
+            .AnyAsync(x => x.Id == persistedLocationId),
+        "RECOVERED_PRE_BACKUP_ROW");
+
+    Check(
+        !await restoredDb.Locations.AsNoTracking()
+            .AnyAsync(x => x.Slug == postBackupSlug),
+        "RECOVERY_POINT_IN_TIME");
+
+    Console.WriteLine("RECOVERY_REHEARSAL=PASS");
+}
+
 var sandbox = Path.Combine(
     Path.GetTempPath(),
     "yangspace-sqlite-runtime-" + Guid.NewGuid().ToString("N"));
@@ -235,6 +379,9 @@ try
 
         Check(count == 1, "DATABASE_PERSISTENCE_AFTER_REOPEN");
     }
+
+    await RunRecoveryRehearsalAsync(
+        sandbox, releaseRoot, enabledConnectionString, persistedLocationId);
 
     await using (var disabledConnection = new SqliteConnection(disabledConnectionString))
     {
