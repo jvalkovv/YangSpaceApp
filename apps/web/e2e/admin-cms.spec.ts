@@ -47,9 +47,13 @@ test('preview CMS edits and toggles location publication with backend roundtrips
     audit.push('LIST');
     return route.fulfill({ json: [stored] });
   });
-  await page.route('**/api/v1/admin/locations/*', async route => {
+  await page.route('**/api/v1/admin/locations/**', async route => {
     const request = route.request();
     const target = new URL(request.url()).pathname;
+    if (request.method() === 'GET' && target.endsWith('/' + id + '/content')) {
+      await route.fulfill({ json: { offers: [], brochures: [], jobs: [] } });
+      return;
+    }
     if (request.method() === 'PUT' && target.endsWith('/' + id)) {
       const edited = request.postDataJSON();
       stored = { ...stored, ...edited };
@@ -229,9 +233,14 @@ test('publication CMS never accepts an expired archived record as directly resto
   }));
   await page.route('**/api/v1/admin/me', route => route.fulfill({ json: { role: 'PlatformAdmin' } }));
   await page.route('**/api/v1/admin/locations', route => route.fulfill({ json: [initialLocation] }));
-  await page.route('**/api/v1/admin/locations/*', route => route.fulfill({
-    json: { offers: [oldOffer], brochures: [], jobs: [] }
-  }));
+  await page.route('**/api/v1/admin/locations/**', route => {
+    const request = route.request();
+    const target = new URL(request.url()).pathname;
+    if (request.method() === 'GET' && target === '/api/v1/admin/locations/' + id + '/content') {
+      return route.fulfill({ json: { offers: [oldOffer], brochures: [], jobs: [] } });
+    }
+    return route.fulfill({ status: 404 });
+  });
   await page.goto('/admin');
   await page.getByLabel('Имейл').fill('admin@example.invalid');
   await page.getByLabel('Парола').fill('DisposableTestPassword123!');
