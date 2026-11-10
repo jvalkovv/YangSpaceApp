@@ -22,7 +22,7 @@ The harness creates randomly named SQLite files below the OS temporary directory
 2. Production policy rejects a connection string with FK enforcement disabled.
 3. The live SQLite connection reports `PRAGMA foreign_keys = 1`.
 4. An orphan child insert is rejected with SQLite foreign-key constraint error 787.
-5. Deleting a parent directly in SQL cascades to its child rows.
+5. Deleting a parent directly in SQL cascades to its child rows. The direct SQL test binds the parent GUID using EF Core SQLite's canonical uppercase TEXT representation and asserts that exactly one parent row was deleted before checking that zero child rows remain.
 6. A committed row remains after disposing and reopening the database connection.
 7. Production schema validation rejects a live connection where FK enforcement is disabled.
 8. Production schema validation detects historical orphan rows inserted into a separate disposable database while FK enforcement was disabled.

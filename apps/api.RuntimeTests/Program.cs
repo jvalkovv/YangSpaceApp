@@ -171,16 +171,32 @@ try
         db.Offers.Add(cascadeOffer);
         await db.SaveChangesAsync();
 
+        // EF Core's SQLite Guid mapping stores GUIDs as TEXT using its
+        // canonical uppercase representation. A plain Guid.ToString() is
+        // lowercase and would not match the stored key in a case-sensitive
+        // SQLite TEXT comparison, making the test delete zero parent rows.
+        var cascadeLocationKey = cascadeLocation.Id.ToString("D").ToUpperInvariant();
+
+        int deletedParents;
         await using (var delete = connection.CreateCommand())
         {
             delete.CommandText = "DELETE FROM \"Locations\" WHERE \"Id\" = $id;";
-            delete.Parameters.AddWithValue("$id", cascadeLocation.Id.ToString());
-            await delete.ExecuteNonQueryAsync();
+            delete.Parameters.Add("$id", SqliteType.Text).Value = cascadeLocationKey;
+            deletedParents = await delete.ExecuteNonQueryAsync();
         }
 
-        Check(
-            await db.Offers.AsNoTracking().CountAsync(x => x.Id == cascadeOffer.Id) == 0,
-            "DATABASE_CASCADE_DELETE");
+        Check(deletedParents == 1, "CASCADE_PARENT_DELETE_MATCHED");
+
+        await using (var verifyCascade = connection.CreateCommand())
+        {
+            verifyCascade.CommandText =
+                "SELECT COUNT(*) FROM \"Offers\" WHERE \"LocationId\" = $id;";
+            verifyCascade.Parameters.Add("$id", SqliteType.Text).Value = cascadeLocationKey;
+            var remainingChildren = Convert.ToInt32(
+                await verifyCascade.ExecuteScalarAsync(),
+                CultureInfo.InvariantCulture);
+            Check(remainingChildren == 0, "DATABASE_CASCADE_DELETE");
+        }
 
         var persistedLocation = new BusinessLocation
         {
