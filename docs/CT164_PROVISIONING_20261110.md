@@ -234,3 +234,18 @@ Proposed CT164-only fix (operator-run after checking actual file permissions):
 2. Only if `/etc` is owned by root:root with mode `0700` or `0750`, change **that directory only** to normal `0755`. Never recursively `chmod` `/etc`; do not relax secret files or modify LXC security profiles.
 3. After this correction, reset the two failed D-Bus units and start socket/service again; verify D-Bus and systemd health. If `/etc` is already `0755`, stop and diagnose nested path components/ACLs instead.
 4. Independently investigate the DHCP gateway drift from `192.168.1.102` (before restart) to `192.168.1.107` (after restart) before router reservation, edge-proxy changes or application deployment.
+
+## 2026-11-10 — CT164 guest base-system recovery: PASS
+
+Operator executed a narrowly scoped repair inside running unprivileged CT164:
+
+- The underlying misconfiguration was **confirmed**: `/etc` had `root:root 0700`. It was repaired to normal `0755` after UID/GID and symlink guards; **no recursive changes**.
+- `/etc/dbus-1/system.conf` was not present, while the shipped default `/usr/share/dbus-1/system.conf` existed and was readable. The first diagnostic script stopped at the absent optional path **before** changing permissions.
+- After `systemctl reset-failed dbus.service dbus.socket` and restarting these units, `dbus.service`, `systemd-journald.service` and `systemd-networkd.service` all reported **active**.
+- `systemctl --failed`: **0 failed units**. `systemctl is-system-running --quiet`: PASS. Operator marker: `CT164_DBUS_RECOVERY=PASS`.
+- DHCP: `eth0=192.168.1.110/24`, gateway `192.168.1.107` at acceptance; the user explicitly selected **DHCP without router reservation for now**. The gateway drift from `.102` remains a risk to check for outbound routing, not a blocker for base file/user preparation.
+- `CT164_OS_HEALTH=PASS` on observed runtime, but **application/security/backup gates remain HOLD**. Do not interpret OS health as authorization for a public reverse proxy.
+
+**Root cause:** the initial provisioning runbook had applied `umask 077` to `pct create`, causing the extracted guest `/etc` directory to be mode 0700. The corrected provisioning snippet now scopes `umask 022` to `pct create` only, retaining `umask 077` for operator evidence logs.
+
+Next: basic guest package/repository preflight, no active Nginx listener or production application. Before publishing through CT152, independently validate gateway reachability, CT firewall policy, TLS and approved off-host recovery. Keep `G0/G-PREVIEW/G-PILOT=HOLD`.
