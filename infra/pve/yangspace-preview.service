@@ -8,6 +8,8 @@ Type=exec
 User=yangspace
 Group=yangspace
 WorkingDirectory=/srv/yangspace/current/api
+# Bind Kestrel to loopback only; CT164 ingress is exclusively via local Nginx when approved.
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5090
 EnvironmentFile=/etc/yangspace/preview.env
 ExecStart=/usr/bin/dotnet /srv/yangspace/current/api/YangSpace.Api.dll
 Restart=on-failure

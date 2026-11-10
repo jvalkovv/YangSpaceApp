@@ -413,3 +413,26 @@ The markers assert success but **exact directory modes and ownership were not in
 **Next integration caution:** `infra/pve/yangspace-preview.service` uses `User=yangspace` and `EnvironmentFile=/etc/yangspace/preview.env`, but this env file and the immutable `/srv/yangspace/current/api` release **do not exist yet**. Do not enable/start that service or copy an active internal `nginx-preview.conf` blindly. Nginx example listens on port 80 with no gateway authentication; first establish actual edge ACL and source-file permissions. The deploy user must create release files group-readable by `yangspace-release` (e.g. controlled `umask 027`) or setgid directory alone will not ensure runtime access.
 
 **Current gates:** CT164 base guest/network/runtime/user setup PASS at reported scope; guest permissions deep verification pending; application release, Nginx listener, Cloudflare origin TLS, firewall/ACL, off-host backup, PVE storage risk and G0/G-PREVIEW/G-PILOT remain HOLD.
+
+## 2026-11-10 — segregated access negative tests PASS
+
+The operator returned exact directory ownership/mode evidence:
+```text
+750 root:yangspace-release /srv/yangspace
+700 yangdeploy:yangdeploy /srv/yangspace/repo
+2750 yangdeploy:yangspace-release /srv/yangspace/releases
+700 yangspace:yangspace /var/lib/yangspace
+700 yangspace:yangspace /var/lib/yangspace/media
+750 root:yangspace /etc/yangspace
+700 yangspace:yangspace /var/log/yangspace/api
+700 yangdeploy:yangdeploy /var/log/yangspace/deploy
+700 yangdeploy:yangdeploy /var/log/yangspace/verify
+700 root:root /var/log/yangspace/restore
+CT164_ACCESS_ISOLATION=PASS
+```
+
+Actual negative checks confirmed runtime cannot traverse `/srv/yangspace/repo` or write `/srv/yangspace/releases`, deploy identity cannot traverse `/var/lib/yangspace` or `/etc/yangspace`, and positive role access matched design. This accepts `CT164_SERVICE_IDENTITY_AND_DIRECTORY_ACL=PASS` only; it does **not** prove file-level release contents, systemd sandboxing, backup, Nginx or public ACL.
+
+The existing repo template `infra/pve/yangspace-preview.service` was amended to bind Kestrel explicitly to `http://127.0.0.1:5090` using `ASPNETCORE_URLS`. The template remains **not installed, not enabled and not started** based on supplied evidence. It still requires a reviewed `/srv/yangspace/current/api` release and protected `/etc/yangspace/preview.env`, neither of which is yet installed. Do not generate placeholder admin credentials or bring up the API before source QA and protected release approval.
+
+**Next permissible preparation:** stage and lint the exact committed service template in CT164 **without enable/start**, then prepare the exact-SHA release QA requirements; nginx, edge/proxy, DB creation and public rollout are HOLD.
