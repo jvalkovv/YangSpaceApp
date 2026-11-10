@@ -74,6 +74,22 @@ try {
         '--configuration','Release','--no-build'
     )
 
+    # EF CLI may put the snapshot below the namespace-derived directory,
+    # despite --output-dir Migrations. Normalize only the exact known file;
+    # fail closed on duplicates or unexpected contents.
+    $Snapshot = Join-Path $MigrationDir 'DirectoryDbModelSnapshot.cs'
+    $NamespaceSnapshotDir = Join-Path $Repo 'apps\api\YangSpace\Api\Migrations'
+    $NamespaceSnapshot = Join-Path $NamespaceSnapshotDir 'DirectoryDbModelSnapshot.cs'
+    if (Test-Path -LiteralPath $NamespaceSnapshotDir) {
+        $NamespaceEntries = @(Get-ChildItem -LiteralPath $NamespaceSnapshotDir -Force)
+        if ($NamespaceEntries.Count -ne 1 -or
+            $NamespaceEntries[0].Name -cne 'DirectoryDbModelSnapshot.cs' -or
+            $NamespaceEntries[0].PSIsContainer -or
+            (Test-Path -LiteralPath $Snapshot)) {
+            throw 'REFUSED: unexpected namespace-derived migration artifacts'
+        }
+        Move-Item -LiteralPath $NamespaceSnapshot -Destination $Snapshot -ErrorAction Stop
+    }
     $Files = @(Get-ChildItem -LiteralPath $MigrationDir -File -Filter '*.cs')
     if ($Files.Count -ne 3) {
         throw ('REFUSED: expected three EF-generated C# files, found ' + $Files.Count)
