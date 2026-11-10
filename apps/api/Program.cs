@@ -38,11 +38,16 @@ var connection = builder.Configuration.GetConnectionString("Main");
 if (string.IsNullOrWhiteSpace(connection))
     throw new InvalidOperationException("ConnectionStrings:Main must be supplied from environment or protected config.");
 
+// SQLite foreign-key enforcement is connection-scoped. Normalize the
+// connection string once so every EF connection enables PRAGMA foreign_keys
+// before it can execute application SQL.
+var runtimeConnection = SqliteRuntimePolicy.EnableForeignKeys(connection);
+
 // Production reads and CMS writes BOTH require the same migration-managed,
 // pre-existing external DB. No accidental SQLite creation for public GETs.
 if (builder.Environment.IsProduction())
-    ProductionSqlitePolicy.RequirePreparedDatabase(connection, builder.Environment.ContentRootPath);
-builder.Services.AddDbContext<DirectoryDb>(options => options.UseSqlite(connection));
+    ProductionSqlitePolicy.RequirePreparedDatabase(runtimeConnection, builder.Environment.ContentRootPath);
+builder.Services.AddDbContext<DirectoryDb>(options => options.UseSqlite(runtimeConnection));
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;

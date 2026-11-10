@@ -1,10 +1,18 @@
 # YangSpace — S2-02 initial EF Core SQLite migration
 
-**Status: GENERATOR IMPLEMENTED / MIGRATION NOT GENERATED / DB NOT TOUCHED**
+**Current status (2026-11-10): migration committed at `07dbe4d`; exact-SHA restore/build/model-drift/migration-discovery/SQL-generation PASS. Production DB and PVE remain untouched. Disposable runtime acceptance is the next gate.**
 
 Project: `jvalkovv/YangSpaceApp`, branch `feat/yangspace-v2-foundation-20261108`, Draft PR #1.
 
 The user chose one active YangSpace LXC and `yangspace.gndstore.eu`. We do **not** deploy or test persistent production data from this Windows step.
+
+## Current acceptance state
+
+- Reviewed migration `20261110043149_InitialDirectorySchema` is committed in `07dbe4d`.
+- Exact-SHA EF CLI 10.0.0 restore, API Release build, no-pending-model-changes, migration discovery and SQL generation passed on the operator Windows machine.
+- Independent SQL review was completed against the generated SQL artifact. No production database apply has occurred.
+- Runtime foreign-key hardening is tracked separately: all app SQLite connections must enable FK enforcement, and the Production schema gate must verify both the live PRAGMA and existing FK integrity.
+- The historical generation/review steps below describe how the committed migration was produced; they are not outstanding tasks.
 
 ## Source contract
 
@@ -53,3 +61,18 @@ A one-time approved Linux operation must create a **fresh disposable SQLite file
 Only after security/ACL/TLS, credential rotation assessment, backup/recovery, protected operator approval, migration acceptance and explicit deployment authorization may we initialize the **single** active database and enable CMS access.
 
 **Blocked:** migration artifacts absent until Step A; `S2-02=PARTIAL`, `G0/G-PREVIEW=HOLD`, PR Draft, no PVE mutation.
+
+
+## Runtime integrity hardening follow-up
+
+The application normalizes the configured SQLite connection string with `ForeignKeys=True` before registering EF Core. The Production policy independently requires `Mode=ReadWrite` and `ForeignKeys=True`. Before serving, the Production schema gate checks the live connection's `PRAGMA foreign_keys` value and runs the read-only `PRAGMA foreign_key_check` to detect existing orphan rows.
+
+The regression harness is in `apps/api.RuntimeTests` and runs only against randomly named disposable SQLite files under the operating-system temporary directory. It applies the committed migration, verifies orphan rejection, database-level cascade behavior, persistence after reopening, rejection of a connection with FK enforcement disabled, and detection of historical orphan rows.
+
+Run it on the Windows .NET 10 operator machine after pulling the exact hardening commit:
+
+```powershell
+.\scripts\Test-Sqlite-Runtime-Integrity.ps1 -CommitSha <FULL_HARDENING_COMMIT_SHA>
+```
+
+The harness does not read application environment configuration, start an HTTP listener, access the active preview/production database, use PVE, or deploy. Passing this local disposable harness is not a substitute for the separately approved single-LXC backup/restore and production cutover rehearsal.

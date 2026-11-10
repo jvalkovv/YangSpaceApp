@@ -22,4 +22,7 @@
          Remove this pin only when upstream resolves the native dependency and NuGet audit is clean. -->
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="YangSpace.Api.RuntimeTests" />
+  </ItemGroup>
 </Project>

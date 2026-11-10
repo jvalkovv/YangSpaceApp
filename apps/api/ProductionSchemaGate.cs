@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 
 namespace YangSpace.Api;
@@ -32,6 +33,43 @@ internal static class ProductionSchemaGate
         if (db.Database.HasPendingModelChanges())
             throw new InvalidOperationException(
                 "Production CMS blocked: EF model differs from the reviewed migration snapshot.");
+
+        await ValidateForeignKeyIntegrityAsync(db);
+    }
+
+    private static async Task ValidateForeignKeyIntegrityAsync(DirectoryDb db)
+    {
+        // PRAGMA foreign_keys is per-connection. Inspect the actual EF
+        // connection, not only the configured connection-string text.
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            var connection = db.Database.GetDbConnection();
+
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA foreign_keys;";
+                var value = await command.ExecuteScalarAsync();
+                if (Convert.ToInt32(value, CultureInfo.InvariantCulture) != 1)
+                    throw new InvalidOperationException(
+                        "Production CMS blocked: SQLite foreign-key enforcement is disabled.");
+            }
+
+            // Detect orphan rows created by older connections that may have
+            // run with enforcement disabled. This check is read-only.
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA foreign_key_check;";
+                await using var reader = await command.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                    throw new InvalidOperationException(
+                        "Production CMS blocked: SQLite foreign-key integrity check found violations.");
+            }
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
     }
 
     internal static async Task ValidateAsync(WebApplication app)
