@@ -26,6 +26,11 @@ public sealed class DirectoryDb(DbContextOptions<DirectoryDb> options) : Identit
             .HasOne<Organization>().WithMany()
             .HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<BusinessLocation>().HasIndex(x => x.OrganizationId);
+        // Application-managed revision. A stale expected revision fails EF's
+        // UPDATE ... WHERE "Revision" = @original concurrency predicate.
+        // HTTP 409 mapping and transactional audit are later F2b gates.
+        builder.Entity<BusinessLocation>()
+            .Property(x => x.Revision).IsConcurrencyToken();
 
         builder.Entity<Organization>(org =>
         {
@@ -58,6 +63,20 @@ public sealed class DirectoryDb(DbContextOptions<DirectoryDb> options) : Identit
                 .HasForeignKey(x => x.ApplicantUserId).OnDelete(DeleteBehavior.Restrict);
             claim.HasIndex(x => new { x.LocationId, x.Status });
             claim.HasIndex(x => new { x.OrganizationId, x.ApplicantUserId });
+
+            // Review policy: multiple distinct organizations may submit
+            // competing pending claims for a location. Each organization
+            // may have at most one Pending claim per location; a resolved
+            // (Rejected/Withdrawn) claim permits a new application.
+            // Only one Approved claim may exist for the location, globally.
+            // Status is persisted as a string for both SQLite and PostgreSQL.
+            claim.HasIndex(x => x.LocationId, "UX_BusinessClaims_ApprovedLocation")
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Approved'");
+            claim.HasIndex(x => new { x.LocationId, x.OrganizationId },
+                    "UX_BusinessClaims_PendingLocationOrganization")
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Pending'");
             claim.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
             claim.Property(x => x.ApplicantUserId).IsRequired();
             claim.Property(x => x.DecisionReason).HasMaxLength(500);
@@ -112,6 +131,9 @@ public sealed class BusinessLocation
     public bool IsVerified { get; set; }
     // Null = unclaimed legacy/demo location, never an implicit owner grant.
     public Guid? OrganizationId { get; set; }
+    // Application-managed optimistic concurrency token. Defaults to 0
+    // for new and historical rows; callers must increment on changes.
+    public long Revision { get; set; }
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<LocalOffer> Offers { get; set; } = [];
     public List<LocalBrochure> Brochures { get; set; } = [];
