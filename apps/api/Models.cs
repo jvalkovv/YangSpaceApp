@@ -55,6 +55,10 @@ public sealed class LocalOffer
     public DateTime StartsAtUtc { get; set; }
     public DateTime EndsAtUtc { get; set; }
     public bool IsPublished { get; set; }
+    // Null for legacy rows: dates must not be fabricated during migration.
+    public DateTime? CreatedAtUtc { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
+    public DateTime? PublishedAtUtc { get; set; }
 }
 public sealed class LocalBrochure
 {
@@ -65,6 +69,10 @@ public sealed class LocalBrochure
     public DateTime ValidFromUtc { get; set; }
     public DateTime ValidToUtc { get; set; }
     public bool IsPublished { get; set; }
+    // Null for legacy rows: dates must not be fabricated during migration.
+    public DateTime? CreatedAtUtc { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
+    public DateTime? PublishedAtUtc { get; set; }
 }
 public sealed class LocalJob
 {
@@ -75,4 +83,8 @@ public sealed class LocalJob
     public string ApplyUrl { get; set; } = "";
     public DateTime ExpiresAtUtc { get; set; }
     public bool IsPublished { get; set; }
+    // Null for legacy rows: dates must not be fabricated during migration.
+    public DateTime? CreatedAtUtc { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
+    public DateTime? PublishedAtUtc { get; set; }
 }

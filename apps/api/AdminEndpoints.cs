@@ -68,8 +68,10 @@ public static class AdminEndpoints
                 || !InputChecks.Dates(input.StartsAtUtc, input.EndsAtUtc))
                 return Results.BadRequest(new { error = "Invalid offer or period." });
             if (!await db.Locations.AnyAsync(x => x.Id == id, ct)) return Results.NotFound();
+            var now = DateTime.UtcNow;
             var x = new LocalOffer { LocationId = id, Title = input.Title!.Trim(), Description = (input.Description ?? "").Trim(),
-                StartsAtUtc = input.StartsAtUtc.ToUniversalTime(), EndsAtUtc = input.EndsAtUtc.ToUniversalTime(), IsPublished = input.IsPublished };
+                StartsAtUtc = input.StartsAtUtc.ToUniversalTime(), EndsAtUtc = input.EndsAtUtc.ToUniversalTime(), IsPublished = input.IsPublished,
+                CreatedAtUtc = now, UpdatedAtUtc = now, PublishedAtUtc = input.IsPublished ? now : null };
             db.Offers.Add(x);
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/locations/{id}/offers/{x.Id}", new { x.Id });
@@ -80,8 +82,10 @@ public static class AdminEndpoints
                 || !InputChecks.Dates(input.ValidFromUtc, input.ValidToUtc))
                 return Results.BadRequest(new { error = "Invalid brochure or period; URL must use HTTPS." });
             if (!await db.Locations.AnyAsync(x => x.Id == id, ct)) return Results.NotFound();
+            var now = DateTime.UtcNow;
             var x = new LocalBrochure { LocationId = id, Title = input.Title!.Trim(), Url = input.Url!.Trim(),
-                ValidFromUtc = input.ValidFromUtc.ToUniversalTime(), ValidToUtc = input.ValidToUtc.ToUniversalTime(), IsPublished = input.IsPublished };
+                ValidFromUtc = input.ValidFromUtc.ToUniversalTime(), ValidToUtc = input.ValidToUtc.ToUniversalTime(), IsPublished = input.IsPublished,
+                CreatedAtUtc = now, UpdatedAtUtc = now, PublishedAtUtc = input.IsPublished ? now : null };
             db.Brochures.Add(x);
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/locations/{id}/brochures/{x.Id}", new { x.Id });
@@ -93,8 +97,10 @@ public static class AdminEndpoints
                 || input.ExpiresAtUtc <= DateTime.UtcNow || input.ExpiresAtUtc > DateTime.UtcNow.AddYears(1))
                 return Results.BadRequest(new { error = "Invalid job or expiry; application URL must use HTTPS." });
             if (!await db.Locations.AnyAsync(x => x.Id == id, ct)) return Results.NotFound();
+            var now = DateTime.UtcNow;
             var x = new LocalJob { LocationId = id, Title = input.Title!.Trim(), Description = (input.Description ?? "").Trim(),
-                ApplyUrl = input.ApplyUrl!.Trim(), ExpiresAtUtc = input.ExpiresAtUtc.ToUniversalTime(), IsPublished = input.IsPublished };
+                ApplyUrl = input.ApplyUrl!.Trim(), ExpiresAtUtc = input.ExpiresAtUtc.ToUniversalTime(), IsPublished = input.IsPublished,
+                CreatedAtUtc = now, UpdatedAtUtc = now, PublishedAtUtc = input.IsPublished ? now : null };
             db.Jobs.Add(x);
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/locations/{id}/jobs/{x.Id}", new { x.Id });
