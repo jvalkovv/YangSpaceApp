@@ -50,7 +50,7 @@ This file is the **single entrypoint** for *current state, gate status, sequenci
 - **No invented data:** demo entries, offers, time schedules and badges must be clearly identified; never claim “verified”, “open now”, actual proximity or authentic promotions without evidence.
 - Initial 10–20 merchant invite/claim pilot is a **proposal**, not an approved target. Agree with product owner before outreach.
 
-## 3. Current evidence snapshot (at reviewed source SHA)
+## 3. Historical source-review snapshot (pre-activation; superseded by the runtime addendum above)
 
 | Layer | Verified/implemented evidence | Qualification |
 | --- | --- | --- |
@@ -131,7 +131,7 @@ Dependencies matter more than calendar dates. Work on mobile *design specs* may 
 
 | Risk | Severity | State / owner role | Closure criterion |
 | --- | --- | --- | --- |
-| Unverified public URL / CT164 source drift | P0 | OPEN — release operator | Exact deployed SHA, origin, runtime config, data provenance and negative security probes recorded. |
+| Live artifact identity not independently attested | P1 | OPEN — release operator | Operator reported CT164 release symlink, CT152 HTTPS and public edge probes; still require immutable built-asset/API fingerprint and independently retained verification. |
 | Thin pool high allocation, no VG free space | P0 | OPEN — PVE operator | Audited capacity/headroom thresholds; backup/restore before storage actions; alerts. |
 | No accepted off-host database + media recovery | P0 | OPEN — operator | Encrypted/controlled copy, retention, restore into scratch, integrity check, measured RPO/RTO. |
 | PVE firewall / edge admin exposure | P0 | OPEN — network/security operator | Effective ACL and direct-origin denial proven; no client-supplied gateway-header bypass. |
