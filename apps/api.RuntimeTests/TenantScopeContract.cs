@@ -18,6 +18,31 @@ internal static class TenantScopeContract
         Console.WriteLine(marker + "=PASS");
     }
 
+    private static async Task CheckUniqueClaimRejectedAsync(
+        DirectoryDb db, BusinessClaim attempted, string marker)
+    {
+        db.BusinessClaims.Add(attempted);
+        try
+        {
+            await db.SaveChangesAsync();
+            throw new InvalidOperationException("FAIL: " + marker + " (duplicate accepted)");
+        }
+        catch (DbUpdateException ex) when (
+            ex.InnerException is SqliteException {
+                SqliteErrorCode: 19,
+                SqliteExtendedErrorCode: 2067
+            })
+        {
+            Console.WriteLine(marker + "=PASS");
+        }
+        finally
+        {
+            // Failed inserts stay tracked as Added; otherwise they contaminate
+            // subsequent SaveChanges and turn an expected rejection into noise.
+            db.Entry(attempted).State = EntityState.Detached;
+        }
+    }
+
     private static ClaimsPrincipal Actor(string userId, string? role = null)
     {
         var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, userId) };
@@ -115,6 +140,98 @@ internal static class TenantScopeContract
         await db.SaveChangesAsync();
         Check(!await TenantScope.CanManageLocationAsync(db, Actor("actor-a"), locA.Id),
             "F2A_MEMBERSHIP_REVOCATION_IMMEDIATE");
+
+        // F2a-1 database invariants: distinct organizations may have their
+        // own pending applications, but duplicate pending requests from the
+        // same organization/location (even from another applicant) are denied.
+        db.BusinessClaims.Add(new BusinessClaim
+        {
+            LocationId = locA.Id,
+            OrganizationId = orgB.Id,
+            ApplicantUserId = "actor-b",
+            Status = BusinessClaimStatus.Pending
+        });
+        await db.SaveChangesAsync();
+        Check(await db.BusinessClaims.CountAsync(x =>
+                x.LocationId == locA.Id && x.Status == BusinessClaimStatus.Pending) == 2,
+            "F2A_COMPETING_ORGANIZATION_PENDING_ALLOWED");
+
+        await CheckUniqueClaimRejectedAsync(db, new BusinessClaim
+        {
+            LocationId = locA.Id,
+            OrganizationId = orgA.Id,
+            ApplicantUserId = "actor-staff",
+            Status = BusinessClaimStatus.Pending
+        }, "F2A_DUPLICATE_PENDING_ORGANIZATION_DENIED");
+
+        db.BusinessClaims.Add(new BusinessClaim
+        {
+            LocationId = locA.Id,
+            OrganizationId = orgA.Id,
+            ApplicantUserId = "actor-applicant",
+            Status = BusinessClaimStatus.Approved
+        });
+        await db.SaveChangesAsync();
+
+        await CheckUniqueClaimRejectedAsync(db, new BusinessClaim
+        {
+            LocationId = locA.Id,
+            OrganizationId = orgB.Id,
+            ApplicantUserId = "actor-b",
+            Status = BusinessClaimStatus.Approved
+        }, "F2A_SECOND_APPROVED_LOCATION_DENIED");
+
+        // Closed claims may be followed by a new application; only an
+        // active Pending claim for this same organization/location is unique.
+        var priorPending = await db.BusinessClaims.SingleAsync(x =>
+            x.LocationId == locA.Id && x.OrganizationId == orgA.Id &&
+            x.Status == BusinessClaimStatus.Pending);
+        priorPending.Status = BusinessClaimStatus.Withdrawn;
+        priorPending.Revision++;
+        db.BusinessClaims.Add(new BusinessClaim
+        {
+            LocationId = locA.Id,
+            OrganizationId = orgA.Id,
+            ApplicantUserId = "actor-applicant",
+            Status = BusinessClaimStatus.Pending
+        });
+        await db.SaveChangesAsync();
+        Check(await db.BusinessClaims.CountAsync(x =>
+                x.LocationId == locA.Id && x.OrganizationId == orgA.Id &&
+                x.Status == BusinessClaimStatus.Pending) == 1,
+            "F2A_REAPPLY_AFTER_WITHDRAWN_ALLOWED");
+
+        // Two independent EF contexts start with the same revision. EF's
+        // configured concurrency token rejects the second stale update.
+        await using var firstWriter = new DirectoryDb(options);
+        await using var secondWriter = new DirectoryDb(options);
+        var firstVersion = await firstWriter.Locations.SingleAsync(x => x.Id == locB.Id);
+        var staleVersion = await secondWriter.Locations.SingleAsync(x => x.Id == locB.Id);
+        Check(firstVersion.Revision == staleVersion.Revision,
+            "F2A_LOCATION_REVISION_BASELINE_MATCHES");
+
+        firstVersion.Name = "B updated once";
+        firstVersion.Revision++;
+        await firstWriter.SaveChangesAsync();
+
+        staleVersion.Name = "B stale overwrite";
+        staleVersion.Revision++;
+        try
+        {
+            await secondWriter.SaveChangesAsync();
+            throw new InvalidOperationException(
+                "FAIL: F2A_LOCATION_STALE_REVISION_DENIED (stale write accepted)");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            Console.WriteLine("F2A_LOCATION_STALE_REVISION_DENIED=PASS");
+        }
+
+        await using var finalCheck = new DirectoryDb(options);
+        var persisted = await finalCheck.Locations.AsNoTracking()
+            .SingleAsync(x => x.Id == locB.Id);
+        Check(persisted.Name == "B updated once" && persisted.Revision == firstVersion.Revision,
+            "F2A_LOCATION_REVISION_WINNER_PRESERVED");
 
         Console.WriteLine("F2A_TENANT_SCOPE_CONTRACT=PASS");
     }
