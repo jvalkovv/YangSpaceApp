@@ -9,6 +9,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <!-- NU1902/NU1903: EF design-time tool graph otherwise resolves vulnerable
+         System.Security.Cryptography.Pkcs/Xml 9.0.0 in this project.
+         Pin patched .NET 10 packages; retain warnings-as-errors and NuGet audit. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.14" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
