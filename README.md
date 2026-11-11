@@ -1,5 +1,7 @@
 # YangSpace 2.0
 
+> **Single Source of Truth (current status, gates and next actions): [docs/SSOT.md](docs/SSOT.md).** This index supersedes older point-in-time “current” summaries below. Accepted decisions remain in [ADR-018](docs/ADR-018-NO-GITHUB-ACTIONS.md) and [DECISIONS](docs/DECISIONS.md). CT164 guest provisioning has been operator-reported, but application release, effective ingress protection and off-host recovery remain unverified/HOLD; a visible demo URL is not release acceptance.
+
 > **Accepted owner direction — NO GitHub Actions.** GitHub is for source/PR/commits only. Quality checks are **operator-run on a clean exact-SHA source snapshot**, with separate logs and real API integration in a disposable database. This supersedes old README sections mentioning CI. [ADR-018](docs/ADR-018-NO-GITHUB-ACTIONS.md) · [S0 Manual QA Runbook](docs/S0_MANUAL_QA_RUNBOOK.md).
 
 ## Execution plan — canonical documents (2026-11-09)
