@@ -11,7 +11,7 @@
 
 | Work package | Result | Next required evidence |
 | --- | --- | --- |
-| YS-S2-01 / ADR-013 production provider | **OPEN / decision required** | Approve SQLite bounded pilot vs PostgreSQL/SQL Server, with concurrency/restore limits |
+| YS-S2-01 / ADR-019 production provider | **Target PostgreSQL ACCEPTED; rollout HOLD** | [ADR-019](ADR-019-POSTGRESQL-PRODUCTION-TARGET.md): operator topology, PG-specific EF migrations, backup/restore, and DB hardening not yet done |
 | YS-S2-04 / Issue #4 | **F2a contract PROPOSED** | [F2a ownership and audit proposal](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md); no schema migration/merchant endpoints |
 | YS-S2-05 / tenant access | **NOT IMPLEMENTED** | Real bearer owner A↔B 404/no-leak negative tests, grant/revoke, old-token denial |
 | Issue #11 F2b / audit + concurrency | **NOT IMPLEMENTED** | Transactional one-event-per-change and per-resource revision 409 tests |

@@ -10,7 +10,7 @@
 - `/api/v1/admin` requires global `PlatformAdmin` bearer authorization. Production additionally requires a protected internal gateway. These controls are **not** proof that ordinary merchants can access only their own business.
 - Public readers are anonymous and must remain read-only. `UpdatedAtUtc` on publications (F1b) has no actor and is not ownership/verification evidence.
 - The committed EF initial + F1b SQLite migrations and disposable recovery harness are accepted for the **development scope** only. CT164 public preview remains the older `EnsureCreated` demo database; do not migrate it in place.
-- **Database provider is unresolved**: ADR-007/ADR-013 consider PostgreSQL versus SQL Server while current code uses SQLite. Recommendation for **isolated prototype only**: keep the current SQLite provider to test the security design; choose/publish the production DB ADR before any F2 schema migration or real merchant onboarding.
+- **Production provider direction selected:** [ADR-019](ADR-019-POSTGRESQL-PRODUCTION-TARGET.md) accepts PostgreSQL as the target for future verified multi-tenant data. Current SQLite stays as read-only fictional preview/disposable QA; no live conversion, dual write, PG instance provisioning, PG migrations or owner access yet. Before F2a schema merge, prove provider-specific PostgreSQL migration and isolated recovery gates; claim-review and retention details remain proposed.
 
 ## 2. Proposed domain and lifecycle (not yet implemented)
 

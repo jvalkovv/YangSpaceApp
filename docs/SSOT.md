@@ -9,7 +9,7 @@
 
 ## F2a architecture work — 2026-11-11 (proposed, review pending)
 
-**Status: SOURCE REVIEW / DESIGN PROPOSAL ONLY**, implementation gates remain HOLD. The current API has only global `PlatformAdmin`; Organization/Member/Claim rows and actor+revision audit are absent. [Issue #4](https://github.com/jvalkovv/YangSpaceApp/issues/4) owns tenant authorization, [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11) owns the full freshness/audit requirements. Proposed detailed contract: [F2a ownership and audit](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md). **ADR-013 production DB provider is still OPEN**; no new EF migration or owner endpoint enabled. F1a/F1b remain accepted for local code QA only, public demo unchanged.
+**Status: SOURCE REVIEW / DESIGN PROPOSAL ONLY**, implementation gates remain HOLD. The current API has only global `PlatformAdmin`; Organization/Member/Claim rows and actor+revision audit are absent. [Issue #4](https://github.com/jvalkovv/YangSpaceApp/issues/4) owns tenant authorization, [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11) owns the full freshness/audit requirements. Proposed detailed contract: [F2a ownership and audit](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md). **ADR-019 accepts PostgreSQL as the production target, but provider migration/activation is HOLD**; no new EF migration or owner endpoint enabled. F1a/F1b remain accepted for local code QA only, public demo unchanged.
 
 ## 2026-11-11 18:22 Europe/Sofia — current accepted F1 freshness milestone
 
