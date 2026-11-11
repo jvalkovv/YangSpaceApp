@@ -11,9 +11,78 @@ public sealed class DirectoryDb(DbContextOptions<DirectoryDb> options) : Identit
     public DbSet<LocalBrochure> Brochures => Set<LocalBrochure>();
     public DbSet<LocalJob> Jobs => Set<LocalJob>();
 
+    // F2a-1: schema foundation only. No public merchant write capability.
+    public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
+    public DbSet<BusinessClaim> BusinessClaims => Set<BusinessClaim>();
+    public DbSet<ContentAuditEvent> ContentAuditEvents => Set<ContentAuditEvent>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        // Legacy/demo locations have no verified owner. The nullable FK is
+        // intentional; no owner is fabricated from historic records.
+        builder.Entity<BusinessLocation>()
+            .HasOne<Organization>().WithMany()
+            .HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<BusinessLocation>().HasIndex(x => x.OrganizationId);
+
+        builder.Entity<Organization>(org =>
+        {
+            org.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            org.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            org.Property(x => x.Revision).IsConcurrencyToken();
+            org.HasIndex(x => x.Status);
+        });
+
+        builder.Entity<OrganizationMember>(member =>
+        {
+            member.HasOne<Organization>().WithMany()
+                .HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            member.HasOne<IdentityUser>().WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            member.HasIndex(x => new { x.OrganizationId, x.UserId }).IsUnique();
+            member.Property(x => x.UserId).IsRequired();
+            member.Property(x => x.GrantedByUserId).IsRequired();
+            member.Property(x => x.Role).HasConversion<string>().HasMaxLength(32);
+            member.Property(x => x.Revision).IsConcurrencyToken();
+        });
+
+        builder.Entity<BusinessClaim>(claim =>
+        {
+            claim.HasOne<Organization>().WithMany()
+                .HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            claim.HasOne<BusinessLocation>().WithMany()
+                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.Restrict);
+            claim.HasOne<IdentityUser>().WithMany()
+                .HasForeignKey(x => x.ApplicantUserId).OnDelete(DeleteBehavior.Restrict);
+            claim.HasIndex(x => new { x.LocationId, x.Status });
+            claim.HasIndex(x => new { x.OrganizationId, x.ApplicantUserId });
+            claim.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            claim.Property(x => x.ApplicantUserId).IsRequired();
+            claim.Property(x => x.DecisionReason).HasMaxLength(500);
+            claim.Property(x => x.Revision).IsConcurrencyToken();
+        });
+
+        // Schema only: event writes are forbidden until F2b implements
+        // atomic business mutation + allowlisted audit in one transaction.
+        builder.Entity<ContentAuditEvent>(audit =>
+        {
+            audit.HasOne<BusinessLocation>().WithMany()
+                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.Restrict);
+            audit.HasOne<Organization>().WithMany()
+                .HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            audit.Property(x => x.ActorUserId).IsRequired();
+            audit.Property(x => x.ActorRole).HasMaxLength(48).IsRequired();
+            audit.Property(x => x.EntityType).HasMaxLength(40).IsRequired();
+            audit.Property(x => x.Action).HasMaxLength(40).IsRequired();
+            audit.Property(x => x.CorrelationId).HasMaxLength(96).IsRequired();
+            audit.Property(x => x.ChangedFieldsJson).IsRequired();
+            audit.Property(x => x.Reason).HasMaxLength(500);
+            audit.HasIndex(x => new { x.EntityType, x.EntityId, x.RevisionAfter }).IsUnique();
+            audit.HasIndex(x => new { x.LocationId, x.OccurredAtUtc });
+        });
+
         builder.Entity<BusinessLocation>().HasIndex(x => x.Slug).IsUnique();
         builder.Entity<BusinessLocation>().HasIndex(x => new { x.City, x.Neighborhood, x.Category });
         builder.Entity<LocalOffer>().HasIndex(x => new { x.LocationId, x.IsPublished, x.EndsAtUtc });
@@ -41,6 +110,8 @@ public sealed class BusinessLocation
     public string? OpeningHours { get; set; }
     public bool IsPublished { get; set; }
     public bool IsVerified { get; set; }
+    // Null = unclaimed legacy/demo location, never an implicit owner grant.
+    public Guid? OrganizationId { get; set; }
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<LocalOffer> Offers { get; set; } = [];
     public List<LocalBrochure> Brochures { get; set; } = [];
