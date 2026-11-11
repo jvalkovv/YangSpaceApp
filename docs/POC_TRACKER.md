@@ -1,5 +1,7 @@
 # YangSpace 2.0 — Execution Tracker
 
+> **Current gates and ordering:** [SSOT.md](SSOT.md). Keep this file as the detailed task-ID/evidence ledger; dated rows record their own acceptance scope and may be older than the SSOT snapshot. Do not promote a task to DONE from a newer source commit without fresh exact-SHA runtime evidence. CT164 guest preparation is not an activated application release.
+
 **Tracked source baseline:** `20aa30c7da581316ba31900b6953025a3d1f3b00` (homepage code) · **visual QA docs:** `e2edefb70c648199ba8e82f83d7a3396424c88c4`.  
 **Branch:** `feat/yangspace-v2-foundation-20261108` · **PR:** [#1](https://github.com/jvalkovv/YangSpaceApp/pull/1) (Draft).  
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
