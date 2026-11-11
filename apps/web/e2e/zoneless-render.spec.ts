@@ -237,3 +237,70 @@ test('network failure does not disclose local API topology to visitors', async (
   await expect(error).toContainText('Няма връзка със сървъра.');
   await expect(error).not.toContainText(/127\.0\.0\.1|localhost|\.NET|Angular|proxy/i);
 });
+
+test('business detail separates profile edit time from offer, brochure and job validity', async ({ page }) => {
+  await page.route('**/api/v1/locations/bike-demo', route => route.fulfill({
+    json: {
+      ...bike, city: 'Варна', phone: null, website: null, openingHours: 'Демо',
+      updatedAtUtc: '2026-11-08T12:00:00Z',
+      offers: [{
+        id: '44444444-4444-4444-8444-444444444444', title: 'Примерна оферта',
+        description: 'Демонстрация', startsAtUtc: '2026-11-09T09:00:00Z',
+        endsAtUtc: '2026-11-16T21:00:00Z'
+      }],
+      brochures: [{
+        id: '55555555-5555-4555-8555-555555555555', title: 'Примерна брошура',
+        url: 'https://example.org/brochure.pdf', validFromUtc: '2026-11-09T09:00:00Z',
+        validToUtc: '2026-11-16T21:00:00Z'
+      }],
+      jobs: [{
+        id: '66666666-6666-4666-8666-666666666666', title: 'Примерна позиция',
+        description: 'Тестова обява', applyUrl: 'https://example.org/jobs',
+        expiresAtUtc: '2026-11-16T21:00:00Z'
+      }]
+    }
+  }));
+  await page.goto('/obekt/bike-demo');
+
+  const profile = page.locator('.profile-updated');
+  await expect(profile).toContainText('Профилът е редактиран на');
+  await expect(profile).toContainText('14:00');
+  await expect(profile).not.toContainText(/потвърден|редактор|публикациите/i);
+  await expect(profile.locator('time')).toHaveAttribute('datetime', '2026-11-08T12:00:00Z');
+
+  const sections = page.locator('.detail-main .panel');
+  const offer = sections.nth(0);
+  const brochure = sections.nth(1);
+  const job = sections.nth(2);
+
+  await expect(offer).toContainText('Офертата е валидна от');
+  await expect(offer).toContainText('11:00');
+  await expect(offer).toContainText('23:00');
+  await expect(brochure).toContainText('Валидност на брошурата:');
+  await expect(brochure).toContainText('11:00');
+  await expect(brochure).toContainText('23:00');
+  await expect(brochure.locator('time')).toHaveCount(2);
+  await expect(job).toContainText('Обявата е активна до');
+  await expect(job).toContainText('23:00');
+});
+
+test('brochure validity uses Bulgaria daylight-saving time rather than browser-local offset', async ({ page }) => {
+  await page.route('**/api/v1/locations/bike-demo', route => route.fulfill({
+    json: {
+      ...bike, city: 'Варна', phone: null, website: null, openingHours: null,
+      updatedAtUtc: '2026-11-08T12:00:00Z', offers: [], jobs: [],
+      brochures: [{
+        id: '77777777-7777-4777-8777-777777777777',
+        title: 'Брошура — смяна на часовото време',
+        url: 'https://example.org/brochure.pdf',
+        validFromUtc: '2027-03-28T00:30:00Z',
+        validToUtc: '2027-03-28T01:30:00Z'
+      }]
+    }
+  }));
+  await page.goto('/obekt/bike-demo');
+  const brochure = page.locator('.detail-main .panel').nth(1);
+  await expect(brochure.locator('time').nth(0)).toContainText('02:30');
+  await expect(brochure.locator('time').nth(1)).toContainText('04:30');
+  await expect(brochure).toContainText('българско време');
+});
