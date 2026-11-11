@@ -7,6 +7,26 @@
 
 **Не се поемат срокове до оценка на кода и работа по P0 дефектите.** Първо пилотен квартал, после доказано повторяемо разрастване.
 
+## Delivery governance — mandatory progress reporting & PR closure (accepted 2026-11-11)
+
+This is a **standing execution requirement** for all YangSpace work, including external Work runs and manual operator actions. It is not a product feature and does not substitute for tests or owner review.
+
+1. **Report at meaningful checkpoints:** after an accepted scope decision, commit, completed test stage, PR creation/review, merge/closure, release or blocker. Include exact commit SHA, PR/issue link, environment, PASS/PARTIAL/HOLD, evidence location, next dependency and any production-vs-source drift. Do not publish empty progress updates or report unperformed work as completed.
+2. **Hourly GitHub change watch:** existing YangSpace GitHub progress automation checks branch head, PRs, Issue #11 and gates. Notify on substantive changes only; a scheduled check is not a continuous build/deploy service, and progress reports do not imply asynchronous implementation.
+3. **Small, independent PRs:** each PR states scope, base/head SHA, changed files, QA results, rollback/deployment consequences and Definition of Done. Do not mix unrelated CMS/infra/UI changes. Never use GitHub Actions: apply [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md) and retain separate `logs/yangspace/{verify,api-integration,deploy,restore}/` evidence as applicable.
+4. **Close completed PRs only by an approved merge:** `100%` is scoped to **that PR's** agreed Definition of Done, including required exact-SHA QA, independent review and explicit owner approval. Merge into its approved target branch (prefer squash for cohesive changes), then verify GitHub marks it **merged/closed**. A manual `closed/unmerged` status is for an expressly abandoned/superseded PR and must state why. Never call a full project ready merely because all small PRs have merged.
+5. **One open source of truth:** keep a current inventory of `OPEN` / `DRAFT` / `READY` / `MERGED` / `CLOSED UNMERGED` PRs in [SSOT.md](SSOT.md) and the active parent PR; reconcile the head after every merge. Full feature-to-`main` PR #1 remains open while release/pilot gates remain HOLD.
+6. **No implicit deployment:** merges do not activate CT164/CT152, apply migrations, unlock admin/registration, or promote demo to production. Require a distinct runtime approval and SHA-specific smoke/rollback evidence.
+
+### Accepted exact-commit engineering QA snapshot
+
+- Source SHA **`2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc`**, V2 feature branch after merged [PR #9](https://github.com/jvalkovv/YangSpaceApp/pull/9) and [PR #10](https://github.com/jvalkovv/YangSpaceApp/pull/10).
+- Owner-provided Windows PowerShell evidence: `SOURCE_VALIDATION=PASS` (lockfile, npm ci/audit, Angular typecheck/build, Playwright, .NET restore/build) and `REAL_API_INTEGRATION=PASS` (disposable SQLite, restart/persistence, anti-escalation checks). Both tests were pinned to the **same exact SHA**.
+- Local-only, uncommitted evidence directories:
+  - `D:\GitHub\YangSpaceApp\logs\yangspace\verify\2baeb797b4d9-20261111-074951-04b1acd1`
+  - `D:\GitHub\YangSpaceApp\logs\yangspace\api-integration\2baeb797b4d9-20261111-075201-77648186`
+- **Engineering source QA PASS** does **not** constitute off-host restore, direct-origin firewall acceptance, production merchant ownership/audit, deployment acceptance or permission to merge PR #1 into legacy `main`. Reference [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11) for freshness and edit history.
+
 ## M0 — Legacy Recovery / Security / Manual QA
 
 - [ ] Branch protection, restore point/tag на наследения baseline, зависимостите са инвентаризирани.

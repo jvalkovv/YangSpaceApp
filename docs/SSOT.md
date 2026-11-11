@@ -1,8 +1,8 @@
 # YangSpace 2.0 — Single Source of Truth (SSOT)
 
-**Status:** ACTIVE planning/status authority **within this documentation PR only**; adoption into the development branch is pending review. This document does **not** authorize deployment, database mutation, exposure, or PR merge.  
+**Status:** ACTIVE planning/status authority on the YangSpace V2 feature branch; introduced by merged PR #9. This document does **not** authorize deployment, database mutation, exposure, or feature-to-\`main\` merge.  
 **Baseline date:** 2026-11-11 (Europe/Sofia).  
-**Reviewed application source:** `feat/yangspace-v2-foundation-20261108` @ `a4802805421f10e834ad35bbf2f259db4e4eab84` (Draft [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1)). The `main` branch is the legacy application, not the active YangSpace 2.0 baseline.  
+**Current accepted engineering QA source:** `feat/yangspace-v2-foundation-20261108` @ `2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc`; historical deployment remains `a4802805421f10e834ad35bbf2f259db4e4eab84`. [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays Draft. The `main` branch is the legacy application, not the active YangSpace 2.0 baseline.  
 **Scope of this update:** repository/source review, accepted operator-reported evidence, project documentation and user-supplied iPhone screenshots; **no new build, real-browser, DB, PVE, or public-origin execution** was performed for this document.
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
@@ -22,6 +22,19 @@
 | Operational/release readiness | PVE thin pool reported `84.76%` during activation; effective firewall, off-host encrypted backup + restore, monitoring and rollback evidence still incomplete. | **G-PREVIEW remains HOLD** as a comprehensive operational gate; **G-PILOT remains HOLD**. Browser reachability is not approval for real merchant content or writes. |
 
 **Current interpretation:** the apparent *live-versus-provisioning mismatch* is explained by the historical log's age, not a demonstrated alternative origin. The **remaining release identity gap** is to verify the exact running binary/assets against immutable release SHA and publish a safe build fingerprint. Preserve the recorded operator console evidence and close this gap with independent, read-only verification before a later deployment. **Do not repeat activation or mutate CT152/CT164 to update documentation.**
+
+## 2026-11-11 — source QA, communication and PR closure addendum
+
+**Exact-SHA manual acceptance:** operator ran `Verify-Source-Local.ps1` and `Verify-Api-Local.ps1` from Windows on `2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc`. Console transcript reported `SOURCE_VALIDATION=PASS`, `REAL_API_INTEGRATION=PASS`, `BOOTSTRAP_PRIVILEGE_ESCALATION_DENIED=PASS`, `BOOTSTRAP_NONADMIN_ROLE_RETAINED=PASS`. Source runner passed lock/install/audit/typecheck/build/Playwright/API restore/build; API runner passed disposable database prepare/restart/anti-escalation/recovery checks. No live DB writes. Local evidence, not independently read by this GitHub-only update:
+
+- `D:\GitHub\YangSpaceApp\logs\yangspace\verify\2baeb797b4d9-20261111-074951-04b1acd1`
+- `D:\GitHub\YangSpaceApp\logs\yangspace\api-integration\2baeb797b4d9-20261111-075201-77648186`
+
+**PR reconciliation:** [#9](https://github.com/jvalkovv/YangSpaceApp/pull/9) MERGED/CLOSED at `ea959a104275599212156dc4d9f1ce76adcf13f8`; [#10](https://github.com/jvalkovv/YangSpaceApp/pull/10) MERGED/CLOSED at `2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc`. At this status checkpoint, only **[#1](https://github.com/jvalkovv/YangSpaceApp/pull/1)** remains Draft/Open; it is **not 100% complete** because merchant ownership, real data, recovery and production gates are not accepted. New doc-only PRs are handled as isolated work and reconciled after merge.
+
+**Mandatory progress reporting:** report meaningful GitHub commits, tests, PR transitions, release gates and blockers promptly in the active conversation; the existing hourly YangSpace GitHub check notifies only on substantive change. Always cite actual source SHA and test/evidence scope. No promise of continuous independent execution. **PR hygiene:** merge/close fully accepted, owner-approved scoped PRs; keep incomplete PRs open/draft; do not close unmerged merely to clear the list. See [MVP roadmap](MVP_ROADMAP.md#delivery-governance--mandatory-progress-reporting--pr-closure-accepted-2026-11-11).
+
+**Gate verdict:** current engineering source QA **PASS for `2ba...`**; comprehensive G0/G-PREVIEW/G-PILOT **remain HOLD** for outstanding security/operational/product requirements. No deployment has occurred from this candidate; CT164 public demo is still reported at `a480...`.
 
 ## 1. Purpose, precedence and change control
 

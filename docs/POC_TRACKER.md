@@ -7,6 +7,22 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-11 latest verified source QA & PR hygiene
+
+This checkpoint **supersedes older exact-SHA source-QA TODO entries for engineering validation only**, without changing the historical rows below. It does not mark the full S0/security/release/production gate DONE.
+
+| Item | Evidence | Scoped result |
+| --- | --- | --- |
+| Combined V2 feature commit `2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc` | Owner confirmed fetched SHA and ran `Verify-Source-Local.ps1 -CommitSha` and `Verify-Api-Local.ps1 -CommitSha` on **same** SHA | `SOURCE_VALIDATION=PASS`, `REAL_API_INTEGRATION=PASS`; disposable DB only |
+| Frontend/typecheck/browser/restore/build | Source runner stages `web-lock`, `web-install`, `web-audit`, `web-typecheck`, `web-build`, `web-playwright`, `api-restore`, `api-build` all `STAGE_PASS` | **PASS** for exact SHA |
+| Real auth/API integration | API runner `api-prepare`, `api-restart-verify`, `api-bootstrap-denial`, `api-post-bootstrap-verify`, `api-post-bootstrap-recovery` pass | **PASS**; escalation denied, non-admin role retained |
+| Local operator artifacts | `logs/yangspace/verify/2baeb797b4d9-20261111-074951-04b1acd1`, `logs/yangspace/api-integration/2baeb797b4d9-20261111-075201-77648186` on operator Windows PC | Local logs **reported**, not Git-tracked |
+| Completed child PRs | [#9](https://github.com/jvalkovv/YangSpaceApp/pull/9) and [#10](https://github.com/jvalkovv/YangSpaceApp/pull/10) | **MERGED/CLOSED**; [parent #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays **Draft/Open** |
+| Business freshness requirement | [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11) | **OPEN** for implementation; not part of completed UI fixes |
+| Operational gates | Current live demo reported at `a480280...`; no fresh exact-candidate activation, off-host restore, verified effective firewall, live merchant auth/audit | **HOLD** |
+
+**Ongoing owner requirement:** provide concise evidence-linked progress at each meaningful checkpoint (plus existing hourly GitHub change watch); distinguish source QA from runtime deployment, and merge/close only fully scoped accepted/owner-approved PRs. Do not close unmerged PRs for list hygiene. Canonical policy: [MVP roadmap](MVP_ROADMAP.md#delivery-governance--mandatory-progress-reporting--pr-closure-accepted-2026-11-11).
+
 ## 0. Evidence baseline (confirmed, no rerun by this document)
 
 | ID | Item | Status | Evidence / qualification |
