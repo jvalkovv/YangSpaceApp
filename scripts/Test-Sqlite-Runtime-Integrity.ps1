@@ -11,7 +11,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch = 'feat/yangspace-v2-foundation-20261108'
+$AllowedBranches = @('feat/yangspace-v2-foundation-20261108',
+    'feat/yangspace-publication-timestamps-f1b-20261111')
 $Git = (Get-Command git.exe -ErrorAction Stop).Source
 $Dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
 $Project = 'apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
@@ -22,8 +23,23 @@ if ($LASTEXITCODE -ne 0 -or $Head -cne $CommitSha) {
 }
 
 $CurrentBranch = (& $Git -C $Repo branch --show-current).Trim()
-if ($LASTEXITCODE -ne 0 -or $CurrentBranch -cne $Branch) {
+if ($LASTEXITCODE -ne 0 -or ($CurrentBranch -and $AllowedBranches -cnotcontains $CurrentBranch)) {
     throw 'RUNTIME_TEST_BRANCH_MISMATCH'
+}
+# For detached QA checkouts, require this exact source SHA to be the
+# fetched remote tip of an allowlisted branch. No arbitrary local history.
+$MatchesRemote = $false
+foreach ($Branch in $AllowedBranches) {
+    $RemoteSha = (& $Git -C $Repo rev-parse --verify
+        ('refs/remotes/origin/' + $Branch) 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $RemoteSha -and
+        $RemoteSha.Trim() -ceq $CommitSha) {
+        $MatchesRemote = $true
+        break
+    }
+}
+if (-not $MatchesRemote) {
+    throw 'RUNTIME_TEST_REMOTE_SHA_NOT_PINNED'
 }
 
 $Status = @(& $Git -C $Repo status --porcelain --untracked-files=all)
@@ -76,6 +92,13 @@ foreach ($Marker in @(
     'RECOVERED_FOREIGN_KEY_CHECK'
     'RECOVERED_MIGRATION_HISTORY'
     'RECOVERED_PRE_BACKUP_ROW'
+    'F1B_LEGACY_SCHEMA_CREATED'
+    'F1B_LEGACY_ROWS_PRESERVED'
+    'F1B_LEGACY_TIMESTAMPS_NULL'
+    'F1B_MIGRATION_HISTORY'
+    'F1B_UPGRADE_INTEGRITY'
+    'F1B_PREUPGRADE_BACKUP_RESTORED'
+    'F1B_UPGRADE_REHEARSAL'
     'RECOVERY_POINT_IN_TIME'
 )) {
     if ($RunText -notmatch ('(?m)^' + [regex]::Escape($Marker) + '=PASS\s*$')) {
@@ -96,6 +119,8 @@ $Manifest = @(
     'LEGACY_ORPHAN_DETECTION=PASS'
     'ONLINE_BACKUP=PASS'
     'RECOVERY_REHEARSAL=PASS'
+    'F1B_INITIAL_TO_LATEST_DISPOSABLE_UPGRADE=PASS'
+    'F1B_PRE_UPGRADE_BACKUP_RESTORABLE=PASS'
     'RECOVERED_INTEGRITY_CHECK=PASS'
     'RECOVERED_SCHEMA_GATE=PASS'
     'RECOVERY_POINT_IN_TIME=PASS'

@@ -209,8 +209,11 @@ static async Task RunRecoveryRehearsalAsync(
 
     var applied = (await restoredDb.Database.GetAppliedMigrationsAsync()).ToArray();
     Check(
-        applied.Length == 1 &&
-        applied[0] == "20261110043149_InitialDirectorySchema",
+        applied.SequenceEqual(new[]
+        {
+            "20261110043149_InitialDirectorySchema",
+            "20261111125709_PublicationFreshnessTimestamps"
+        }),
         "RECOVERED_MIGRATION_HISTORY");
 
     Check(
@@ -432,6 +435,8 @@ try
             "foreign-key integrity check found violations",
             "PRODUCTION_SCHEMA_GATE_DETECTS_LEGACY_ORPHANS");
     }
+
+    await PublicationFreshnessUpgrade.RunAsync();
 
     Console.WriteLine("SQLITE_RUNTIME_INTEGRITY=PASS");
 }
