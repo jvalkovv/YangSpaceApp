@@ -229,8 +229,8 @@ import {
           <p>Представи обекта си, покажи предложенията и стигни до хората от твоя квартал. Регистрацията за търговци предстои.</p>
         </div>
         <div class="business-action">
-          <a routerLink="/admin" class="btn btn-cream">Виж демо управлението <span aria-hidden="true">↗</span></a>
-          <span>Административен preview · не е публична регистрация</span>
+          <a href="#catalog" class="btn btn-cream">Разгледай каталога <span aria-hidden="true">↗</span></a>
+          <span>Профилите за търговци предстоят · няма публична регистрация</span>
         </div>
       </div>
     </section>

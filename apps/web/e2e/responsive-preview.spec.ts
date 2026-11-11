@@ -125,3 +125,12 @@ for (const width of [390, 768, 1440]) {
     });
   });
 }
+
+test('public merchant CTA leads to the catalog instead of blocked preview admin', async ({ page }) => {
+  await page.route('**/api/v1/homepage', route => route.fulfill({ json: homepage }));
+  await page.goto('/');
+  const link = page.locator('.business-action a');
+  await expect(link).toHaveText(/Разгледай каталога/);
+  await expect(link).toHaveAttribute('href', '#catalog');
+  await expect(page.locator('.business-action a[href="/admin"]')).toHaveCount(0);
+});

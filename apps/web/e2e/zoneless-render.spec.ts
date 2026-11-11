@@ -195,7 +195,8 @@ test('a failed initial API load does not pretend that zero locations exist; retr
     await route.fulfill({ json: homepage });
   });
   await page.goto('/');
-  await expect(page.getByRole('alert')).toContainText('API или локалният proxy');
+  await expect(page.getByRole('alert')).toContainText('Услугата е временно недостъпна.');
+  await expect(page.getByRole('alert')).not.toContainText(/127\\.0\\.0\\.1|localhost|\\.NET|Angular|proxy/i);
   await expect(page.locator('.results-count')).toHaveCount(0);
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(0);
   online = true;
@@ -220,11 +221,19 @@ test('filtered API 502 shows a service error, not an authoritative empty result,
   await page.goto('/');
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(3);
   await page.getByRole('button', { name: /Красота/ }).click();
-  await expect(page.getByRole('alert')).toContainText('HTTP 502');
+  await expect(page.getByRole('alert')).toContainText('Услугата е временно недостъпна.');
   await expect(page.locator('.results-count')).toHaveCount(0);
   online = true;
   await page.getByRole('button', { name: 'Опитай отново' }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(1);
   await expect(page.locator('.location-card').filter({ hasText: 'Студио „Линия“' })).toBeVisible();
+});
+
+test('network failure does not disclose local API topology to visitors', async ({ page }) => {
+  await page.route('**/api/v1/homepage', route => route.abort('failed'));
+  await page.goto('/');
+  const error = page.getByRole('alert');
+  await expect(error).toContainText('Няма връзка със сървъра.');
+  await expect(error).not.toContainText(/127\.0\.0\.1|localhost|\.NET|Angular|proxy/i);
 });
