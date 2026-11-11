@@ -7,6 +7,18 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## F2a start — 2026-11-11: authorization/audit design gate
+
+| Work package | Result | Next required evidence |
+| --- | --- | --- |
+| YS-S2-01 / ADR-013 production provider | **OPEN / decision required** | Approve SQLite bounded pilot vs PostgreSQL/SQL Server, with concurrency/restore limits |
+| YS-S2-04 / Issue #4 | **F2a contract PROPOSED** | [F2a ownership and audit proposal](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md); no schema migration/merchant endpoints |
+| YS-S2-05 / tenant access | **NOT IMPLEMENTED** | Real bearer owner A↔B 404/no-leak negative tests, grant/revoke, old-token denial |
+| Issue #11 F2b / audit + concurrency | **NOT IMPLEMENTED** | Transactional one-event-per-change and per-resource revision 409 tests |
+| F3 owner confirmation/moderation | **BLOCKED by F2** | Reviewed membership/actor source and valid confirmation event |
+
+**No active CT164 DB or public endpoint changes.** This is a status snapshot describing a proposed design; no acceptance of the provider ADR or security controls is implied.
+
 ## 2026-11-11 18:22 — F1 freshness delivery checkpoint (current)
 
 The **current V2 application source** after merged [PR #14](https://github.com/jvalkovv/YangSpaceApp/pull/14) is `403b281abad2fb0c8048c2763a606c3435f3e5dd` (squash SHA, not separately QA-run). The exactly tested F1b source is `2634014f64fcff237b29564d0572643f2cba034a`. This checkpoint supersedes the 07:xx source snapshot below **for current workstream status only**.
