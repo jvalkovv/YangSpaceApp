@@ -36,15 +36,18 @@ internal static class PreviewBootstrap
                 };
                 x.Offers.Add(new LocalOffer {
                     Title = "Примерно предложение", Description = "Демонстрационно съдържание, не е реална промоция.",
-                    StartsAtUtc = now.AddDays(-1), EndsAtUtc = now.AddDays(30), IsPublished = true
+                    StartsAtUtc = now.AddDays(-1), EndsAtUtc = now.AddDays(30), IsPublished = true,
+                    CreatedAtUtc = now, UpdatedAtUtc = now, PublishedAtUtc = now
                 });
                 if (slug == "market-demo") x.Brochures.Add(new LocalBrochure {
                     Title = "Примерна седмична брошура", Url = "https://example.org/catalogue.pdf",
-                    ValidFromUtc = now.AddDays(-1), ValidToUtc = now.AddDays(7), IsPublished = true
+                    ValidFromUtc = now.AddDays(-1), ValidToUtc = now.AddDays(7), IsPublished = true,
+                    CreatedAtUtc = now, UpdatedAtUtc = now, PublishedAtUtc = now
                 });
                 if (slug == "cafe-demo") x.Jobs.Add(new LocalJob {
                     Title = "Примерна обява: бариста", Description = "Демо позиция — не кандидатствайте.",
-                    ApplyUrl = "https://example.org/jobs", ExpiresAtUtc = now.AddDays(30), IsPublished = true
+                    ApplyUrl = "https://example.org/jobs", ExpiresAtUtc = now.AddDays(30), IsPublished = true,
+                    CreatedAtUtc = now, UpdatedAtUtc = now, PublishedAtUtc = now
                 });
                 db.Locations.Add(x);
             }
