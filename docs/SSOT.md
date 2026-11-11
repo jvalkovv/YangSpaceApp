@@ -48,6 +48,7 @@ This file is the **single entrypoint** for *current state, gate status, sequenci
 - Target stack: Angular 22 + ASP.NET Core 10/EF Core; modular monolith; controlled PVE single application LXC initially, Nginx/systemd and separated persistent data/release/config.
 - **Out of MVP:** booking, integrated payments, paid subscriptions as a predetermined tariff, native iOS/Android apps, CV database/ATS, AI recommendations and bulk uncontrolled imports.
 - **No invented data:** demo entries, offers, time schedules and badges must be clearly identified; never claim “verified”, “open now”, actual proximity or authentic promotions without evidence.
+- **Content freshness and accountable edits:** [Issue #11 — business freshness, brochure validity, actor/field-level audit and owner confirmation](https://github.com/jvalkovv/YangSpaceApp/issues/11) is the accepted requirement contract. Public expired-brochure filtering and location-level `UpdatedAtUtc` exist, but they do **not** prove owner verification or field-level publication history. Implement per-entity timestamps, server-attributed audit, ownership and approval in reviewed slices **before enabling merchant CMS writes**.
 - Initial 10–20 merchant invite/claim pilot is a **proposal**, not an approved target. Agree with product owner before outreach.
 
 ## 3. Historical source-review snapshot (pre-activation; superseded by the runtime addendum above)
