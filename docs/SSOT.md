@@ -7,6 +7,22 @@
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
 
+## 2026-11-11 runtime status addendum — operator-provided evidence
+
+**Why this addendum exists:** the source snapshot at `a4802805` and the historical CT164 provisioning log were written **before** the owner activated the application and public reverse proxy. The older "application not installed / CT152 unchanged" statements remain historically correct **at their timestamps**, but must not be used as the current live-state assessment.
+
+**Evidence provenance:** console output pasted by the operator into the YangSpace conversation from `root@pve` on **2026-11-10**, plus the independent **read-only** Cloud Browser audit reported on 2026-11-11. This is **not** an independent SSH read or a persisted, signed release attestation. No credentials, API writes, database contents, or infrastructure mutations were used to prepare this documentation.
+
+| Layer | Updated observation | Acceptance boundary |
+| --- | --- | --- |
+| CT164 application release | Operator's guarded shell verified `/srv/yangspace/current` resolves to `/srv/yangspace/releases/a4802805421f10e834ad35bbf2f259db4e4eab84`; `yangspace-preview.service` active; demo SQLite present. | **Operator-reported runtime PASS**, not cryptographic binary-to-source attestation. |
+| CT164 internal web/API | Local Nginx `/ = 200`, `/api/v1/homepage = 200`; local CT-IP request denied `403`; registration negative probe `404`. | Scoped preview/read-only smoke; broader direct-origin ACL and auth negative matrix remain unverified. |
+| CT152 proxy and HTTPS | Operator output: `nginx -t` PASS, YangSpace virtual host present and enabled, `/ = 200`, `/api/v1/homepage = 200`; admin/auth/health paths `404`, public API POST `403`. CT152 service journal records successful reload. | Public **read-only demo** route active, not production merchant access. |
+| Public Cloudflare endpoint | Operator's external `curl https://yangspace.gndstore.eu/` reported `200` and `/admin` reported `404`; Work Cloud Browser reported 6 detail pages, search, filters, retry and 375–1920 px responsive smoke. | Live browser smoke only. No signed client build fingerprint, backend auth with credentials, cross-browser proof or load/WCAG certification. |
+| Operational/release readiness | PVE thin pool reported `84.76%` during activation; effective firewall, off-host encrypted backup + restore, monitoring and rollback evidence still incomplete. | **G-PREVIEW remains HOLD** as a comprehensive operational gate; **G-PILOT remains HOLD**. Browser reachability is not approval for real merchant content or writes. |
+
+**Current interpretation:** the apparent *live-versus-provisioning mismatch* is explained by the historical log's age, not a demonstrated alternative origin. The **remaining release identity gap** is to verify the exact running binary/assets against immutable release SHA and publish a safe build fingerprint. Preserve the recorded operator console evidence and close this gap with independent, read-only verification before a later deployment. **Do not repeat activation or mutate CT152/CT164 to update documentation.**
+
 ## 1. Purpose, precedence and change control
 
 This file is the **single entrypoint** for *current state, gate status, sequencing and unresolved decisions*. Detailed execution and evidence remain in the linked specialist records below. Do not maintain another conflicting top-level status list.
