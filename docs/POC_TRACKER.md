@@ -11,15 +11,29 @@
 
 | Work package | Result | Next required evidence |
 | --- | --- | --- |
-| YS-S2-01 / ADR-019 production provider | **Target PostgreSQL ACCEPTED; rollout HOLD** | [ADR-019](ADR-019-POSTGRESQL-PRODUCTION-TARGET.md): operator topology, PG-specific EF migrations, backup/restore, and DB hardening not yet done |
-| YS-S2-04 / Issue #4 | **F2a contract PROPOSED** | [F2a ownership and audit proposal](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md); no schema migration/merchant endpoints |
-| YS-S2-05 / tenant access | **NOT IMPLEMENTED** | Real bearer owner A↔B 404/no-leak negative tests, grant/revoke, old-token denial |
+| YS-S2-01 / ADR-019 production provider | **PostgreSQL target ACCEPTED; provider architecture source in PR #17; QA pending at `bc498f5bfdc933d2959b8352db3bb3e5523dbf30`** | Provider-neutral Persistence + isolated PG migrations assembly added; next exact-SHA build, EF scaffold, SQL review, disposable PG fresh/upgrade/restore; no DB provision/apply |
+| YS-S2-04 / Issue #4 | **F2a domain model PARTIAL / PR #17 Draft** | Organization/Member/Claim/Audit EF types and nullable legacy owner link exist in source only; no PG schema, claim workflow or HTTP endpoint |
+| YS-S2-05 / tenant access | **Isolated contract PASS at prior SHA; current refactor rerun pending** | `b9aaaace...`: restore/Release build/tenant scope PASS; real bearer owner A↔B API 404/no-leak, grants/revokes and old-token denial still NOT RUN |
 | Issue #11 F2b / audit + concurrency | **NOT IMPLEMENTED** | Transactional one-event-per-change and per-resource revision 409 tests |
 | F3 owner confirmation/moderation | **BLOCKED by F2** | Reviewed membership/actor source and valid confirmation event |
 
-**No active CT164 DB or public endpoint changes.** This is a status snapshot describing a proposed design; no acceptance of the provider ADR or security controls is implied.
+**No active CT164 DB or public endpoint changes.** ADR-019 provider direction is accepted; the PR #17 implementation and security controls are not yet accepted.
 
-## 2026-11-11 18:22 — F1 freshness delivery checkpoint (current)
+## 2026-11-11 19:07 — F2a-1 implementation and provider architecture checkpoint
+
+| Item | Current state | Evidence / next gate |
+| --- | --- | --- |
+| ADR-019 / PR #16 | **MERGED/CLOSED** at `fb3e032944f0afafed3922c87b0e53dfb99c3220` | PostgreSQL target direction selected; activation is not authorized |
+| PR #17 tenant source | **Draft/Open**, candidate `bc498f5bfdc933d2959b8352db3bb3e5523dbf30` | 7-file domain candidate plus provider split; no owner endpoints or audit writes |
+| Prior F2a isolated QA | **PASS at `b9aaaace...`** | Owner evidence: PowerShell syntax, .NET restore, Release build with warnings-as-errors and disposable SQLite `:memory:` tenant contract PASS; `D:\GitHub\YangSpaceApp-F2a1-QA\logs\yangspace\f2a-tenant-scope\b9aaaace4c85-20261111-190535-047e666b` |
+| New provider-refactor HEAD | **QA PENDING** | Must rerun `Test-F2a-Tenant-Scope-Local.ps1` at exact SHA `bc498f5bfdc933d2959b8352db3bb3e5523dbf30`; old PASS does not transfer |
+| PostgreSQL migration | **NOT GENERATED** | New exact-SHA scaffold script `scripts/New-PostgreSqlInitialMigration-Local.ps1`; emits C# + review SQL only, no connection/apply |
+| PostgreSQL DB tests | **NOT RUN** | Require isolated disposable PG database: fresh schema, legacy-data backfill rehearsal, FK/unique/isolation, backup/restore, real API bearer tests |
+| Production/demo | **UNCHANGED** | No CT164/CT152 operation, active DB write, service provision, release or public owner route |
+
+**Next operator action:** exact-SHA Windows source build + tenant contract at `bc498f5bfdc933d2959b8352db3bb3e5523dbf30`. Only after PASS run the PostgreSQL initial migration scaffold. Keep PR #17 Draft/HOLD and parent #1 Draft/Open.
+
+## 2026-11-11 18:22 — F1 freshness delivery checkpoint (historical baseline)
 
 The **current V2 application source** after merged [PR #14](https://github.com/jvalkovv/YangSpaceApp/pull/14) is `403b281abad2fb0c8048c2763a606c3435f3e5dd` (squash SHA, not separately QA-run). The exactly tested F1b source is `2634014f64fcff237b29564d0572643f2cba034a`. This checkpoint supersedes the 07:xx source snapshot below **for current workstream status only**.
 
