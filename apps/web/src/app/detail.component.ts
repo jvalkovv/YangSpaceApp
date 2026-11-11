@@ -1,4 +1,4 @@
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, distinctUntilChanged, map, of, switchMap } from 'rxjs';
@@ -7,10 +7,22 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { DirectoryApi, LocationDetail } from './directory-api.service';
 
+// Public timestamps are consistently shown in Bulgaria's civil timezone,
+// including daylight-saving transitions, regardless of browser timezone.
+const bulgarianDateTime = new Intl.DateTimeFormat('bg-BG', {
+  timeZone: 'Europe/Sofia',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23'
+});
+
 @Component({
   selector: 'ys-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe],
+  imports: [CommonModule, RouterLink],
   template: `
     <section class="shell detail-shell">
       <a routerLink="/" class="backlink">← Към всички обекти</a>
@@ -29,14 +41,19 @@ import { DirectoryApi, LocationDetail } from './directory-api.service';
               <h2>Актуални предложения</h2>
               <div class="empty-line" *ngIf="!item.offers.length">Няма активни предложения.</div>
               <div class="offer-line" *ngFor="let o of item.offers">
-                <strong>✦ {{o.title}}</strong><p>{{o.description}}</p><span>Валидно до {{o.endsAtUtc | date:'dd.MM.yyyy'}}</span>
+                <strong>✦ {{o.title}}</strong><p>{{o.description}}</p>
+                <span>Офертата е валидна от <time [attr.datetime]="o.startsAtUtc">{{formatBulgarianDateTime(o.startsAtUtc)}}</time>
+                  до <time [attr.datetime]="o.endsAtUtc">{{formatBulgarianDateTime(o.endsAtUtc)}}</time> (българско време)</span>
               </div>
             </section>
             <section class="panel">
               <h2>Брошури и каталози</h2>
               <div class="empty-line" *ngIf="!item.brochures.length">Няма активни брошури.</div>
               <div class="offer-line" *ngFor="let b of item.brochures">
-                <strong>{{b.title}}</strong><p>До {{b.validToUtc | date:'dd.MM.yyyy'}}</p>
+                <strong>{{b.title}}</strong>
+                <p>Валидност на брошурата:
+                  <time [attr.datetime]="b.validFromUtc">{{formatBulgarianDateTime(b.validFromUtc)}}</time> –
+                  <time [attr.datetime]="b.validToUtc">{{formatBulgarianDateTime(b.validToUtc)}}</time> (българско време)</p>
                 <a [href]="b.url" rel="noopener noreferrer" target="_blank">Отвори брошурата ↗</a>
               </div>
             </section>
@@ -45,6 +62,7 @@ import { DirectoryApi, LocationDetail } from './directory-api.service';
               <div class="empty-line" *ngIf="!item.jobs.length">В момента няма активни позиции.</div>
               <div class="offer-line" *ngFor="let j of item.jobs">
                 <strong>{{j.title}}</strong><p>{{j.description}}</p>
+                <span>Обявата е активна до <time [attr.datetime]="j.expiresAtUtc">{{formatBulgarianDateTime(j.expiresAtUtc)}}</time> (българско време)</span>
                 <a [href]="j.applyUrl" rel="noopener noreferrer" target="_blank">Научи повече ↗</a>
               </div>
             </section>
@@ -55,7 +73,8 @@ import { DirectoryApi, LocationDetail } from './directory-api.service';
             <div class="detail-info"><span>Работно време</span><strong>{{item.openingHours || 'Не е посочено'}}</strong></div>
             <div class="detail-info" *ngIf="item.phone"><span>Телефон</span><a [href]="'tel:' + item.phone">{{item.phone}}</a></div>
             <div class="detail-info" *ngIf="item.website"><span>Уебсайт</span><a [href]="item.website" target="_blank" rel="noopener noreferrer">Посети сайта ↗</a></div>
-            <small>Актуализирано на {{item.updatedAtUtc | date:'dd.MM.yyyy'}}</small>
+            <small class="profile-updated">Профилът е редактиран на
+              <time [attr.datetime]="item.updatedAtUtc">{{formatBulgarianDateTime(item.updatedAtUtc)}}</time> (българско време)</small>
           </aside>
         </div>
       </div>
@@ -72,6 +91,11 @@ export class DetailComponent implements OnInit {
   location: LocationDetail | null = null;
   loading = true;
   error = '';
+
+  formatBulgarianDateTime(value: string): string {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? bulgarianDateTime.format(date) : 'Няма данни';
+  }
 
   ngOnInit(): void {
     this.route.paramMap.pipe(
