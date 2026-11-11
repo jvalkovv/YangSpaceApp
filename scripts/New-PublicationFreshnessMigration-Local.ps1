@@ -49,8 +49,11 @@ $RunId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString
 $Evidence = Join-Path $Repo ('logs\yangspace\migration-scaffold\f1b-' + $CommitSha.Substring(0,12) + '-' + $RunId)
 New-Item -ItemType Directory -Path $Evidence -Force | Out-Null
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
-function Stage([string]$Label,[string[]]$Args) {
-    Invoke-YangSpaceStage -Label $Label -Executable $Dotnet -CommandArguments $Args -WorkingDirectory $Repo -EvidenceDirectory $Evidence -TimeoutSeconds 600
+function Stage([string]$Label,[string[]]$StageArguments) {
+    if ($null -eq $StageArguments -or $StageArguments.Count -eq 0) {
+        throw ('REFUSED: missing stage arguments for ' + $Label)
+    }
+    Invoke-YangSpaceStage -Label $Label -Executable $Dotnet -CommandArguments $StageArguments -WorkingDirectory $Repo -EvidenceDirectory $Evidence -TimeoutSeconds 600
 }
 $PriorDesignGate = [Environment]::GetEnvironmentVariable('YANGSPACE_EF_DESIGNTIME','Process')
 $Completed = $false
