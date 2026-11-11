@@ -2,19 +2,19 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { TimeoutError, timeout } from 'rxjs';
 
-/** UI-facing diagnostics only; never expose stack traces or raw proxy bodies. */
+/** Public-facing copy only. Operational diagnostics belong in server-side logs. */
 export function describeDirectoryFailure(reason: unknown): string {
   if (reason instanceof TimeoutError) {
-    return 'Заявката отне твърде дълго. Провери дали локалното .NET API отговаря и опитай отново.';
+    return 'Зареждането се забави. Опитай отново след малко.';
   }
   if (reason instanceof HttpErrorResponse) {
-    if (reason.status === 0) return 'Няма връзка с API. Провери .NET процеса на 127.0.0.1:5090 и Angular proxy.';
-    if ([502, 503, 504].includes(reason.status)) return 'API или локалният proxy е временно недостъпен (HTTP ' + reason.status + '). Стартирай API и опитай отново.';
-    if (reason.status === 404) return 'Тази API версия не поддържа заявката (HTTP 404). Провери дали frontend и backend са от един commit.';
-    if (reason.status >= 500) return 'API върна вътрешна грешка (HTTP ' + reason.status + '). Провери .NET терминала.';
-    return 'Заявката беше отказана (HTTP ' + reason.status + ').';
+    if (reason.status === 0) return 'Няма връзка със сървъра. Провери интернет връзката си и опитай отново.';
+    if ([502, 503, 504].includes(reason.status)) return 'Услугата е временно недостъпна. Опитай отново след малко.';
+    if (reason.status === 404) return 'Търсената информация не е налична. Опитай отново.';
+    if (reason.status >= 500) return 'Възникна временен проблем. Опитай отново след малко.';
+    return 'Неуспешна заявка. Опитай отново.';
   }
-  return 'Неуспешно зареждане. Провери връзката с локалното API и опитай отново.';
+  return 'Не успяхме да заредим информацията. Опитай отново.';
 }
 
 export interface LocationCard {
