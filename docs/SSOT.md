@@ -2,10 +2,29 @@
 
 **Status:** ACTIVE planning/status authority on the YangSpace V2 feature branch; introduced by merged PR #9. This document does **not** authorize deployment, database mutation, exposure, or feature-to-`main` merge.  
 **Baseline date:** 2026-11-11 (Europe/Sofia).  
-**Current accepted engineering QA source:** `feat/yangspace-v2-foundation-20261108` @ `2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc`; historical deployment remains `a4802805421f10e834ad35bbf2f259db4e4eab84`. [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays Draft. The `main` branch is the legacy application, not the active YangSpace 2.0 baseline.  
+**Latest accepted app-code engineering QA source:** `feat/yangspace-publication-timestamps-f1b-20261111` @ `2634014f64fcff237b29564d0572643f2cba034a` (three exact-SHA Windows gates PASS); squash-merged to V2 as `403b281abad2fb0c8048c2763a606c3435f3e5dd`, not separately re-run after squash. Historical CT164/CT152 deployment remains `a4802805421f10e834ad35bbf2f259db4e4eab84`. [Parent PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays Draft. `main` remains the legacy application.  
 **Scope of this update:** repository/source review, accepted operator-reported evidence, project documentation and user-supplied iPhone screenshots; **no new build, real-browser, DB, PVE, or public-origin execution** was performed for this document.
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
+
+## 2026-11-11 18:22 Europe/Sofia — current accepted F1 freshness milestone
+
+This is the **current source/PR status**, superseding dated historical QA snapshots below. The V2 source baseline following F1b approval is `403b281abad2fb0c8048c2763a606c3435f3e5dd`. Additional documentation-only commits may advance Git HEAD without changing the tested application source.
+
+| Workstream | Scoped source / QA status | Release boundary |
+| --- | --- | --- |
+| [F1a — public freshness (#13)](https://github.com/jvalkovv/YangSpaceApp/pull/13) | **MERGED/CLOSED**; candidate `9656518bb3d795a1e8cfaa7c3004678ee27fa6d4`, `SOURCE_VALIDATION=PASS`, `REAL_API_INTEGRATION=PASS`; squash `54b47576ab8206d599f837cd99340c008d49f0d6` | Only public read-only detail rendering and Bulgarian timezone/validity, **not deployed** |
+| [F1b — publication timestamps (#14)](https://github.com/jvalkovv/YangSpaceApp/pull/14) | **MERGED/CLOSED**; candidate `2634014f64fcff237b29564d0572643f2cba034a`, `SOURCE_VALIDATION=PASS`, `REAL_API_INTEGRATION=PASS`, `SQLITE_RUNTIME_INTEGRITY=PASS`; squash `403b281abad2fb0c8048c2763a606c3435f3e5dd` | 9 nullable migration columns, lifecycle timestamps and EF initial→F1b disposable DB upgrade/recovery proved locally; **not applied to CT164** |
+| [Issue #11 — F2 actor/field audit](https://github.com/jvalkovv/YangSpaceApp/issues/11) | **NOT STARTED** — needs authenticated organization/member scope, atomic audit and optimistic revision | Do not allow owner writes with PlatformAdmin as proxy for real organization ownership |
+| Issue #11 — F3 owner confirmation/moderation | **NOT STARTED**, depends on F2 | No verified merchant freshness badge or unmanaged self-service |
+| [V2 → legacy main parent PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) | **DRAFT/OPEN**, only open application PR after #14 | Full architecture, PVE security, off-host restore, release and pilot gates remain **HOLD** |
+
+**F1b exact candidate acceptance evidence (operator-local, not copied into GitHub):**
+- `D:\GitHub\YangSpaceApp-F1b-Scaffold\logs\yangspace\verify\2634014f64fc-20261111-181828-f2898981`
+- `D:\GitHub\YangSpaceApp-F1b-Scaffold\logs\yangspace\api-integration\2634014f64fc-20261111-181923-5dbe2df0`
+- `D:\GitHub\YangSpaceApp-F1b-Scaffold\logs\yangspace\sqlite-runtime-integrity\2634014f64fc-20261111-181244-81cbfb42`
+
+**Current operations:** no release, live database apply, CT164/CT152 change or tenant authorization acceptance from PRs #13/#14. Existing public demo remains the earlier source release `a480280...` per previous operator evidence. Source QA is not production gate acceptance. Use [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11) for the sequenced F2/F3 work contract. Historical status notes below remain archival.
 
 ## 2026-11-11 runtime status addendum — operator-provided evidence
 

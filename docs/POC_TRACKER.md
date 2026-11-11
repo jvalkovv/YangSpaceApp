@@ -7,6 +7,20 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-11 18:22 — F1 freshness delivery checkpoint (current)
+
+The **current V2 application source** after merged [PR #14](https://github.com/jvalkovv/YangSpaceApp/pull/14) is `403b281abad2fb0c8048c2763a606c3435f3e5dd` (squash SHA, not separately QA-run). The exactly tested F1b source is `2634014f64fcff237b29564d0572643f2cba034a`. This checkpoint supersedes the 07:xx source snapshot below **for current workstream status only**.
+
+| Task / requirement | Result | Evidence and boundary |
+| --- | --- | --- |
+| Issue #11 F1a — truthful public freshness | **DONE scoped source/QA**; PR #13 **MERGED/CLOSED** | Candidate `9656518...`: source+API tests PASS; squash `54b47576...`; no live deploy |
+| Issue #11 F1b — nullable publication lifecycle timestamps | **DONE scoped source/QA**; PR #14 **MERGED/CLOSED** | Candidate `2634014...`: Source+Playwright, real API/security, EF initial→F1b upgrade and recovery all PASS on disposable DB; 9 nullable historical columns; squash `403b281...` |
+| Local F1b verify evidence | **PASS at candidate SHA** | `logs/yangspace/verify/2634014f64fc-20261111-181828-f2898981`; `logs/yangspace/api-integration/2634014f64fc-20261111-181923-5dbe2df0`; `logs/yangspace/sqlite-runtime-integrity/2634014f64fc-20261111-181244-81cbfb42` (under isolated operator worktree) |
+| Issue #11 F2/F3 — owner-scoped field audit & confirmation | **NOT STARTED** | Requires Organization/Member claims and negative cross-tenant tests; no real owner CMS entitlement |
+| Parent PR #1 and public pilot gates | **DRAFT/OPEN; HOLD** | No CT164 active DB migration, release, off-host recovery/ingress acceptance; current public demo still older release `a480280...` |
+
+The previous checkpoint below is retained as historical evidence; do not use its old `2baeb797...` SHA or open-PR list as the current status.
+
 ## 2026-11-11 latest verified source QA & PR hygiene
 
 This checkpoint **supersedes older exact-SHA source-QA TODO entries for engineering validation only**, without changing the historical rows below. It does not mark the full S0/security/release/production gate DONE.

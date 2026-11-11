@@ -18,6 +18,13 @@ This is a **standing execution requirement** for all YangSpace work, including e
 5. **One open source of truth:** keep a current inventory of `OPEN` / `DRAFT` / `READY` / `MERGED` / `CLOSED UNMERGED` PRs in [SSOT.md](SSOT.md) and the active parent PR; reconcile the head after every merge. Full feature-to-`main` PR #1 remains open while release/pilot gates remain HOLD.
 6. **No implicit deployment:** merges do not activate CT164/CT152, apply migrations, unlock admin/registration, or promote demo to production. Require a distinct runtime approval and SHA-specific smoke/rollback evidence.
 
+### 2026-11-11 current milestone — F1a and F1b accepted / F2-F3 next
+
+- **Public freshness F1a**: [PR #13](https://github.com/jvalkovv/YangSpaceApp/pull/13) MERGED/CLOSED, source+API QA PASS on candidate `9656518bb3d795a1e8cfaa7c3004678ee27fa6d4`, squash `54b47576ab8206d599f837cd99340c008d49f0d6`. Read-only UI change only.
+- **Publication timestamps F1b**: [PR #14](https://github.com/jvalkovv/YangSpaceApp/pull/14) MERGED/CLOSED, source+API+SQLite runtime QA PASS on candidate `2634014f64fcff237b29564d0572643f2cba034a`, squash `403b281abad2fb0c8048c2763a606c3435f3e5dd`. EF-generated migration preserves old unknown timestamps as NULL; all QA on disposable DB.
+- **Next engineering package: F2** — Organization/BusinessClaim/Member authorization contract → atomic per-field actor audit and optimistic concurrency with negative cross-tenant tests. **F3** owner confirmation and moderation only after F2. See [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11).
+- **No public release implied:** PR #1 remains DRAFT/OPEN; G0/G-PREVIEW/G-PILOT still HOLD. CT164 active demo and DB were not changed, off-host restore and direct-origin security need independent operator acceptance. Older exact-commit engineering QA snapshots below are history, not current branch HEAD.
+
 ### Accepted exact-commit engineering QA snapshot
 
 - Source SHA **`2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc`**, V2 feature branch after merged [PR #9](https://github.com/jvalkovv/YangSpaceApp/pull/9) and [PR #10](https://github.com/jvalkovv/YangSpaceApp/pull/10).
