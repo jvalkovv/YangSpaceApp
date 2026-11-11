@@ -1,6 +1,6 @@
 # YangSpace 2.0 — Single Source of Truth (SSOT)
 
-**Status:** ACTIVE planning/status authority on the YangSpace V2 feature branch; introduced by merged PR #9. This document does **not** authorize deployment, database mutation, exposure, or feature-to-\`main\` merge.  
+**Status:** ACTIVE planning/status authority on the YangSpace V2 feature branch; introduced by merged PR #9. This document does **not** authorize deployment, database mutation, exposure, or feature-to-`main` merge.  
 **Baseline date:** 2026-11-11 (Europe/Sofia).  
 **Current accepted engineering QA source:** `feat/yangspace-v2-foundation-20261108` @ `2baeb797b4d9ca0f5ce9d6c3d311a7b8092be7dc`; historical deployment remains `a4802805421f10e834ad35bbf2f259db4e4eab84`. [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays Draft. The `main` branch is the legacy application, not the active YangSpace 2.0 baseline.  
 **Scope of this update:** repository/source review, accepted operator-reported evidence, project documentation and user-supplied iPhone screenshots; **no new build, real-browser, DB, PVE, or public-origin execution** was performed for this document.
