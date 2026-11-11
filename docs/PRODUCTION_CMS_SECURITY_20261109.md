@@ -1,5 +1,7 @@
 # YangSpace — Production CMS security/persistence contract
 
+> **Current-state correction:** [SSOT.md](SSOT.md) is authoritative for release and migration status. The initial migration was subsequently committed and locally verified with disposable SQLite tests (see [S2 migration](S2_INITIAL_MIGRATION_20261110.md) and [runtime integrity](S2_SQLITE_RUNTIME_INTEGRITY_20261110.md)). Historical text below saying “no migrations” is superseded; **real CT164/prod DB migration, runtime auth/ACL and operational backup acceptance remain HOLD**.
+
 Status: **SOURCE GATES IMPLEMENTED / RUNTIME UNVERIFIED / NO PRODUCTION GO**
 Target: one active YangSpace LXC on `yangspace.gndstore.eu`. No additional permanent QA or staging environments.
 

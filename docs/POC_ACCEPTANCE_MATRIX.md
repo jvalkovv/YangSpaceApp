@@ -1,5 +1,7 @@
 # YangSpace 2.0 — PoC / Pilot Acceptance Matrix
 
+> **Current PASS/HOLD verdicts and execution queue:** [SSOT.md](SSOT.md). This matrix is the authoritative set of **test criteria**, not evidence that all scenarios have run. Historical PASS entries remain bounded to the stated commit, test fixture and environment.
+
 > **ADR-018 overrides all prior hosted CI references.** GitHub Actions are excluded. Tests run manually from an exact SHA; proof is local command logs and manifests.
 
 **Purpose:** objective pass/fail checks. Each row has a test owner, target environment and evidence artifact. Existing Playwright screenshots use mocked HTTP responses. A browser screenshot is NOT a substitute for real API/database or security validation.

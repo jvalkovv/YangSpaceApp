@@ -1,8 +1,10 @@
 # YangSpace 2.0 — Private PVE Preview / Controlled Release Runbook
 
+> **STATUS OVERRIDE:** [SSOT.md](SSOT.md) is authoritative for current release gate/status. This runbook retains detailed deployment procedures, but its early pre-provision inventory and old “no CT provisioned” wording are historical. See [CT164 provisioning evidence](CT164_PROVISIONING_20261110.md): CT164 guest was created and OS/runtime/user/ACL checks were operator-reported PASS; application deployment, origin ACL and off-host recovery are not accepted. Do not interpret source templates as activated services.
+
 > **ADR-018:** GitHub Actions prohibited. All QA evidence comes from operator-run exact-SHA local tests, not hosted workflows.
 
-**Status:** PREPARATION ONLY — no CT provisioned and no deployment performed.
+**Status:** RUNBOOK / RELEASE PREPARATION ONLY — CT164 guest exists per operator evidence; no application activation on CT164 is accepted as verified in this documentation baseline.
 **Target hostname:** `yangspace.gndstore.eu` (owner-designated destination, not proof of DNS readiness, TLS, availability or deployment). The project will use its dedicated YangSpace LXC when authorized; no additional permanent QA LXC or Ubuntu/WSL is required.  
 **Scope:** PVE LXC proof-of-concept. A future public pilot has stricter release gates.  
 **Authority:** [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md), [POC_TRACKER.md](POC_TRACKER.md), [POC_ACCEPTANCE_MATRIX.md](POC_ACCEPTANCE_MATRIX.md).
