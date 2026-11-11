@@ -1,5 +1,7 @@
 # YangSpace 2.0 — Product PoC & Technical Master Plan
 
+> **STATUS AUTHORITY:** [SSOT.md](SSOT.md) is the current cross-project status, gate and sequencing index. This document remains the detailed **product/architecture plan**; its 2026-11-09 baseline statements (including CT provisioning and open tasks) must be read as historical unless reconfirmed by SSOT and later exact-SHA/operator evidence. ADR-018 continues to govern manual QA.
+
 > **Accepted project rule — ADR-018:** GitHub is source/PR only. **GitHub Actions are NOT USED.** QA is operator-run against a pinned SHA with retained logs. See [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md) and [S0 Manual QA](S0_MANUAL_QA_RUNBOOK.md). Any prior hosted CI requirement below is superseded.
 
 **Version:** 1.0 · **Baseline date:** 2026-11-09 · **Plan status:** ADOPTED FOR EXECUTION · **Release status:** PRIVATE PREVIEW NOT YET DEPLOYED
