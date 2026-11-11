@@ -35,3 +35,15 @@
 | Concurrent revisions | Exactly one successful update, one 409, one event — **future F2b** |
 | Audit persistence failure | Business state rollback — **future F2b** |
 | Public API | No new private actor/member/claim DTO exposure |
+
+## Isolated Windows source contract test (new code, not yet executed)
+
+`scripts/Test-F2a-Tenant-Scope-Local.ps1 -CommitSha <exact-remote-head>`
+requires a clean exact-SHA checked-out worktree and matches the allowlisted
+remote branch tip. The script runs `dotnet restore`, `dotnet build`, then
+`dotnet run ... -- --tenant-scope-only`; checks all positive/negative
+`F2A_...` markers and saves the command logs under
+`logs/yangspace/f2a-tenant-scope/<sha>-<run-id>/`. The mode invokes
+**only** `TenantScopeContract` on a fresh SQLite `:memory:` database and
+returns before the old migration harness. **Do not use this as a substitute
+for PostgreSQL schema, migration, real bearer API or production security QA.**
