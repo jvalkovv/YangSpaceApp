@@ -17,12 +17,24 @@ $Git = (Get-Command git.exe -ErrorAction Stop).Source
 $Dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
 
 if ($CommitSha -cnotmatch '^[0-9a-f]{40}$') { throw 'FULL_SHA_REQUIRED' }
-$Head = (& $Git -C $Repo rev-parse HEAD).Trim()
-if ($LASTEXITCODE -ne 0 -or $Head -cne $CommitSha) { throw 'SOURCE_SHA_MISMATCH' }
-$Remote = (& $Git -C $Repo rev-parse ('refs/remotes/origin/' + $Branch)).Trim()
-if ($LASTEXITCODE -ne 0 -or $Remote -cne $CommitSha) { throw 'REMOTE_SHA_MISMATCH' }
-$CurrentBranch = (& $Git -C $Repo branch --show-current).Trim()
-if ($LASTEXITCODE -ne 0 -or ($CurrentBranch -and $CurrentBranch -cne $Branch)) { throw 'WORKTREE_BRANCH_MISMATCH' }
+# PowerShell 5.1 emits $null for native commands with no stdout;
+# detached HEAD is a legitimate checkout only for the exact remote branch tip.
+$HeadOutput = @(& $Git -C $Repo rev-parse HEAD)
+$HeadExit = $LASTEXITCODE
+$Head = ($HeadOutput -join '').Trim()
+if ($HeadExit -ne 0 -or $Head -cne $CommitSha) { throw 'SOURCE_SHA_MISMATCH' }
+
+$RemoteOutput = @(& $Git -C $Repo rev-parse --verify --quiet ('refs/remotes/origin/' + $Branch))
+$RemoteExit = $LASTEXITCODE
+$Remote = ($RemoteOutput -join '').Trim()
+if ($RemoteExit -ne 0 -or $Remote -cne $CommitSha) { throw 'REMOTE_SHA_MISMATCH' }
+
+$BranchOutput = @(& $Git -C $Repo branch --show-current)
+$BranchExit = $LASTEXITCODE
+$CurrentBranch = ($BranchOutput -join '').Trim()
+if ($BranchExit -ne 0 -or ($CurrentBranch -and $CurrentBranch -cne $Branch)) {
+    throw 'WORKTREE_BRANCH_MISMATCH'
+}
 $Dirty = @(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0 -or $Dirty.Count -ne 0) { throw 'WORKTREE_NOT_CLEAN' }
 if (Test-Path -LiteralPath $MigrationDir) { throw 'POSTGRESQL_MIGRATION_DIR_ALREADY_EXISTS' }
