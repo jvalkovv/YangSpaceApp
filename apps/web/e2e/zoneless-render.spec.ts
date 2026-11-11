@@ -196,7 +196,7 @@ test('a failed initial API load does not pretend that zero locations exist; retr
   });
   await page.goto('/');
   await expect(page.getByRole('alert')).toContainText('Услугата е временно недостъпна.');
-  await expect(page.getByRole('alert')).not.toContainText(/127\\.0\\.0\\.1|localhost|\\.NET|Angular|proxy/i);
+  await expect(page.getByRole('alert')).not.toContainText(/127\.0\.0\.1|localhost|\.NET|Angular|proxy/i);
   await expect(page.locator('.results-count')).toHaveCount(0);
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(0);
   online = true;
