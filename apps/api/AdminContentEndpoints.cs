@@ -31,11 +31,23 @@ public static class AdminContentEndpoints
                 if (!ValidOffer(input)) return Results.BadRequest(new { error = "Invalid offer or period." });
                 var item = await db.Offers.SingleOrDefaultAsync(x => x.LocationId == id && x.Id == offerId, ct);
                 if (item is null) return Results.NotFound();
-                item.Title = input.Title!.Trim();
-                item.Description = input.Description!.Trim();
-                item.StartsAtUtc = input.StartsAtUtc.ToUniversalTime();
-                item.EndsAtUtc = input.EndsAtUtc.ToUniversalTime();
+                var title = input.Title!.Trim();
+                var description = input.Description!.Trim();
+                var startsAtUtc = input.StartsAtUtc.ToUniversalTime();
+                var endsAtUtc = input.EndsAtUtc.ToUniversalTime();
+                if (item.Title == title && item.Description == description
+                    && item.StartsAtUtc == startsAtUtc && item.EndsAtUtc == endsAtUtc
+                    && item.IsPublished == input.IsPublished)
+                    return Results.NoContent();
+                var publishing = !item.IsPublished && input.IsPublished;
+                var now = DateTime.UtcNow;
+                item.Title = title;
+                item.Description = description;
+                item.StartsAtUtc = startsAtUtc;
+                item.EndsAtUtc = endsAtUtc;
                 item.IsPublished = input.IsPublished;
+                item.UpdatedAtUtc = now;
+                if (publishing) item.PublishedAtUtc = now;
                 await db.SaveChangesAsync(ct);
                 return Results.NoContent();
             });
@@ -47,6 +59,7 @@ public static class AdminContentEndpoints
                 if (item.IsPublished)
                 {
                     item.IsPublished = false;
+                    item.UpdatedAtUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(ct);
                 }
                 return Results.NoContent();
@@ -60,7 +73,10 @@ public static class AdminContentEndpoints
                     return Results.Conflict(new { error = "Offer has expired. Edit its period before restoring." });
                 if (!item.IsPublished)
                 {
+                    var now = DateTime.UtcNow;
                     item.IsPublished = true;
+                    item.UpdatedAtUtc = now;
+                    item.PublishedAtUtc = now;
                     await db.SaveChangesAsync(ct);
                 }
                 return Results.NoContent();
@@ -72,11 +88,23 @@ public static class AdminContentEndpoints
                 if (!ValidBrochure(input)) return Results.BadRequest(new { error = "Invalid brochure or period; URL must use HTTPS." });
                 var item = await db.Brochures.SingleOrDefaultAsync(x => x.LocationId == id && x.Id == brochureId, ct);
                 if (item is null) return Results.NotFound();
-                item.Title = input.Title!.Trim();
-                item.Url = input.Url!.Trim();
-                item.ValidFromUtc = input.ValidFromUtc.ToUniversalTime();
-                item.ValidToUtc = input.ValidToUtc.ToUniversalTime();
+                var title = input.Title!.Trim();
+                var url = input.Url!.Trim();
+                var validFromUtc = input.ValidFromUtc.ToUniversalTime();
+                var validToUtc = input.ValidToUtc.ToUniversalTime();
+                if (item.Title == title && item.Url == url
+                    && item.ValidFromUtc == validFromUtc && item.ValidToUtc == validToUtc
+                    && item.IsPublished == input.IsPublished)
+                    return Results.NoContent();
+                var publishing = !item.IsPublished && input.IsPublished;
+                var now = DateTime.UtcNow;
+                item.Title = title;
+                item.Url = url;
+                item.ValidFromUtc = validFromUtc;
+                item.ValidToUtc = validToUtc;
                 item.IsPublished = input.IsPublished;
+                item.UpdatedAtUtc = now;
+                if (publishing) item.PublishedAtUtc = now;
                 await db.SaveChangesAsync(ct);
                 return Results.NoContent();
             });
@@ -88,6 +116,7 @@ public static class AdminContentEndpoints
                 if (item.IsPublished)
                 {
                     item.IsPublished = false;
+                    item.UpdatedAtUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(ct);
                 }
                 return Results.NoContent();
@@ -101,7 +130,10 @@ public static class AdminContentEndpoints
                     return Results.Conflict(new { error = "Brochure has expired. Edit its validity before restoring." });
                 if (!item.IsPublished)
                 {
+                    var now = DateTime.UtcNow;
                     item.IsPublished = true;
+                    item.UpdatedAtUtc = now;
+                    item.PublishedAtUtc = now;
                     await db.SaveChangesAsync(ct);
                 }
                 return Results.NoContent();
@@ -113,11 +145,23 @@ public static class AdminContentEndpoints
                 if (!ValidJob(input)) return Results.BadRequest(new { error = "Invalid job or expiry; application URL must use HTTPS." });
                 var item = await db.Jobs.SingleOrDefaultAsync(x => x.LocationId == id && x.Id == jobId, ct);
                 if (item is null) return Results.NotFound();
-                item.Title = input.Title!.Trim();
-                item.Description = input.Description!.Trim();
-                item.ApplyUrl = input.ApplyUrl!.Trim();
-                item.ExpiresAtUtc = input.ExpiresAtUtc.ToUniversalTime();
+                var title = input.Title!.Trim();
+                var description = input.Description!.Trim();
+                var applyUrl = input.ApplyUrl!.Trim();
+                var expiresAtUtc = input.ExpiresAtUtc.ToUniversalTime();
+                if (item.Title == title && item.Description == description
+                    && item.ApplyUrl == applyUrl && item.ExpiresAtUtc == expiresAtUtc
+                    && item.IsPublished == input.IsPublished)
+                    return Results.NoContent();
+                var publishing = !item.IsPublished && input.IsPublished;
+                var now = DateTime.UtcNow;
+                item.Title = title;
+                item.Description = description;
+                item.ApplyUrl = applyUrl;
+                item.ExpiresAtUtc = expiresAtUtc;
                 item.IsPublished = input.IsPublished;
+                item.UpdatedAtUtc = now;
+                if (publishing) item.PublishedAtUtc = now;
                 await db.SaveChangesAsync(ct);
                 return Results.NoContent();
             });
@@ -129,6 +173,7 @@ public static class AdminContentEndpoints
                 if (item.IsPublished)
                 {
                     item.IsPublished = false;
+                    item.UpdatedAtUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(ct);
                 }
                 return Results.NoContent();
@@ -142,7 +187,10 @@ public static class AdminContentEndpoints
                     return Results.Conflict(new { error = "Job has expired. Edit its expiry before restoring." });
                 if (!item.IsPublished)
                 {
+                    var now = DateTime.UtcNow;
                     item.IsPublished = true;
+                    item.UpdatedAtUtc = now;
+                    item.PublishedAtUtc = now;
                     await db.SaveChangesAsync(ct);
                 }
                 return Results.NoContent();
