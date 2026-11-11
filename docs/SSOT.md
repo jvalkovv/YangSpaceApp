@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE planning/status authority **within this documentation PR only**; adoption into the development branch is pending review. This document does **not** authorize deployment, database mutation, exposure, or PR merge.  
 **Baseline date:** 2026-11-11 (Europe/Sofia).  
-**Reviewed application source:** \`feat/yangspace-v2-foundation-20261108\` @ \`a4802805421f10e834ad35bbf2f259db4e4eab84\` (Draft [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1)). The \`main\` branch is the legacy application, not the active YangSpace 2.0 baseline.  
+**Reviewed application source:** `feat/yangspace-v2-foundation-20261108` @ `a4802805421f10e834ad35bbf2f259db4e4eab84` (Draft [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1)). The `main` branch is the legacy application, not the active YangSpace 2.0 baseline.  
 **Scope of this update:** repository/source review, accepted operator-reported evidence, project documentation and user-supplied iPhone screenshots; **no new build, real-browser, DB, PVE, or public-origin execution** was performed for this document.
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
@@ -23,7 +23,7 @@ This file is the **single entrypoint** for *current state, gate status, sequenci
 
 **Evidence hierarchy:** direct exact-SHA runtime logs + reviewer acceptance > validated operator-provided test records > source inspection > browser screenshots > proposal/narrative. A stale document is not evidence that an implemented feature has disappeared; conversely a code commit is not evidence that it runs correctly. Mark unknown facts **UNVERIFIED**, unmet gates **HOLD**, and confirmed failures **FAIL/BLOCKED**. Separate *source-implemented*, *tested locally*, *verified on CT164*, and *accepted for public release*.
 
-**Policy:** No GitHub Actions/hosted CI, webhook auto-deploy, blind \`git pull\` activation, unreviewed PVE writes or silent merge. Use clean exact-commit, manual/operator-run QA and retained per-app logs per [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md). Work in isolated feature/docs branches; reconcile to the active feature HEAD before merging. **Never modify the active CT or database merely to synchronize documentation.**
+**Policy:** No GitHub Actions/hosted CI, webhook auto-deploy, blind `git pull` activation, unreviewed PVE writes or silent merge. Use clean exact-commit, manual/operator-run QA and retained per-app logs per [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md). Work in isolated feature/docs branches; reconcile to the active feature HEAD before merging. **Never modify the active CT or database merely to synchronize documentation.**
 
 ## 2. Accepted product boundaries
 
@@ -38,14 +38,14 @@ This file is the **single entrypoint** for *current state, gate status, sequenci
 
 | Layer | Verified/implemented evidence | Qualification |
 | --- | --- | --- |
-| Repository | \`main\` = legacy; Draft PR #1 targets \`main\` from \`feat/yangspace-v2-foundation-20261108\`; reviewed HEAD \`a4802805\`. | This docs branch is isolated. Feature branch may advance independently. |
-| Frontend foundation | Home/Detail/Admin Angular components, category/search, pagination, skeleton/error/retry states; green/cream visual language. | Historical 17/17 Playwright PASS on \`20aa30c\` with **mocked API**. Not proof for reviewed HEAD. |
-| Real local engineering | Operator-reported clean source/API integration PASS at \`b30c1c8\`; committed npm lockfile and .NET build records. | QA does **not** automatically transfer to later HEAD; repeat exact-SHA validation. |
-| Persistence | Reviewed EF Core initial migration committed; FK runtime checks and isolated DB backup/restore local regression reported PASS at \`2069eb9\` / \`1ce3fa3\`. | **Disposable Windows DB only**; not public database cutover or off-host operational restore. |
+| Repository | `main` = legacy; Draft PR #1 targets `main` from `feat/yangspace-v2-foundation-20261108`; reviewed HEAD `a4802805`. | This docs branch is isolated. Feature branch may advance independently. |
+| Frontend foundation | Home/Detail/Admin Angular components, category/search, pagination, skeleton/error/retry states; green/cream visual language. | Historical 17/17 Playwright PASS on `20aa30c` with **mocked API**. Not proof for reviewed HEAD. |
+| Real local engineering | Operator-reported clean source/API integration PASS at `b30c1c8`; committed npm lockfile and .NET build records. | QA does **not** automatically transfer to later HEAD; repeat exact-SHA validation. |
+| Persistence | Reviewed EF Core initial migration committed; FK runtime checks and isolated DB backup/restore local regression reported PASS at `2069eb9` / `1ce3fa3`. | **Disposable Windows DB only**; not public database cutover or off-host operational restore. |
 | Public directory | Published locations, facets, search, active offers/brochures/jobs, detail routes; six fictional seeded examples. | City/geo coordinates, distance search, owner verification, rich opening hours, real photos and indexable SEO not complete. |
 | Admin CMS | PlatformAdmin bearer policy; source APIs for create/edit/hide/restore locations and publications; offline admin provisioning and production startup guards. | Owner portal, cross-tenant permissions, moderation/audit and exact-HEAD real CMS browser/DB acceptance are missing. |
-| CT164 guest | Operator reported Debian 13.6 unprivileged LXC; systemd running; .NET 10 runtime; dedicated \`yangspace\`/\`yangdeploy\` identities and actual positive/negative directory ACL PASS; DHCP .110, gateway/DNS .102 persisted after reboot. | DHCP **server identifier .107 unexplained**; PVE firewall effective protection, storage headroom, independent backups, application release, CT152 ingress and full recovery are not accepted. |
-| Public URL screenshots | User-supplied iPhone screenshots of \`yangspace.gndstore.eu\` show Hero, menu, search, category select, cards and detail. | **Origin, environment, deployed SHA, DB provenance, effective access control and exact viewport are UNVERIFIED.** A visible URL/HTTP 200 is not a CT164 deployment acceptance. |
+| CT164 guest | Operator reported Debian 13.6 unprivileged LXC; systemd running; .NET 10 runtime; dedicated `yangspace`/`yangdeploy` identities and actual positive/negative directory ACL PASS; DHCP .110, gateway/DNS .102 persisted after reboot. | DHCP **server identifier .107 unexplained**; PVE firewall effective protection, storage headroom, independent backups, application release, CT152 ingress and full recovery are not accepted. |
+| Public URL screenshots | User-supplied iPhone screenshots of `yangspace.gndstore.eu` show Hero, menu, search, category select, cards and detail. | **Origin, environment, deployed SHA, DB provenance, effective access control and exact viewport are UNVERIFIED.** A visible URL/HTTP 200 is not a CT164 deployment acceptance. |
 
 **Important drift reconciliation:** Older [PVE runbook](POC_PVE_RELEASE_RUNBOOK.md) opening text (“no CT provisioned”) predates the confirmed CT164 guest work and is **SUPERSEDED for infrastructure inventory status** by the later [CT164 evidence](CT164_PROVISIONING_20261110.md). The runbook's security/release procedure remains applicable. The [production CMS contract](PRODUCTION_CMS_SECURITY_20261109.md) also includes a historical “no migration committed” statement superseded by the actual [migration evidence](S2_INITIAL_MIGRATION_20261110.md); **runtime production schema adoption remains HOLD**.
 
@@ -54,7 +54,7 @@ This file is the **single entrypoint** for *current state, gate status, sequenci
 ### P0 — release/architecture boundaries
 
 1. **Database ADR conflict:** [Master Plan](POC_MASTER_PLAN.md) / [DECISIONS](DECISIONS.md) leave PostgreSQL vs SQL Server open (ADR-007/013); current [Models.cs](../apps/api/Models.cs), [Program.cs](../apps/api/Program.cs), migration and [ProductionSqlitePolicy.cs](../apps/api/ProductionSqlitePolicy.cs) explicitly implement SQLite even for guarded Production startup. **Decision required before G2:** accept SQLite as a bounded single-instance pilot with explicit concurrency/backup/data growth limits, or adopt a reviewed PostgreSQL/SQL Server strategy. No silent provider flip and no real DB conversion as a side effect.
-2. **Missing multi-tenant domain:** \`DirectoryDb\` contains Identity, BusinessLocation, Offer, Brochure, Job, but no Organization/OrganizationMember/BusinessClaim, scoped ownership or cross-tenant API policies. The existing admin is a global PlatformAdmin, **not** a merchant CMS.
+2. **Missing multi-tenant domain:** `DirectoryDb` contains Identity, BusinessLocation, Offer, Brochure, Job, but no Organization/OrganizationMember/BusinessClaim, scoped ownership or cross-tenant API policies. The existing admin is a global PlatformAdmin, **not** a merchant CMS.
 3. **Content governance missing:** public boolean publication is a start, not a full draft → review → publish → expire/archive/reject/suspend lifecycle; no persisted actor/reasoned audit, business reports or vetted upload pipeline.
 4. **Infrastructure safety:** CT164 guest preparation PASS does not establish protected CT152→CT164 route, direct-origin denial, PVE firewall, trusted DHCP server, storage resilience, off-host backup/restore or safe activation. No service/DB/proxy activation on the strength of this SSOT.
 5. **Release identity gap:** the screenshots of a reachable site and the CT164 “no active app release” operator report may refer to different hosting states. Determine actual DNS, edge origin, active release marker, runtime configuration and DB **read-only** before making any release claim.
@@ -62,9 +62,9 @@ This file is the **single entrypoint** for *current state, gate status, sequenci
 ### P1 — public quality and scale
 
 6. **Geo semantics:** search filters neighborhood/category/string only; no stored coordinates, city filter in public query or distance ranking. Do not label results “nearest”.
-7. **Real business presentation:** home cards ignore available \`imageUrl\` in favor of category decoration; detailed public profile shows a hard-coded demo disclaimer. Introduce contextual demo/verified status, real media and accurate opening-hours presentation.
-8. **SEO:** Angular CSR preview and \`noindex\` are intentional for demo, but not an indexable public pilot. Decide SSR/prerender and build canonical metadata/schema/sitemap before G4.
-9. **Error messaging:** [directory-api.service.ts](../apps/web/src/app/directory-api.service.ts) shows development-specific \`127.0.0.1:5090\`/Angular proxy instructions to end users. Production errors must be actionable without exposing internal operations.
+7. **Real business presentation:** home cards ignore available `imageUrl` in favor of category decoration; detailed public profile shows a hard-coded demo disclaimer. Introduce contextual demo/verified status, real media and accurate opening-hours presentation.
+8. **SEO:** Angular CSR preview and `noindex` are intentional for demo, but not an indexable public pilot. Decide SSR/prerender and build canonical metadata/schema/sitemap before G4.
+9. **Error messaging:** [directory-api.service.ts](../apps/web/src/app/directory-api.service.ts) shows development-specific `127.0.0.1:5090`/Angular proxy instructions to end users. Production errors must be actionable without exposing internal operations.
 
 ### Mobile UX review (visual observations, **not verified defects**)
 
@@ -103,10 +103,10 @@ Dependencies matter more than calendar dates. Work on mobile *design specs* may 
 
 ## 7. Immediate ordered queue (next operator/Work actions)
 
-1. Obtain latest Work result, PR URL, exact HEAD, local test evidence and files changed; record whether it supersedes the reviewed \`a4802805\` baseline. Do **not** merge competing commits blindly.
+1. Obtain latest Work result, PR URL, exact HEAD, local test evidence and files changed; record whether it supersedes the reviewed `a4802805` baseline. Do **not** merge competing commits blindly.
 2. Perform read-only live-origin reconciliation: DNS→CT152→upstream; live artifact commit marker; CT164 service state and configs (redacted); public/preview identity endpoint accessibility; DB schema/identity; no secrets in evidence. Mark unknown results as HOLD.
 3. Re-run exact-SHA manual source + real API integration; distinguish mocks from unmocked backend/DB tests. File evidence under separate web/api/deploy/verify/restore logs and reference immutable SHA.
-4. Address CT164 risk register **without unsafe speculative changes**: source of DHCP \`.107\`, effective firewall/ACL, \`pve/data\` thin allocation/headroom, off-host backup policy and recovery rehearsal.
+4. Address CT164 risk register **without unsafe speculative changes**: source of DHCP `.107`, effective firewall/ACL, `pve/data` thin allocation/headroom, off-host backup policy and recovery rehearsal.
 5. Close/approve DB provider ADR before introducing real organization/claim tables. Implement a focused vertical slice: **Organization → BusinessClaim → reviewed membership → scoped Owner CMS** with strict server-side permission tests.
 6. Freeze a short mobile UX specification from actual iPhone/Safari observations; implement in an independent scoped PR only after the Work source merge boundary is known.
 7. Update this SSOT + tracker + acceptance matrix + operator runbooks in the **same reviewed change** when any gate moves. Require proof, never percentage-based status.
@@ -119,7 +119,7 @@ Dependencies matter more than calendar dates. Work on mobile *design specs* may 
 | Thin pool high allocation, no VG free space | P0 | OPEN — PVE operator | Audited capacity/headroom thresholds; backup/restore before storage actions; alerts. |
 | No accepted off-host database + media recovery | P0 | OPEN — operator | Encrypted/controlled copy, retention, restore into scratch, integrity check, measured RPO/RTO. |
 | PVE firewall / edge admin exposure | P0 | OPEN — network/security operator | Effective ACL and direct-origin denial proven; no client-supplied gateway-header bypass. |
-| DHCP responder \`.107\` unidentified | P1 security | OPEN — network operator | Responder provenance and DHCP trust risk assessed; route/DNS persistence already guest-tested. |
+| DHCP responder `.107` unidentified | P1 security | OPEN — network operator | Responder provenance and DHCP trust risk assessed; route/DNS persistence already guest-tested. |
 | SQLite production provider vs DB ADR | P0 architecture | OPEN — engineering + owner decision | Accepted documented ADR with limits, migrations, concurrency, migration/restore strategy. |
 | Missing multi-tenant auth, audit and uploads | P0 product/security | NOT IMPLEMENTED — backend/product | Owner A/B isolation, moderation, safe media and end-to-end negative tests. |
 | Mobile density, useful listing data, SEO | P1 product | NEEDS DESIGN/RUNTIME QA — web/product | Approved real-device usability, a11y, crawler and performance checks. |
@@ -148,6 +148,6 @@ VERDICT: PASS | PARTIAL | HOLD | FAIL | UNVERIFIED
 NEXT_DEPENDENCY / OWNER_ROLE:
 ~~~
 
-**Status rules:** \`DONE\` only after that task's complete acceptance contract; \`PARTIAL\` means implementation or limited evidence exists; \`HOLD\` means a prerequisite/approval is missing; \`UNVERIFIED\` means no trustworthy observation; \`FAIL\` requires RCA and regression evidence. Historic test PASS always remains attached to its own SHA and environment. Never paste real credentials, private keys, bearer tokens or unredacted DB contents into issues/docs/logs.
+**Status rules:** `DONE` only after that task's complete acceptance contract; `PARTIAL` means implementation or limited evidence exists; `HOLD` means a prerequisite/approval is missing; `UNVERIFIED` means no trustworthy observation; `FAIL` requires RCA and regression evidence. Historic test PASS always remains attached to its own SHA and environment. Never paste real credentials, private keys, bearer tokens or unredacted DB contents into issues/docs/logs.
 
 **Change protocol:** an accepted architectural direction requires a dated ADR in [DECISIONS](DECISIONS.md), then updates here, in [POC_TRACKER](POC_TRACKER.md) and in [POC_ACCEPTANCE_MATRIX](POC_ACCEPTANCE_MATRIX.md). When details disagree, explicitly record the conflict and the newest evidence; do not silently “fix” the historical record. The latest approved gate report controls release eligibility, not the most recently edited Markdown header.
