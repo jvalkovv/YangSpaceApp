@@ -229,6 +229,9 @@ static async Task RunRecoveryRehearsalAsync(
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
 
+// Fail-closed tenant-scoping uses only a disposable SQLite :memory: model.
+await TenantScopeContract.RunAsync();
+
 var sandbox = Path.Combine(
     Path.GetTempPath(),
     "yangspace-sqlite-runtime-" + Guid.NewGuid().ToString("N"));
