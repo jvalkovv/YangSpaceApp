@@ -17,13 +17,21 @@ $Git = (Get-Command git.exe -ErrorAction Stop).Source
 $Dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
 $Project = 'apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
 
-$Head = (& $Git -C $Repo rev-parse HEAD).Trim()
-if ($LASTEXITCODE -ne 0 -or $Head -cne $CommitSha) {
+# Native commands may emit no pipeline objects. Never call .Trim()
+# directly on a native-command result (PowerShell 5.1 detached checkout).
+$HeadOutput = @(& $Git -C $Repo rev-parse HEAD)
+$HeadExitCode = $LASTEXITCODE
+$Head = ($HeadOutput -join '').Trim()
+if ($HeadExitCode -ne 0 -or $Head -cne $CommitSha) {
     throw 'RUNTIME_TEST_COMMIT_SHA_MISMATCH'
 }
 
-$CurrentBranch = (& $Git -C $Repo branch --show-current).Trim()
-if ($LASTEXITCODE -ne 0 -or ($CurrentBranch -and $AllowedBranches -cnotcontains $CurrentBranch)) {
+# Detached HEAD intentionally has NO branch name. An empty pipeline is
+# valid only when its exact commit matches an allowlisted remote tip below.
+$BranchOutput = @(& $Git -C $Repo branch --show-current)
+$BranchExitCode = $LASTEXITCODE
+$CurrentBranch = ($BranchOutput -join '').Trim()
+if ($BranchExitCode -ne 0 -or ($CurrentBranch -and $AllowedBranches -cnotcontains $CurrentBranch)) {
     throw 'RUNTIME_TEST_BRANCH_MISMATCH'
 }
 # For detached QA checkouts, require this exact source SHA to be the
@@ -32,9 +40,10 @@ $MatchesRemote = $false
 foreach ($Branch in $AllowedBranches) {
     # Keep the native Git invocation on one physical PowerShell line.
     # --quiet returns a nonzero exit code when the allowlisted ref is absent.
-    $RemoteSha = (& $Git -C $Repo rev-parse --verify --quiet ('refs/remotes/origin/' + $Branch))
-    if ($LASTEXITCODE -eq 0 -and $RemoteSha -and
-        $RemoteSha.Trim() -ceq $CommitSha) {
+    $RemoteOutput = @(& $Git -C $Repo rev-parse --verify --quiet ('refs/remotes/origin/' + $Branch))
+    $RemoteExitCode = $LASTEXITCODE
+    $RemoteSha = ($RemoteOutput -join '').Trim()
+    if ($RemoteExitCode -eq 0 -and $RemoteSha -ceq $CommitSha) {
         $MatchesRemote = $true
         break
     }
