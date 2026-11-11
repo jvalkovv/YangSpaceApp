@@ -354,13 +354,12 @@ if ($Phase -eq 'prepare') {
         @($persistedContent.jobs | Where-Object {$_.title -ceq 'Updated CI job' -and $_.isPublished}).Count -ne 1) {
         throw 'CONTENT_RESTART_PERSISTENCE_MISMATCH'
     }
-    foreach ($item in @(
-        @($persistedContent.offers | Where-Object {$_.title -ceq 'Updated CI offer'})[0],
-        @($persistedContent.brochures | Where-Object {$_.title -ceq 'Updated CI brochure'})[0],
-        @($persistedContent.jobs | Where-Object {$_.title -ceq 'Updated CI job'})[0]
-    )) {
-        Assert-NewPublicationFreshness $item 'persisted'
-    }
+    $persistedOffer=@($persistedContent.offers | Where-Object {$_.title -ceq 'Updated CI offer'})
+    $persistedBrochure=@($persistedContent.brochures | Where-Object {$_.title -ceq 'Updated CI brochure'})
+    $persistedJob=@($persistedContent.jobs | Where-Object {$_.title -ceq 'Updated CI job'})
+    Assert-NewPublicationFreshness $persistedOffer[0] 'persisted-offer'
+    Assert-NewPublicationFreshness $persistedBrochure[0] 'persisted-brochure'
+    Assert-NewPublicationFreshness $persistedJob[0] 'persisted-job'
     Write-Host 'PUBLICATION_FRESHNESS_PERSISTENCE=PASS'
     Write-Host 'CONTENT_LIFECYCLE_PERSISTENCE=PASS'
     [void](Assert-Status 'GET' '/api/v1/admin/locations' @(401,403))
