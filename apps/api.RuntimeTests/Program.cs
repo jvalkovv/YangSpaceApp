@@ -229,6 +229,18 @@ static async Task RunRecoveryRehearsalAsync(
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
 
+// Scope-only mode deliberately avoids EF migration/runtime gates which
+// correctly remain HOLD until the F2a PostgreSQL schema is reviewed.
+// Never use this mode as proof of production schema or real bearer access.
+if (args.Length == 1 && string.Equals(args[0], "--tenant-scope-only", StringComparison.Ordinal))
+{
+    await TenantScopeContract.RunAsync();
+    Console.WriteLine("F2A_TENANT_SCOPE_ISOLATED_ONLY=PASS");
+    return;
+}
+if (args.Length != 0)
+    throw new InvalidOperationException("Unsupported isolated runtime test argument.");
+
 // Fail-closed tenant-scoping uses only a disposable SQLite :memory: model.
 await TenantScopeContract.RunAsync();
 
