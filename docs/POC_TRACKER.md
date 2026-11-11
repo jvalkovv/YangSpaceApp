@@ -19,6 +19,12 @@
 
 **No active CT164 DB or public endpoint changes.** ADR-019 provider direction is accepted; the PR #17 implementation and security controls are not yet accepted.
 
+## F2a-1 dependency security gate — 2026-11-11 21:07 Sofia
+
+**Operator exact candidate `aa4fec12873b5319072087317a6b64eb6a8a5162`:** PowerShell preflight PASS; `STAGE=f2a-restore` **FAIL EXIT=1** due NuGet Audit NU1902/NU1903 for transitive `Pkcs/Xml 9.0.0` introduced by the PostgreSQL migrations project's EF design-time graph. Restore blocked as designed (warnings-as-errors). Build, tenant scope and PG scaffold NOT RUN. Evidence at `D:\GitHub\YangSpaceApp-F2a1-PG-QA\logs\yangspace\f2a-tenant-scope\aa4fec12873b-20261111-210730-fb959c92` (operator-local).
+
+**Fix source `8d2511308ff8e14b6d9a25ba6ec5539c8f2de4aa`:** patched Pkcs/Xml `10.0.14` pins in PG migrations csproj plus safe Git stdout handling for detached scaffolding. **No QA PASS on fix yet**. Required: exact-current-HEAD re-run, NuGet restore/build/tenant regression, then scaffold/review PostgreSQL EF artifacts. CT164/live DB untouched. [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains Draft/HOLD.
+
 ## 2026-11-11 19:07 — F2a-1 implementation and provider architecture checkpoint
 
 | Item | Current state | Evidence / next gate |
@@ -26,7 +32,7 @@
 | ADR-019 / PR #16 | **MERGED/CLOSED** at `fb3e032944f0afafed3922c87b0e53dfb99c3220` | PostgreSQL target direction selected; activation is not authorized |
 | PR #17 tenant source | **Draft/Open**, candidate `bc498f5bfdc933d2959b8352db3bb3e5523dbf30` | 7-file domain candidate plus provider split; no owner endpoints or audit writes |
 | Prior F2a isolated QA | **PASS at `b9aaaace...`** | Owner evidence: PowerShell syntax, .NET restore, Release build with warnings-as-errors and disposable SQLite `:memory:` tenant contract PASS; `D:\GitHub\YangSpaceApp-F2a1-QA\logs\yangspace\f2a-tenant-scope\b9aaaace4c85-20261111-190535-047e666b` |
-| New provider-refactor HEAD | **QA PENDING** | Must rerun `Test-F2a-Tenant-Scope-Local.ps1` at exact SHA `bc498f5bfdc933d2959b8352db3bb3e5523dbf30`; old PASS does not transfer |
+| Provider-refactor NuGet restore | **FAIL on `aa4fec1...`, FIX SOURCE on `8d2511...`, re-run required** | NU1902/NU1903 on transitive `System.Security.Cryptography.Pkcs/Xml 9.0.0` in PostgreSQL migrations project; both pinned to audited `10.0.14`, `TreatWarningsAsErrors` retained; fix not yet tested |
 | PostgreSQL migration | **NOT GENERATED** | New exact-SHA scaffold script `scripts/New-PostgreSqlInitialMigration-Local.ps1`; emits C# + review SQL only, no connection/apply |
 | PostgreSQL DB tests | **NOT RUN** | Require isolated disposable PG database: fresh schema, legacy-data backfill rehearsal, FK/unique/isolation, backup/restore, real API bearer tests |
 | Production/demo | **UNCHANGED** | No CT164/CT152 operation, active DB write, service provision, release or public owner route |
