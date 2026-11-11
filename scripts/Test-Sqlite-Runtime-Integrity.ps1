@@ -30,8 +30,9 @@ if ($LASTEXITCODE -ne 0 -or ($CurrentBranch -and $AllowedBranches -cnotcontains 
 # fetched remote tip of an allowlisted branch. No arbitrary local history.
 $MatchesRemote = $false
 foreach ($Branch in $AllowedBranches) {
-    $RemoteSha = (& $Git -C $Repo rev-parse --verify
-        ('refs/remotes/origin/' + $Branch) 2>$null)
+    # Keep the native Git invocation on one physical PowerShell line.
+    # --quiet returns a nonzero exit code when the allowlisted ref is absent.
+    $RemoteSha = (& $Git -C $Repo rev-parse --verify --quiet ('refs/remotes/origin/' + $Branch))
     if ($LASTEXITCODE -eq 0 -and $RemoteSha -and
         $RemoteSha.Trim() -ceq $CommitSha) {
         $MatchesRemote = $true
