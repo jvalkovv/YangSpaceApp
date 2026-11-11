@@ -75,7 +75,7 @@ static async Task ApplyMigrationAsync(string connectionString)
     await connection.OpenAsync();
 
     var options = new DbContextOptionsBuilder<DirectoryDb>()
-        .UseSqlite(connection)
+        .UseSqlite(connection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
         .Options;
 
     await using var db = new DirectoryDb(options);
@@ -125,7 +125,7 @@ static async Task RunRecoveryRehearsalAsync(
     {
         await active.OpenAsync();
         var activeOptions = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(active)
+            .UseSqlite(active, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
         await using var activeDb = new DirectoryDb(activeOptions);
         activeDb.Locations.Add(new BusinessLocation
@@ -201,7 +201,7 @@ static async Task RunRecoveryRehearsalAsync(
     }
 
     var restoredOptions = new DbContextOptionsBuilder<DirectoryDb>()
-        .UseSqlite(reopened)
+        .UseSqlite(reopened, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
         .Options;
     await using var restoredDb = new DirectoryDb(restoredOptions);
     await ProductionSchemaGate.ValidateSchemaAsync(restoredDb);
@@ -279,7 +279,7 @@ try
         await connection.OpenAsync();
 
         var options = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(connection)
+            .UseSqlite(connection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
 
         await using var db = new DirectoryDb(options);
@@ -405,7 +405,7 @@ try
     {
         await disabledConnection.OpenAsync();
         var disabledOptions = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(disabledConnection)
+            .UseSqlite(disabledConnection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
         await using var disabledDb = new DirectoryDb(disabledOptions);
 
@@ -441,7 +441,7 @@ try
     {
         await integrityConnection.OpenAsync();
         var integrityOptions = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(integrityConnection)
+            .UseSqlite(integrityConnection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
         await using var integrityDb = new DirectoryDb(integrityOptions);
 

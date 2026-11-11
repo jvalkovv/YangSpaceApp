@@ -38,16 +38,42 @@ var connection = builder.Configuration.GetConnectionString("Main");
 if (string.IsNullOrWhiteSpace(connection))
     throw new InvalidOperationException("ConnectionStrings:Main must be supplied from environment or protected config.");
 
-// SQLite foreign-key enforcement is connection-scoped. Normalize the
-// connection string once so every EF connection enables PRAGMA foreign_keys
-// before it can execute application SQL.
-var runtimeConnection = SqliteRuntimePolicy.EnableForeignKeys(connection);
+// Provider choice is explicit in appsettings/configuration. Preview always
+// stays on SQLite; PostgreSQL is a separate target with its own migrations assembly.
+var databaseProvider = builder.Configuration["Database:Provider"];
+if (string.IsNullOrWhiteSpace(databaseProvider))
+    throw new InvalidOperationException("Database:Provider must explicitly select SQLite or PostgreSQL.");
 
-// Production reads and CMS writes BOTH require the same migration-managed,
-// pre-existing external DB. No accidental SQLite creation for public GETs.
-if (builder.Environment.IsProduction())
-    ProductionSqlitePolicy.RequirePreparedDatabase(runtimeConnection, builder.Environment.ContentRootPath);
-builder.Services.AddDbContext<DirectoryDb>(options => options.UseSqlite(runtimeConnection));
+if (preview && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Preview mode is permanently pinned to its isolated SQLite provider.");
+
+switch (databaseProvider.Trim().ToLowerInvariant())
+{
+    case "sqlite":
+    {
+        var runtimeConnection = SqliteRuntimePolicy.EnableForeignKeys(connection);
+        if (builder.Environment.IsProduction())
+            ProductionSqlitePolicy.RequirePreparedDatabase(runtimeConnection, builder.Environment.ContentRootPath);
+
+        builder.Services.AddDbContext<DirectoryDb>(options =>
+            options.UseSqlite(runtimeConnection,
+                sqlite => sqlite.MigrationsAssembly("YangSpace.Api")));
+        break;
+    }
+    case "postgresql":
+    {
+        if (builder.Environment.IsProduction())
+            ProductionPostgreSqlPolicy.RequirePreparedConnection(connection);
+
+        builder.Services.AddDbContext<DirectoryDb>(options =>
+            options.UseNpgsql(connection,
+                postgres => postgres.MigrationsAssembly("YangSpace.PostgreSql.Migrations")));
+        break;
+    }
+    default:
+        throw new InvalidOperationException(
+            "Database:Provider must be exactly SQLite or PostgreSQL; implicit provider fallback is forbidden.");
+}
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;

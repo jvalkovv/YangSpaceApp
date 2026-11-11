@@ -47,3 +47,15 @@ remote branch tip. The script runs `dotnet restore`, `dotnet build`, then
 **only** `TenantScopeContract` on a fresh SQLite `:memory:` database and
 returns before the old migration harness. **Do not use this as a substitute
 for PostgreSQL schema, migration, real bearer API or production security QA.**
+
+## PostgreSQL provider and migration-assembly boundary (source candidate)
+
+- The EF `DirectoryDb` and entity types now live in the provider-neutral `YangSpace.Persistence` project. Their existing `YangSpace.Api` namespace is intentionally retained to avoid a broad endpoint contract rename in this migration-focused refactor.
+- Existing SQLite migration history remains in `YangSpace.Api`; all SQLite runtime/design-time/test contexts explicitly select `MigrationsAssembly("YangSpace.Api")`.
+- PostgreSQL migration history is isolated in `YangSpace.PostgreSql.Migrations`, a separate EF migrations project with its own opt-in design-time factory. The API references the migration assembly at runtime and selects it only when `Database:Provider=PostgreSQL`.
+- `Database:Provider` is explicit and defaults to `SQLite` in checked-in appsettings, preserving the current demo. Preview mode refuses PostgreSQL.
+- PostgreSQL production connection policy requires `SslMode=VerifyFull`, explicit host/database/user, and no detailed server error payloads. The read-only schema gate checks provider-specific migration state/model snapshot, non-elevated runtime role without schema CREATE, validated foreign keys and valid indexes.
+- No PostgreSQL initial migration is hand-authored. `scripts/New-PostgreSqlInitialMigration-Local.ps1` scaffolds the initial migration with EF CLI into the separate project, emits review SQL and SHA receipts, and explicitly does **not** connect/apply/deploy.
+- Microsoft EF Core recommends a separate data project plus provider-specific migrations project for multiple migration sets; official guide: https://learn.microsoft.com/ef/core/managing-schemas/migrations/projects. Npgsql's `VerifyFull` validates both the certificate and host identity: https://www.npgsql.org/doc/api/Npgsql.SslMode.html.
+
+**Not yet proven:** source build after this provider refactor, EF scaffold output, SQL review, disposable PostgreSQL fresh/upgrade/restore tests, and real API bearer authorization. PR remains Draft/HOLD.

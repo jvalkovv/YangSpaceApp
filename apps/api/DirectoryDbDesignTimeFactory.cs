@@ -22,7 +22,7 @@ public sealed class DirectoryDbDesignTimeFactory : IDesignTimeDbContextFactory<D
         // The factory never opens a connection or reads ConnectionStrings__Main.
         // EF scaffolds schema from the model without touching any database.
         var options = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite("Data Source=:memory:")
+            .UseSqlite("Data Source=:memory:", sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
         return new DirectoryDb(options);
     }
