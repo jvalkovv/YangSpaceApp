@@ -13,6 +13,10 @@
 
 
 
+## 2026-11-11 22:09 Europe/Sofia — F2a PostgreSQL schema review findings / source fix
+
+**Latest F2a progress, not yet QA accepted:** PostgreSQL initial EF C#/Designer/snapshot/SQL for source `ccd2acb...` was independently inspected: ZIP SHA-256 and four internal checksums match, 15 tables/22 indexes, Designer↔snapshot model equal and no destructive `Up` statements. **HOLD on commit:** no DB-level approved/pending claim deduplication and no `Locations.Revision` in the generated schema, contrary to F2a contract. Original ZIP is preserved as rejected review evidence. Draft PR #17 now has a model correction for filtered unique `Approved` by Location, filtered unique `Pending` by (Location, Organization), Location revision concurrency token and new isolated regression tests. **Current source/EF scaffold/actual PostgreSQL QA remain PENDING**. See [F2a source foundation](F2A1_SOURCE_FOUNDATION_20261111.md), [claim policy](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md) and PR #17. No CT164/CT152 changes or approved owner endpoint.
+
 ## 2026-11-11 F2a provider NuGet blocker (current)
 
 **Current truth:** operator checked out `aa4fec12873b5319072087317a6b64eb6a8a5162` with a clean exact remote SHA and `Test-F2a-Tenant-Scope-Local.ps1` failed at `f2a-restore` (NU1902/NU1903) before any build/tenant regression. New PostgreSQL migrations project resolved vulnerable transitive `System.Security.Cryptography.Pkcs 9.0.0` and `System.Security.Cryptography.Xml 9.0.0`. Keeping NuGet Audit and TreatWarningsAsErrors is required. Source remediation `8d2511308ff8e14b6d9a25ba6ec5539c8f2de4aa` pins both to patched `10.0.14` in the affected migrations csproj, and handles empty Git branch stdout in the detached worktree scaffold. **Fix has not been run on Windows; no current source QA PASS is claimed.** Local failure evidence: `D:\GitHub\YangSpaceApp-F2a1-PG-QA\logs\yangspace\f2a-tenant-scope\aa4fec12873b-20261111-210730-fb959c92`.

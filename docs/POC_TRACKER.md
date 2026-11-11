@@ -19,6 +19,18 @@
 
 **No active CT164 DB or public endpoint changes.** ADR-019 provider direction is accepted; the PR #17 implementation and security controls are not yet accepted.
 
+## F2a-1 schema contract audit and remediation — 2026-11-11 22:09
+
+| Workstream | Current status | Evidence / acceptance |
+| --- | --- | --- |
+| PostgreSQL initial migration archive | **Static integrity PASS; schema contract HOLD** | Source `ccd2acb...`; archived ZIP SHA-256 `96544589a2a27560a64df8e9da09235d9f81c6716ae151dc92bbc4d915e252c5`; verified generated EF/SQL; 15 tables, 22 indexes; missing active-claim uniqueness and Location Revision |
+| BusinessClaims uniqueness | **SOURCE FIX / NOT TESTED** | One Approved per Location and one Pending per Location+Organization via filtered unique indexes; distinct orgs may apply concurrently |
+| Location Revision | **SOURCE FIX / NOT TESTED** | New application-managed long EF concurrency token, initial 0; HTTP 409 and audited writes remain F2b |
+| Isolation and concurrency regression | **SOURCE ADDED / NOT RUN** | Duplicate approved/pending rejection, competing applicants, resubmission after withdrawn, stale EF update rejection in SQLite `:memory:` |
+| New PostgreSQL scaffold | **NOT RUN** | Generate from clean exact-new-HEAD worktree, review C#/Designer/snapshot/SQL/hashes; do not reuse old ZIP |
+| Real PostgreSQL/HTTP | **HOLD** | Disposable PG migration/backup/restore, ownership and audit API tests required before merge |
+| Production/demo | **NO CHANGE** | PR #17 remains Draft; CT164/CT152 and active SQLite untouched |
+
 ## F2a-1 dependency security gate — 2026-11-11 21:07 Sofia
 
 **Operator exact candidate `aa4fec12873b5319072087317a6b64eb6a8a5162`:** PowerShell preflight PASS; `STAGE=f2a-restore` **FAIL EXIT=1** due NuGet Audit NU1902/NU1903 for transitive `Pkcs/Xml 9.0.0` introduced by the PostgreSQL migrations project's EF design-time graph. Restore blocked as designed (warnings-as-errors). Build, tenant scope and PG scaffold NOT RUN. Evidence at `D:\GitHub\YangSpaceApp-F2a1-PG-QA\logs\yangspace\f2a-tenant-scope\aa4fec12873b-20261111-210730-fb959c92` (operator-local).

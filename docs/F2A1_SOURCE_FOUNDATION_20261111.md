@@ -59,3 +59,18 @@ for PostgreSQL schema, migration, real bearer API or production security QA.**
 - Microsoft EF Core recommends a separate data project plus provider-specific migrations project for multiple migration sets; official guide: https://learn.microsoft.com/ef/core/managing-schemas/migrations/projects. Npgsql's `VerifyFull` validates both the certificate and host identity: https://www.npgsql.org/doc/api/Npgsql.SslMode.html.
 
 **Not yet proven:** source build after this provider refactor, EF scaffold output, SQL review, disposable PostgreSQL fresh/upgrade/restore tests, and real API bearer authorization. PR remains Draft/HOLD.
+
+## F2a-1 schema corrections after uploaded PostgreSQL SQL audit
+
+**Old generated ZIP:** `YangSpace-F2a1-PostgreSQL-Migration-Review.zip`, SHA-256 `96544589a2a27560a64df8e9da09235d9f81c6716ae151dc92bbc4d915e252c5`. Its three EF artifacts and SQL are internally consistent, but **not approved for commit**: no uniqueness for active claims and missing `BusinessLocation.Revision`. Findings are recorded in PR #17 and Issues #4/#11.
+
+**New source-only changes (new exact-SHA test required):**
+- `apps/persistence/Models.cs` now maps a filtered unique `Approved` claim per Location and a filtered unique `Pending` claim per (Location, Organization). Different organizations may compete; resolved applications preserve history and permit resubmission.
+- `BusinessLocation.Revision` is now a model-level EF concurrency token with an application-managed revision counter. No API endpoint or HTTP 409 mapping has been introduced.
+- `TenantScopeContract` tests positive competing pending applications and new pending after withdrawn, rejects duplicate pending/approved inserts at DB level, and verifies two writers cannot silently overwrite the same Location revision. The isolated Windows runner requires these markers.
+- The new code has **NOT** been compiled/runtime-tested yet. Existing accepted `ccd2acb...` restore/tenant QA applied **before** these model changes. Previous PostgreSQL migration scaffold/SQL/ZIP likewise applies only to the old model.
+
+**Next source gate:** create an entirely new clean detached QA worktree at current remote PR #17 SHA; run `Test-F2a-Tenant-Scope-Local.ps1`. The old `D:\GitHub\YangSpaceApp-F2a1-PG-QA` worktree contains uncommitted EF-generated artifacts; do **not** force checkout/reset or overwrite them.
+
+**Next migration gate after source PASS:** run `New-PostgreSqlInitialMigration-Local.ps1` in the new clean worktree, then independently inspect new three-file EF migration/snapshot + SQL + SHA receipts. Generated files remain uncommitted until reviewed. Test PostgreSQL uniqueness, FK/integrity, initial data, backup and restore on a **disposable** PostgreSQL database. CT164 active SQLite remains untouched.
+
