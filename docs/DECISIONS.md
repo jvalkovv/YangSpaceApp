@@ -32,5 +32,5 @@
 | ADR-017 | Pricing/subscription and billing | DEFERRED | Pilot conversion, business willingness-to-pay and support economics |
 | ADR-018 | **Never use GitHub Actions**; GitHub only source/PR; manual pinned-SHA QA and PVE operator release | **Accepted (owner directive)** | [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md) |
 
-**Canonical plan:** [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md). No existing accepted architecture decisions were overwritten by this planning commit.
+**Canonical current project status and gate order:** [SSOT.md](SSOT.md). **Detailed planning:** [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md). No existing accepted architecture decisions were overwritten by this planning commit.
 
