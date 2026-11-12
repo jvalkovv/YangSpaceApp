@@ -7,6 +7,15 @@
 
 **Не се поемат срокове до оценка на кода и работа по P0 дефектите.** Първо пилотен квартал, после доказано повторяемо разрастване.
 
+## 2026-11-12 13:41 Europe/Sofia — combined F2a regression PASS ×2; F2a-3 contract next
+
+- **Exact tested combined SHA:** `445db4d9a5d28b798054c426afeba9b9be2c771b` on [Draft PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17). Two independent sequential operator Windows runs (13:28/13:41 Europe/Sofia): PowerShell runner syntax, .NET restore/Release build, tenant scope; PostgreSQL EF tool/restore/build/pending-model-diff, reviewed SQL SHA, disposable PG17 migration, FK/filtered unique constraints, sequential revision CAS, DB audit rollback, custom backup and second-DB restore all PASS. Both finish `F2A_TENANT_SCOPE_ISOLATED_ONLY=PASS`, `F2A_PG_DISPOSABLE_RUNTIME=PASS`, `COMBINED_HEAD_REGRESSION=PASS`. The operator reports no stage failures.
+- Latest tenant evidence: `D:\GitHub\YangSpaceApp-F2a1-Combined-QA-20261112-0822\logs\yangspace\f2a-tenant-scope\445db4d9a5d2-20261112-134120-cc109012`.
+- Latest PG evidence: `D:\GitHub\YangSpaceApp-F2a1-Combined-QA-20261112-0822\logs\yangspace\pg-disposable\445db4d9a5d2-20261112-134126-299426c5`.
+- **Acceptance boundary:** console evidence confirms two disposable PG schema/constraint/recovery and SQLite tenant tests; local manifest/SQL/backup file bytes and cleanup inventory have not yet been independently received or verified with SHA-256. `REAL_BEARER_PARALLEL_WRITERS_PRODUCTION=NOT_TESTED`. Previous real Identity bearer HTTP TestServer PASS is SQLite-only, from merged [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19).
+- **Open PR inventory:** #19 MERGED/CLOSED into F2a-1 branch; #17 OPEN/DRAFT/HOLD despite being mergeable; V2 parent #1 OPEN/DRAFT/HOLD. Do not merge #17/#1; broader reviewer decision, PostgreSQL HTTP, application writer/audit atomicity, restricted PG role and recovery gates remain unaccepted.
+- **Next:** read-only SHA-256 postflight of latest tenant/PG local receipts (no repeat build/DB test). [Issue #20 — F2a-3](https://github.com/jvalkovv/YangSpaceApp/issues/20) contains proposed reviewer role, claim transition, membership ownership, transaction/rollback acceptance and conflict policy, **pending explicit approval before code**. No GitHub Actions, CT164/CT152 access, live DB, merchant activation or deployment.
+
 ## Delivery governance — mandatory progress reporting & PR closure (accepted 2026-11-11)
 
 This is a **standing execution requirement** for all YangSpace work, including external Work runs and manual operator actions. It is not a product feature and does not substitute for tests or owner review.
