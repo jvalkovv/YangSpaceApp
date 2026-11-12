@@ -44,7 +44,7 @@ This is a **standing execution requirement** for all YangSpace work, including e
 ### Next execution order
 
 1. **F2a-1 + F2a-2 combined-head regression:** clean exact-SHA checkout of \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\`; source/build and disposable PostgreSQL regression. Keep the old PASS attached to its historical SHA until the new combined-head run passes.
-2. **F2a-3 contract/design before code:** reviewer identity/role policy, no self-approval, claim state machine, Owner membership grant/revoke, transaction boundary, actor/reason audit allowlist, concurrency/unique-conflict behavior, fault-injection matrix and recovery semantics. Keep claim mutation separate from the already-merged read-only endpoint.
+2. **[F2a-3 contract/design — Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) before code:** reviewer identity/role policy, no self-approval, claim state machine, Owner membership grant/revoke, transaction boundary, actor/reason audit allowlist, concurrency/unique-conflict behavior, fault-injection matrix and recovery semantics. Keep claim mutation separate from the already-merged read-only endpoint.
 3. **F2a-3 implementation:** only after the contract is recorded in Issue #4/ADR and reviewed; exact-SHA PostgreSQL tests must prove claim + org/location ownership + membership + audit atomicity, with rollback on every injected failure.
 4. **F2b:** content mutations and revision/409 semantics only after F2a authorization and audit acceptance.
 
