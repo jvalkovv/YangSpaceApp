@@ -36,6 +36,40 @@ Created [F2a-3 reviewer-controlled claim and Owner membership design](F2A3_CLAIM
 - **Open PR inventory:** #19 MERGED/CLOSED into F2a-1 branch; #17 OPEN/DRAFT/HOLD despite being mergeable; V2 parent #1 OPEN/DRAFT/HOLD. Do not merge #17/#1; broader reviewer decision, PostgreSQL HTTP, application writer/audit atomicity, restricted PG role and recovery gates remain unaccepted.
 - **Next:** read-only SHA-256 postflight of latest tenant/PG local receipts (no repeat build/DB test). [Issue #20 — F2a-3](https://github.com/jvalkovv/YangSpaceApp/issues/20) contains proposed reviewer role, claim transition, membership ownership, transaction/rollback acceptance and conflict policy, **pending explicit approval before code**. No GitHub Actions, CT164/CT152 access, live DB, merchant activation or deployment.
 
+## 2026-11-12 15:31 Europe/Sofia — F2a-3 isolated transaction QA accepted and PR #21 MERGED
+
+**[PR #21](https://github.com/jvalkovv/YangSpaceApp/pull/21) MERGED/CLOSED at `62ecc089ec245703dc7e428cd4430d64fd12e94d` into F2a-1 child branch, not V2 or `main`.** The parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) is now at this merged head and remains **OPEN/DRAFT/HOLD**; V2 [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) remains **OPEN/DRAFT/HOLD**.
+
+- Exact tested source of #21: `91f34f17a52e11dd107645ebb44ea0e578e4fa73` — Windows clean SHA/runner syntax, .NET restore, Release build and isolated `--claim-transaction-only` **PASS**. Operator read-only evidence postflight: `F2A3_MANIFEST=PASS`, `F2A3_STAGE_FILES=PASS`, `F2A3_TRANSACTION_MARKERS=PASS`, `F2A3_EVIDENCE_POSTFLIGHT=PASS`.
+- Evidence dir: `D:\GitHub\YangSpaceApp-F2a3-ClaimTx-QA\logs\yangspace\f2a3-claim-tx\91f34f17a52e-20261112-151758-9c434338`; manifest SHA-256 `ED0069DB82C9339D0C98290715C1BA1B655741B5D5D723D8DD5D0152DFFB7442`, transaction stdout SHA-256 `0812D68FC76DD152AE63F7CC6F5F3EBA1D58058A03D06DDD7A7A8258E75127F4`. Full ten-file SHA inventory in [F2a-3 QA report](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_CLAIM_TRANSACTION_PREFLIGHT_20261112.md). Operator-local evidence not uploaded for independent cross-host byte verification.
+- Tested runtime/test source did not change after acceptance: one documentation-only follow-up commit `0fad914dbcaad4197fbcbc8efc427e4046fa6198` modified one Markdown file before squash. Scoped static review was completed. **Accepted only:** synthetic EF SQLite transaction across claim+org+previously unclaimed location+Owner membership+4 audit events; an injected duplicate audit insert on the second SaveChanges forced complete outer rollback.
+- **Explicit remaining HOLD:** actual reviewer claim approval HTTP route, live Identity reviewer role and revocation, real PostgreSQL transaction under concurrent clients, uncertain-COMMIT idempotency, atomic production application audit, least-privilege PG DB role, off-host recovery/DR and pilot release. [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) security policy is still PROPOSED/NOT APPROVED.
+- **Current PR inventory:** #21 MERGED/CLOSED; #19 MERGED/CLOSED; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD. The owner's standing roadmap governance (milestone-by-milestone progress, 100%-scoped evidence-gated PR closure, no Actions) continues to apply. No CT164/CT152, live DB, merchant activation or deployment.
+
+## 2026-11-12 15:18 Europe/Sofia — F2a-3 isolated transaction candidate operator PASS
+
+- [Draft PR #21](https://github.com/jvalkovv/YangSpaceApp/pull/21), exact source `91f34f17a52e11dd107645ebb44ea0e578e4fa73`: operator source/worktree and PowerShell syntax PASS; `STAGE_PASS=f2a3-restore`, `STAGE_PASS=f2a3-build`, `STAGE_PASS=f2a3-transaction`; `F2A3_CLAIM_TX_ISOLATED_ONLY=PASS`. The scoped Windows runner verifies six transaction contract markers before emitting final PASS.
+- Evidence dir: `D:\GitHub\YangSpaceApp-F2a3-ClaimTx-QA\logs\yangspace\f2a3-claim-tx\91f34f17a52e-20261112-151758-9c434338`. **Read-only manifest and stage file/hash postflight PENDING; no merge decision yet.**
+- Accepted runtime scope is synthetic SQLite EF in-memory transaction success + rollback after deliberately failed second SaveChanges on audit UNIQUE index. This is **not** live reviewer authorization, real PostgreSQL app transaction, concurrent client or actual claim approval.
+- Current PR inventory: #21 OPEN/DRAFT/HOLD (evidence postflight pending), #17 OPEN/DRAFT/HOLD (larger F2a security/PG gates), #1 OPEN/DRAFT/HOLD (release/pilot); #19 MERGED/CLOSED. No open PR qualifies for closure until its scoped DoD completes. No Actions, CT164/CT152, production DB, claim activation or deployment.
+
+## 2026-11-12 14:48 Europe/Sofia — execution governance reaffirmed: visible progress and PR closure
+
+**Mandatory standing requirement, reconfirmed by owner on 2026-11-12:** every YangSpace implementation cycle reports progress in the active conversation at scope/commit/test/review/merge checkpoints, without relying on an hourly watcher. Include exact SHA, PR/issue, code vs operator-run vs runtime evidence, current PASS/PARTIAL/HOLD, blocker, next action and whether production was touched. Do not claim unattended background implementation or an unexecuted PASS. The existing hourly watcher is optional notification support only, not evidence.
+
+**PR cleanup at each checkpoint:** inspect all open PRs, their target branch, own Definition of Done and exact candidate head. Only PRs that are **100% completed for their bounded scope**, with exact-SHA QA, evidence postflight, source review and owner-approved merge action, move READY → MERGED → CLOSED. Never manually close an incomplete PR for list hygiene; never infer pilot readiness from a child QA PR merge.
+
+**Current inventory (2026-11-12 14:48 Europe/Sofia):**
+
+| PR | Base | Status | Unmet scoped acceptance |
+| --- | --- | --- | --- |
+| [#21 — F2a-3 isolated synthetic claim transaction QA](https://github.com/jvalkovv/YangSpaceApp/pull/21) | #17 F2a-1 branch | **OPEN / DRAFT / SOURCE-ONLY** | Current exact-SHA Windows .NET build + SQLite transaction/fault-injection markers; evidence and static review; no PostgreSQL/real reviewer claim |
+| [#17 — F2a-1 domain/tenant + merged bearer QA](https://github.com/jvalkovv/YangSpaceApp/pull/17) | V2 branch | **OPEN / DRAFT / HOLD** | Real PostgreSQL application bearer HTTP/parallel writers, reviewer claim workflow, atomic app audit, PG app role, recovery/release gates |
+| [#1 — YangSpace V2 parent](https://github.com/jvalkovv/YangSpaceApp/pull/1) | `main` | **OPEN / DRAFT / HOLD** | Product/security/operational/pilot sign-off |
+| [#19 — F2a-2 real Identity bearer read QA](https://github.com/jvalkovv/YangSpaceApp/pull/19) | #17 F2a-1 branch | **MERGED / CLOSED** | None for its *isolated SQLite/TestServer* scoped DoD; does not prove production authorization |
+
+**Current engineering step:** [Issue #20 — F2a-3](https://github.com/jvalkovv/YangSpaceApp/issues/20) remains **PROPOSED** for reviewer/claim business policy; [Draft PR #21](https://github.com/jvalkovv/YangSpaceApp/pull/21) adds only a disposable SQLite EF transaction feasibility test: successful synthetic claim/org/location/Owner/audit transaction and a forced audit UNIQUE error after the first EF SaveChanges to prove rollback across batches. No HTTP claim review endpoints, schema migrations, claim-role grants, CT164/CT152 access, production deployment or Actions. PostgreSQL integration topology and real reviewer policy acceptance remain separate gates.
+
 ## Delivery governance — mandatory progress reporting & PR closure (accepted 2026-11-11)
 
 This is a **standing execution requirement** for all YangSpace work, including external Work runs and manual operator actions. It is not a product feature and does not substitute for tests or owner review.
@@ -199,4 +233,3 @@ This is a **standing execution requirement** for all YangSpace work, including e
 ## Definition of Done за всяка функционалност
 
 Source + tests + reviewed DB migration + auth check + audit/logging + docs + visual/mobile QA + runtime evidence. Всеки deployment има commit SHA, версия, backup reference, verify output и rollback path. Без `main` auto-deploy.
-
