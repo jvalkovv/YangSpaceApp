@@ -7,6 +7,18 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-12 08:15 — F2a-2 read-only bearer authorization accepted
+
+| Work package | Result | Evidence / next required gate |
+| --- | --- | --- |
+| F2a-1 domain + PostgreSQL schema foundation / [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) | **PARTIAL / DRAFT / HOLD**; current combined head \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\` | Earlier disposable PostgreSQL migration/constraints/backup-restore PASS is exact-SHA scoped to \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`; rerun source/build + disposable PostgreSQL regression on combined head. Then real PG bearer/parallel writer, reviewer claim lifecycle, atomic application audit/fault injection, least-privilege role and off-host restore. |
+| F2a-2 read-only Identity bearer authorization / [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) | **DONE scoped acceptance; MERGED/CLOSED** via squash \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\` into the F2a-1 feature branch | Exact tested code SHA \`f579c70db9cc0986d2f1df8047158587f0e87eef\`: Windows restore/build/tenant regression/real Identity bearer TestServer PASS; operator evidence postflight PASS. Manifest SHA-256 \`336D8A9DCB4C69483981A2A5124A5123E8AD9044C14A1619199439E2E121F366\`. Disposable SQLite/TestServer only; no production or PG bearer acceptance. |
+| F2a-3 reviewer claim decision + membership lifecycle | **NOT IMPLEMENTED / contract next** | Define dedicated reviewer authority, no self-approval, claim state machine, Owner grant/revoke, atomic ownership+membership+audit transaction, concurrency/unique conflicts, fault-injection and recovery before coding. |
+| F2b owner CMS mutations + per-field audit / Issue #11 | **NOT IMPLEMENTED / BLOCKED by F2a** | Real PostgreSQL transactional API tests, expected-revision/409, field allowlist, one audit event per accepted change; no owner write endpoints yet. |
+| V2 parent / [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) | **DRAFT / OPEN / HOLD** | No V2-to-main merge, merchant activation, production rollout or pilot approval. |
+
+**PR inventory at this checkpoint:** #19 MERGED/CLOSED; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD. No other open PR is 100%-accepted for closure. No GitHub Actions, CT164/CT152, live DB changes or deployment.
+
 ## F2a start — 2026-11-11: authorization/audit design gate
 
 | Work package | Result | Next required evidence |
