@@ -19,6 +19,16 @@
 
 **No active CT164 DB or public endpoint changes.** ADR-019 provider direction is accepted; the PR #17 implementation and security controls are not yet accepted.
 
+## 2026-11-12 — real disposable PostgreSQL gate preparation
+
+| Item | State | Evidence / next gate |
+| --- | --- | --- |
+| Windows Docker Linux Engine | **PASS — capability only** | Docker v29.9.1, Linux and local named-pipe context confirmed by operator |
+| PG initial migration tracked in Git | **PASS at `e1287058...`** | Exactly three independently reviewed EF files; exact-commit Windows tenant/build and EF snapshot-diff PASS |
+| PG disposable runner + SQL test data | **SOURCE ADDED, NOT RUN** | Network-disabled, no host port/mount, tmpfs container; test constraints/revision CAS/audit DB rollback and synthetic backup→second-DB restore |
+| Real PostgreSQL initial migration / restore | **HOLD — not executed** | Require operator new exact-SHA test output and logs, no inferred PASS |
+| Owner bearer and F2b audit/recovery/production | **HOLD** | Separate identity/transactional/least-privilege/off-host gates |
+
 ## F2a-1 schema contract audit and remediation — 2026-11-11 22:09
 
 | Workstream | Current status | Evidence / acceptance |

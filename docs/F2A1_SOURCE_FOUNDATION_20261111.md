@@ -74,3 +74,17 @@ for PostgreSQL schema, migration, real bearer API or production security QA.**
 
 **Next migration gate after source PASS:** run `New-PostgreSqlInitialMigration-Local.ps1` in the new clean worktree, then independently inspect new three-file EF migration/snapshot + SQL + SHA receipts. Generated files remain uncommitted until reviewed. Test PostgreSQL uniqueness, FK/integrity, initial data, backup and restore on a **disposable** PostgreSQL database. CT164 active SQLite remains untouched.
 
+
+## 2026-11-12 — isolated PostgreSQL execution gate (source candidate)
+
+**Operator environment capability PASS (Windows, 2026-11-12 06:03 Sofia):** `PG_DOCKER_CLI=FOUND`, `PG_DOCKER_ENGINE=AVAILABLE`, Linux Docker Server `29.9.1`, local named-pipe context PASS. This is **only an engine capability check**; no actual database schema apply has run.
+
+Source-only QA assets in PR #17:
+- `scripts/Test-F2a-PostgreSql-Disposable-Local.ps1` — exact remote tip SHA and clean worktree, local Docker Linux Engine, reviewed SQL SHA-256 match, ephemeral PostgreSQL 17 container with `--network none`, `--rm`, tmpfs data, no published ports/host binds; command logs, forced cleanup
+- `scripts/postgresql/F2a-Disposable-Constraints.sql` — synthetic Identity/org/location/claim inserts; FK/partial UNIQUE negative tests, reapplication, sequential revision CAS, DB-level audit rollback
+- `scripts/postgresql/F2a-Disposable-Restore-Verify.sql` — custom-format `pg_dump` and restore to second disposable DB; row counts, EF migration history, FK and partial index checks
+
+The image `postgres:17` must already be explicitly acquired (`docker pull postgres:17`) before invoking the runner. Its image ID is recorded, but tag immutability is **not** asserted. The runner cannot reach CT164 or production databases; it uses synthetic records only.
+
+**Gate status: SOURCE IMPLEMENTED, NOT QA EXECUTED.** Require exact-source PowerShell parse, source restore/build/tenant regression and actual disposable PostgreSQL run with `F2A_PG_DISPOSABLE_RUNTIME=PASS`, evidence/cleanup review. This is NOT concurrent EF clients, real bearer authentication, production app-role permissions, GDPR/audit-service enforcement, off-host disaster recovery, or deployment. PR #17 remains Draft/HOLD; parent PR #1 Draft/HOLD. Merged PR #18 already requires meaningful progress reports and 100%-scoped PR closure.
+
