@@ -27,7 +27,9 @@ public static class MerchantReadEndpoints
                     loc.Id, loc.Slug, loc.Name, loc.IsPublished, loc.Revision))
                 .SingleOrDefaultAsync(ct);
 
-            return location is null ? Results.NotFound() : Results.Ok(location);
+            // Explicit IResult common type avoids different typed result
+            // branches confusing async lambda return inference.
+            return location is null ? (IResult)Results.NotFound() : Results.Ok(location);
         });
     }
 }
