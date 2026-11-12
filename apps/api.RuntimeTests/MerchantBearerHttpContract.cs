@@ -168,11 +168,11 @@ internal static class MerchantBearerHttpContract
                 var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
                 var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-                var owner = await NewUserAsync(users, "owner-a@invalid.example");
-                var editor = await NewUserAsync(users, "editor-b@invalid.example");
+                var seededOwner = await NewUserAsync(users, "owner-a@invalid.example");
+                var seededEditor = await NewUserAsync(users, "editor-b@invalid.example");
                 var staff = await NewUserAsync(users, "staff@invalid.example");
-                ownerId = owner.Id;
-                editorId = editor.Id;
+                ownerId = seededOwner.Id;
+                editorId = seededEditor.Id;
                 staffId = staff.Id;
 
                 var roleResult = await roles.CreateAsync(new IdentityRole("PlatformAdmin"));
