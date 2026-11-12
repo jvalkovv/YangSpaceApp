@@ -7,6 +7,14 @@
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
 
+## 2026-11-12 13:41 Europe/Sofia — latest combined-head F2a regression
+
+- **Source:** [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) exact tested HEAD `445db4d9a5d28b798054c426afeba9b9be2c771b` — two successful operator-run Windows combined tests. Both `F2A_TENANT_SCOPE_ISOLATED_ONLY=PASS`, `F2A_PG_DISPOSABLE_RUNTIME=PASS`, `COMBINED_HEAD_REGRESSION=PASS`. PostgreSQL migration, model-diff, reviewed SQL, filtered unique/FK constraints, sequential CAS, DB audit rollback, synthetic `pg_dump`/second-DB `pg_restore` PASS in disposable PG17; source/tenant regression PASS.
+- **Latest evidence:** tenant `logs/yangspace/f2a-tenant-scope/445db4d9a5d2-20261112-134120-cc109012`; PG `logs/yangspace/pg-disposable/445db4d9a5d2-20261112-134126-299426c5` in the operator-local combined QA worktree. Underlying file bytes and postflight hashes have not been received.
+- **F2a-2 read-only Identity bearer:** PASS on isolated SQLite/TestServer exact source SHA `f579c70db9cc0986d2f1df8047158587f0e87eef`, merged via #19 into #17. **PostgreSQL bearer HTTP, parallel EF writes, reviewer claim approval, atomic application audit, least-privilege DB role, off-host recovery and release remain HOLD**.
+- **PRs:** #19 MERGED/CLOSED; #17 OPEN/DRAFT/HOLD, GitHub reported mergeable at tested HEAD; #1 OPEN/DRAFT/HOLD. Latest parent-only documentation commits do not constitute source-code runtime validation.
+- **Next dependency:** local evidence postflight without rerunning PG; [F2a-3 security contract Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) proposes a dedicated reviewer role and transactional claim/member ownership with failure injection; **not approved and not implemented yet**. No Actions, CT164/CT152 or live DB changes.
+
 ## 2026-11-12 08:15 Europe/Sofia — F2a-2 merged; F2a-1 parent remains HOLD
 
 - [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) is **MERGED/CLOSED** by squash, merge SHA \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\`, into the F2a-1 feature branch. It is not merged into V2 or \`main\`.
