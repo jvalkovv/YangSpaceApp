@@ -17,6 +17,82 @@ This is a **standing execution requirement** for all YangSpace work, including e
 4. **Close completed PRs only by an approved merge:** `100%` is scoped to **that PR's** agreed Definition of Done, including required exact-SHA QA, independent review and explicit owner approval. Merge into its approved target branch (prefer squash for cohesive changes), then verify GitHub marks it **merged/closed**. A manual `closed/unmerged` status is for an expressly abandoned/superseded PR and must state why. Never call a full project ready merely because all small PRs have merged.
 5. **One open source of truth:** keep a current inventory of `OPEN` / `DRAFT` / `READY` / `MERGED` / `CLOSED UNMERGED` PRs in [SSOT.md](SSOT.md) and the active parent PR; reconcile the head after every merge. Full feature-to-`main` PR #1 remains open while release/pilot gates remain HOLD.
 6. **No implicit deployment:** merges do not activate CT164/CT152, apply migrations, unlock admin/registration, or promote demo to production. Require a distinct runtime approval and SHA-specific smoke/rollback evidence.
+7. **In-conversation progress is mandatory, monitoring optional:** during an active implementation/review, provide concise Bulgarian progress reports before/after meaningful stages (source change, diff, test, finding, blocker, PR transition). Never wait for a scheduled hourly watcher to report progress. State `completed / evidence / next` with exact SHA and distinguish local static checks, operator-provided QA, real runtime and deployment. Do not imply the assistant will independently continue between messages, and do not add a new monitoring schedule unless requested.
+8. **Review open PRs for 100%-scoped completion at each closure checkpoint:** for each open PR record its target branch, exact head, agreed DoD, completed vs missing QA, review, runtime/security and required owner approval. Only fully accepted scoped changes move to READY → MERGED → verify CLOSED; a merely compiling or generated migration is not "100%" when real DB/recovery or authorization tests are still required. Do not close Draft PRs for visual hygiene; if the scope is genuinely abandoned/superseded, close unmerged with rationale and linked replacement. After an accepted merge, refresh PR inventory and SSOT on the new base.
+
+
+### 2026-11-12 08:15 Europe/Sofia — F2a-2 merged; F2a-1 parent revalidation required
+
+**Scoped milestone: F2a-2 read-only bearer authorization COMPLETE.** [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) was marked ready after source review and operator evidence postflight, then squash-merged into the F2a-1 feature branch (not V2 or \`main\`).
+
+- Tested code SHA: \`f579c70db9cc0986d2f1df8047158587f0e87eef\`.
+- Documentation-only follow-up HEAD: \`bc0a77ea6b6bc794a2d9d6aefcbe3c12936a329e\`; GitHub compare confirms one modified Markdown file only, no code/test changes after the tested SHA.
+- Squash merge / new F2a-1 branch HEAD: \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\`.
+- Operator Windows exact-SHA restore, Release build with warnings-as-errors, tenant regression and real Identity bearer TestServer all PASS on \`f579c70...\`. Operator read-only postflight returned \`EVIDENCE_POSTFLIGHT=PASS\`: manifest, four runner/stdout/stderr stage groups, 23 expected postflight HTTP markers and SHA-256 receipts all verified. Manifest SHA-256: \`336D8A9DCB4C69483981A2A5124A5123E8AD9044C14A1619199439E2E121F366\`. Detailed hashes and local evidence path are recorded in [F2a-2 QA evidence](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A2_MERCHANT_BEARER_READ_QA_20261112.md).
+- Accepted scope is disposable SQLite + ASP.NET Core TestServer only, with actual Identity-issued bearer tokens and the documented 401/404, tenant isolation, membership revocation, default-off, no-write and DTO allowlist checks. No PostgreSQL bearer runtime or production exposure is claimed.
+
+### Current PR inventory (2026-11-12 08:15 Europe/Sofia)
+
+| PR | Target | Exact current head | State / decision |
+| --- | --- | --- | --- |
+| [#19 — F2a-2 bearer-only merchant read](https://github.com/jvalkovv/YangSpaceApp/pull/19) | F2a-1 feature branch | merge \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\` | **MERGED / CLOSED** |
+| [#17 — F2a-1 domain + tenant foundation, now includes #19](https://github.com/jvalkovv/YangSpaceApp/pull/17) | V2 feature branch | \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\` | **OPEN / DRAFT / HOLD** |
+| [#1 — V2 parent / pilot](https://github.com/jvalkovv/YangSpaceApp/pull/1) | legacy \`main\` | current parent branch head; see PR | **OPEN / DRAFT / HOLD** |
+
+**Why #17 remains HOLD:** the previous F2a-1 disposable PostgreSQL migration/constraints/synthetic backup-restore PASS belongs to exact source \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`, not automatically to the combined head \`17d08530...\`. First re-run exact-SHA source/build and disposable PostgreSQL migration/constraint/recovery regression against the combined head. Then complete PostgreSQL bearer HTTP and parallel EF writers, reviewer-only claim/membership lifecycle, atomic application business+audit fault-injection, least-privilege DB role, off-host recovery and owner release sign-off. Do not merge #17 or #1 yet.
+
+### Next execution order
+
+1. **F2a-1 + F2a-2 combined-head regression:** clean exact-SHA checkout of \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\`; source/build and disposable PostgreSQL regression. Keep the old PASS attached to its historical SHA until the new combined-head run passes.
+2. **[F2a-3 contract/design — Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) before code:** reviewer identity/role policy, no self-approval, claim state machine, Owner membership grant/revoke, transaction boundary, actor/reason audit allowlist, concurrency/unique-conflict behavior, fault-injection matrix and recovery semantics. Keep claim mutation separate from the already-merged read-only endpoint.
+3. **F2a-3 implementation:** only after the contract is recorded in Issue #4/ADR and reviewed; exact-SHA PostgreSQL tests must prove claim + org/location ownership + membership + audit atomicity, with rollback on every injected failure.
+4. **F2b:** content mutations and revision/409 semantics only after F2a authorization and audit acceptance.
+
+**PR closure rule applied:** #19 is the only newly completed PR and is merged/closed. #17 and #1 remain open because their own scoped security/release DoD is incomplete. No PR was manually closed unmerged. No GitHub Actions, CT164/CT152 access, live DB mutation, migration, feature activation or deployment.
+
+### 2026-11-12 08:02 Europe/Sofia — F2a-2 isolated Identity bearer HTTP acceptance
+
+**Operator exact-SHA PASS.**
+
+- **Exact tested SHA:** \`f579c70db9cc0986d2f1df8047158587f0e87eef\`, PR #19, stacked on F2a-1 base \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`.
+- Operator Windows output: runner syntax PASS; restore PASS; Release build with warnings-as-errors PASS; existing tenant regression PASS; real Identity bearer HTTP TestServer PASS; final \`F2A2_MERCHANT_BEARER_HTTP=PASS\`.
+- Evidence directory: \`D:\\GitHub\\YangSpaceApp-F2a2-Bearer-QA\\logs\\yangspace\\f2a2-merchant-http\\f579c70db9cc-20261112-075949-ea648860\`. Runner checks its required marker set and writes a manifest only after successful stages. **The actual local manifest and log bytes have not yet been independently received/reviewed.**
+- **Accepted scope:** isolated synthetic SQLite/TestServer only: real Identity-issued bearer tokens; default-off and QA-only environment checks; 401 anonymous/invalid/cookie; owner/editor positive access; cross-tenant, unknown, unclaimed, suspended and revoked 404; forged actor and PlatformAdmin-without-membership denied; registration/cookie login/write route denied; strict five-field DTO and no business/audit side effects.
+- **Explicit boundary:** \`LIVE_POSTGRESQL_BEARER_HTTP=NOT_TESTED\`; PostgreSQL bearer and parallel EF writers, reviewer-only claim grant/revoke, atomic business+audit application transaction, least-privilege production role, off-host recovery and deployment remain HOLD.
+- **Source review:** exact PR #19 source reviewed (Program fail-closed gate, Bearer-only policy, single joined membership/resource query, allowlisted DTO, test startup scope and exact-SHA runner); no blocking defect found in this bounded read-only slice. Independent human review and operator evidence-file postflight remain pending.
+- **PR inventory:** #19 remains DRAFT/HOLD pending independent evidence postflight/review/merge checkpoint; #17 DRAFT/HOLD pending real provider authorization, concurrency and audited mutation gates; #1 DRAFT/HOLD pending program release gates. **0 open PRs eligible for closure at this checkpoint.** Do not close unmerged or claim full F2a/production acceptance.
+- **Next execution:** read-only postflight of the local evidence manifest and stage logs; then independent review/owner merge decision for #19. Next product/security slice is reviewer-only claim verification and membership grant/revoke with atomic audit and DB fault-injection tests, specified before implementation. Keep it separate from this read-only route.
+- No GitHub Actions, CT164/CT152 access, live DB changes, migration, feature activation or deployment.
+
+### 2026-11-12 07:49 Europe/Sofia — F2a-2 HTTP TestServer startup recovery
+
+- **Operator exact-SHA verification:** `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8`, Windows isolated worktree, `f2a2-restore`, `f2a2-build`, `f2a2-tenant-regression` **PASS**. `f2a2-bearer-http` **FAIL** before HTTP assertions; `Program.cs:46` rejects missing `ConnectionStrings:Main`. Operator log `logs/yangspace/f2a2-merchant-http/ceea4723ccc5-20261112-074923-0ce50a73` (local-only; underlying bytes not independently received).
+- **Root cause:** `WebApplication.CreateBuilder()` reads/validates connection config before `WebApplicationFactory.WithWebHostBuilder.ConfigureAppConfiguration` late test injection. Preserve the API's fail-closed startup validation.
+- **New source fix:** [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) `f579c70db9cc0986d2f1df8047158587f0e87eef`, single QA-fixture file (+68 lines). Pre-host scoped process-only SQLite QA configuration; restores prior environment after sequential test; Production/Development fail-closed probes retained. No API/runtime schema/deployment changes.
+- **Exact-new-SHA acceptance:** NOT RUN; require Windows runner's restore, Release build, tenant isolation and actual HTTP Identity bearer matrix plus manifest. No hypothetical PASS. #19, #17 and #1 all remain Draft/HOLD; **zero open PRs closure-eligible** at this checkpoint. CT164/CT152 and live DB untouched.
+
+### 2026-11-12 07:39 Europe/Sofia — F2a-2 build failure / recovery and PR closure review
+
+**Mandatory reporting policy above remains in force** (merged via PR #18): progress after each meaningful change, evidence-bound PASS/HOLD, and closing only scoped 100%-accepted PRs through approved merge. This checkpoint is source-only; no GitHub Actions, CT164/CT152 changes, live DB migration or merchant feature activation.
+
+| Open PR / target | Exact current candidate | Evidence / unfinished gates | Decision |
+| --- | --- | --- | --- |
+| [#19 — QA-only merchant Identity bearer read](https://github.com/jvalkovv/YangSpaceApp/pull/19) → F2a-1 branch | `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8` | Operator's previous `62505864...` Windows restore PASS, build FAIL `CS0136` for duplicate test locals `owner`/`editor`; new one-file, four-line-pair QA fixture rename committed. **New exact-SHA build and actual bearer HTTP TestServer NOT RUN**. | **DRAFT / HOLD**; repeat exact-head local runner, independently review manifest; no merge |
+| [#17 — F2a-1 domain/PG foundation](https://github.com/jvalkovv/YangSpaceApp/pull/17) → V2 foundation | `1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001` | Disposable PostgreSQL migration/constraints/sequential CAS/audit rollback/pg_dump→pg_restore and SHA/cleanup checks PASS **for this exact source**. Reviewer claim-grants, real PG bearer, live EF parallel writes and production hardening pending. | **DRAFT / HOLD**; completed schema QA does not close entire PR |
+| [#1 — V2 program](https://github.com/jvalkovv/YangSpaceApp/pull/1) → legacy main | Parent feature HEAD at time of review `0b67c5edcd4d2da3b5f9ee565e93f6a4fa18ad0e`; roadmap-only update will advance this | Production/pilot acceptance, tenant security, application-audit atomicity, operations and off-host recovery unaccepted. | **DRAFT / HOLD**; no merge to main |
+
+**No open PR is 100%-accepted at this checkpoint; 0 PRs eligible for closure.** Historical merged PRs remain closed. Next gate is `Test-F2a-Merchant-Bearer-Local.ps1` using the newly fetched #19 commit, requiring restore/build (warnings-as-errors), tenant regression and genuine Identity bearer HTTP contract. Runner evidence path must be included in the next report. If the next test fails, preserve its stage output and return to RCA; no security test bypass.
+
+### 2026-11-11 22:50 Europe/Sofia — progress and open-PR reconciliation
+
+| PR | State | Scoped completion gate | Next |
+| --- | --- | --- | --- |
+| [#17 — F2a Organization/Claim/Tenant](https://github.com/jvalkovv/YangSpaceApp/pull/17) | **DRAFT / OPEN / HOLD** at `c96ff2e0ab76a2fc72713ff4e5516b5f40beb11d` | Source restore/build + isolated SQLite tenant/duplicate claim/revision tests passed; EF PostgreSQL SQL generation passed, latest ZIP static checksum/schema review passed. **Real disposable PostgreSQL migration, FK/UNIQUE enforcement, recovery and bearer API negative tests NOT ACCEPTED** | Commit independently reviewed EF-generated files without applying, then disposable PG DB/restore/tenant test evidence; recheck exact new PR SHA |
+| [#1 — YangSpace V2 vs legacy main](https://github.com/jvalkovv/YangSpaceApp/pull/1) | **DRAFT / OPEN / HOLD** | Preview foundation exists, but true merchant ownership, audit, production DB, ingress and off-host recovery/pilot sign-off NOT ACCEPTED | Do not merge into `main` until all G-PILOT/release gates pass |
+| [#16 — ADR-019 PostgreSQL direction](https://github.com/jvalkovv/YangSpaceApp/pull/16) | **MERGED / CLOSED** | Docs-only scope complete, no runtime activation asserted | Archive |
+| [#13 — freshness](https://github.com/jvalkovv/YangSpaceApp/pull/13), [#14 — timestamps](https://github.com/jvalkovv/YangSpaceApp/pull/14) | **MERGED / CLOSED** | Exact candidate source/QA accepted for those bounded changes, not deployed | Archive |
+
+**Proof boundary:** This roadmap snapshot does **not** approve PR #17 merge or database deployment. The latest uploaded PostgreSQL ZIP has matching operator/independent SHA-256 `f4ff533c34c11806b27a3572e7af1de31e26c507f0d18ca1ecc0933ddce5ca9e` and two correct filtered unique indexes plus `Locations.Revision`; still no applied PostgreSQL instance/restore. No CT164/CT152 changes. PR inventory is a dated snapshot, not live monitoring.
 
 ### 2026-11-11 current milestone — F1a and F1b accepted / F2-F3 next
 
