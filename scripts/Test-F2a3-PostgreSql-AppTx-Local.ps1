@@ -96,7 +96,210 @@ function RequireMarker {
 function AssertContainerIsolation {
     param([string]$Name,[string]$ExpectedNetwork)
     $Network = (@(& $Docker inspect --format '{{.HostConfig.NetworkMode}}' $Name) -join '').Trim()
-    if ($LASTEXITCODE -ne 0 -or $Network -cne $ExpectedNetwork) {
+    $AllowedNetworks = @($ExpectedNetwork)
+    if ($ExpectedNetwork -like 'container:*') {
+        $TargetName = $ExpectedNetwork.Substring('container:'.Length)
+        $TargetId = (@(& $Docker inspect --format '{{.Id}}' $TargetName) -join '').Trim()
+        if ($LASTEXITCODE -ne 0 -or $TargetId -notmatch '^[0-9a-f]{64}
+    $Ports = (@(& $Docker inspect --format '{{json .HostConfig.PortBindings}}' $Name) -join '').Trim()
+    if ($LASTEXITCODE -ne 0 -or $Ports -notin @('null','{}')) {
+        throw ('F2A3_PG_CONTAINER_PORT_BINDINGS_REFUSED=' + $Name)
+    }
+    $Mounts = (@(& $Docker inspect --format '{{json .HostConfig.Binds}}' $Name) -join '').Trim()
+    if ($LASTEXITCODE -ne 0 -or $Mounts -notin @('null','[]')) {
+        throw ('F2A3_PG_CONTAINER_HOST_BINDS_REFUSED=' + $Name)
+    }
+}
+
+$OldDesignTime = [Environment]::GetEnvironmentVariable('YANGSPACE_EF_POSTGRESQL_DESIGNTIME','Process')
+$PgAttempted = $false
+$AppAttempted = $false
+$Completed = $false
+$CleanupOk = $true
+try {
+    [Environment]::SetEnvironmentVariable('YANGSPACE_EF_POSTGRESQL_DESIGNTIME','CONFIRMED','Process')
+    Stage -Label 'pgapp-ef-tool-restore' -Executable $Dotnet -Arguments @(
+        'tool','restore','--tool-manifest','.config/dotnet-tools.json'
+    )
+    Stage -Label 'pgapp-ef-restore' -Executable $Dotnet -Arguments @('restore',$MigrationsProject,'-warnaserror')
+    Stage -Label 'pgapp-ef-build' -Executable $Dotnet -Arguments @(
+        'build',$MigrationsProject,'-c','Release','--no-restore','-warnaserror'
+    )
+    Stage -Label 'pgapp-ef-model-diff' -Executable $Dotnet -Arguments @(
+        'ef','migrations','has-pending-model-changes','--project',$MigrationsProject,
+        '--startup-project',$MigrationsProject,'--context','DirectoryDb',
+        '--configuration','Release','--no-build'
+    )
+    Stage -Label 'pgapp-ef-script' -Executable $Dotnet -Arguments @(
+        'ef','migrations','script','0','--project',$MigrationsProject,
+        '--startup-project',$MigrationsProject,'--context','DirectoryDb',
+        '--configuration','Release','--no-build','--output',$Sql
+    )
+    $SqlHash = (Get-FileHash -LiteralPath $Sql -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($SqlHash -cne $ReviewedSqlSha) {
+        throw ('F2A3_PG_REVIEWED_SQL_HASH_REFUSED=' + $SqlHash)
+    }
+    Write-Host 'F2A3_PG_REVIEWED_SQL_HASH=PASS'
+
+    Stage -Label 'pgapp-runtime-restore' -Executable $Dotnet -Arguments @(
+        'restore',$RuntimeProject,'-warnaserror'
+    )
+    Stage -Label 'pgapp-runtime-publish' -Executable $Dotnet -Arguments @(
+        'publish',$RuntimeProject,'-c','Release','--no-restore',
+        '-warnaserror','-o',$Publish
+    )
+    $Dll = Join-Path $Publish 'YangSpace.Api.RuntimeTests.dll'
+    if (!(Test-Path -LiteralPath $Dll -PathType Leaf)) {
+        throw 'F2A3_PG_PUBLISH_OUTPUT_MISSING'
+    }
+
+    # The PG server has no network adapters outside loopback, no ports and no
+    # host binds. All data is disposable and --rm cleans container storage.
+    $PgAttempted = $true
+    Stage -Label 'pgapp-container-start' -Executable $Docker -Arguments @(
+        'run','-d','--rm','--network','none',
+        '--tmpfs','/var/lib/postgresql/data:rw,size=512m',
+        '--name',$Pg,'-e','POSTGRES_HOST_AUTH_METHOD=trust',$PgImage
+    )
+    AssertContainerIsolation -Name $Pg -ExpectedNetwork 'none'
+
+    $Ready = $false
+    for ($Try = 0; $Try -lt 60; $Try++) {
+        $OldError = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $Probe = @(& $Docker exec $Pg pg_isready -U postgres -d postgres 2>&1)
+            $ProbeExit = $LASTEXITCODE
+        }
+        finally { $ErrorActionPreference = $OldError }
+        if ($ProbeExit -eq 0) { $Ready = $true; break }
+        Start-Sleep -Seconds 2
+    }
+    if (!$Ready) { throw 'F2A3_PG_SERVER_NOT_READY' }
+    Write-Host 'F2A3_PG_SERVER_READY=PASS'
+
+    Stage -Label 'pgapp-create-database' -Executable $Docker -Arguments @(
+        'exec',$Pg,'createdb','-U','postgres',$Database
+    )
+    Stage -Label 'pgapp-copy-reviewed-sql' -Executable $Docker -Arguments @(
+        'cp',$Sql,($Pg + ':/tmp/initial.sql')
+    )
+    Stage -Label 'pgapp-apply-reviewed-sql' -Executable $Docker -Arguments @(
+        'exec',$Pg,'psql','-X','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d',$Database,'-f','/tmp/initial.sql'
+    )
+
+    # Unique disposable sentinel: a seemingly-valid 127.0.0.1 DB elsewhere
+    # cannot be treated as our test server without this exact per-run token.
+    $GuardSql = "CREATE TABLE yangspace_f2a3_qa_guard (scope_token TEXT PRIMARY KEY); INSERT INTO yangspace_f2a3_qa_guard(scope_token) VALUES ('$Token');"
+    Stage -Label 'pgapp-create-sentinel' -Executable $Docker -Arguments @(
+        'exec',$Pg,'psql','-X','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d',$Database,'-c',$GuardSql
+    )
+    $AppAttempted = $true
+    Stage -Label 'pgapp-sidecar-start' -Executable $Docker -Arguments @(
+        'run','-d','--rm','--network',('container:' + $Pg),
+        '--read-only','--tmpfs','/tmp:rw,size=256m,mode=1777',
+        '--name',$App,'--entrypoint','sleep',$RuntimeImage,'1200'
+    )
+    AssertContainerIsolation -Name $App -ExpectedNetwork ('container:' + $Pg)
+    Write-Host 'F2A3_PG_TWO_CONTAINERS_ISOLATED=PASS'
+
+    Stage -Label 'pgapp-copy-runtime' -Executable $Docker -Arguments @(
+        'cp',(Join-Path $Publish '.'),($App + ':/tmp/qa')
+    )
+    Stage -Label 'pgapp-real-ef-transaction' -Executable $Docker -Arguments @(
+        'exec',
+        '-e','YANGSPACE_F2A3_PG_DISPOSABLE_ONLY=CONFIRMED_CONTAINER_NETNS_ONLY',
+        '-e',('YANGSPACE_F2A3_PG_TOKEN=' + $Token),
+        '-e',('YANGSPACE_F2A3_PG_CONNECTION=' + $Conn),
+        '-e','DOTNET_CLI_HOME=/tmp',
+        '-e','DOTNET_EnableDiagnostics=0',
+        $App,'dotnet','/tmp/qa/YangSpace.Api.RuntimeTests.dll',
+        '--postgres-claim-transaction-only'
+    )
+    foreach ($Marker in @(
+        'F2A3_PG_SENTINEL_MATCHED=PASS',
+        'F2A3_PG_LOOPBACK_DISPOSABLE_SCOPE=PASS',
+        'F2A3_PG_REVIEWED_MIGRATION_PRESENT=PASS',
+        'F2A3_PG_FRESH_SYNTHETIC_STATE=PASS',
+        'F2A3_PG_APP_TX_SUCCESS_PERSISTED=PASS',
+        'F2A3_PG_APP_TX_AUDIT_CARDINALITY=PASS',
+        'F2A3_PG_APP_TX_SECOND_SAVE_AUDIT_REJECTED=PASS',
+        'F2A3_PG_APP_TX_OUTER_ROLLBACK_ALL_ROWS=PASS',
+        'F2A3_PG_APP_TRANSACTION_ISOLATED_ONLY=PASS'
+    )) {
+        RequireMarker -Label 'pgapp-real-ef-transaction' -Marker $Marker
+    }
+    $PostStatus = @(& $Git -C $Repo status --porcelain --untracked-files=all |
+        Where-Object { $_ })
+    if ($LASTEXITCODE -ne 0 -or $PostStatus.Count -ne 0) {
+        throw 'F2A3_PG_SOURCE_CHANGED'
+    }
+    $Completed = $true
+}
+finally {
+    [Environment]::SetEnvironmentVariable(
+        'YANGSPACE_EF_POSTGRESQL_DESIGNTIME',$OldDesignTime,'Process'
+    )
+    # Remove the .NET sidecar first; it shares PG's isolated network namespace.
+    foreach ($Name in @($App,$Pg)) {
+        $Attempted = if ($Name -ceq $App) { $AppAttempted } else { $PgAttempted }
+        if ($Attempted) {
+            $OldError = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $Result = @(& $Docker rm -f $Name 2>&1)
+                if ($LASTEXITCODE -ne 0) {
+                    $CleanupOk = $false
+                    Write-Warning ('F2A3_PG_CONTAINER_CLEANUP_FAILED=' + $Name)
+                }
+            }
+            finally { $ErrorActionPreference = $OldError }
+        }
+    }
+    if (!$Completed -or !$CleanupOk) {
+        [IO.File]::WriteAllText((Join-Path $Evidence 'gate.txt'),
+            'F2A3_PG_APP_TRANSACTION_ISOLATED_ONLY=HOLD')
+    }
+}
+if (!$CleanupOk) { throw 'F2A3_PG_CLEANUP_FAILED' }
+if (!$Completed) { throw 'F2A3_PG_RUN_INCOMPLETE' }
+$Manifest = @(
+    ('COMMIT_SHA=' + $CommitSha),
+    ('PG_IMAGE_ID=' + $PgImageId),
+    ('DOTNET_RUNTIME_IMAGE_ID=' + $RuntimeImageId),
+    ('PG_SQL_SHA256=' + $SqlHash),
+    'PG_NETWORK=none',
+    'DOTNET_NETWORK=container:postgresql',
+    'PUBLISHED_PORTS=none',
+    'HOST_BINDS=none',
+    'TEST_DATABASE=yangspace_f2a3_disposable',
+    'SOURCE_RESTORE_PUBLISH=PASS',
+    'REVIEWED_PG_MIGRATION=PASS_DISPOSABLE_ONLY',
+    'REAL_NPGSQL_APP_TRANSACTION=PASS_DISPOSABLE_ONLY',
+    'SECOND_SAVE_ROLLBACK=PASS_DISPOSABLE_ONLY',
+    'CONTAINER_CLEANUP=PASS',
+    'REVIEWER_IDENTITY_HTTP=NOT_TESTED',
+    'PARALLEL_WRITERS=NOT_TESTED',
+    'UNCERTAIN_COMMIT=NOT_TESTED',
+    'CLAIM_POLICY=NOT_APPROVED',
+    'PRODUCTION=NOT_EXPOSED',
+    'CT164_DB=NOT_ACCESSED',
+    'CT152=NOT_ACCESSED',
+    'RELEASE_GATE=HOLD'
+)
+[IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]$Manifest)
+Write-Host 'F2A3_PG_APP_TRANSACTION_ISOLATED_ONLY=PASS'
+Write-Host ('COMMIT_SHA=' + $CommitSha)
+Write-Host ('EVIDENCE_DIR=' + $Evidence)
+Write-Host 'REVIEWER_HTTP_PARALLEL_PRODUCTION=NOT_TESTED'
+) {
+            throw 'F2A3_PG_NETWORK_TARGET_NOT_VERIFIED'
+        }
+        $AllowedNetworks += ('container:' + $TargetId)
+    }
+    if ($LASTEXITCODE -ne 0 -or $Network -cnotin $AllowedNetworks) {
         throw ('F2A3_PG_CONTAINER_NETWORK_REFUSED=' + $Name)
     }
     $Ports = (@(& $Docker inspect --format '{{json .HostConfig.PortBindings}}' $Name) -join '').Trim()
