@@ -7,6 +7,31 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-12 15:31 Europe/Sofia — F2a-3 isolated transaction QA accepted and PR #21 MERGED
+
+**[PR #21](https://github.com/jvalkovv/YangSpaceApp/pull/21) MERGED/CLOSED at `62ecc089ec245703dc7e428cd4430d64fd12e94d` into F2a-1 child branch, not V2 or `main`.** The parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) is now at this merged head and remains **OPEN/DRAFT/HOLD**; V2 [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) remains **OPEN/DRAFT/HOLD**.
+
+- Exact tested source of #21: `91f34f17a52e11dd107645ebb44ea0e578e4fa73` — Windows clean SHA/runner syntax, .NET restore, Release build and isolated `--claim-transaction-only` **PASS**. Operator read-only evidence postflight: `F2A3_MANIFEST=PASS`, `F2A3_STAGE_FILES=PASS`, `F2A3_TRANSACTION_MARKERS=PASS`, `F2A3_EVIDENCE_POSTFLIGHT=PASS`.
+- Evidence dir: `D:\GitHub\YangSpaceApp-F2a3-ClaimTx-QA\logs\yangspace\f2a3-claim-tx\91f34f17a52e-20261112-151758-9c434338`; manifest SHA-256 `ED0069DB82C9339D0C98290715C1BA1B655741B5D5D723D8DD5D0152DFFB7442`, transaction stdout SHA-256 `0812D68FC76DD152AE63F7CC6F5F3EBA1D58058A03D06DDD7A7A8258E75127F4`. Full ten-file SHA inventory in [F2a-3 QA report](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_CLAIM_TRANSACTION_PREFLIGHT_20261112.md). Operator-local evidence not uploaded for independent cross-host byte verification.
+- Tested runtime/test source did not change after acceptance: one documentation-only follow-up commit `0fad914dbcaad4197fbcbc8efc427e4046fa6198` modified one Markdown file before squash. Scoped static review was completed. **Accepted only:** synthetic EF SQLite transaction across claim+org+previously unclaimed location+Owner membership+4 audit events; an injected duplicate audit insert on the second SaveChanges forced complete outer rollback.
+- **Explicit remaining HOLD:** actual reviewer claim approval HTTP route, live Identity reviewer role and revocation, real PostgreSQL transaction under concurrent clients, uncertain-COMMIT idempotency, atomic production application audit, least-privilege PG DB role, off-host recovery/DR and pilot release. [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) security policy is still PROPOSED/NOT APPROVED.
+- **Current PR inventory:** #21 MERGED/CLOSED; #19 MERGED/CLOSED; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD. The owner's standing roadmap governance (milestone-by-milestone progress, 100%-scoped evidence-gated PR closure, no Actions) continues to apply. No CT164/CT152, live DB, merchant activation or deployment.
+
+## 2026-11-12 15:18 Europe/Sofia — F2a-3 isolated transaction candidate operator PASS
+
+- [Draft PR #21](https://github.com/jvalkovv/YangSpaceApp/pull/21), exact source `91f34f17a52e11dd107645ebb44ea0e578e4fa73`: operator source/worktree and PowerShell syntax PASS; `STAGE_PASS=f2a3-restore`, `STAGE_PASS=f2a3-build`, `STAGE_PASS=f2a3-transaction`; `F2A3_CLAIM_TX_ISOLATED_ONLY=PASS`. The scoped Windows runner verifies six transaction contract markers before emitting final PASS.
+- Evidence dir: `D:\GitHub\YangSpaceApp-F2a3-ClaimTx-QA\logs\yangspace\f2a3-claim-tx\91f34f17a52e-20261112-151758-9c434338`. **Read-only manifest and stage file/hash postflight PENDING; no merge decision yet.**
+- Accepted runtime scope is synthetic SQLite EF in-memory transaction success + rollback after deliberately failed second SaveChanges on audit UNIQUE index. This is **not** live reviewer authorization, real PostgreSQL app transaction, concurrent client or actual claim approval.
+- Current PR inventory: #21 OPEN/DRAFT/HOLD (evidence postflight pending), #17 OPEN/DRAFT/HOLD (larger F2a security/PG gates), #1 OPEN/DRAFT/HOLD (release/pilot); #19 MERGED/CLOSED. No open PR qualifies for closure until its scoped DoD completes. No Actions, CT164/CT152, production DB, claim activation or deployment.
+
+## 2026-11-12 14:48 Europe/Sofia — next F2a-3 QA slice and PR hygiene
+
+- The required **in-conversation progress at every meaningful source/test/review/merge milestone** and **100%-scoped PR closure only after QA/review/owner approval** are reaffirmed in [MVP roadmap](MVP_ROADMAP.md#2026-11-12-1448-europesofia--execution-governance-reaffirmed-visible-progress-and-pr-closure). Monitoring is optional, not a substitute for stage reports.
+- [Draft PR #21](https://github.com/jvalkovv/YangSpaceApp/pull/21) is now open, stacked on #17, **SOURCE-ONLY / NOT BUILD TESTED**. Its allowlist is one test-only `ClaimTransactionContract` class, one isolated test CLI mode, one Windows exact-SHA runner and a proof-boundary doc. Synthetic SQLite EF transaction test succeeds or rolls back in one outer transaction across two SaveChanges; no real reviewer/HTTP/PG interaction or production behavior changes. **All runtime PASS is pending operator execution**.
+- [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) still requires explicit policy acceptance (dedicated reviewer, no self-approval, verified evidence, no silent transfer, member regrant/revocation, audit/idempotency). No new claim approval endpoint was exposed.
+- PR inventory: #21 OPEN/DRAFT/HOLD (source-only); #17 OPEN/DRAFT/HOLD (larger security/PG app/recovery); #1 OPEN/DRAFT/HOLD (V2 pilot/release); #19 MERGED/CLOSED (isolated bearer read QA). **No open PR is 100%-eligible for closure at this checkpoint.**
+- Earlier tested combined F2a application SHA `445db4d9a5d28b798054c426afeba9b9be2c771b` retains its two Windows disposable PG/tenant PASS and operator evidence postflight PASS. No CT164/CT152, live DB, provider migration, claim activation, GitHub Actions or deployment.
+
 ## 2026-11-12 13:57 — F2a-3 review contract proposed (not approved)
 
 Created [F2a-3 reviewer-controlled claim and Owner membership design](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md), linked from [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). It is **PROPOSED / HOLD**: dedicated live-checked reviewer authority, no self-approval, claim decision state machine, first-time only location ownership, atomic claim+organization+location+Owner membership+audit transaction, concurrency/uncertain-COMMIT protection and PostgreSQL HTTP negative/fault-injection matrix. Existing `BusinessClaim`/membership/audit indexes are accounted for.
@@ -279,6 +304,7 @@ Production persistence clarification: even with the CMS disabled, Production sta
 
 The current YangSpace branch has **zero** EF migration artifacts. A repeatable manual operator for the existing Windows machine is added at `scripts/New-InitialMigration-Local.ps1`: exact full Git SHA and branch check, clean worktree, pinned EF Core 10.0.0 local CLI/tool package, disposable in-memory design-time context (never Production or Preview DB), build-before/after, three generated C# files/snapshot, `has-pending-model-changes` check and initial SQL review script/hash manifest under ignored `logs/yangspace/migration-scaffold`. There is **no migration file yet** because EF tooling has not executed; hand-authored model snapshots are rejected. Generator never runs a DB update, starts listeners, modifies active DB, creates PVE resources or pushes GitHub. Source code static checks only; Windows dotnet runtime needs operator execution. Production remains blocked by its migration presence/drift guard and private proxy/security acceptance. See `docs/S2_INITIAL_MIGRATION_20261110.md`.
 
+
 ## 2026-11-12 — real disposable PostgreSQL gate preparation
 
 | Item | State | Evidence / next gate |
@@ -288,6 +314,8 @@ The current YangSpace branch has **zero** EF migration artifacts. A repeatable m
 | PG disposable runner + SQL test data | **SOURCE ADDED, NOT RUN** | Network-disabled, no host port/mount, tmpfs container; test constraints/revision CAS/audit DB rollback and synthetic backup→second-DB restore |
 | Real PostgreSQL initial migration / restore | **HOLD — not executed** | Require operator new exact-SHA test output and logs, no inferred PASS |
 | Owner bearer and F2b audit/recovery/production | **HOLD** | Separate identity/transactional/least-privilege/off-host gates |
+
+
 
 
 
@@ -313,11 +341,15 @@ The current YangSpace branch has **zero** EF migration artifacts. A repeatable m
 
 
 
+
+
 ## F2a-1 dependency security gate — 2026-11-11 21:07 Sofia
 
 **Operator exact candidate `aa4fec12873b5319072087317a6b64eb6a8a5162`:** PowerShell preflight PASS; `STAGE=f2a-restore` **FAIL EXIT=1** due NuGet Audit NU1902/NU1903 for transitive `Pkcs/Xml 9.0.0` introduced by the PostgreSQL migrations project's EF design-time graph. Restore blocked as designed (warnings-as-errors). Build, tenant scope and PG scaffold NOT RUN. Evidence at `D:\GitHub\YangSpaceApp-F2a1-PG-QA\logs\yangspace\f2a-tenant-scope\aa4fec12873b-20261111-210730-fb959c92` (operator-local).
 
 **Fix source `8d2511308ff8e14b6d9a25ba6ec5539c8f2de4aa`:** patched Pkcs/Xml `10.0.14` pins in PG migrations csproj plus safe Git stdout handling for detached scaffolding. **No QA PASS on fix yet**. Required: exact-current-HEAD re-run, NuGet restore/build/tenant regression, then scaffold/review PostgreSQL EF artifacts. CT164/live DB untouched. [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains Draft/HOLD.
+
+
 
 
 
