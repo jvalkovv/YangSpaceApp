@@ -15,7 +15,7 @@
 - Scope is disposable SQLite/TestServer with real Identity bearer tokens only. No PostgreSQL bearer HTTP, parallel EF writes, reviewer claim mutation, atomic application audit, production role/ingress, off-host recovery or deployment is implied.
 - [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) now has combined head \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\` and remains OPEN/DRAFT/HOLD. Its earlier PostgreSQL migration/constraints/synthetic backup/restore PASS is attached to prior exact SHA \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`; it must not be silently transferred to the combined head. Re-run exact-SHA source/build + disposable PostgreSQL regression on the combined head before further parent acceptance.
 - [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) remains OPEN/DRAFT/HOLD for V2 release/pilot. Current PR inventory: #19 MERGED/CLOSED; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD.
-- Next: combined-head regression, then separately design F2a-3 reviewer-only claim decision + membership grant/revoke + atomic audit/fault injection before implementation. No Actions, CT164/CT152 access, live DB, migration, feature activation or deployment.
+- Next: combined-head regression, then [F2a-3 Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) for reviewer-only claim decision + membership grant/revoke + atomic audit/fault injection before implementation. No Actions, CT164/CT152 access, live DB, migration, feature activation or deployment.
 
 ## 2026-11-12 08:02 Europe/Sofia — F2a-2 bearer HTTP acceptance
 
