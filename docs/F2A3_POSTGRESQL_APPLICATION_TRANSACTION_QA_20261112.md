@@ -1,6 +1,6 @@
 # F2a-3 — isolated real PostgreSQL application-transaction QA
 
-**Status:** SOURCE-ONLY / NOT BUILD-TESTED / NOT MERGED / HOLD.  
+**Status:** **EXACT-SHA DISPOSABLE REAL NPGSQL QA ACCEPTED** (operator runtime and evidence postflight PASS at code SHA `32bbe66e8934fd99bcdc4093ec5eeafa955d68fe`); broader reviewer flow/production remains **HOLD**.  
 **Security policy:** Issue [#20](https://github.com/jvalkovv/YangSpaceApp/issues/20) remains **PROPOSED/UNAPPROVED**; no actual reviewer route or role provisioning is included.  
 **Target:** stacked on F2a-1 [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17), not V2 or `main`. No GitHub Actions.
 
@@ -87,3 +87,23 @@ Operator `STAGE_PASS` receipts: EF tool restore, EF restore, EF build, EF model 
 **Recovery/cleanup preflight:** inspect Docker (`docker ps -a --filter name=yangspace-f2a3-`) before the R3 run. Do not automatically delete any existing QA container by prefix; inspect unexpected remnants. Keep R2 evidence untouched. Use a **new clean detached worktree** pinned to the new remote branch head. Continue source-only until all R3 stages, cleanup and independent evidence SHA-256 postflight PASS.
 
 **Still out of scope:** real reviewer Identity bearer HTTP, parallel writers/approvals, commit uncertainty, production role privileges, real claim decisions and deployment. Parent PR #17 and V2 #1 remain Draft/HOLD.
+
+## 2026-11-12 18:23 Europe/Sofia — R3 exact-SHA operator evidence POSTFLIGHT PASS
+
+**Accepted bounded QA code SHA:** `32bbe66e8934fd99bcdc4093ec5eeafa955d68fe`, previously run on Windows with native ParseFile for both scripts, verified exact source SHA, local named-pipe Linux Docker Engine, real .NET 10 restore/build/publish, EF model-diff, pinned reviewed SQL generation, ephemeral PostgreSQL 17 schema/sentinel, no-network/no-ports/no-binds and read-only .NET sidecar, binary TAR transfer + in-container DLL SHA-256 parity, actual Npgsql EF transaction success and PostgreSQL `23505` unique-index failure on second SaveChanges with full outer rollback.
+
+**Operator local evidence:** `D:\GitHub\YangSpaceApp-F2a3-PG-AppTx-QA-R3\logs\yangspace\f2a3-pg-apptx\32bbe66e8934-20261112-181451-778ff609`. This is operator-provided stdout and read-only integrity check; the original local evidence bytes are **not uploaded** to GitHub, and these receipts are not a second-host independent forensic verification.
+
+**Exact operator postflight: `F2A3_PG_EVIDENCE_POSTFLIGHT=PASS`.** `F2A3_PG_MANIFEST=PASS`, `F2A3_PG_STAGE_FILES=PASS` (all 17 stage names each have `.runner.cmd`, `.stdout.log`, `.stderr.log`), `F2A3_PG_TRANSACTION_MARKERS=PASS` (all nine marker lines), `F2A3_PG_ARTIFACT_INTEGRITY=PASS` (pinned SQL, TAR archive and published runtime DLL), `F2A3_PG_CONTAINER_CLEANUP=PASS` (local Docker named-pipe context; no remaining prefixed temporary QA containers). `gate.txt` absent; manifest confirms `REVIEWER_IDENTITY_HTTP=NOT_TESTED`, `PARALLEL_WRITERS=NOT_TESTED`, `UNCERTAIN_COMMIT=NOT_TESTED`, `CLAIM_POLICY=NOT_APPROVED`, `CT164_DB=NOT_ACCESSED`, `CT152=NOT_ACCESSED`, `RELEASE_GATE=HOLD`.
+
+| Receipt | SHA-256 |
+| --- | --- |
+| Reviewed `reviewed-initial.sql` | `2c6175976c82463eea5d40a3082528b8d72e1505f8803188a3c4473129bb7ee7` |
+| `runtime-publish.tar` | `0e6829ffd9ba00b59e09e2f4bfe477da4d7445fac886ef79d6f0b3587b004c0e` |
+| Published `YangSpace.Api.RuntimeTests.dll` | `1d358f9137b190d8ff63a59d1f5fc7bf6221710281021dc19b98d8461902246d` |
+| `manifest.txt` | `91b379b9adf6da8a4cbecfb38728d1b75bb4abc393cb61f9cdacf2a3acfe0954` |
+| `pgapp-real-ef-transaction.stdout.log` | `d9346f2fc01b8a19f571a06c4b111b1d4d8dc5e3931bfec6636652984bb1286a` |
+
+**Scope accepted:** real **disposable** Npgsql/PG EF *synthetic* multi-entity transaction and rollback under injected audit-unique constraint failure, with read-only isolated sidecar and no host port/mount. **Not accepted:** production application claim reviewer HTTP, real Identity bearer permissions and revocation, parallel writers, uncertain COMMIT/idempotency, policy-verified evidence, least-privilege PostgreSQL role, off-host restore or any release/pilot. No Active production feature or CT164/CT152 changes.
+
+**Merge boundary:** this QA-only child can be squash merged into parent F2a-1 [Draft PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) after scoped source review and exact-head diff check; it is **not** approval to merge #17 into V2 or #1 to main.
