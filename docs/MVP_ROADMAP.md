@@ -21,6 +21,13 @@ This is a **standing execution requirement** for all YangSpace work, including e
 8. **Review open PRs for 100%-scoped completion at each closure checkpoint:** for each open PR record its target branch, exact head, agreed DoD, completed vs missing QA, review, runtime/security and required owner approval. Only fully accepted scoped changes move to READY → MERGED → verify CLOSED; a merely compiling or generated migration is not "100%" when real DB/recovery or authorization tests are still required. Do not close Draft PRs for visual hygiene; if the scope is genuinely abandoned/superseded, close unmerged with rationale and linked replacement. After an accepted merge, refresh PR inventory and SSOT on the new base.
 
 
+### 2026-11-12 07:49 Europe/Sofia — F2a-2 HTTP TestServer startup recovery
+
+- **Operator exact-SHA verification:** `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8`, Windows isolated worktree, `f2a2-restore`, `f2a2-build`, `f2a2-tenant-regression` **PASS**. `f2a2-bearer-http` **FAIL** before HTTP assertions; `Program.cs:46` rejects missing `ConnectionStrings:Main`. Operator log `logs/yangspace/f2a2-merchant-http/ceea4723ccc5-20261112-074923-0ce50a73` (local-only; underlying bytes not independently received).
+- **Root cause:** `WebApplication.CreateBuilder()` reads/validates connection config before `WebApplicationFactory.WithWebHostBuilder.ConfigureAppConfiguration` late test injection. Preserve the API's fail-closed startup validation.
+- **New source fix:** [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) `f579c70db9cc0986d2f1df8047158587f0e87eef`, single QA-fixture file (+68 lines). Pre-host scoped process-only SQLite QA configuration; restores prior environment after sequential test; Production/Development fail-closed probes retained. No API/runtime schema/deployment changes.
+- **Exact-new-SHA acceptance:** NOT RUN; require Windows runner's restore, Release build, tenant isolation and actual HTTP Identity bearer matrix plus manifest. No hypothetical PASS. #19, #17 and #1 all remain Draft/HOLD; **zero open PRs closure-eligible** at this checkpoint. CT164/CT152 and live DB untouched.
+
 ### 2026-11-12 07:39 Europe/Sofia — F2a-2 build failure / recovery and PR closure review
 
 **Mandatory reporting policy above remains in force** (merged via PR #18): progress after each meaningful change, evidence-bound PASS/HOLD, and closing only scoped 100%-accepted PRs through approved merge. This checkpoint is source-only; no GitHub Actions, CT164/CT152 changes, live DB migration or merchant feature activation.
