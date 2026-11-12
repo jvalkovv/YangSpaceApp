@@ -2,6 +2,16 @@
 
 > **ADR-018:** GitHub Actions не се ползват. Проверки с exact-SHA локален runner, evidence logs и ръчен release.
 
+## 2026-11-12 — F2a-3 technical policy approved; reviewer authorization child PR #23
+
+Owner approved the technical reviewer/ownership/concurrency policy recorded in [F2a-3 security contract](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md) and [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). **This is not approval of evidence categories, evidence checklist, private evidence handling, retention/erasure or legal basis**; those remain a mandatory separate gate before any real claim decision mutation.
+
+[Draft PR #23](https://github.com/jvalkovv/YangSpaceApp/pull/23) is stacked on [F2a-1 PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) at parent source SHA `7f3e8d5b37f591c3c0344996b850ad23a3155b0a`. Its bounded scope is dedicated `MerchantClaimReviewer` bearer authorization, persistent live-role check (same-token revocation), self-review/active-member conflict policy and disposable SQLite Identity TestServer tests. A minimal QA access probe is the only new route; claim decision POST, ownership changes, Owner grants, evidence storage, audit writes and migrations are not included.
+
+**Status: DRAFT / SOURCE-ONLY / OPERATOR WINDOWS QA NOT RUN / HOLD.** Next: fetch exact PR #23 head into a clean detached Windows worktree; native PowerShell parser, .NET restore, Release build with warnings-as-errors, exact-SHA HTTP contract runner, then independent manifest/stage/evidence postflight and scoped review. The test is SQLite bearer HTTP, not PostgreSQL bearer HTTP. PR #22's already accepted disposable PostgreSQL transaction QA must not be repeated for this authorization-only change.
+
+Open PR inventory: #23 OPEN/DRAFT/HOLD; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD. PRs #19/#21/#22 remain MERGED/CLOSED. No GitHub Actions, CT164/CT152, live DB, public merchant activation or deployment. Continue reporting exact SHA, evidence path, PASS/PARTIAL/HOLD, blockers and next action at each meaningful checkpoint; close only a scoped PR with 100% accepted DoD.
+
 > **Execution precedence (2026-11-09):** This is the original strategic milestone outline. Use [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md) and [POC_TRACKER.md](POC_TRACKER.md) as the current executable plan. The original M0 legacy remediation items below describe historical risks; the old app is archived, not compiled in YangSpace 2.0. The active engineering work is dependency determinism/manual clean-SHA QA/real v2 auth and data integration, not patching old booking endpoints back into production.
 
 

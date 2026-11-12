@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -14,12 +15,18 @@ var preview = builder.Configuration.GetValue<bool>("Preview:Enabled");
 var allowPreviewRegistration = builder.Configuration.GetValue<bool>("Preview:AllowRegistration");
 var productionAdmin = builder.Configuration.GetValue<bool>("Admin:Enabled");
 var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
+var claimReviewQa = builder.Configuration.GetValue<bool>("ClaimReview:QaEnabled");
 // F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
 // It is impossible to enable accidentally in Development, Preview, or Production.
 if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
                      !builder.Environment.IsEnvironment("YangSpaceQa")))
     throw new InvalidOperationException(
         "Merchant read QA endpoints require explicit YangSpaceQa environment with Preview/Admin/Registration disabled.");
+// Reviewer identity QA is a separate, read-only probe and cannot coexist with other QA surfaces.
+if (claimReviewQa && (preview || productionAdmin || allowPreviewRegistration || merchantRead ||
+                      !builder.Environment.IsEnvironment("YangSpaceQa")))
+    throw new InvalidOperationException(
+        "Claim review QA endpoints require explicit YangSpaceQa environment with Preview/Admin/Registration/MerchantRead disabled.");
 // Never enable the CMS implicitly from a DNS record or a general Production deployment.
 if (productionAdmin && (preview || !builder.Environment.IsProduction()))
     throw new InvalidOperationException("Production CMS requires Production environment and Preview:Enabled=false.");
@@ -54,6 +61,8 @@ if (string.IsNullOrWhiteSpace(databaseProvider))
 // PostgreSQL role or database is implicitly approved through this feature.
 if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
     throw new InvalidOperationException("Merchant read QA endpoints require isolated SQLite persistence.");
+if (claimReviewQa && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Claim review QA endpoints require isolated SQLite persistence.");
 
 if (preview && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
     throw new InvalidOperationException("Preview mode is permanently pinned to its isolated SQLite provider.");
@@ -95,6 +104,8 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>();
+builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
+builder.Services.AddScoped<ClaimReviewConflictPolicy>();
 
 // Only the Identity bearer scheme may authorize CMS writes. Identity's
 // default composite scheme also accepts cookies; that is not our CMS contract.
@@ -110,6 +121,12 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("MerchantBearerRead", policy =>
         policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
               .RequireAuthenticatedUser());
+
+    // The persistent Identity role is checked per request; stale bearer role claims cannot survive revocation.
+    options.AddPolicy("MerchantClaimReviewer", policy =>
+        policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+              .RequireAuthenticatedUser()
+              .AddRequirements(new LiveIdentityRoleRequirement(ClaimReviewRoles.Reviewer)));
 });
 builder.Services.AddRateLimiter(options =>
 {
@@ -159,7 +176,7 @@ if (app.Environment.IsProduction())
     }
 }
 
-if (preview || productionAdmin || merchantRead)
+if (preview || productionAdmin || merchantRead || claimReviewQa)
 {
     var auth = app.MapGroup("/api/auth").RequireRateLimiting("auth");
     auth.AddEndpointFilter(async (context, next) =>
@@ -185,7 +202,7 @@ if (preview || productionAdmin || merchantRead)
                 request.Query.ContainsKey("useSessionCookies"))
                 return Results.BadRequest(new { error = "Cookie authentication is disabled for the CMS." });
         }
-        else if (merchantRead)
+        else if (merchantRead || claimReviewQa)
         {
             // For the isolated QA harness, enable only credential login and
             // bearer refresh. All enrollment, recovery and account endpoints
@@ -214,6 +231,8 @@ if (preview || productionAdmin || merchantRead)
 }
 if (merchantRead)
     app.MapMerchantRead();
+if (claimReviewQa)
+    app.MapClaimReviewQa();
 await PreviewBootstrap.Initialize(app);
 app.Run();
 

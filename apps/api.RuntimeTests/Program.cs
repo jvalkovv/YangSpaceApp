@@ -260,6 +260,12 @@ if (args.Length == 1 && string.Equals(args[0], "--merchant-bearer-http-only", St
     Console.WriteLine("F2A_MERCHANT_BEARER_HTTP_ISOLATED_ONLY=PASS");
     return;
 }
+if (args.Length == 1 && string.Equals(args[0], "--claim-reviewer-auth-http-only", StringComparison.Ordinal))
+{
+    await ClaimReviewerAuthorizationHttpContract.RunAsync();
+    Console.WriteLine("F2A3_REVIEWER_AUTH_HTTP_ISOLATED_ONLY=PASS");
+    return;
+}
 if (args.Length == 1 && string.Equals(args[0], "--tenant-scope-only", StringComparison.Ordinal))
 {
     await TenantScopeContract.RunAsync();
