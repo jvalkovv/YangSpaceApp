@@ -51,7 +51,7 @@ The runner pins HEAD and `origin/<branch>` to the same SHA, requires a clean wor
 - Dedicated reviewer 200; PlatformAdmin-only and non-reviewer 403.
 - Same bearer returns 403 immediately after the persisted reviewer role is revoked.
 - Registration and claim decision mutation route are not exposed.
-- Self-review and active target-organization membership conflict; revoked membership and unrelated reviewer do not conflict.
+- Self-review, active target-organization membership, unknown claim and missing reviewer identity fail closed; revoked membership and unrelated reviewer do not conflict.
 - No business rows, claim rows or audit rows are created or changed by the probe/policy checks.
 - Source worktree remains clean after tests.
 

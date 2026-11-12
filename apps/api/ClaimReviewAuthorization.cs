@@ -52,9 +52,9 @@ public sealed class ClaimReviewConflictPolicy(DirectoryDb db)
             .Select(item => new { item.OrganizationId, item.ApplicantUserId })
             .SingleOrDefaultAsync(cancellationToken);
 
-        // Unknown claims fail closed. The caller maps this to its generic
-        // not-found/forbidden response without disclosing claim existence.
-        if (claim is null ||
+        // Missing reviewer identity and unknown claims fail closed. The caller
+        // maps this to a generic response without disclosing claim existence.
+        if (string.IsNullOrWhiteSpace(reviewerUserId) || claim is null ||
             string.Equals(reviewerUserId, claim.ApplicantUserId, StringComparison.Ordinal))
             return false;
 

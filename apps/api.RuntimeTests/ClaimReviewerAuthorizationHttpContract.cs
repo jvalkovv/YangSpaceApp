@@ -264,6 +264,8 @@ internal static class ClaimReviewerAuthorizationHttpContract
                     "CLAIM_REVIEW_UNRELATED_REVIEWER_NO_CONFLICT");
                 Check(!await conflicts.CanReviewClaimAsync(Guid.NewGuid(), reviewer.Id),
                     "CLAIM_REVIEW_UNKNOWN_CLAIM_FAIL_CLOSED");
+                Check(!await conflicts.CanReviewClaimAsync(activeClaim.Id, string.Empty),
+                    "CLAIM_REVIEW_EMPTY_REVIEWER_FAIL_CLOSED");
             }
 
             var reviewerToken = await RealLoginAsync(http, "reviewer@invalid.example");
