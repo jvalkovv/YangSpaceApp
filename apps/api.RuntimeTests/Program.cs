@@ -232,6 +232,12 @@ static async Task RunRecoveryRehearsalAsync(
 // Scope-only mode deliberately avoids EF migration/runtime gates which
 // correctly remain HOLD until the F2a PostgreSQL schema is reviewed.
 // Never use this mode as proof of production schema or real bearer access.
+if (args.Length == 1 && string.Equals(args[0], "--merchant-bearer-http-only", StringComparison.Ordinal))
+{
+    await MerchantBearerHttpContract.RunAsync();
+    Console.WriteLine("F2A_MERCHANT_BEARER_HTTP_ISOLATED_ONLY=PASS");
+    return;
+}
 if (args.Length == 1 && string.Equals(args[0], "--tenant-scope-only", StringComparison.Ordinal))
 {
     await TenantScopeContract.RunAsync();

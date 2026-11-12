@@ -10,33 +10,40 @@ namespace YangSpace.Api;
 /// </summary>
 internal static class TenantScope
 {
-    internal static Task<bool> CanManageLocationAsync(
-        DirectoryDb db, ClaimsPrincipal principal, Guid locationId,
-        CancellationToken cancellationToken = default)
+    // A shared query keeps internal checks and the merchant HTTP read
+    // contract on the same current-membership predicate. One database query
+    // resolves both membership and the resource, preventing a check-then-read
+    // window and exposing no membership/actor/claim details.
+    internal static IQueryable<BusinessLocation> ManagedLocations(
+        DirectoryDb db, ClaimsPrincipal principal)
     {
-        if (principal.Identity?.IsAuthenticated != true || locationId == Guid.Empty)
-            return Task.FromResult(false);
-
-        var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = principal.Identity?.IsAuthenticated == true
+            ? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            : null;
         if (string.IsNullOrWhiteSpace(userId))
-            return Task.FromResult(false);
+            return db.Locations.AsNoTracking().Where(_ => false);
 
-        // A claimed location must belong to an ACTIVE organization, and the
-        // caller must have an unrevoked scoped membership in that organization.
-        // PlatformAdmin without membership is not silently treated as owner.
-        return (
+        return
             from loc in db.Locations.AsNoTracking()
             join org in db.Organizations.AsNoTracking()
                 on loc.OrganizationId equals (Guid?)org.Id
             join member in db.OrganizationMembers.AsNoTracking()
                 on org.Id equals member.OrganizationId
-            where loc.Id == locationId
-                && org.Status == OrganizationStatus.Active
+            where org.Status == OrganizationStatus.Active
                 && member.UserId == userId
                 && member.RevokedAtUtc == null
                 && (member.Role == OrganizationMemberRole.Owner
                     || member.Role == OrganizationMemberRole.Editor)
-            select member.Id
-        ).AnyAsync(cancellationToken);
+            select loc;
+    }
+
+    internal static Task<bool> CanManageLocationAsync(
+        DirectoryDb db, ClaimsPrincipal principal, Guid locationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (locationId == Guid.Empty)
+            return Task.FromResult(false);
+        return ManagedLocations(db, principal)
+            .AnyAsync(loc => loc.Id == locationId, cancellationToken);
     }
 }
