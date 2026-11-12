@@ -7,6 +7,16 @@
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
 
+## 2026-11-12 08:02 Europe/Sofia — F2a-2 bearer HTTP acceptance
+
+- Exact tested child SHA: \`f579c70db9cc0986d2f1df8047158587f0e87eef\`, [Draft PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19), stacked on F2a-1 \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`.
+- Operator Windows output: restore PASS, Release build warnings-as-errors PASS, tenant regression PASS, actual Identity bearer HTTP TestServer PASS; final \`F2A2_MERCHANT_BEARER_HTTP=PASS\`.
+- Evidence path: \`D:\\GitHub\\YangSpaceApp-F2a2-Bearer-QA\\logs\\yangspace\\f2a2-merchant-http\\f579c70db9cc-20261112-075949-ea648860\`. Runner source confirms that it checks the required marker list and writes \`manifest.txt\` only after all stages/assertions pass. **Actual local manifest/log bytes have not yet been independently reviewed.**
+- Scope: disposable SQLite/TestServer only; real Identity-issued bearer, 401/404, cross-tenant isolation, membership revocation and org suspension with same token, default-off/QA environment fail-closed, no registration/cookies/mutations, safe DTO/no side effects. No PostgreSQL HTTP claim.
+- Source review of the bounded #19 diff found no blocking defect in the QA gate, Bearer-only policy, live membership JOIN, DTO allowlist, fixture setup or exact-SHA runner. Independent reviewer and evidence postflight remain outstanding.
+- #19 remains Draft/HOLD pending evidence postflight and review; #17 remains Draft/HOLD pending real PostgreSQL bearer/parallel writer/audited mutation and least-privilege gates; #1 remains Draft/HOLD for program release gates. **0 open PRs eligible for closure.**
+- Next: read-only manifest/log verification; then owner-approved merge decision for #19. After that, implement reviewer-only claim verification and membership grant/revoke with atomic audit and DB fault-injection as a separate scoped gate. No Actions, CT164/CT152 access, live DB, migration or deployment.
+
 ## 2026-11-12 07:49 Europe/Sofia — superseding F2a-2 HTTP QA status
 
 - Windows operator exact HEAD `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8` verified **PowerShell syntax, .NET restore, Release build and prior tenant regression PASS**, then HTTP fixture startup **FAIL** at API `Program.cs:46`: no `ConnectionStrings:Main` during early `WebApplication.CreateBuilder`. The fixture's late `ConfigureAppConfiguration` injection missed the startup guard. No real bearer HTTP tests completed.
