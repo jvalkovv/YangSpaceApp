@@ -40,20 +40,30 @@ public sealed class LiveIdentityRoleAuthorizationHandler(UserManager<IdentityUse
 /// </summary>
 public sealed class ClaimReviewConflictPolicy(DirectoryDb db)
 {
-    public async Task<bool> IsConflictAsync(
-        Guid targetOrganizationId,
+    public async Task<bool> CanReviewClaimAsync(
+        Guid claimId,
         string reviewerUserId,
-        string applicantUserId,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(reviewerUserId, applicantUserId, StringComparison.Ordinal))
-            return true;
+        // Resolve applicant and target organization from the persisted claim;
+        // never accept either value from the HTTP request.
+        var claim = await db.BusinessClaims.AsNoTracking()
+            .Where(item => item.Id == claimId)
+            .Select(item => new { item.OrganizationId, item.ApplicantUserId })
+            .SingleOrDefaultAsync(cancellationToken);
 
-        return await db.OrganizationMembers.AsNoTracking().AnyAsync(member =>
-                member.OrganizationId == targetOrganizationId &&
+        // Unknown claims fail closed. The caller maps this to its generic
+        // not-found/forbidden response without disclosing claim existence.
+        if (claim is null ||
+            string.Equals(reviewerUserId, claim.ApplicantUserId, StringComparison.Ordinal))
+            return false;
+
+        var activeMember = await db.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.OrganizationId == claim.OrganizationId &&
                 member.UserId == reviewerUserId &&
                 member.RevokedAtUtc == null,
             cancellationToken);
+        return !activeMember;
     }
 }
 

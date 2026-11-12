@@ -214,7 +214,31 @@ internal static class ClaimReviewerAuthorizationHttpContract
                 { Name = "Disposable revoked-member control", Status = OrganizationStatus.Active };
                 activeOrganizationId = activeOrganization.Id;
                 revokedOrganizationId = revokedOrganization.Id;
+                var activeLocation = new BusinessLocation
+                {
+                    Slug = "review-active-" + Guid.NewGuid().ToString("N"),
+                    Name = "Disposable active claim target", Category = "test",
+                    Neighborhood = "test", Description = "QA only", Address = "Disposable"
+                };
+                var revokedLocation = new BusinessLocation
+                {
+                    Slug = "review-revoked-" + Guid.NewGuid().ToString("N"),
+                    Name = "Disposable revoked claim target", Category = "test",
+                    Neighborhood = "test", Description = "QA only", Address = "Disposable"
+                };
+                var activeClaim = new BusinessClaim
+                {
+                    LocationId = activeLocation.Id, OrganizationId = activeOrganizationId,
+                    ApplicantUserId = applicant.Id, Status = BusinessClaimStatus.Pending
+                };
+                var revokedClaim = new BusinessClaim
+                {
+                    LocationId = revokedLocation.Id, OrganizationId = revokedOrganizationId,
+                    ApplicantUserId = applicant.Id, Status = BusinessClaimStatus.Pending
+                };
                 db.Organizations.AddRange(activeOrganization, revokedOrganization);
+                db.Locations.AddRange(activeLocation, revokedLocation);
+                db.BusinessClaims.AddRange(activeClaim, revokedClaim);
                 db.OrganizationMembers.AddRange(
                     new OrganizationMember
                     {
@@ -230,14 +254,16 @@ internal static class ClaimReviewerAuthorizationHttpContract
                 await db.SaveChangesAsync();
 
                 var conflicts = scope.ServiceProvider.GetRequiredService<ClaimReviewConflictPolicy>();
-                Check(await conflicts.IsConflictAsync(activeOrganizationId, reviewer.Id, applicant.Id),
+                Check(!await conflicts.CanReviewClaimAsync(activeClaim.Id, reviewer.Id),
                     "CLAIM_REVIEW_ACTIVE_MEMBER_CONFLICT");
-                Check(await conflicts.IsConflictAsync(activeOrganizationId, reviewer.Id, reviewer.Id),
+                Check(!await conflicts.CanReviewClaimAsync(activeClaim.Id, applicant.Id),
                     "CLAIM_REVIEW_SELF_REVIEW_CONFLICT");
-                Check(!await conflicts.IsConflictAsync(revokedOrganizationId, reviewer.Id, applicant.Id),
+                Check(await conflicts.CanReviewClaimAsync(revokedClaim.Id, reviewer.Id),
                     "CLAIM_REVIEW_REVOKED_MEMBER_NOT_ACTIVE_CONFLICT");
-                Check(!await conflicts.IsConflictAsync(revokedOrganizationId, platformAdmin.Id, applicant.Id),
+                Check(await conflicts.CanReviewClaimAsync(revokedClaim.Id, platformAdmin.Id),
                     "CLAIM_REVIEW_UNRELATED_REVIEWER_NO_CONFLICT");
+                Check(!await conflicts.CanReviewClaimAsync(Guid.NewGuid(), reviewer.Id),
+                    "CLAIM_REVIEW_UNKNOWN_CLAIM_FAIL_CLOSED");
             }
 
             var reviewerToken = await RealLoginAsync(http, "reviewer@invalid.example");
@@ -296,8 +322,8 @@ internal static class ClaimReviewerAuthorizationHttpContract
                 var db = scope.ServiceProvider.GetRequiredService<DirectoryDb>();
                 Check(await db.Organizations.CountAsync() == 2 &&
                     await db.OrganizationMembers.CountAsync() == 2 &&
-                    await db.Locations.CountAsync() == 0 &&
-                    !await db.BusinessClaims.AnyAsync() &&
+                    await db.Locations.CountAsync() == 2 &&
+                    await db.BusinessClaims.CountAsync() == 2 &&
                     !await db.ContentAuditEvents.AnyAsync(),
                     "CLAIM_REVIEW_NO_BUSINESS_SIDE_EFFECTS");
             }
