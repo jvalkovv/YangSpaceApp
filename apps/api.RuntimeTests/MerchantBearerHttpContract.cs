@@ -18,6 +18,68 @@ internal static class MerchantBearerHttpContract
 {
     private const string Password = "OnlyForQa!Pass2026";
 
+    // WebApplication.CreateBuilder reads startup settings before
+    // WebApplicationFactory.ConfigureAppConfiguration is applied. Inject
+    // disposable QA-only process settings BEFORE the host is constructed.
+    // This runner is an exclusive CLI mode, not an in-process parallel test.
+    private sealed class StartupEnvironmentScope : IDisposable
+    {
+        private readonly Dictionary<string, string?> previous = new(StringComparer.Ordinal);
+        private static readonly string[] Names =
+        {
+            "ConnectionStrings__Main",
+            "Database__Provider",
+            "Preview__Enabled",
+            "Preview__AllowRegistration",
+            "Admin__Enabled",
+            "MerchantRead__Enabled",
+            "ASPNETCORE_ENVIRONMENT",
+            "DOTNET_ENVIRONMENT"
+        };
+
+        internal StartupEnvironmentScope(string sqlitePath)
+        {
+            foreach (var name in Names)
+                previous.Add(name, Environment.GetEnvironmentVariable(
+                    name, EnvironmentVariableTarget.Process));
+
+            var connection = new SqliteConnectionStringBuilder
+            {
+                DataSource = sqlitePath,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                ForeignKeys = true,
+                Pooling = false
+            }.ConnectionString;
+
+            Set("ConnectionStrings__Main", connection);
+            Set("Database__Provider", "SQLite");
+            Set("Preview__Enabled", "false");
+            Set("Preview__AllowRegistration", "false");
+            Set("Admin__Enabled", "false");
+            Configure(enable: false, environment: "YangSpaceQa");
+        }
+
+        private static void Set(string name, string value) =>
+            Environment.SetEnvironmentVariable(
+                name, value, EnvironmentVariableTarget.Process);
+
+        internal void Configure(bool enable, string environment)
+        {
+            // Set both: host/bootstrap precedence differs between builders.
+            // Production and Development are deliberate FAIL-CLOSED probes.
+            Set("ASPNETCORE_ENVIRONMENT", environment);
+            Set("DOTNET_ENVIRONMENT", environment);
+            Set("MerchantRead__Enabled", enable ? "true" : "false");
+        }
+
+        public void Dispose()
+        {
+            foreach (var (name, value) in previous)
+                Environment.SetEnvironmentVariable(
+                    name, value, EnvironmentVariableTarget.Process);
+        }
+    }
+
     private static void Check(bool ok, string marker)
     {
         if (!ok)
@@ -34,6 +96,8 @@ internal static class MerchantBearerHttpContract
         if (!File.Exists(Path.Combine(apiContentRoot, "appsettings.json")))
             throw new InvalidOperationException("F2A2_REPO_ROOT_NOT_FOUND");
 
+        // Late host configuration is retained as a second explicit override;
+        // startup guards are supplied earlier by StartupEnvironmentScope.
         return new WebApplicationFactory<ApiAssemblyMarker>().WithWebHostBuilder(host =>
         {
             host.UseContentRoot(apiContentRoot);
@@ -108,6 +172,8 @@ internal static class MerchantBearerHttpContract
         try
         {
             var dbPath = Path.Combine(root, "isolated-merchant-qa.db");
+            using var startup = new StartupEnvironmentScope(dbPath);
+            startup.Configure(enable: false, environment: "YangSpaceQa");
 
             // Default-OFF means neither private data route nor login appears.
             using (var disabled = Factory(dbPath, enable: false))
@@ -127,6 +193,7 @@ internal static class MerchantBearerHttpContract
             // or ordinary development process, even with an explicit true value.
             foreach (var environment in new[] { "Production", "Development" })
             {
+                startup.Configure(enable: true, environment: environment);
                 using var invalid = Factory(dbPath, enable: true, environment: environment);
                 var refused = false;
                 try
@@ -144,6 +211,7 @@ internal static class MerchantBearerHttpContract
                     environment.ToUpperInvariant());
             }
 
+            startup.Configure(enable: true, environment: "YangSpaceQa");
             using var factory = Factory(dbPath, enable: true);
             using var client = factory.CreateClient(
                 new WebApplicationFactoryClientOptions { HandleCookies = false });
