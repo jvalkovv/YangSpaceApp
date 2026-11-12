@@ -229,6 +229,17 @@ static async Task RunRecoveryRehearsalAsync(
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
 
+// F2a-3 isolated feasibility gate: transaction + forced audit error
+// in a disposable SQLite model. This does not enable claim-review HTTP
+// or prove PostgreSQL/application-level transaction acceptance.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--claim-transaction-only", StringComparison.Ordinal))
+{
+    await ClaimTransactionContract.RunAsync();
+    Console.WriteLine("F2A3_CLAIM_TX_ISOLATED_ONLY=PASS");
+    return;
+}
+
 // Scope-only mode deliberately avoids EF migration/runtime gates which
 // correctly remain HOLD until the F2a PostgreSQL schema is reviewed.
 // Never use this mode as proof of production schema or real bearer access.
