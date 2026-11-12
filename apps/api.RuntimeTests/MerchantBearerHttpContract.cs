@@ -28,8 +28,15 @@ internal static class MerchantBearerHttpContract
     private static WebApplicationFactory<ApiAssemblyMarker> Factory(
         string filePath, bool enable, string environment = "YangSpaceQa")
     {
+        // Repo uses a .slnx; resolve content root explicitly rather than
+        // depending on legacy WebApplicationFactory *.sln discovery.
+        var apiContentRoot = Path.Combine(Directory.GetCurrentDirectory(), "apps", "api");
+        if (!File.Exists(Path.Combine(apiContentRoot, "appsettings.json")))
+            throw new InvalidOperationException("F2A2_REPO_ROOT_NOT_FOUND");
+
         return new WebApplicationFactory<ApiAssemblyMarker>().WithWebHostBuilder(host =>
         {
+            host.UseContentRoot(apiContentRoot);
             host.UseEnvironment(environment);
             host.ConfigureAppConfiguration((_, config) =>
             {
@@ -120,7 +127,7 @@ internal static class MerchantBearerHttpContract
             // or ordinary development process, even with an explicit true value.
             foreach (var environment in new[] { "Production", "Development" })
             {
-                using var invalid = Factory(dbPath, enable: true, environment);
+                using var invalid = Factory(dbPath, enable: true, environment: environment);
                 var refused = false;
                 try
                 {
