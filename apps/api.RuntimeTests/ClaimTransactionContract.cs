@@ -121,17 +121,20 @@ internal static class ClaimTransactionContract
             Audit(fixture, "OrganizationMember", member.Id,
                 before: -1, after: 0, reviewer, correlation));
 
+        // First SaveChanges deliberately persists all domain/audit rows
+        // inside the explicit, not-yet-committed outer transaction.
+        await db.SaveChangesAsync();
+
         if (forceAuditFailure)
         {
-            // Identical (EntityType, EntityId, RevisionAfter) violates the
-            // real EF unique audit index, even in a synthetic transaction.
-            // The entire domain + membership + audit batch MUST roll back.
+            // A second SaveChanges fails on the real audit unique index AFTER
+            // the first SaveChanges succeeded. The caller must roll back the
+            // whole outer transaction, proving multi-batch atomicity.
             db.ContentAuditEvents.Add(Audit(
                 fixture, "BusinessClaim", claim.Id,
                 before: 0, after: 1, reviewer, correlation));
+            await db.SaveChangesAsync();
         }
-
-        await db.SaveChangesAsync();
     }
 
     public static async Task RunAsync()
@@ -243,6 +246,6 @@ internal static class ClaimTransactionContract
         // This contract deliberately does not make a real reviewer decision.
         // No reviewer HTTP API, real PG app connection or membership grant is
         // added to the application by this test-only source.
-        Console.WriteLine("CLAIM_TX_NO_HTTP_ROUTE_OR_REAL_REVIEWER=PASS");
+        Console.WriteLine("CLAIM_TX_SCOPE=SQLITE_ONLY_NO_HTTP_AUTH");
     }
 }
