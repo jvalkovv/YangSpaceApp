@@ -21,6 +21,18 @@ This is a **standing execution requirement** for all YangSpace work, including e
 8. **Review open PRs for 100%-scoped completion at each closure checkpoint:** for each open PR record its target branch, exact head, agreed DoD, completed vs missing QA, review, runtime/security and required owner approval. Only fully accepted scoped changes move to READY → MERGED → verify CLOSED; a merely compiling or generated migration is not "100%" when real DB/recovery or authorization tests are still required. Do not close Draft PRs for visual hygiene; if the scope is genuinely abandoned/superseded, close unmerged with rationale and linked replacement. After an accepted merge, refresh PR inventory and SSOT on the new base.
 
 
+### 2026-11-12 07:39 Europe/Sofia — F2a-2 build failure / recovery and PR closure review
+
+**Mandatory reporting policy above remains in force** (merged via PR #18): progress after each meaningful change, evidence-bound PASS/HOLD, and closing only scoped 100%-accepted PRs through approved merge. This checkpoint is source-only; no GitHub Actions, CT164/CT152 changes, live DB migration or merchant feature activation.
+
+| Open PR / target | Exact current candidate | Evidence / unfinished gates | Decision |
+| --- | --- | --- | --- |
+| [#19 — QA-only merchant Identity bearer read](https://github.com/jvalkovv/YangSpaceApp/pull/19) → F2a-1 branch | `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8` | Operator's previous `62505864...` Windows restore PASS, build FAIL `CS0136` for duplicate test locals `owner`/`editor`; new one-file, four-line-pair QA fixture rename committed. **New exact-SHA build and actual bearer HTTP TestServer NOT RUN**. | **DRAFT / HOLD**; repeat exact-head local runner, independently review manifest; no merge |
+| [#17 — F2a-1 domain/PG foundation](https://github.com/jvalkovv/YangSpaceApp/pull/17) → V2 foundation | `1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001` | Disposable PostgreSQL migration/constraints/sequential CAS/audit rollback/pg_dump→pg_restore and SHA/cleanup checks PASS **for this exact source**. Reviewer claim-grants, real PG bearer, live EF parallel writes and production hardening pending. | **DRAFT / HOLD**; completed schema QA does not close entire PR |
+| [#1 — V2 program](https://github.com/jvalkovv/YangSpaceApp/pull/1) → legacy main | Parent feature HEAD at time of review `0b67c5edcd4d2da3b5f9ee565e93f6a4fa18ad0e`; roadmap-only update will advance this | Production/pilot acceptance, tenant security, application-audit atomicity, operations and off-host recovery unaccepted. | **DRAFT / HOLD**; no merge to main |
+
+**No open PR is 100%-accepted at this checkpoint; 0 PRs eligible for closure.** Historical merged PRs remain closed. Next gate is `Test-F2a-Merchant-Bearer-Local.ps1` using the newly fetched #19 commit, requiring restore/build (warnings-as-errors), tenant regression and genuine Identity bearer HTTP contract. Runner evidence path must be included in the next report. If the next test fails, preserve its stage output and return to RCA; no security test bypass.
+
 ### 2026-11-11 22:50 Europe/Sofia — progress and open-PR reconciliation
 
 | PR | State | Scoped completion gate | Next |
