@@ -229,6 +229,17 @@ static async Task RunRecoveryRehearsalAsync(
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
 
+// Opt-in real PostgreSQL app transaction QA. The disposable connection
+// must be verified by the in-container sentinel; never use app config,
+// create/migrate schema, or expose a merchant/reviewer HTTP route here.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--postgres-claim-transaction-only", StringComparison.Ordinal))
+{
+    await PostgreSqlClaimTransactionContract.RunAsync();
+    Console.WriteLine("F2A3_PG_APP_TRANSACTION_ISOLATED_ONLY=PASS");
+    return;
+}
+
 // F2a-3 isolated feasibility gate: transaction + forced audit error
 // in a disposable SQLite model. This does not enable claim-review HTTP
 // or prove PostgreSQL/application-level transaction acceptance.
