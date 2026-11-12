@@ -7,6 +7,18 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-12 13:41 — F2a combined HEAD exact-SHA QA accepted
+
+| Item | Result | Evidence / remaining dependency |
+| --- | --- | --- |
+| #17 combined tenant regression | **DONE — exact-SHA operator PASS twice** at `445db4d9a5d28b798054c426afeba9b9be2c771b` | `f2a-restore`, `f2a-build`, `f2a-tenant-scope` PASS, final tenant marker PASS; latest evidence `logs/yangspace/f2a-tenant-scope/445db4d9a5d2-20261112-134120-cc109012` in the operator-local QA worktree |
+| #17 disposable PostgreSQL schema/constraints/recovery | **DONE — exact-SHA operator PASS twice** | Model-diff and SQL hash PASS; migration apply, FK/partial unique, CAS, DB audit rollback, backup/restore PASS; latest evidence `logs/yangspace/pg-disposable/445db4d9a5d2-20261112-134126-299426c5`. Local manifests/SQL/backup and container cleanup require independent SHA-256 postflight. |
+| #19 actual Identity bearer tenant HTTP | **DONE — scoped SQLite/TestServer; merged/closed** | Tested code SHA `f579c70db9cc0986d2f1df8047158587f0e87eef`; no claim of real PostgreSQL bearer HTTP. |
+| [#20 F2a-3 reviewer claim/membership lifecycle](https://github.com/jvalkovv/YangSpaceApp/issues/20) | **CONTRACT PROPOSED; implementation NOT STARTED** | Confirm reviewer role, self-approval denial, claim state machine, ownership transfers, membership re-grant, last-owner policy, transaction boundaries, audit and fault injection. |
+| #17 PR + V2 #1 | **OPEN / DRAFT / HOLD** | PostgreSQL bearer HTTP/parallel writers, reviewer/mutation workflow, atomic application audit, least-privilege PG role and recovery/release gates outstanding. |
+
+**No CT164/CT152 operations, live DB writes, merchant activation, deployment or GitHub Actions.**
+
 ## 2026-11-12 08:15 — F2a-2 read-only bearer authorization accepted
 
 | Work package | Result | Evidence / next required gate |
@@ -247,7 +259,6 @@ Production persistence clarification: even with the CMS disabled, Production sta
 
 The current YangSpace branch has **zero** EF migration artifacts. A repeatable manual operator for the existing Windows machine is added at `scripts/New-InitialMigration-Local.ps1`: exact full Git SHA and branch check, clean worktree, pinned EF Core 10.0.0 local CLI/tool package, disposable in-memory design-time context (never Production or Preview DB), build-before/after, three generated C# files/snapshot, `has-pending-model-changes` check and initial SQL review script/hash manifest under ignored `logs/yangspace/migration-scaffold`. There is **no migration file yet** because EF tooling has not executed; hand-authored model snapshots are rejected. Generator never runs a DB update, starts listeners, modifies active DB, creates PVE resources or pushes GitHub. Source code static checks only; Windows dotnet runtime needs operator execution. Production remains blocked by its migration presence/drift guard and private proxy/security acceptance. See `docs/S2_INITIAL_MIGRATION_20261110.md`.
 
-
 ## 2026-11-12 — real disposable PostgreSQL gate preparation
 
 | Item | State | Evidence / next gate |
@@ -257,6 +268,8 @@ The current YangSpace branch has **zero** EF migration artifacts. A repeatable m
 | PG disposable runner + SQL test data | **SOURCE ADDED, NOT RUN** | Network-disabled, no host port/mount, tmpfs container; test constraints/revision CAS/audit DB rollback and synthetic backup→second-DB restore |
 | Real PostgreSQL initial migration / restore | **HOLD — not executed** | Require operator new exact-SHA test output and logs, no inferred PASS |
 | Owner bearer and F2b audit/recovery/production | **HOLD** | Separate identity/transactional/least-privilege/off-host gates |
+
+
 
 
 
@@ -274,11 +287,15 @@ The current YangSpace branch has **zero** EF migration artifacts. A repeatable m
 
 
 
+
+
 ## F2a-1 dependency security gate — 2026-11-11 21:07 Sofia
 
 **Operator exact candidate `aa4fec12873b5319072087317a6b64eb6a8a5162`:** PowerShell preflight PASS; `STAGE=f2a-restore` **FAIL EXIT=1** due NuGet Audit NU1902/NU1903 for transitive `Pkcs/Xml 9.0.0` introduced by the PostgreSQL migrations project's EF design-time graph. Restore blocked as designed (warnings-as-errors). Build, tenant scope and PG scaffold NOT RUN. Evidence at `D:\GitHub\YangSpaceApp-F2a1-PG-QA\logs\yangspace\f2a-tenant-scope\aa4fec12873b-20261111-210730-fb959c92` (operator-local).
 
 **Fix source `8d2511308ff8e14b6d9a25ba6ec5539c8f2de4aa`:** patched Pkcs/Xml `10.0.14` pins in PG migrations csproj plus safe Git stdout handling for detached scaffolding. **No QA PASS on fix yet**. Required: exact-current-HEAD re-run, NuGet restore/build/tenant regression, then scaffold/review PostgreSQL EF artifacts. CT164/live DB untouched. [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains Draft/HOLD.
+
+
 
 
 
