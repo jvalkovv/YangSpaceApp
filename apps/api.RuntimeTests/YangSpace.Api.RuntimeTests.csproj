@@ -7,6 +7,11 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Real in-process HTTP requests with the actual ASP.NET Core Identity
+         bearer-token handler; no fake ClaimsPrincipal or production service. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../api/YangSpace.Api.csproj" />
   </ItemGroup>
 </Project>
