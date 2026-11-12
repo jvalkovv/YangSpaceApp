@@ -21,6 +21,7 @@ $Database = 'yangspace_f2a3_disposable'
 $Git = (Get-Command git.exe -ErrorAction Stop).Source
 $Dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
 $Docker = (Get-Command docker.exe -ErrorAction Stop).Source
+$Tar = (Get-Command tar.exe -ErrorAction Stop).Source
 
 function GitValue {
     param([Parameter(Mandatory=$true)][string[]]$CommandArgs)
@@ -72,11 +73,13 @@ $Evidence = Join-Path $Repo ('logs\yangspace\f2a3-pg-apptx\' +
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 $Publish = Join-Path $Evidence 'publish'
 $Sql = Join-Path $Evidence 'reviewed-initial.sql'
+$Archive = Join-Path $Evidence 'runtime-publish.tar'
 $Pg = 'yangspace-f2a3-pgqa-' + $Token.Substring(0,12)
 $App = 'yangspace-f2a3-appqa-' + $Token.Substring(0,12)
 $Conn = 'Host=127.0.0.1;Port=5432;Database=' + $Database +
         ';Username=postgres;SSL Mode=Disable;Pooling=false;Timeout=5;Command Timeout=10'
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
+. (Join-Path $PSScriptRoot 'Invoke-YangSpaceTarStreamStage.ps1')
 
 function Stage {
     param([string]$Label,[string]$Executable,[string[]]$Arguments)
@@ -160,6 +163,15 @@ try {
     if (!(Test-Path -LiteralPath $Dll -PathType Leaf)) {
         throw 'F2A3_PG_PUBLISH_OUTPUT_MISSING'
     }
+    $DllHash = (Get-FileHash -LiteralPath $Dll -Algorithm SHA256).Hash.ToLowerInvariant()
+    Stage -Label 'pgapp-archive-runtime' -Executable $Tar -Arguments @(
+        '-cf',$Archive,'-C',$Publish,'.'
+    )
+    if (!(Test-Path -LiteralPath $Archive -PathType Leaf) -or
+        (Get-Item -LiteralPath $Archive).Length -lt 1024) {
+        throw 'F2A3_PG_RUNTIME_ARCHIVE_FAILED'
+    }
+    $ArchiveHash = (Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
 
     # The PG server has no network adapters outside loopback, no ports and no
     # host binds. All data is disposable and --rm cleans container storage.
@@ -211,11 +223,24 @@ try {
         '--name',$App,'--entrypoint','sleep',$RuntimeImage,'1200'
     )
     AssertContainerIsolation -Name $App -ExpectedNetwork ('container:' + $Pg)
+    $ReadOnly = (@(& $Docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' $App) -join '').Trim()
+    $Tmpfs = (@(& $Docker inspect --format '{{json .HostConfig.Tmpfs}}' $App) -join '').Trim()
+    if ($LASTEXITCODE -ne 0 -or $ReadOnly -cne 'true' -or
+        $Tmpfs -notmatch '"/tmp"') {
+        throw 'F2A3_PG_READONLY_TMPFS_ISOLATION_FAILED'
+    }
     Write-Host 'F2A3_PG_TWO_CONTAINERS_ISOLATED=PASS'
 
-    Stage -Label 'pgapp-copy-runtime' -Executable $Docker -Arguments @(
-        'cp',(Join-Path $Publish '.'),($App + ':/tmp/qa')
+    # Docker cp is rejected for containers with --read-only rootfs even when
+    # /tmp is tmpfs. Stream the tar bytes through docker exec -i instead.
+    Invoke-YangSpaceTarStreamStage -Docker $Docker -Container $App `
+        -Archive $Archive -EvidenceDirectory $Evidence
+    Stage -Label 'pgapp-verify-runtime-dll' -Executable $Docker -Arguments @(
+        'exec',$App,'sha256sum','/tmp/qa/YangSpace.Api.RuntimeTests.dll'
     )
+    RequireMarker -Label 'pgapp-verify-runtime-dll' -Marker `
+        ($DllHash + '  /tmp/qa/YangSpace.Api.RuntimeTests.dll')
+    Write-Host 'F2A3_PG_RUNTIME_TRANSFER_SHA256=PASS'
     Stage -Label 'pgapp-real-ef-transaction' -Executable $Docker -Arguments @(
         'exec',
         '-e','YANGSPACE_F2A3_PG_DISPOSABLE_ONLY=CONFIRMED_CONTAINER_NETNS_ONLY',
@@ -278,10 +303,16 @@ $Manifest = @(
     ('PG_IMAGE_ID=' + $PgImageId),
     ('DOTNET_RUNTIME_IMAGE_ID=' + $RuntimeImageId),
     ('PG_SQL_SHA256=' + $SqlHash),
+    ('RUNTIME_ARCHIVE_SHA256=' + $ArchiveHash),
+    ('RUNTIME_DLL_SHA256=' + $DllHash),
     'PG_NETWORK=none',
     'DOTNET_NETWORK=container:postgresql',
     'PUBLISHED_PORTS=none',
     'HOST_BINDS=none',
+    'RUNTIME_ROOTFS=read-only',
+    'RUNTIME_TMPFS=/tmp',
+    'RUNTIME_TRANSFER=BINARY_STREAMED_TAR',
+    'RUNTIME_TRANSFER_SHA256=PASS',
     'TEST_DATABASE=yangspace_f2a3_disposable',
     'SOURCE_RESTORE_PUBLISH=PASS',
     'REVIEWED_PG_MIGRATION=PASS_DISPOSABLE_ONLY',
