@@ -21,6 +21,35 @@ This is a **standing execution requirement** for all YangSpace work, including e
 8. **Review open PRs for 100%-scoped completion at each closure checkpoint:** for each open PR record its target branch, exact head, agreed DoD, completed vs missing QA, review, runtime/security and required owner approval. Only fully accepted scoped changes move to READY → MERGED → verify CLOSED; a merely compiling or generated migration is not "100%" when real DB/recovery or authorization tests are still required. Do not close Draft PRs for visual hygiene; if the scope is genuinely abandoned/superseded, close unmerged with rationale and linked replacement. After an accepted merge, refresh PR inventory and SSOT on the new base.
 
 
+### 2026-11-12 08:15 Europe/Sofia — F2a-2 merged; F2a-1 parent revalidation required
+
+**Scoped milestone: F2a-2 read-only bearer authorization COMPLETE.** [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) was marked ready after source review and operator evidence postflight, then squash-merged into the F2a-1 feature branch (not V2 or \`main\`).
+
+- Tested code SHA: \`f579c70db9cc0986d2f1df8047158587f0e87eef\`.
+- Documentation-only follow-up HEAD: \`bc0a77ea6b6bc794a2d9d6aefcbe3c12936a329e\`; GitHub compare confirms one modified Markdown file only, no code/test changes after the tested SHA.
+- Squash merge / new F2a-1 branch HEAD: \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\`.
+- Operator Windows exact-SHA restore, Release build with warnings-as-errors, tenant regression and real Identity bearer TestServer all PASS on \`f579c70...\`. Operator read-only postflight returned \`EVIDENCE_POSTFLIGHT=PASS\`: manifest, four runner/stdout/stderr stage groups, 23 expected postflight HTTP markers and SHA-256 receipts all verified. Manifest SHA-256: \`336D8A9DCB4C69483981A2A5124A5123E8AD9044C14A1619199439E2E121F366\`. Detailed hashes and local evidence path are recorded in [F2a-2 QA evidence](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A2_MERCHANT_BEARER_READ_QA_20261112.md).
+- Accepted scope is disposable SQLite + ASP.NET Core TestServer only, with actual Identity-issued bearer tokens and the documented 401/404, tenant isolation, membership revocation, default-off, no-write and DTO allowlist checks. No PostgreSQL bearer runtime or production exposure is claimed.
+
+### Current PR inventory (2026-11-12 08:15 Europe/Sofia)
+
+| PR | Target | Exact current head | State / decision |
+| --- | --- | --- | --- |
+| [#19 — F2a-2 bearer-only merchant read](https://github.com/jvalkovv/YangSpaceApp/pull/19) | F2a-1 feature branch | merge \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\` | **MERGED / CLOSED** |
+| [#17 — F2a-1 domain + tenant foundation, now includes #19](https://github.com/jvalkovv/YangSpaceApp/pull/17) | V2 feature branch | \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\` | **OPEN / DRAFT / HOLD** |
+| [#1 — V2 parent / pilot](https://github.com/jvalkovv/YangSpaceApp/pull/1) | legacy \`main\` | current parent branch head; see PR | **OPEN / DRAFT / HOLD** |
+
+**Why #17 remains HOLD:** the previous F2a-1 disposable PostgreSQL migration/constraints/synthetic backup-restore PASS belongs to exact source \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`, not automatically to the combined head \`17d08530...\`. First re-run exact-SHA source/build and disposable PostgreSQL migration/constraint/recovery regression against the combined head. Then complete PostgreSQL bearer HTTP and parallel EF writers, reviewer-only claim/membership lifecycle, atomic application business+audit fault-injection, least-privilege DB role, off-host recovery and owner release sign-off. Do not merge #17 or #1 yet.
+
+### Next execution order
+
+1. **F2a-1 + F2a-2 combined-head regression:** clean exact-SHA checkout of \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\`; source/build and disposable PostgreSQL regression. Keep the old PASS attached to its historical SHA until the new combined-head run passes.
+2. **F2a-3 contract/design before code:** reviewer identity/role policy, no self-approval, claim state machine, Owner membership grant/revoke, transaction boundary, actor/reason audit allowlist, concurrency/unique-conflict behavior, fault-injection matrix and recovery semantics. Keep claim mutation separate from the already-merged read-only endpoint.
+3. **F2a-3 implementation:** only after the contract is recorded in Issue #4/ADR and reviewed; exact-SHA PostgreSQL tests must prove claim + org/location ownership + membership + audit atomicity, with rollback on every injected failure.
+4. **F2b:** content mutations and revision/409 semantics only after F2a authorization and audit acceptance.
+
+**PR closure rule applied:** #19 is the only newly completed PR and is merged/closed. #17 and #1 remain open because their own scoped security/release DoD is incomplete. No PR was manually closed unmerged. No GitHub Actions, CT164/CT152 access, live DB mutation, migration, feature activation or deployment.
+
 ### 2026-11-12 08:02 Europe/Sofia — F2a-2 isolated Identity bearer HTTP acceptance
 
 **Operator exact-SHA PASS.**
