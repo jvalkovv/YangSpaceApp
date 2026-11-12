@@ -18,23 +18,34 @@ $Git = (Get-Command git.exe -ErrorAction Stop).Source
 $Dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
 $Docker = (Get-Command docker.exe -ErrorAction Stop).Source
 
-function GitValue([string[]]$CommandArgs) {
+function GitValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string[]]$CommandArgs
+    )
+    # Explicit named array binding avoids Windows PowerShell 5.1
+    # positional expansion that dropped HEAD from rev-parse.
     $Output = @(& $Git -C $Repo @CommandArgs)
-    if ($LASTEXITCODE -ne 0) { throw 'PG_GIT_CHECK_FAILED' }
+    if ($LASTEXITCODE -ne 0) {
+        throw ('PG_GIT_CHECK_FAILED=' + ($CommandArgs -join ' '))
+    }
     return ($Output -join '').Trim()
 }
-if ((GitValue @('rev-parse','HEAD')) -cne $CommitSha) {
+if ((GitValue -CommandArgs @('rev-parse','HEAD')) -cne $CommitSha) {
     throw 'PG_EXACT_SOURCE_SHA_MISMATCH'
 }
-if ((GitValue @('rev-parse','--verify','refs/remotes/origin/' + $Branch)) -cne $CommitSha) {
+if ((GitValue -CommandArgs @('rev-parse','--verify',('refs/remotes/origin/' + $Branch))) -cne $CommitSha) {
     throw 'PG_REMOTE_TIP_SHA_MISMATCH'
 }
-$CurrentBranch = GitValue @('branch','--show-current')
+$CurrentBranch = GitValue -CommandArgs @('branch','--show-current')
 if ($CurrentBranch -and $CurrentBranch -cne $Branch) {
     throw 'PG_WORKTREE_BRANCH_MISMATCH'
 }
 $Dirty = @(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0 -or $Dirty.Count -ne 0) { throw 'PG_WORKTREE_NOT_CLEAN' }
+Write-Host 'PG_GIT_SOURCE_IDENTITY=PASS'
 
 $HostOverride = [Environment]::GetEnvironmentVariable('DOCKER_HOST','Process')
 if ($HostOverride -and $HostOverride -notlike 'npipe://*') {
@@ -96,20 +107,20 @@ try {
     [Environment]::SetEnvironmentVariable(
         'YANGSPACE_EF_POSTGRESQL_DESIGNTIME','CONFIRMED','Process'
     )
-    Stage 'pg-ef-tool-restore' $Dotnet @(
+    Stage -Label 'pg-ef-tool-restore' -Executable $Dotnet -Arguments @(
         'tool','restore','--tool-manifest','.config/dotnet-tools.json'
     )
-    Stage 'pg-ef-restore' $Dotnet @('restore',$Project,'-warnaserror')
-    Stage 'pg-ef-build' $Dotnet @(
+    Stage -Label 'pg-ef-restore' -Executable $Dotnet -Arguments @('restore',$Project,'-warnaserror')
+    Stage -Label 'pg-ef-build' -Executable $Dotnet -Arguments @(
         'build',$Project,'-c','Release','--no-restore','-warnaserror'
     )
-    Stage 'pg-ef-model-diff' $Dotnet @(
+    Stage -Label 'pg-ef-model-diff' -Executable $Dotnet -Arguments @(
         'ef','migrations','has-pending-model-changes','--project',$Project,
         '--startup-project',$Project,'--context','DirectoryDb',
         '--configuration','Release','--no-build'
     )
     $Sql = Join-Path $Evidence 'initial-reviewed.sql'
-    Stage 'pg-ef-script' $Dotnet @(
+    Stage -Label 'pg-ef-script' -Executable $Dotnet -Arguments @(
         'ef','migrations','script','0','--project',$Project,
         '--startup-project',$Project,'--context','DirectoryDb',
         '--configuration','Release','--no-build','--output',$Sql
@@ -122,7 +133,7 @@ try {
 
     # No network or host binds; temporary PostgreSQL data lives on tmpfs.
     $RunAttempted = $true
-    Stage 'pg-container-start' $Docker @(
+    Stage -Label 'pg-container-start' -Executable $Docker -Arguments @(
         'run','-d','--rm','--network','none',
         '--tmpfs','/var/lib/postgresql/data:rw,size=512m',
         '--name',$Container,
@@ -158,14 +169,14 @@ try {
     if (-not $Ready) { throw 'PG_CONTAINER_STARTUP_FAILED' }
     Write-Host 'PG_CONTAINER_READY=PASS'
 
-    Stage 'pg-copy-initial' $Docker @('cp',$Sql,($Container + ':/tmp/initial.sql'))
-    Stage 'pg-apply-reviewed-initial' $Docker @(
+    Stage -Label 'pg-copy-initial' -Executable $Docker -Arguments @('cp',$Sql,($Container + ':/tmp/initial.sql'))
+    Stage -Label 'pg-apply-reviewed-initial' -Executable $Docker -Arguments @(
         'exec',$Container,'psql','-X','-v','ON_ERROR_STOP=1',
         '-U','postgres','-d','postgres','-f','/tmp/initial.sql'
     )
     $CheckSql = Join-Path $Repo 'scripts\postgresql\F2a-Disposable-Constraints.sql'
-    Stage 'pg-copy-constraints' $Docker @('cp',$CheckSql,($Container + ':/tmp/constraints.sql'))
-    Stage 'pg-test-constraints' $Docker @(
+    Stage -Label 'pg-copy-constraints' -Executable $Docker -Arguments @('cp',$CheckSql,($Container + ':/tmp/constraints.sql'))
+    Stage -Label 'pg-test-constraints' -Executable $Docker -Arguments @(
         'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
         '-U','postgres','-d','postgres','-f','/tmp/constraints.sql'
     )
@@ -173,30 +184,30 @@ try {
     RequireMarker 'pg-test-constraints.stdout.log' 'F2A_PG_SEQUENTIAL_CAS=PASS'
     RequireMarker 'pg-test-constraints.stdout.log' 'F2A_PG_DB_AUDIT_ROLLBACK=PASS'
 
-    Stage 'pg-dump-synthetic' $Docker @(
+    Stage -Label 'pg-dump-synthetic' -Executable $Docker -Arguments @(
         'exec',$Container,'pg_dump','-U','postgres','-Fc',
         '-f','/tmp/synthetic.backup','postgres'
     )
     $Backup = Join-Path $Evidence 'synthetic-postgresql.backup'
-    Stage 'pg-copy-synthetic-backup' $Docker @(
+    Stage -Label 'pg-copy-synthetic-backup' -Executable $Docker -Arguments @(
         'cp',($Container + ':/tmp/synthetic.backup'),$Backup
     )
     if (-not (Test-Path -LiteralPath $Backup -PathType Leaf) -or
         (Get-Item -LiteralPath $Backup).Length -lt 1000) {
         throw 'PG_SYNTHETIC_BACKUP_NOT_CREATED'
     }
-    Stage 'pg-create-restore-db' $Docker @(
+    Stage -Label 'pg-create-restore-db' -Executable $Docker -Arguments @(
         'exec',$Container,'createdb','-U','postgres','f2a_restored'
     )
-    Stage 'pg-restore-synthetic' $Docker @(
+    Stage -Label 'pg-restore-synthetic' -Executable $Docker -Arguments @(
         'exec',$Container,'pg_restore','--exit-on-error','--no-owner',
         '--no-privileges','-U','postgres','-d','f2a_restored','/tmp/synthetic.backup'
     )
     $RestoreSql = Join-Path $Repo 'scripts\postgresql\F2a-Disposable-Restore-Verify.sql'
-    Stage 'pg-copy-restore-check' $Docker @(
+    Stage -Label 'pg-copy-restore-check' -Executable $Docker -Arguments @(
         'cp',$RestoreSql,($Container + ':/tmp/restore.sql')
     )
-    Stage 'pg-verify-restored' $Docker @(
+    Stage -Label 'pg-verify-restored' -Executable $Docker -Arguments @(
         'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
         '-U','postgres','-d','f2a_restored','-f','/tmp/restore.sql'
     )
