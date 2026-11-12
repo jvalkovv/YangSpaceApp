@@ -38,8 +38,9 @@ $CurrentBranch = GitValue -CommandArgs @('branch','--show-current')
 if ($CurrentBranch -and $CurrentBranch -cne $Branch) {
     throw 'F2A3_PG_WORKTREE_BRANCH_MISMATCH'
 }
-if (@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ }).Count -ne 0 -or
-    $LASTEXITCODE -ne 0) {
+$PreStatus = @(& $Git -C $Repo status --porcelain --untracked-files=all |
+    Where-Object { $_ })
+if ($LASTEXITCODE -ne 0 -or $PreStatus.Count -ne 0) {
     throw 'F2A3_PG_WORKTREE_DIRTY'
 }
 Write-Host 'F2A3_PG_EXACT_SOURCE=PASS'
@@ -228,8 +229,9 @@ try {
     )) {
         RequireMarker -Label 'pgapp-real-ef-transaction' -Marker $Marker
     }
-    if (@(& $Git -C $Repo status --porcelain --untracked-files=all |
-        Where-Object { $_ }).Count -ne 0 -or $LASTEXITCODE -ne 0) {
+    $PostStatus = @(& $Git -C $Repo status --porcelain --untracked-files=all |
+        Where-Object { $_ })
+    if ($LASTEXITCODE -ne 0 -or $PostStatus.Count -ne 0) {
         throw 'F2A3_PG_SOURCE_CHANGED'
     }
     $Completed = $true
@@ -239,9 +241,9 @@ finally {
         'YANGSPACE_EF_POSTGRESQL_DESIGNTIME',$OldDesignTime,'Process'
     )
     # Remove the .NET sidecar first; it shares PG's isolated network namespace.
-    foreach ($Entry in @(@($App,$AppAttempted),@($Pg,$PgAttempted))) {
-        $Name = [string]$Entry[0]
-        if ([bool]$Entry[1]) {
+    foreach ($Name in @($App,$Pg)) {
+        $Attempted = if ($Name -ceq $App) { $AppAttempted } else { $PgAttempted }
+        if ($Attempted) {
             $OldError = $ErrorActionPreference
             $ErrorActionPreference = 'Continue'
             try {
