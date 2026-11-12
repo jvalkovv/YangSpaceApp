@@ -13,6 +13,13 @@ var builder = WebApplication.CreateBuilder(offlineProvision ? Array.Empty<string
 var preview = builder.Configuration.GetValue<bool>("Preview:Enabled");
 var allowPreviewRegistration = builder.Configuration.GetValue<bool>("Preview:AllowRegistration");
 var productionAdmin = builder.Configuration.GetValue<bool>("Admin:Enabled");
+var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
+// F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
+// It is impossible to enable accidentally in Development, Preview, or Production.
+if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
+                     !builder.Environment.IsEnvironment("YangSpaceQa")))
+    throw new InvalidOperationException(
+        "Merchant read QA endpoints require explicit YangSpaceQa environment with Preview/Admin/Registration disabled.");
 // Never enable the CMS implicitly from a DNS record or a general Production deployment.
 if (productionAdmin && (preview || !builder.Environment.IsProduction()))
     throw new InvalidOperationException("Production CMS requires Production environment and Preview:Enabled=false.");
@@ -43,6 +50,10 @@ if (string.IsNullOrWhiteSpace(connection))
 var databaseProvider = builder.Configuration["Database:Provider"];
 if (string.IsNullOrWhiteSpace(databaseProvider))
     throw new InvalidOperationException("Database:Provider must explicitly select SQLite or PostgreSQL.");
+// QA-only: an isolated SQLite model created by the test harness; no production
+// PostgreSQL role or database is implicitly approved through this feature.
+if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Merchant read QA endpoints require isolated SQLite persistence.");
 
 if (preview && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
     throw new InvalidOperationException("Preview mode is permanently pinned to its isolated SQLite provider.");
@@ -87,10 +98,19 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 
 // Only the Identity bearer scheme may authorize CMS writes. Identity's
 // default composite scheme also accepts cookies; that is not our CMS contract.
-builder.Services.AddAuthorization(options => options.AddPolicy("PlatformAdmin", policy =>
-    policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
-          .RequireAuthenticatedUser()
-          .RequireRole("PlatformAdmin")));
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("PlatformAdmin", policy =>
+        policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+              .RequireAuthenticatedUser()
+              .RequireRole("PlatformAdmin"));
+
+    // Never use Identity's composite bearer+cookie scheme for private tenant data.
+    // The per-request membership JOIN below is the source of tenant authority.
+    options.AddPolicy("MerchantBearerRead", policy =>
+        policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+              .RequireAuthenticatedUser());
+});
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -139,7 +159,7 @@ if (app.Environment.IsProduction())
     }
 }
 
-if (preview || productionAdmin)
+if (preview || productionAdmin || merchantRead)
 {
     var auth = app.MapGroup("/api/auth").RequireRateLimiting("auth");
     auth.AddEndpointFilter(async (context, next) =>
@@ -165,6 +185,19 @@ if (preview || productionAdmin)
                 request.Query.ContainsKey("useSessionCookies"))
                 return Results.BadRequest(new { error = "Cookie authentication is disabled for the CMS." });
         }
+        else if (merchantRead)
+        {
+            // For the isolated QA harness, enable only credential login and
+            // bearer refresh. All enrollment, recovery and account endpoints
+            // remain unmapped to callers via fail-closed endpoint filtering.
+            var supported = HttpMethods.IsPost(request.Method) &&
+                (string.Equals(path, "/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(path, "/api/auth/refresh", StringComparison.OrdinalIgnoreCase));
+            if (!supported) return Results.NotFound();
+            if (request.Query.ContainsKey("useCookies") ||
+                request.Query.ContainsKey("useSessionCookies"))
+                return Results.BadRequest(new { error = "Cookie authentication is disabled." });
+        }
         else if (HttpMethods.IsPost(request.Method) &&
                  string.Equals(path, "/api/auth/register", StringComparison.OrdinalIgnoreCase) &&
                  !allowPreviewRegistration)
@@ -175,9 +208,14 @@ if (preview || productionAdmin)
     });
     auth.MapIdentityApi<IdentityUser>();
 
-    // No change to the preview QA behavior. Production CMS requires BOTH
-    // PlatformAdmin identity and an internal-gateway request gate.
-    app.MapAdmin(gatewaySecret);
+    // Preserve existing preview/admin routing and its secure gateway boundary.
+    if (preview || productionAdmin)
+        app.MapAdmin(gatewaySecret);
 }
+if (merchantRead)
+    app.MapMerchantRead();
 await PreviewBootstrap.Initialize(app);
 app.Run();
+
+// Exposes an entry point to the isolated WebApplicationFactory HTTP harness.
+public partial class Program { }
