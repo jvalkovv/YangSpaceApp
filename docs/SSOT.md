@@ -7,6 +7,12 @@
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
 
+## 2026-11-12 07:49 Europe/Sofia — superseding F2a-2 HTTP QA status
+
+- Windows operator exact HEAD `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8` verified **PowerShell syntax, .NET restore, Release build and prior tenant regression PASS**, then HTTP fixture startup **FAIL** at API `Program.cs:46`: no `ConnectionStrings:Main` during early `WebApplication.CreateBuilder`. The fixture's late `ConfigureAppConfiguration` injection missed the startup guard. No real bearer HTTP tests completed.
+- New corrective test-only [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) HEAD `f579c70db9cc0986d2f1df8047158587f0e87eef`: process-scoped synthetic SQLite + explicit QA mode **before host creation**, with restoration of process configuration and preserved fail-closed Production/Development checks. **New exact-SHA runtime QA NOT RUN**.
+- [Roadmap](MVP_ROADMAP.md#2026-11-12-0749-europesofia--f2a-2-http-testserver-startup-recovery) owns current recovery gate. Open PRs #19, #17, #1: all Draft/HOLD, none 100%-accepted for merge. F2a-1 PostgreSQL synthetic recovery PASS stays scoped to `1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001`. No production database, CT164/CT152 or preview activation changed.
+
 ## 2026-11-12 07:39 Europe/Sofia — latest F2a progress and PR inventory
 
 **Canonical milestone source:** [MVP roadmap progress/PR-closure checkpoint](MVP_ROADMAP.md#2026-11-12-0739-europesofia--f2a-2-build-failure--recovery-and-pr-closure-review). Earlier F2a "proposed/not implemented" paragraphs below are historical snapshots, not the current implementation status.
