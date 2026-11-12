@@ -23,7 +23,7 @@ This is a **standing execution requirement** for all YangSpace work, including e
 
 ### 2026-11-12 08:02 Europe/Sofia — F2a-2 isolated Identity bearer HTTP acceptance
 
-<badge>Operator exact-SHA PASS</badge> (badge text is not part of the source document)
+**Operator exact-SHA PASS.**
 
 - **Exact tested SHA:** \`f579c70db9cc0986d2f1df8047158587f0e87eef\`, PR #19, stacked on F2a-1 base \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`.
 - Operator Windows output: runner syntax PASS; restore PASS; Release build with warnings-as-errors PASS; existing tenant regression PASS; real Identity bearer HTTP TestServer PASS; final \`F2A2_MERCHANT_BEARER_HTTP=PASS\`.
