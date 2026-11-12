@@ -7,6 +7,14 @@
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
 
+## 2026-11-12 13:41 Europe/Sofia — latest combined-head F2a regression
+
+- **Source:** [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) exact tested HEAD `445db4d9a5d28b798054c426afeba9b9be2c771b` — two successful operator-run Windows combined tests. Both `F2A_TENANT_SCOPE_ISOLATED_ONLY=PASS`, `F2A_PG_DISPOSABLE_RUNTIME=PASS`, `COMBINED_HEAD_REGRESSION=PASS`. PostgreSQL migration, model-diff, reviewed SQL, filtered unique/FK constraints, sequential CAS, DB audit rollback, synthetic `pg_dump`/second-DB `pg_restore` PASS in disposable PG17; source/tenant regression PASS.
+- **Latest evidence:** tenant `logs/yangspace/f2a-tenant-scope/445db4d9a5d2-20261112-134120-cc109012`; PG `logs/yangspace/pg-disposable/445db4d9a5d2-20261112-134126-299426c5` in the operator-local combined QA worktree. Underlying file bytes and postflight hashes have not been received.
+- **F2a-2 read-only Identity bearer:** PASS on isolated SQLite/TestServer exact source SHA `f579c70db9cc0986d2f1df8047158587f0e87eef`, merged via #19 into #17. **PostgreSQL bearer HTTP, parallel EF writes, reviewer claim approval, atomic application audit, least-privilege DB role, off-host recovery and release remain HOLD**.
+- **PRs:** #19 MERGED/CLOSED; #17 OPEN/DRAFT/HOLD, GitHub reported mergeable at tested HEAD; #1 OPEN/DRAFT/HOLD. Latest parent-only documentation commits do not constitute source-code runtime validation.
+- **Next dependency:** local evidence postflight without rerunning PG; [F2a-3 security contract Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) proposes a dedicated reviewer role and transactional claim/member ownership with failure injection; **not approved and not implemented yet**. No Actions, CT164/CT152 or live DB changes.
+
 ## 2026-11-12 08:15 Europe/Sofia — F2a-2 merged; F2a-1 parent remains HOLD
 
 - [PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) is **MERGED/CLOSED** by squash, merge SHA \`17d08530db7fed0bbe7ed4444577a7b0e6b73c4d\`, into the F2a-1 feature branch. It is not merged into V2 or \`main\`.
@@ -241,16 +249,19 @@ NEXT_DEPENDENCY / OWNER_ROLE:
 
 **Change protocol:** an accepted architectural direction requires a dated ADR in [DECISIONS](DECISIONS.md), then updates here, in [POC_TRACKER](POC_TRACKER.md) and in [POC_ACCEPTANCE_MATRIX](POC_ACCEPTANCE_MATRIX.md). When details disagree, explicitly record the conflict and the newest evidence; do not silently “fix” the historical record. The latest approved gate report controls release eligibility, not the most recently edited Markdown header.
 
-
 ## 2026-11-12 — disposable PostgreSQL QA runner (historical pre-execution snapshot)
 
 Windows operator confirmed local Docker Desktop Linux Engine v29.9.1. PR #17 F2a code/migration HEAD `e1287058...` passed Windows exact-SHA build, tenant regression and committed EF snapshot-diff gates. Added a new source-only, fail-closed Docker PostgreSQL 17 runner with SQL for initial migration/partial UNIQUE/FK/revision CAS/database rollback and synthetic backup→restore. **Runner has not run; no real PostgreSQL PASS may be claimed yet.** Independent review and operator exact-new-SHA runtime proof are next. CT164/CT152 unchanged; PR #17 and master PR #1 stay Draft/Open. [Details](F2A1_SOURCE_FOUNDATION_20261111.md).
 
 
 
+
+
 ## 2026-11-11 22:09 Europe/Sofia — F2a PostgreSQL schema review findings / source fix
 
 **Latest F2a progress, not yet QA accepted:** PostgreSQL initial EF C#/Designer/snapshot/SQL for source `ccd2acb...` was independently inspected: ZIP SHA-256 and four internal checksums match, 15 tables/22 indexes, Designer↔snapshot model equal and no destructive `Up` statements. **HOLD on commit:** no DB-level approved/pending claim deduplication and no `Locations.Revision` in the generated schema, contrary to F2a contract. Original ZIP is preserved as rejected review evidence. Draft PR #17 now has a model correction for filtered unique `Approved` by Location, filtered unique `Pending` by (Location, Organization), Location revision concurrency token and new isolated regression tests. **Current source/EF scaffold/actual PostgreSQL QA remain PENDING**. See [F2a source foundation](F2A1_SOURCE_FOUNDATION_20261111.md), [claim policy](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md) and PR #17. No CT164/CT152 changes or approved owner endpoint.
+
+
 
 
 
