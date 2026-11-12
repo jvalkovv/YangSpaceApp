@@ -32,8 +32,6 @@ public static class MerchantReadEndpoints
     }
 }
 
-namespace YangSpace.Api;
-
 // WebApplicationFactory locates the actual API entry point through this assembly
 // marker; the runtime-test executable has its own generated Program class.
 public sealed class ApiAssemblyMarker { }
