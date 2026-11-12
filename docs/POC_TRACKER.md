@@ -7,6 +7,18 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-12 13:41 — F2a combined HEAD exact-SHA QA accepted
+
+| Item | Result | Evidence / remaining dependency |
+| --- | --- | --- |
+| #17 combined tenant regression | **DONE — exact-SHA operator PASS twice** at `445db4d9a5d28b798054c426afeba9b9be2c771b` | `f2a-restore`, `f2a-build`, `f2a-tenant-scope` PASS, final tenant marker PASS; latest evidence `logs/yangspace/f2a-tenant-scope/445db4d9a5d2-20261112-134120-cc109012` in the operator-local QA worktree |
+| #17 disposable PostgreSQL schema/constraints/recovery | **DONE — exact-SHA operator PASS twice** | Model-diff and SQL hash PASS; migration apply, FK/partial unique, CAS, DB audit rollback, backup/restore PASS; latest evidence `logs/yangspace/pg-disposable/445db4d9a5d2-20261112-134126-299426c5`. Local manifests/SQL/backup and container cleanup require independent SHA-256 postflight. |
+| #19 actual Identity bearer tenant HTTP | **DONE — scoped SQLite/TestServer; merged/closed** | Tested code SHA `f579c70db9cc0986d2f1df8047158587f0e87eef`; no claim of real PostgreSQL bearer HTTP. |
+| [#20 F2a-3 reviewer claim/membership lifecycle](https://github.com/jvalkovv/YangSpaceApp/issues/20) | **CONTRACT PROPOSED; implementation NOT STARTED** | Confirm reviewer role, self-approval denial, claim state machine, ownership transfers, membership re-grant, last-owner policy, transaction boundaries, audit and fault injection. |
+| #17 PR + V2 #1 | **OPEN / DRAFT / HOLD** | PostgreSQL bearer HTTP/parallel writers, reviewer/mutation workflow, atomic application audit, least-privilege PG role and recovery/release gates outstanding. |
+
+**No CT164/CT152 operations, live DB writes, merchant activation, deployment or GitHub Actions.**
+
 ## 2026-11-12 08:15 — F2a-2 read-only bearer authorization accepted
 
 | Work package | Result | Evidence / next required gate |
