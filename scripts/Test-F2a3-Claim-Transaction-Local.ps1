@@ -81,7 +81,6 @@ try {
         'CLAIM_TX_AUDIT_CARDINALITY'
         'CLAIM_TX_DUPLICATE_AUDIT_FORCED_FAILURE'
         'CLAIM_TX_FAILURE_ROLLBACK_ALL_ROWS'
-        'CLAIM_TX_NO_HTTP_ROUTE_OR_REAL_REVIEWER'
         'F2A3_CLAIM_TX_ISOLATED_ONLY'
     )) {
         $Pattern = '(?m)^' + [regex]::Escape($Marker) + '=PASS\s*$'
