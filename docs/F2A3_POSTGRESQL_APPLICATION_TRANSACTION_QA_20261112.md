@@ -65,3 +65,25 @@ Operator must separately postflight-check manifest, expected stage files and mar
 - No parallel PostgreSQL writers or competing claim approvals, unknown COMMIT acknowledgement, idempotent retry, DB role least-privilege, real evidence/PII handling, ownership transfer or recovery rehearsal.
 - No migration of existing/production data. The fresh synthetic EF migration is applied **only** to the disposable DB. No real `PostgreSQL` host or CT164/CT152 is contacted.
 - After passing this QA slice, review the proposed claim security contract under [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). The first production-code reviewer service requires separately approved role/evidence/transfer/re-grant policy and real PostgreSQL bearer HTTP tests with concurrent clients and fault injection. Parent #17 and V2 #1 remain DRAFT/HOLD.
+
+## 2026-11-12 17:43 Europe/Sofia — R2 PostgreSQL runtime PARTIAL and binary transfer RCA
+
+**Exact operator candidate:** `3fd89d55b337590452974544967f13a017375ed5`. Windows script parser and Git identity **PASS**; local `mcr.microsoft.com/dotnet/aspnet:10.0` pulled and verified (image ID `sha256:36be1e5aacfed3082e501442b9ec2dadf8fc346245b82159cc9ccdf883628415`, registry digest `sha256:bfd912c83295ce66d4b706ebb8541b9f14259b0e76fbb88b2751f58ce2399d2e`).
+
+Operator `STAGE_PASS` receipts: EF tool restore, EF restore, EF build, EF model diff, pinned reviewed SQL script; runtime restore/publish; PG start, ready, create DB, apply reviewed SQL, sentinel; .NET sidecar start. `F2A3_PG_REVIEWED_SQL_HASH=PASS` and `F2A3_PG_TWO_CONTAINERS_ISOLATED=PASS`.
+
+**Failing stage:** `STAGE=pgapp-copy-runtime` returned `STAGE_FAILED=pgapp-copy-runtime EXIT=1`; Docker daemon said `container rootfs is marked read-only`. The host-side `docker cp` API refuses writes to a Docker `--read-only` container, even though `/tmp` is an independently writable tmpfs. The simultaneous `io: read/write on closed pipe` is the consequence of the failed copy, not an independently verified filesystem corruption. **No real Npgsql EF transaction was executed.** Failed evidence dir: `D:\GitHub\YangSpaceApp-F2a3-PG-AppTx-QA-R2\logs\yangspace\f2a3-pg-apptx\3fd89d55b337-20261112-174329-33a19746`. Container cleanup must be verified on the local operator host before next attempt; no success manifest from this run is accepted.
+
+### Corrective design — same PR #22, no removal of `--read-only`
+
+**Current source fix at new candidate `c79bea7c9b7e963f73702980a9147e1de75456df`:**
+
+- Local Windows `tar.exe` archives the published runtime into an evidence-local TAR file with SHA-256.
+- New helper `scripts/Invoke-YangSpaceTarStreamStage.ps1` uses `System.Diagnostics.Process` to call `docker exec -i <sidecar> sh -c "mkdir -p /tmp/qa && tar -C /tmp/qa -xf -"`, streaming the TAR's **original binary bytes** into process standard input. Do not use PowerShell's object pipeline for binary data.
+- Runtime sidecar remains `--read-only --tmpfs /tmp:rw,size=256m` with `--network container:<pg>`. The runner checks `HostConfig.ReadonlyRootfs=true`, `/tmp` tmpfs, no host binds or published ports.
+- After extraction, a sidecar `sha256sum /tmp/qa/YangSpace.Api.RuntimeTests.dll` must match host `Get-FileHash` for the published test DLL. Runner writes TAR and DLL SHA-256 into the evidence manifest after successful Npgsql test and full cleanup.
+- Both new `.ps1` files passed a **basic static delimiter scan**, not the native Windows PowerShell parser. Exact-SHA Windows ParseFile must PASS for **both** the main runner and new helper before any .NET/Docker stage. Failure must be recorded as HOLD; no untested runtime PASS is claimed.
+
+**Recovery/cleanup preflight:** inspect Docker (`docker ps -a --filter name=yangspace-f2a3-`) before the R3 run. Do not automatically delete any existing QA container by prefix; inspect unexpected remnants. Keep R2 evidence untouched. Use a **new clean detached worktree** pinned to the new remote branch head. Continue source-only until all R3 stages, cleanup and independent evidence SHA-256 postflight PASS.
+
+**Still out of scope:** real reviewer Identity bearer HTTP, parallel writers/approvals, commit uncertainty, production role privileges, real claim decisions and deployment. Parent PR #17 and V2 #1 remain Draft/HOLD.
