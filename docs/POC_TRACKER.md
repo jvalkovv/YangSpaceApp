@@ -7,6 +7,26 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-12 13:57 — F2a-3 review contract proposed (not approved)
+
+Created [F2a-3 reviewer-controlled claim and Owner membership design](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md), linked from [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). It is **PROPOSED / HOLD**: dedicated live-checked reviewer authority, no self-approval, claim decision state machine, first-time only location ownership, atomic claim+organization+location+Owner membership+audit transaction, concurrency/uncertain-COMMIT protection and PostgreSQL HTTP negative/fault-injection matrix. Existing `BusinessClaim`/membership/audit indexes are accounted for.
+
+**Important test-topology dependency:** the present disposable PG runner uses `--network none` and cannot be directly reached by a host `WebApplicationFactory`. A separate approved isolated PostgreSQL bearer HTTP test topology is needed. No implementation or public feature enabled yet; role, evidence handling, re-grant and transfer policy require explicit owner acceptance.
+
+## 2026-11-12 13:57 Europe/Sofia — F2a combined exact-SHA evidence postflight PASS
+
+**Operator read-only evidence verification: `F2A_COMBINED_EVIDENCE_POSTFLIGHT=PASS`** on the tested application SHA `445db4d9a5d28b798054c426afeba9b9be2c771b` ([PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17)). Two earlier complete tenant + disposable PostgreSQL regression runs passed at the identical SHA. The operator recomputed file hashes, verified both manifests and checked local disposable-container cleanup; the underlying local artifact bytes were not uploaded for an additional remote verification.
+
+- `COMBINED_MANIFESTS=PASS`, `PG_SQL_INTEGRITY=PASS`, `PG_BACKUP_INTEGRITY=PASS`, `PG_EVIDENCE_MARKERS=PASS`, `PG_CONTAINER_CLEANUP=PASS`.
+- Reviewed migration SQL SHA-256: `2c6175976c82463eea5d40a3082528b8d72e1505f8803188a3c4473129bb7ee7` (pinned review checksum).
+- Synthetic PostgreSQL backup SHA-256: `94c7c2cb1a2fcb93633c23efcb642764baea04f866e464e0728a22e06bdd664e` (matched to PG manifest).
+- Tenant manifest SHA-256: `F544C05CE7DC829692072291660A60DAD40DCA00A68DD262B0EE125BF656BEE3`; PG manifest SHA-256: `738D715F7EA4D73A02DF09DBFEFA69530F6DBFD17BC2673DABFEB3DC5D1BA54B`.
+- Latest tenant evidence directory: `D:\GitHub\YangSpaceApp-F2a1-Combined-QA-20261112-0822\logs\yangspace\f2a-tenant-scope\445db4d9a5d2-20261112-134120-cc109012`.
+- Latest PostgreSQL directory: `D:\GitHub\YangSpaceApp-F2a1-Combined-QA-20261112-0822\logs\yangspace\pg-disposable\445db4d9a5d2-20261112-134126-299426c5`.
+- **Accepted bounded gate:** combined source/tenant regression and disposable PG initial schema, constraints, sequential CAS, DB audit uniqueness rollback, synthetic backup/restore/integrity and isolated cleanup. No further retry of this same QA needed for Markdown-only changes.
+- **Still HOLD:** actual Identity bearer authorization over PostgreSQL (existing F2a-2 real bearer TestServer acceptance is SQLite-only), parallel EF application writers, reviewer-controlled claim decision and ownership/membership grant/revoke, atomic application-level business+audit failure injection, PG least-privilege role, production migration/backfill/off-host recovery and release. No CT164/CT152, live DB, merchant activation or GitHub Actions.
+- **PRs:** #19 MERGED/CLOSED; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD. Next work is [F2a-3 Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20) security design decisions before implementation. Tested code SHA remains `445db4d…`; any newer docs-only PR head must not be labeled as separately runtime-tested.
+
 ## 2026-11-12 13:41 — F2a combined HEAD exact-SHA QA accepted
 
 | Item | Result | Evidence / remaining dependency |
@@ -273,6 +293,8 @@ The current YangSpace branch has **zero** EF migration artifacts. A repeatable m
 
 
 
+
+
 ## F2a-1 schema contract audit and remediation — 2026-11-11 22:09
 
 | Workstream | Current status | Evidence / acceptance |
@@ -289,11 +311,15 @@ The current YangSpace branch has **zero** EF migration artifacts. A repeatable m
 
 
 
+
+
 ## F2a-1 dependency security gate — 2026-11-11 21:07 Sofia
 
 **Operator exact candidate `aa4fec12873b5319072087317a6b64eb6a8a5162`:** PowerShell preflight PASS; `STAGE=f2a-restore` **FAIL EXIT=1** due NuGet Audit NU1902/NU1903 for transitive `Pkcs/Xml 9.0.0` introduced by the PostgreSQL migrations project's EF design-time graph. Restore blocked as designed (warnings-as-errors). Build, tenant scope and PG scaffold NOT RUN. Evidence at `D:\GitHub\YangSpaceApp-F2a1-PG-QA\logs\yangspace\f2a-tenant-scope\aa4fec12873b-20261111-210730-fb959c92` (operator-local).
 
 **Fix source `8d2511308ff8e14b6d9a25ba6ec5539c8f2de4aa`:** patched Pkcs/Xml `10.0.14` pins in PG migrations csproj plus safe Git stdout handling for detached scaffolding. **No QA PASS on fix yet**. Required: exact-current-HEAD re-run, NuGet restore/build/tenant regression, then scaffold/review PostgreSQL EF artifacts. CT164/live DB untouched. [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains Draft/HOLD.
+
+
 
 
 
