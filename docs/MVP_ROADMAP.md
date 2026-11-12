@@ -21,6 +21,20 @@ This is a **standing execution requirement** for all YangSpace work, including e
 8. **Review open PRs for 100%-scoped completion at each closure checkpoint:** for each open PR record its target branch, exact head, agreed DoD, completed vs missing QA, review, runtime/security and required owner approval. Only fully accepted scoped changes move to READY → MERGED → verify CLOSED; a merely compiling or generated migration is not "100%" when real DB/recovery or authorization tests are still required. Do not close Draft PRs for visual hygiene; if the scope is genuinely abandoned/superseded, close unmerged with rationale and linked replacement. After an accepted merge, refresh PR inventory and SSOT on the new base.
 
 
+### 2026-11-12 08:02 Europe/Sofia — F2a-2 isolated Identity bearer HTTP acceptance
+
+<badge>Operator exact-SHA PASS</badge> (badge text is not part of the source document)
+
+- **Exact tested SHA:** \`f579c70db9cc0986d2f1df8047158587f0e87eef\`, PR #19, stacked on F2a-1 base \`1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001\`.
+- Operator Windows output: runner syntax PASS; restore PASS; Release build with warnings-as-errors PASS; existing tenant regression PASS; real Identity bearer HTTP TestServer PASS; final \`F2A2_MERCHANT_BEARER_HTTP=PASS\`.
+- Evidence directory: \`D:\\GitHub\\YangSpaceApp-F2a2-Bearer-QA\\logs\\yangspace\\f2a2-merchant-http\\f579c70db9cc-20261112-075949-ea648860\`. Runner checks its required marker set and writes a manifest only after successful stages. **The actual local manifest and log bytes have not yet been independently received/reviewed.**
+- **Accepted scope:** isolated synthetic SQLite/TestServer only: real Identity-issued bearer tokens; default-off and QA-only environment checks; 401 anonymous/invalid/cookie; owner/editor positive access; cross-tenant, unknown, unclaimed, suspended and revoked 404; forged actor and PlatformAdmin-without-membership denied; registration/cookie login/write route denied; strict five-field DTO and no business/audit side effects.
+- **Explicit boundary:** \`LIVE_POSTGRESQL_BEARER_HTTP=NOT_TESTED\`; PostgreSQL bearer and parallel EF writers, reviewer-only claim grant/revoke, atomic business+audit application transaction, least-privilege production role, off-host recovery and deployment remain HOLD.
+- **Source review:** exact PR #19 source reviewed (Program fail-closed gate, Bearer-only policy, single joined membership/resource query, allowlisted DTO, test startup scope and exact-SHA runner); no blocking defect found in this bounded read-only slice. Independent human review and operator evidence-file postflight remain pending.
+- **PR inventory:** #19 remains DRAFT/HOLD pending independent evidence postflight/review/merge checkpoint; #17 DRAFT/HOLD pending real provider authorization, concurrency and audited mutation gates; #1 DRAFT/HOLD pending program release gates. **0 open PRs eligible for closure at this checkpoint.** Do not close unmerged or claim full F2a/production acceptance.
+- **Next execution:** read-only postflight of the local evidence manifest and stage logs; then independent review/owner merge decision for #19. Next product/security slice is reviewer-only claim verification and membership grant/revoke with atomic audit and DB fault-injection tests, specified before implementation. Keep it separate from this read-only route.
+- No GitHub Actions, CT164/CT152 access, live DB changes, migration, feature activation or deployment.
+
 ### 2026-11-12 07:49 Europe/Sofia — F2a-2 HTTP TestServer startup recovery
 
 - **Operator exact-SHA verification:** `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8`, Windows isolated worktree, `f2a2-restore`, `f2a2-build`, `f2a2-tenant-regression` **PASS**. `f2a2-bearer-http` **FAIL** before HTTP assertions; `Program.cs:46` rejects missing `ConnectionStrings:Main`. Operator log `logs/yangspace/f2a2-merchant-http/ceea4723ccc5-20261112-074923-0ce50a73` (local-only; underlying bytes not independently received).
