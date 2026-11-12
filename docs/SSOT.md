@@ -7,6 +7,16 @@
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
 
+## 2026-11-12 07:39 Europe/Sofia — latest F2a progress and PR inventory
+
+**Canonical milestone source:** [MVP roadmap progress/PR-closure checkpoint](MVP_ROADMAP.md#2026-11-12-0739-europesofia--f2a-2-build-failure--recovery-and-pr-closure-review). Earlier F2a "proposed/not implemented" paragraphs below are historical snapshots, not the current implementation status.
+
+- **F2a-1 PostgreSQL disposable QA:** PASS at `1ec2b7ee23b78f07d3cf2644f1d9e5e30752d001`; schema, constraints, sequential CAS, DB audit rollback, backup/restore and evidence integrity/cleanup verified from operator console. Not a production rollout.
+- **F2a-2 real merchant Identity bearer HTTP:** [Draft PR #19](https://github.com/jvalkovv/YangSpaceApp/pull/19) at `ceea4723ccc5d2fc7612e63ec3ff4239b37ea0b8`. Prior HEAD `62505864c934df1536194eb3bdc07eab29af648e` passed runner syntax/restore but failed Release build with test-only `CS0136` duplicate `owner` and `editor` locals. New commit renames fixture locals only. **Exact-new-HEAD build, tenant regression and actual bearer HTTP QA remain NOT RUN / HOLD.**
+- **Open PR inventory:** #19 Draft/HOLD (HTTP QA), #17 Draft/HOLD (reviewed claims/real PG runtime/auth and release security), #1 Draft/HOLD (full program/release gates). **No open PR accepted 100% for merge/closure** at this checkpoint.
+- **Standing governance:** meaningful in-conversation progress reports with full SHA and real evidence; review all open PRs at closure checkpoints; only owner-approved 100%-accepted scoped PRs may be merged/closed. Policy in merged PR #18 and [MVP roadmap](MVP_ROADMAP.md#delivery-governance--mandatory-progress-reporting--pr-closure-accepted-2026-11-11).
+- **No exposure:** no YangSpaceQa authorization enabled on CT164, no active DB changes, no migrations applied to CT164, no production/preview activation or GitHub Actions. Next is fresh operator Windows exact-SHA QA and evidence review.
+
 ## F2a architecture work — 2026-11-11 (proposed, review pending)
 
 **Status: SOURCE REVIEW / DESIGN PROPOSAL ONLY**, implementation gates remain HOLD. The current API has only global `PlatformAdmin`; Organization/Member/Claim rows and actor+revision audit are absent. [Issue #4](https://github.com/jvalkovv/YangSpaceApp/issues/4) owns tenant authorization, [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11) owns the full freshness/audit requirements. Proposed detailed contract: [F2a ownership and audit](F2A_TENANT_OWNERSHIP_AND_AUDIT_CONTRACT_20261111.md). **ADR-019 accepts PostgreSQL as the production target, but provider migration/activation is HOLD**; no new EF migration or owner endpoint enabled. F1a/F1b remain accepted for local code QA only, public demo unchanged.
