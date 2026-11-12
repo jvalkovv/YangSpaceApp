@@ -36,6 +36,23 @@ Created [F2a-3 reviewer-controlled claim and Owner membership design](F2A3_CLAIM
 - **Open PR inventory:** #19 MERGED/CLOSED into F2a-1 branch; #17 OPEN/DRAFT/HOLD despite being mergeable; V2 parent #1 OPEN/DRAFT/HOLD. Do not merge #17/#1; broader reviewer decision, PostgreSQL HTTP, application writer/audit atomicity, restricted PG role and recovery gates remain unaccepted.
 - **Next:** read-only SHA-256 postflight of latest tenant/PG local receipts (no repeat build/DB test). [Issue #20 — F2a-3](https://github.com/jvalkovv/YangSpaceApp/issues/20) contains proposed reviewer role, claim transition, membership ownership, transaction/rollback acceptance and conflict policy, **pending explicit approval before code**. No GitHub Actions, CT164/CT152 access, live DB, merchant activation or deployment.
 
+## 2026-11-12 14:48 Europe/Sofia — execution governance reaffirmed: visible progress and PR closure
+
+**Mandatory standing requirement, reconfirmed by owner on 2026-11-12:** every YangSpace implementation cycle reports progress in the active conversation at scope/commit/test/review/merge checkpoints, without relying on an hourly watcher. Include exact SHA, PR/issue, code vs operator-run vs runtime evidence, current PASS/PARTIAL/HOLD, blocker, next action and whether production was touched. Do not claim unattended background implementation or an unexecuted PASS. The existing hourly watcher is optional notification support only, not evidence.
+
+**PR cleanup at each checkpoint:** inspect all open PRs, their target branch, own Definition of Done and exact candidate head. Only PRs that are **100% completed for their bounded scope**, with exact-SHA QA, evidence postflight, source review and owner-approved merge action, move READY → MERGED → CLOSED. Never manually close an incomplete PR for list hygiene; never infer pilot readiness from a child QA PR merge.
+
+**Current inventory (2026-11-12 14:48 Europe/Sofia):**
+
+| PR | Base | Status | Unmet scoped acceptance |
+| --- | --- | --- | --- |
+| [#21 — F2a-3 isolated synthetic claim transaction QA](https://github.com/jvalkovv/YangSpaceApp/pull/21) | #17 F2a-1 branch | **OPEN / DRAFT / SOURCE-ONLY** | Current exact-SHA Windows .NET build + SQLite transaction/fault-injection markers; evidence and static review; no PostgreSQL/real reviewer claim |
+| [#17 — F2a-1 domain/tenant + merged bearer QA](https://github.com/jvalkovv/YangSpaceApp/pull/17) | V2 branch | **OPEN / DRAFT / HOLD** | Real PostgreSQL application bearer HTTP/parallel writers, reviewer claim workflow, atomic app audit, PG app role, recovery/release gates |
+| [#1 — YangSpace V2 parent](https://github.com/jvalkovv/YangSpaceApp/pull/1) | `main` | **OPEN / DRAFT / HOLD** | Product/security/operational/pilot sign-off |
+| [#19 — F2a-2 real Identity bearer read QA](https://github.com/jvalkovv/YangSpaceApp/pull/19) | #17 F2a-1 branch | **MERGED / CLOSED** | None for its *isolated SQLite/TestServer* scoped DoD; does not prove production authorization |
+
+**Current engineering step:** [Issue #20 — F2a-3](https://github.com/jvalkovv/YangSpaceApp/issues/20) remains **PROPOSED** for reviewer/claim business policy; [Draft PR #21](https://github.com/jvalkovv/YangSpaceApp/pull/21) adds only a disposable SQLite EF transaction feasibility test: successful synthetic claim/org/location/Owner/audit transaction and a forced audit UNIQUE error after the first EF SaveChanges to prove rollback across batches. No HTTP claim review endpoints, schema migrations, claim-role grants, CT164/CT152 access, production deployment or Actions. PostgreSQL integration topology and real reviewer policy acceptance remain separate gates.
+
 ## Delivery governance — mandatory progress reporting & PR closure (accepted 2026-11-11)
 
 This is a **standing execution requirement** for all YangSpace work, including external Work runs and manual operator actions. It is not a product feature and does not substitute for tests or owner review.
