@@ -392,3 +392,14 @@ Failure evidence (operator machine): `D:\\GitHub\\YangSpaceApp-F2a3-ReviewerAuth
 Correction committed in PR #23: the revocation test reloads reviewer by ID through the active scoped `UserManager`, verifies the role is present, then removes it using that same-scope entity. Runner now requires markers for both the reload and pre-revocation role check. Current corrected source candidate at the time of this entry: `9ced228838c11b4584229160fe1b40565aff3c7f` (the documentation commit that follows may advance the SHA).
 
 **Current state: SOURCE CORRECTION COMMITTED / CORRECTED SHA NOT YET TESTED / PR #23 DRAFT-HOLD.** Next: clean detached worktree at the latest PR head; native parser; restore; Release build with warnings-as-errors; isolated SQLite Identity bearer HTTP; independent stage/manifest/hash postflight and scoped review. No PostgreSQL, CT164/CT152, live DB, claim decision mutation or deployment. Evidence/retention approval remains a separate prerequisite for any future real decision endpoint.
+
+
+## 2026-11-13 — F2a-3 bounded reviewer authorization child completed
+
+PR #23 was merged into the F2a-1 feature branch: `c54c6cc4f4cd58b184c5d6b0dc7ec6a7c3507808`. Tested source SHA: `e4ba6bbd697eeaeec4bf6fafe81ab78e30d3f5c4`.
+
+Windows exact-SHA QA and independent postflight passed: parser, restore, Release build, isolated ASP.NET Core Identity bearer HTTP, exact source/clean worktree, manifest, three stage receipts, command validation and **27/27 HTTP markers**. No failure gate. Evidence path: `D:\GitHub\YangSpaceApp-F2a3-ReviewerAuth-QA-v2\logs\yangspace\f2a3-reviewer-auth\e4ba6bbd697e-20261113-061414-30f957ed`. Manifest SHA-256: `7c3c3894c229f9020c9892f8b618d0220b79dd4561e64b8eea26f2a3acfe0954`.
+
+**Bounded result only:** reviewer role is checked against persisted Identity state on every request; same-token revocation denies access; conflict helper and default-OFF QA restrictions pass. Test uses disposable SQLite TestServer. PostgreSQL bearer HTTP, real claim mutation, ownership grant, evidence handling and production remain NOT ACCEPTED.
+
+Issue #20 remains OPEN for the separate evidence/retention/legal approval and subsequent claim-decision implementation. Parent PR #17 remains Draft/HOLD for broader F2a-1 acceptance. No CT164/CT152, live DB, Actions or deployment.
