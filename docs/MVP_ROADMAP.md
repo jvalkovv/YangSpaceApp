@@ -2,6 +2,22 @@
 
 > **ADR-018:** GitHub Actions не се ползват. Проверки с exact-SHA локален runner, evidence logs и ръчен release.
 
+## 2026-11-13 07:53 Europe/Sofia — F2a-3 synthetic evidence policy accepted
+
+**[PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26) MERGED/CLOSED** by squash commit `7114427be24f0d50a682f1b67834336473c0f594` into the F2a-1 feature branch, not V2 or `main`.
+
+- Exact Windows-tested source SHA: `519809875658e7e27232d6a49536f2d71933ea69`.
+- Native PowerShell runner syntax/source identity, .NET 10 restore, Release build with warnings-as-errors, synthetic runtime contract and independent evidence postflight: **PASS**.
+- Operator markers: `STAGE_PASS=f2a3-evidence-restore`, `STAGE_PASS=f2a3-evidence-build`, `STAGE_PASS=f2a3-evidence-policy`, `F2A3_EVIDENCE_POLICY_SYNTHETIC_ONLY=PASS`, `F2A3_EVIDENCE_POSTFLIGHT=PASS`.
+- Manifest SHA-256: `e53fd7ec1e2de2acec19d90f174bc211eb156b938b7a744e56ce1018010142ec`.
+- Operator-local evidence: `logs/yangspace/f2a3-evidence-policy/519809875658-20261113-072609-f43b3a39`. Full logs and `postflight.txt` remain operator-local; no claim of cross-host artifact-byte verification.
+- Accepted scope: pure PDF/JPEG/PNG validation contract, deterministic retention calculations, UTC-anchor rejection, fail-closed scanner guard and test-assembly-only synthetic in-memory store.
+- Source review: five changed files only; no HTTP intake/download route, EF entity/migration, API-host storage registration, production storage, claim mutation or deployment path.
+- Explicit limitations: magic-byte checks are not full format parsing; PDF `/Encrypt` detection is heuristic; no scanner implementation, deletion worker, legal-hold processor or backup tombstone replay exists. These are future gates before any real intake.
+- [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is **CLOSED — completed for this bounded synthetic-only DoD**. [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains **OPEN/BLOCKING** for legal/privacy clearance.
+- Parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains OPEN/DRAFT/HOLD; V2 [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) remains OPEN/DRAFT/HOLD. No CT164/CT152, live DB, real evidence, GitHub Actions or production deployment.
+
+
 ## 2026-11-12 — F2a-3 technical policy approved; reviewer authorization child PR #23
 
 Owner approved the technical reviewer/ownership/concurrency policy recorded in [F2a-3 security contract](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md) and [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). **This is not approval of evidence categories, evidence checklist, private evidence handling, retention/erasure or legal basis**; those remain a mandatory separate gate before any real claim decision mutation.
@@ -326,10 +342,8 @@ No real evidence collection/processing, production upload/storage or live claim-
 **Next:** [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is opened for the bounded synthetic-data-only evidence handling foundation; [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the blocking legal/privacy gate for any real evidence. Parent PR #17 remains Draft/HOLD.
 
 
-## 2026-11-13 — F2a-3 synthetic evidence policy code candidate
+## Historical checkpoint — F2a-3 synthetic evidence policy candidate (pre-QA)
 
-[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is now implemented as [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact candidate `519809875658e7e27232d6a49536f2d71933ea69`.
+[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) was implemented in [PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact tested source SHA `519809875658e7e27232d6a49536f2d71933ea69`.
 
-Source-only scope: pure evidence file validation, deterministic retention calculation, UTC timestamp validation, fail-closed malware scanner configuration guard and synthetic-only runtime tests. No HTTP route, evidence schema/migration, production storage or real evidence intake.
-
-**State: NOT WINDOWS-TESTED / DRAFT / HOLD.** Exact-SHA restore, Release build, runtime execution and independent evidence postflight are still required. [Legal/privacy Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard gate before any real evidence collection or production activation.
+At this pre-execution checkpoint the candidate was still NOT WINDOWS-TESTED / DRAFT / HOLD. The later exact-SHA acceptance and squash merge are recorded at the top of this roadmap. [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard legal/privacy gate before any real evidence collection or production activation.
