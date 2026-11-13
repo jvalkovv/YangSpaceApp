@@ -414,3 +414,12 @@ Canonical policy v1: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://gi
 No real evidence collection/processing, production upload/storage or live claim-decision activation before written legal/privacy clearance. Isolated non-production QA with synthetic data only may proceed if it is technically incapable of accepting real evidence and is not wired into production.
 
 F2a-3 remains **RELEASE HOLD**. [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) tracks the synthetic-data-only QA foundation; [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard legal/privacy gate for any real evidence.
+
+
+## 2026-11-13 — F2a-3 synthetic evidence policy code candidate
+
+[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is now implemented as [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact candidate `f5cb517d6a0ab88056a52d449d37dd55ff4e50d9`.
+
+Source-only scope: pure evidence file validation, deterministic retention calculation, UTC timestamp validation, fail-closed malware scanner configuration guard and synthetic-only runtime tests. No HTTP route, evidence schema/migration, production storage or real evidence intake.
+
+**State: NOT WINDOWS-TESTED / DRAFT / HOLD.** Exact-SHA restore, Release build, runtime execution and independent evidence postflight are still required. [Legal/privacy Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard gate before any real evidence collection or production activation.
