@@ -3,7 +3,17 @@
 **Status:** ACTIVE planning/status authority on the YangSpace V2 feature branch; introduced by merged PR #9. This document does **not** authorize deployment, database mutation, exposure, or feature-to-`main` merge.  
 **Baseline date:** 2026-11-11 (Europe/Sofia).  
 **Previous accepted F2a-2 code QA:** tested code SHA `f579c70db9cc0986d2f1df8047158587f0e87eef` (Windows restore/build/tenant regression/real Identity bearer TestServer PASS; operator evidence postflight PASS), documentation-only follow-up `bc0a77ea6b6bc794a2d9d6aefcbe3c12936a329e`, squash-merged by PR #19 as `17d08530db7fed0bbe7ed4444577a7b0e6b73c4d` into the F2a-1 feature branch. This is **not merged into the V2 feature branch or `main`**. Earlier F1b source QA remains historical and valid for its own SHA. Historical CT164/CT152 deployment remains `a4802805421f10e834ad35bbf2f259db4e4eab84`. [Parent PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays Draft. `main` remains the legacy application.  
-**Scope of this update:** GitHub source/PR reconciliation and operator-provided exact-SHA Windows QA + read-only evidence postflight; **no new build, PostgreSQL runtime, real-browser, PVE, or public-origin execution** was performed for this document.
+**Scope of this update:** GitHub branch/document reconciliation and operator-provided exact-SHA Windows QA + read-only evidence postflight; the V2/F2a merge commit and documentation updates introduced no runtime source changes. No new build, PostgreSQL runtime, real-browser, PVE, or public-origin execution was performed for this document.
+
+## 2026-11-13 — F2a-1 synchronized with current V2 base
+
+**Integration merge commit:** `eb75e0022634499de489578f6f1003be2706a1f1` (F2a-1 first parent `93809f4f8c6cab18d261123195ec518df4ca9ba5`; current V2 second parent `92f248dc88fcc888f93c2829727e22db0eb65312`). The merge tree is unchanged from the F2a-1 pre-integration tree; application, EF migration, SQL, test and runner source were not altered by the merge.
+
+GitHub compare now reports **83 commits ahead / 0 behind**, with merge base equal to V2 HEAD. PR #17 reports **mergeable=true / clean**, but remains **OPEN / DRAFT / HOLD**; it has not been merged into the V2 branch or `main`.
+
+The four documentation conflicts were reconciled without discarding either side's accepted history. The F2a security contract now reflects owner-approved technical and evidence/retention policies while preserving Issue #24 as the independent legal/privacy blocker. The previous dirty-mergeability observation in the 07:53 checkpoint is historical and resolved by this integration commit.
+
+**Next operator gate:** run the exact current PR #17 head from a clean detached Windows worktree using `Test-F2a-Tenant-Scope-Local.ps1` and `Test-F2a-PostgreSql-Disposable-Local.ps1`. These F2a-1 runners require the remote branch ref to equal the tested SHA. Historical PR #22/#23/#26 child PASS results remain attached to their own exact tested SHAs and are not relabelled as tests of this integration head.
 
 > **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers. F2a-3 reviewer/ownership/concurrency policy and the synthetic-only evidence policy foundation are owner-approved and accepted in their bounded scopes; real evidence intake/storage/retention operations and all real claim mutations remain HOLD.
 
@@ -21,7 +31,7 @@
 - Explicit limitations: magic-byte checks are not full format parsing; PDF `/Encrypt` detection is heuristic; no scanner implementation, deletion worker, legal-hold processor or backup tombstone replay exists. These are future gates before any real intake.
 - [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is **CLOSED — completed for this bounded synthetic-only DoD**. [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains **OPEN/BLOCKING** for legal/privacy clearance.
 - Parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains OPEN/DRAFT/HOLD; V2 [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) remains OPEN/DRAFT/HOLD.
-- **PR #17 mergeability RCA:** GitHub reports `mergeable_state=dirty`. The current V2 base is `92f248dc88fc`, F2a-1 head is `44516588e4ff`, common ancestor `fb3e032944f0`; compare shows 48 V2-only commits and 81 F2a-1-only commits. The overlapping changed paths are the four governance/security documents: `F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md`, `MVP_ROADMAP.md`, `POC_TRACKER.md`, `SSOT.md`. Reconcile these documents before parent integration; do not treat this as an evidence-QA failure or merge around it.
+- **Historical PR #17 mergeability RCA (resolved):** GitHub reported `mergeable_state=dirty` before the branch synchronization. The four overlapping governance/security documents were reconciled by integration commit `eb75e0022634499de489578f6f1003be2706a1f1`; the current compare is 83 ahead / 0 behind and PR #17 is mergeable=true / clean. The parent PR remains Draft/HOLD for technical acceptance, not documentation conflicts.
 - No CT164/CT152, live DB, real evidence, GitHub Actions or production deployment.
 
 ## Historical checkpoint — 2026-11-12 F2a-3 technical policy and reviewer authorization child PR #23
