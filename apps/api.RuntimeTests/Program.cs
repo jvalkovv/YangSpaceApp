@@ -266,6 +266,12 @@ if (args.Length == 1 && string.Equals(args[0], "--claim-reviewer-auth-http-only"
     Console.WriteLine("F2A3_REVIEWER_AUTH_HTTP_ISOLATED_ONLY=PASS");
     return;
 }
+if (args.Length == 1 && string.Equals(args[0], "--evidence-policy-only", StringComparison.Ordinal))
+{
+    await EvidencePolicyContract.RunAsync();
+    Console.WriteLine("F2A3_EVIDENCE_POLICY_SYNTHETIC_ONLY=PASS");
+    return;
+}
 if (args.Length == 1 && string.Equals(args[0], "--tenant-scope-only", StringComparison.Ordinal))
 {
     await TenantScopeContract.RunAsync();
