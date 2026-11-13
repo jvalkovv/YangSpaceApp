@@ -1,7 +1,7 @@
 # F2a-3 — Reviewer-controlled claim decisions and atomic Owner membership
 
 **Date:** 2026-11-12 (Europe/Sofia)  
-**Status:** **TECHNICAL SECURITY POLICY APPROVED — QA-ONLY IMPLEMENTATION IN PROGRESS; EVIDENCE / RETENTION GATE OPEN**. Owner approval was given on 2026-11-12. This authorizes only the isolated reviewer-authorization QA slice; it does not authorize claim-decision mutations, evidence collection, merchant onboarding, production flags, credentials or live environment changes.  
+**Status:** **TECHNICAL SECURITY POLICY APPROVED — BOUNDED REVIEWER-AUTHORIZATION QA ACCEPTED (PR #23 MERGED); EVIDENCE / RETENTION GATE OPEN; CLAIM-DECISION RELEASE HOLD**. Owner approval was given on 2026-11-12. This authorizes only the isolated reviewer-authorization QA slice; it does not authorize claim-decision mutations, evidence collection, merchant onboarding, production flags, credentials or live environment changes.  
 **Primary work item:** [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20), derived from [Issue #4](https://github.com/jvalkovv/YangSpaceApp/issues/4); F2b content-audit follow-on is [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11).
 
 ## 2026-11-12 — owner decision and implementation boundary
@@ -94,3 +94,12 @@ The existing disposable PG runner deliberately uses `--network none` with no pub
 5. Real bearer HTTP tests in an approved isolated PostgreSQL topology and concurrent clients; all negative assertions verify status **and** zero DB side effects. Forced errors and uncertain COMMIT evidence must pass.
 6. Exact-SHA .NET restore/build warnings-as-errors, static review, peer review, signed/hashed local manifests, cleanup and owner approval. Only then merge the scoped mutation PR into its feature parent.
 7. **Out of scope:** active CT164/CT152, real user enrollment, production database/ingress, merchant writes, pilot launch and off-host disaster recovery. PR #17 and V2 PR #1 remain Draft/HOLD until their own broader acceptance gates are complete. No GitHub Actions.
+
+
+## 2026-11-13 — reviewer authorization QA result
+
+The bounded QA-only implementation in [PR #23](https://github.com/jvalkovv/YangSpaceApp/pull/23) passed exact-SHA Windows acceptance and independent evidence postflight at source SHA `e4ba6bbd697eeaeec4bf6fafe81ab78e30d3f5c4`; merged as `c54c6cc4f4cd58b184c5d6b0dc7ec6a7c3507808`.
+
+The 27/27 isolated SQLite Identity bearer HTTP markers passed, including live same-token role revocation and fail-closed QA boundaries. This does not certify PostgreSQL bearer HTTP, claim mutation, Owner membership grant, audit transaction, concurrency, uncertain COMMIT or production.
+
+The separate evidence categories/checklist, private evidence handling, retention/erasure and legal-basis gate remains OPEN. No real Approve/Reject endpoint may be implemented or enabled before that approval and its separate PostgreSQL/concurrency/fault-injection acceptance.
