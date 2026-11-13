@@ -112,3 +112,12 @@ The owner approved the operational policy on 2026-11-13. Canonical policy: [F2A3
 **Owner approval: PASS. Legal/privacy clearance: PENDING/BLOCKED — [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24).** The lawful basis is not selected by the policy and must be documented by the responsible controller with qualified privacy/legal review.
 
 No real evidence intake, production upload/storage, live claim decision or Owner grant may be activated before legal/privacy clearance. Only isolated non-production implementation using synthetic data, incapable of accepting real evidence, may proceed under [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25); [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the legal/privacy release gate. Existing reviewer-auth QA remains bounded to isolated SQLite bearer HTTP; no release or production approval is implied.
+
+
+## 2026-11-13 — F2a-3 synthetic evidence policy code candidate
+
+[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is now implemented as [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact candidate `f5cb517d6a0ab88056a52d449d37dd55ff4e50d9`.
+
+Source-only scope: pure evidence file validation, deterministic retention calculation, UTC timestamp validation, fail-closed malware scanner configuration guard and synthetic-only runtime tests. No HTTP route, evidence schema/migration, production storage or real evidence intake.
+
+**State: NOT WINDOWS-TESTED / DRAFT / HOLD.** Exact-SHA restore, Release build, runtime execution and independent evidence postflight are still required. [Legal/privacy Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard gate before any real evidence collection or production activation.
