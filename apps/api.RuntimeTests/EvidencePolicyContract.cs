@@ -289,6 +289,17 @@ internal static class EvidencePolicyContract
             () => EvidenceMalwareScannerGuard.RequireConfigured(null),
             "EVIDENCE_MALWARE_SCANNER_NOT_CONFIGURED",
             "EVIDENCE_SCANNER_MISSING_FAILS_CLOSED");
+
+        EvidenceMalwareScannerGuard.RequireClean(EvidenceMalwareScanResult.Clean);
+        Console.WriteLine("EVIDENCE_SCANNER_CLEAN_ACCEPTED=PASS");
+        ExpectInvalidOperation(
+            () => EvidenceMalwareScannerGuard.RequireClean(EvidenceMalwareScanResult.ThreatDetected),
+            "EVIDENCE_MALWARE_SCAN_NOT_CLEAN",
+            "EVIDENCE_SCANNER_THREAT_FAILS_CLOSED");
+        ExpectInvalidOperation(
+            () => EvidenceMalwareScannerGuard.RequireClean(EvidenceMalwareScanResult.Indeterminate),
+            "EVIDENCE_MALWARE_SCAN_NOT_CLEAN",
+            "EVIDENCE_SCANNER_INDETERMINATE_FAILS_CLOSED");
     }
 
     private static void ValidateSyntheticStore()
