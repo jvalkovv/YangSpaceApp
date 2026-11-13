@@ -5,7 +5,7 @@
 **Parent work item:** [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20)  
 **Related technical contract:** [F2a-3 Claim Review Security Contract](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md)  
 **Legal/privacy clearance:** [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) — blocking before real evidence collection/processing.  
-**Synthetic-only technical foundation:** [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) · [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26)
+**Synthetic-only technical foundation:** [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) · [PR #26 MERGED/CLOSED](https://github.com/jvalkovv/YangSpaceApp/pull/26)
 
 > This policy was explicitly approved by the product owner on 2026-11-13 as the operational product/technical baseline. It is not legal advice and does not establish a GDPR lawful basis. Real evidence collection or processing, production upload/storage and live claim-decision activation remain blocked until the separate legal/privacy review is completed and the responsible controller confirms the processing can proceed.
 
@@ -20,7 +20,7 @@ Evidence is collected only to establish:
 
 Do not collect evidence merely to build a richer business profile, marketing database, identity archive or general fraud dataset.
 
-**Current implementation remains unchanged:** PR #23 proves only reviewer authorization/conflict checks through isolated SQLite Identity bearer HTTP. No upload endpoint, private evidence store, claim decision route or evidence/audit mutation is authorized by this draft.
+**Current bounded implementation:** PR #23 proves reviewer authorization/conflict checks through isolated SQLite Identity bearer HTTP. PR #26 adds only the synthetic-only pure validation/retention policy contract and test fixture. There is still no upload/download endpoint, private evidence store, claim decision route or evidence/audit mutation.
 
 ## 2. Evidence categories and acceptable proof
 
@@ -151,7 +151,7 @@ Do not treat consent as a default substitute for identifying the correct lawful 
 
 ## 9. Implementation gate / Definition of Done
 
-The owner has approved the operational defaults on 2026-11-13. No real evidence collection, production upload/storage or live claim-decision activation starts until the legal/privacy review confirms the processing can proceed and the responsible controller documents the lawful basis and required notices/processor controls. Implementation work before that clearance is limited to [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) and must remain isolated, non-production and incapable of collecting real personal data. Its current source candidate is [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26).
+The owner has approved the operational defaults on 2026-11-13. No real evidence collection, production upload/storage or live claim-decision activation starts until the legal/privacy review confirms the processing can proceed and the responsible controller documents the lawful basis and required notices/processor controls. The bounded synthetic-only foundation in [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is accepted and [PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26) is merged into the F2a-1 feature branch at `7114427be24f0d50a682f1b67834336473c0f594`, based on exact tested source SHA `519809875658e7e27232d6a49536f2d71933ea69`. This does not authorize real personal/business evidence intake or processing.
 
 After approval, a separate child PR must implement and test:
 
