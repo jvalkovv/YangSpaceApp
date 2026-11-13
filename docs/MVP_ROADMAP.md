@@ -328,7 +328,7 @@ No real evidence collection/processing, production upload/storage or live claim-
 
 ## 2026-11-13 — F2a-3 synthetic evidence policy code candidate
 
-[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is now implemented as [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact candidate `e70558086e43afff5bd27db428a3f363d7e7498f`.
+[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is now implemented as [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact candidate `519809875658e7e27232d6a49536f2d71933ea69`.
 
 Source-only scope: pure evidence file validation, deterministic retention calculation, UTC timestamp validation, fail-closed malware scanner configuration guard and synthetic-only runtime tests. No HTTP route, evidence schema/migration, production storage or real evidence intake.
 
