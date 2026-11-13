@@ -398,7 +398,7 @@ Correction committed in PR #23: the revocation test reloads reviewer by ID throu
 
 PR #23 was merged into the F2a-1 feature branch: `c54c6cc4f4cd58b184c5d6b0dc7ec6a7c3507808`. Tested source SHA: `e4ba6bbd697eeaeec4bf6fafe81ab78e30d3f5c4`.
 
-Windows exact-SHA QA and independent postflight passed: parser, restore, Release build, isolated ASP.NET Core Identity bearer HTTP, exact source/clean worktree, manifest, three stage receipts, command validation and **27/27 HTTP markers**. No failure gate. Evidence path: `D:\GitHub\YangSpaceApp-F2a3-ReviewerAuth-QA-v2\logs\yangspace\f2a3-reviewer-auth\e4ba6bbd697e-20261113-061414-30f957ed`. Manifest SHA-256: `7c3c3894c229f9020c9892f8b618d0220b79dd4561e64b8eea26f2a3acfe0954`.
+Windows exact-SHA QA and independent postflight passed: parser, restore, Release build, isolated ASP.NET Core Identity bearer HTTP, exact source/clean worktree, manifest, three stage receipts, command validation and **27/27 HTTP markers**. No failure gate. Evidence path: `D:\GitHub\YangSpaceApp-F2a3-ReviewerAuth-QA-v2\logs\yangspace\f2a3-reviewer-auth\e4ba6bbd697e-20261113-061414-30f957ed`. Manifest SHA-256: `7c3c3894c229f9020c9892f8b618d0220b79dd4561e64b8eea26b8a0385aa9d0`.
 
 **Bounded result only:** reviewer role is checked against persisted Identity state on every request; same-token revocation denies access; conflict helper and default-OFF QA restrictions pass. Test uses disposable SQLite TestServer. PostgreSQL bearer HTTP, real claim mutation, ownership grant, evidence handling and production remain NOT ACCEPTED.
 
