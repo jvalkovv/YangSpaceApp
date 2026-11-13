@@ -1,3 +1,14 @@
+## 2026-11-13 — F2b source QA preflight failure and corrected marker
+
+**Operator-tested source:** `f8f71044bb38b93d63574984f3692fc9276076aa`; `F2B_EXACT_SOURCE=PASS`, then **`F2B_STATIC_POLICY_MISSING=users.GetRolesAsync(user)`** before any .NET restore/build, npm CI, Angular typecheck or production build. **No build PASS and no live operation.**
+
+**Root cause:** static QA string literal used `users.GetRolesAsync(user)`, while the actual guarded function `IsStaffAsync(UserManager<IdentityUser> manager, IdentityUser user)` correctly invokes `manager.GetRolesAsync(user)`. This is a harness-only false-negative, not evidence of a role authorization bypass.
+
+**Fix code commit:** `0f1d4313f11ca45ecdb3c3b634a1951708d36ee0`, one-line source QA marker correction; no API/Angular behavior changed. Independent source comparison after fix confirms **10/10 public-account backend policy markers, 3/3 startup/program gates, 6/6 Angular auth routes, and default OFF**. This verification is static-only and cannot establish successful compilation.
+
+**Next:** rerun `scripts/Test-F2b-Public-Identity-Source-Local.ps1` from a clean detached worktree at the **current exact F2b branch HEAD**, with origin ref parity; require .NET Release build, npm-ci, Angular typecheck and build, manifest and evidence hash. **PR #29 stays OPEN/DRAFT/HOLD**, no CT164, no SMTP, no signup enablement, and no Owner grants.
+
+
 ## 2026-11-13 — F2b public Identity implementation in Draft PR #29
 
 **Branch:** `feat/yangspace-f2b-public-identity-foundation-20261113` stacked on F2a-1 PR #17. **Runtime code SHA:** `c0dca5074733cbfab8158f8e78d9a5ddbd188308`.  
