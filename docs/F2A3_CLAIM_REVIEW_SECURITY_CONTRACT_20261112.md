@@ -105,10 +105,10 @@ The 27/27 isolated SQLite Identity bearer HTTP markers passed, including live sa
 The separate evidence categories/checklist, private evidence handling, retention/erasure and legal-basis gate remains OPEN. No real Approve/Reject endpoint may be implemented or enabled before that approval and its separate PostgreSQL/concurrency/fault-injection acceptance.
 
 
-## 2026-11-13 — evidence, privacy and retention policy proposal
+## 2026-11-13 — evidence, privacy and retention policy owner-approved
 
-The separate evidence gate is now documented in [F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md).
+The owner approved the operational policy on 2026-11-13. Canonical policy: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md).
 
-The draft proposes proof categories/checklist, minimum collection and redaction, private claim-scoped storage/access, file validation, operational retention/deletion windows, backup tombstone replay and legal/privacy review.
+**Owner approval: PASS. Legal/privacy clearance: PENDING/BLOCKED — [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24).** The lawful basis is not selected by the policy and must be documented by the responsible controller with qualified privacy/legal review.
 
-**Status remains PROPOSED / NOT APPROVED.** No lawful basis has been selected. Owner approval of operational defaults and separate legal/privacy clearance are both required before evidence collection, storage or real claim-decision mutation. The previously accepted reviewer-auth QA remains bounded to isolated SQLite bearer HTTP; no release or production approval is implied.
+No real evidence intake, production upload/storage, live claim decision or Owner grant may be activated before legal/privacy clearance. Only isolated non-production implementation using synthetic data, incapable of accepting real evidence, may proceed. Existing reviewer-auth QA remains bounded to isolated SQLite bearer HTTP; no release or production approval is implied.
