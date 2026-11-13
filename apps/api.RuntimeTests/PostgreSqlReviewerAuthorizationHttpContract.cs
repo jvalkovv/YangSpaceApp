@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -27,6 +28,18 @@ internal static class PostgreSqlReviewerAuthorizationHttpContract
     private const string AccessPath = "/api/v1/staff/claim-review/access";
     private const string DatabaseName = "yangspace_f2a3_disposable";
     private const string ExpectedMigration = "20261111203833_InitialPostgreSqlSchema";
+
+    // Explicitly identify this test assembly for WebApplicationFactory's
+    // content-root metadata discovery. The stock dependency-context scan is
+    // unsuitable for the stripped, published, no-solution container sidecar.
+    private sealed class IsolatedPostgreSqlWebApplicationFactory
+        : WebApplicationFactory<ApiAssemblyMarker>
+    {
+        protected override IEnumerable<Assembly> GetTestAssemblies()
+        {
+            yield return typeof(PostgreSqlReviewerAuthorizationHttpContract).Assembly;
+        }
+    }
 
     private sealed class StartupEnvironmentScope : IDisposable
     {
@@ -160,7 +173,7 @@ internal static class PostgreSqlReviewerAuthorizationHttpContract
         if (!File.Exists(Path.Combine(contentRoot, "appsettings.json")))
             throw new InvalidOperationException("F2A3_PG_REVIEWER_API_CONTENT_ROOT_NOT_FOUND");
 
-        return new WebApplicationFactory<ApiAssemblyMarker>().WithWebHostBuilder(host =>
+        return new IsolatedPostgreSqlWebApplicationFactory().WithWebHostBuilder(host =>
         {
             host.UseContentRoot(contentRoot);
             host.UseEnvironment(environment);
@@ -267,6 +280,19 @@ internal static class PostgreSqlReviewerAuthorizationHttpContract
               string.Equals(actualRoot, expectedRoot, StringComparison.Ordinal) &&
               File.Exists(Path.Combine(expectedRoot, "appsettings.json")),
               "F2A3_PG_REVIEWER_WAF_CONTENT_ROOT_MARKER");
+
+        var contentRootAttribute = typeof(PostgreSqlReviewerAuthorizationHttpContract)
+            .Assembly.GetCustomAttributes<WebApplicationFactoryContentRootAttribute>()
+            .SingleOrDefault(attribute =>
+                string.Equals(attribute.Key,
+                    typeof(ApiAssemblyMarker).Assembly.GetName().Name,
+                    StringComparison.OrdinalIgnoreCase));
+        Check(contentRootAttribute is not null &&
+              string.Equals(contentRootAttribute.ContentRootPath, expectedRoot,
+                  StringComparison.Ordinal) &&
+              string.Equals(Path.GetFileName(contentRootAttribute.ContentRootTest),
+                  "appsettings.json", StringComparison.Ordinal),
+              "F2A3_PG_REVIEWER_WAF_METADATA_MATCHED");
 
         using var startup = new StartupEnvironmentScope(connectionString);
 
