@@ -210,9 +210,10 @@ public static class EvidenceRetentionPolicy
     private static EvidenceRetentionSchedule ApprovedSchedule(EvidenceRetentionFacts facts)
     {
         var approvedAt = Require(facts.ApprovedAtUtc, nameof(facts.ApprovedAtUtc));
-        var baseline = facts.LastReverifiedAtUtc is { } reverifiedAt && reverifiedAt > approvedAt
-            ? reverifiedAt
+        var reverifiedAt = facts.LastReverifiedAtUtc is { } suppliedReverification
+            ? Require(suppliedReverification, nameof(facts.LastReverifiedAtUtc))
             : approvedAt;
+        var baseline = reverifiedAt > approvedAt ? reverifiedAt : approvedAt;
         var staleAt = baseline.AddMonths(12);
         var schedule = Schedule(staleAt, deletionGraceDays: 30);
         return schedule with { VerificationStaleAtUtc = staleAt };
@@ -223,8 +224,16 @@ public static class EvidenceRetentionPolicy
         int deletionGraceDays) =>
         new(eligibleAt, eligibleAt.AddDays(deletionGraceDays));
 
-    private static DateTimeOffset Require(DateTimeOffset? value, string name) =>
-        value ?? throw new ArgumentException($"Required UTC timestamp is missing: {name}.");
+    private static DateTimeOffset Require(DateTimeOffset? value, string name)
+    {
+        if (value is not { } timestamp)
+            throw new ArgumentException($"Required UTC timestamp is missing: {name}.");
+
+        if (timestamp.Offset != TimeSpan.Zero)
+            throw new ArgumentException($"Timestamp must use UTC offset zero: {name}.");
+
+        return timestamp;
+    }
 }
 
 /// <summary>
