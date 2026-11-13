@@ -1,3 +1,15 @@
+## 2026-11-13 — F2b public Identity implementation in Draft PR #29
+
+**Branch:** `feat/yangspace-f2b-public-identity-foundation-20261113` stacked on F2a-1 PR #17. **Runtime code SHA:** `c0dca5074733cbfab8158f8e78d9a5ddbd188308`.  
+**[PR #29](https://github.com/jvalkovv/YangSpaceApp/pull/29): OPEN / DRAFT / SOURCE NOT WINDOWS-TESTED / HOLD.** [Issue #28](https://github.com/jvalkovv/YangSpaceApp/issues/28): OPEN/P0.
+
+- API: dedicated `/api/public-account` registration, canonical email confirmation/resend, confirmed-only login, password reset and bearer session. Reuses ASP.NET Core Identity and existing EF user store; no Microsoft Entra, no new migration.
+- Security: default-off flag, Production+PostgreSQL+explicit host+canonical origin+STARTTLS SMTP preflight, rate-limit, memory-only bearer token, generic duplicate signup outcome, prior password validation, deny public login/reset/confirm for **any** Identity staff role, no Owner/membership grants, no bypass of admin `/api/auth` gateway.
+- Angular: responsive `/login`, `/register`, `/recover`, `/reset`, `/resend-confirmation`, `/account` with keyboard-aware forms, complete mobile dropdown auth navigation and error/disabled messages.
+- Evidence scaffolding: `scripts/Test-F2b-Public-Identity-Source-Local.ps1` exact-SHA Windows .NET Release build + Angular typecheck/production build; `docs/F2B_PUBLIC_ACCOUNTS_FOUNDATION_20261113.md`.
+- **No QA PASS yet.** Pending Windows exact-SHA compile/typecheck, disposable PostgreSQL TestServer/SMTP sink integration, privacy notice and lawful-basis approval, mail retries/outbox decision, ingress/real-browser/CT164 recovery acceptance. No production flag change, no real registrations and no deployment. Issue #24 remains blocking for real business evidence and claim decisions.
+
+
 # MVP Roadmap — Gates, Not Dates
 
 > **ADR-018:** GitHub Actions не се ползват. Проверки с exact-SHA локален runner, evidence logs и ръчен release.
