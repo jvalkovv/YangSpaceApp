@@ -7,6 +7,22 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-13 07:53 Europe/Sofia — F2a-3 synthetic evidence policy accepted
+
+**[PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26) MERGED/CLOSED** by squash commit `7114427be24f0d50a682f1b67834336473c0f594` into the F2a-1 feature branch, not V2 or `main`.
+
+- Exact Windows-tested source SHA: `519809875658e7e27232d6a49536f2d71933ea69`.
+- Native PowerShell runner syntax/source identity, .NET 10 restore, Release build with warnings-as-errors, synthetic runtime contract and independent evidence postflight: **PASS**.
+- Operator markers: `STAGE_PASS=f2a3-evidence-restore`, `STAGE_PASS=f2a3-evidence-build`, `STAGE_PASS=f2a3-evidence-policy`, `F2A3_EVIDENCE_POLICY_SYNTHETIC_ONLY=PASS`, `F2A3_EVIDENCE_POSTFLIGHT=PASS`.
+- Manifest SHA-256: `e53fd7ec1e2de2acec19d90f174bc211eb156b938b7a744e56ce1018010142ec`.
+- Operator-local evidence: `logs/yangspace/f2a3-evidence-policy/519809875658-20261113-072609-f43b3a39`. Full logs and `postflight.txt` remain operator-local; no claim of cross-host artifact-byte verification.
+- Accepted scope: pure PDF/JPEG/PNG validation contract, deterministic retention calculations, UTC-anchor rejection, fail-closed scanner guard and test-assembly-only synthetic in-memory store.
+- Source review: five changed files only; no HTTP intake/download route, EF entity/migration, API-host storage registration, production storage, claim mutation or deployment path.
+- Explicit limitations: magic-byte checks are not full format parsing; PDF `/Encrypt` detection is heuristic; no scanner implementation, deletion worker, legal-hold processor or backup tombstone replay exists. These are future gates before any real intake.
+- [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is **CLOSED — completed for this bounded synthetic-only DoD**. [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains **OPEN/BLOCKING** for legal/privacy clearance.
+- Parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains OPEN/DRAFT/HOLD; V2 [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) remains OPEN/DRAFT/HOLD. No CT164/CT152, live DB, real evidence, GitHub Actions or production deployment.
+
+
 ## 2026-11-12 18:23 Europe/Sofia — PR #22 real PostgreSQL EF transaction QA MERGED/CLOSED
 
 **[PR #22](https://github.com/jvalkovv/YangSpaceApp/pull/22) MERGED/CLOSED via squash `4bf7d92f5e31988d6f5490f9288c9488ac4a65f3` into the F2a-1 feature branch ([Draft PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17)), NOT V2 or `main`.** Scoped source code and operator evidence acceptance complete; PR #17 now contains the test-only child but remains OPEN/DRAFT/HOLD, as does V2 PR #1.
