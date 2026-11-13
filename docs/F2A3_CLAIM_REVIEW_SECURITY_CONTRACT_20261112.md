@@ -103,3 +103,12 @@ The bounded QA-only implementation in [PR #23](https://github.com/jvalkovv/YangS
 The 27/27 isolated SQLite Identity bearer HTTP markers passed, including live same-token role revocation and fail-closed QA boundaries. This does not certify PostgreSQL bearer HTTP, claim mutation, Owner membership grant, audit transaction, concurrency, uncertain COMMIT or production.
 
 The separate evidence categories/checklist, private evidence handling, retention/erasure and legal-basis gate remains OPEN. No real Approve/Reject endpoint may be implemented or enabled before that approval and its separate PostgreSQL/concurrency/fault-injection acceptance.
+
+
+## 2026-11-13 — evidence, privacy and retention policy proposal
+
+The separate evidence gate is now documented in [F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md).
+
+The draft proposes proof categories/checklist, minimum collection and redaction, private claim-scoped storage/access, file validation, operational retention/deletion windows, backup tombstone replay and legal/privacy review.
+
+**Status remains PROPOSED / NOT APPROVED.** No lawful basis has been selected. Owner approval of operational defaults and separate legal/privacy clearance are both required before evidence collection, storage or real claim-decision mutation. The previously accepted reviewer-auth QA remains bounded to isolated SQLite bearer HTTP; no release or production approval is implied.
