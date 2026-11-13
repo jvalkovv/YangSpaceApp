@@ -22,7 +22,7 @@ Operator transcript (17:52 local):
 
 **Date:** 2026-11-13  
 **Tracking:** Issue #28 — https://github.com/jvalkovv/YangSpaceApp/issues/28  
-**Status:** SOURCE COMMITTED / NOT WINDOWS-BUILT / NOT DEPLOYED / DRAFT-HOLD.
+**Status:** EXACT-SHA WINDOWS SOURCE BUILD/TYPECHECK PASS on `3ac9df42023ac36bf0fe970d9cf353bc501dba3d` / HTTP+SMTP NOT TESTED / NOT DEPLOYED / DRAFT-HOLD.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ Operator transcript (17:52 local):
 
 ## Acceptance still required
 
-1. Run exact-SHA script/Test-F2b-Public-Identity-Source-Local.ps1. It checks source policy, .NET restore/Release build, npm ci without install scripts, Angular typecheck and production build; no DB, SMTP, Docker or CT access.
+1. **ACCEPTED (source only):** exact-SHA `scripts/Test-F2b-Public-Identity-Source-Local.ps1` at `3ac9df42023ac36bf0fe970d9cf353bc501dba3d`. .NET restore/Release build, npm ci, Angular typecheck and production build all PASS; independent postflight PASS; SHA-256 `829E2B8A9BF07FB22FCA9368F89F30D86AD214ED614FFD601F3D5F35062D5122`. No PostgreSQL/SMTP/CT access.
 2. Disposable PostgreSQL TestServer matrix: default disabled; duplicate account non-enumeration; confirmation token expiry/reuse; login denied until email verification; bearer-only account session; staff and future-role exclusion; lockout/rate limiting; reset flow; wrong tokens; concurrency.
 3. Mock mail sink + real outbound SMTP integration, delivery/failure/timeout/retry and queue/outbox decisions. Request-triggered SMTP is not a durable queue; an outbox/worker and operational alerting are required for release.
 4. Privacy notice and lawful-basis review for actual account data. Real merchant evidence or Owner claims continue to depend on Issue #24 legal/privacy clearance.
