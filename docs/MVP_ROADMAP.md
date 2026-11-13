@@ -2,6 +2,16 @@
 
 > **ADR-018:** GitHub Actions не се ползват. Проверки с exact-SHA локален runner, evidence logs и ръчен release.
 
+## 2026-11-12 — F2a-3 technical policy approved; reviewer authorization child PR #23
+
+Owner approved the technical reviewer/ownership/concurrency policy recorded in [F2a-3 security contract](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md) and [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). **This is not approval of evidence categories, evidence checklist, private evidence handling, retention/erasure or legal basis**; those remain a mandatory separate gate before any real claim decision mutation.
+
+[Draft PR #23](https://github.com/jvalkovv/YangSpaceApp/pull/23) is stacked on [F2a-1 PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) at parent source SHA `7f3e8d5b37f591c3c0344996b850ad23a3155b0a`. Its bounded scope is dedicated `MerchantClaimReviewer` bearer authorization, persistent live-role check (same-token revocation), self-review/active-member conflict policy and disposable SQLite Identity TestServer tests. A minimal QA access probe is the only new route; claim decision POST, ownership changes, Owner grants, evidence storage, audit writes and migrations are not included.
+
+**Status: DRAFT / SOURCE-ONLY / OPERATOR WINDOWS QA NOT RUN / HOLD.** Next: fetch exact PR #23 head into a clean detached Windows worktree; native PowerShell parser, .NET restore, Release build with warnings-as-errors, exact-SHA HTTP contract runner, then independent manifest/stage/evidence postflight and scoped review. The test is SQLite bearer HTTP, not PostgreSQL bearer HTTP. PR #22's already accepted disposable PostgreSQL transaction QA must not be repeated for this authorization-only change.
+
+Open PR inventory: #23 OPEN/DRAFT/HOLD; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD. PRs #19/#21/#22 remain MERGED/CLOSED. No GitHub Actions, CT164/CT152, live DB, public merchant activation or deployment. Continue reporting exact SHA, evidence path, PASS/PARTIAL/HOLD, blockers and next action at each meaningful checkpoint; close only a scoped PR with 100% accepted DoD.
+
 > **Execution precedence (2026-11-09):** This is the original strategic milestone outline. Use [POC_MASTER_PLAN.md](POC_MASTER_PLAN.md) and [POC_TRACKER.md](POC_TRACKER.md) as the current executable plan. The original M0 legacy remediation items below describe historical risks; the old app is archived, not compiled in YangSpace 2.0. The active engineering work is dependency determinism/manual clean-SHA QA/real v2 auth and data integration, not patching old booking endpoints back into production.
 
 
@@ -275,3 +285,14 @@ This is a **standing execution requirement** for all YangSpace work, including e
 ## Definition of Done за всяка функционалност
 
 Source + tests + reviewed DB migration + auth check + audit/logging + docs + visual/mobile QA + runtime evidence. Всеки deployment има commit SHA, версия, backup reference, verify output и rollback path. Без `main` auto-deploy.
+
+
+## 2026-11-13 — F2a-3 reviewer authorization operator QA failure and correction
+
+Operator exact-SHA run on `7ed7ab3d0e00da41fb3d11afeb6ed45c69c2fa1b`: PowerShell parser, .NET restore and Release build **PASS**; isolated Identity bearer HTTP **FAIL** during reviewer-role revocation. EF Core reported duplicate tracked `IdentityUser`: the test reused the reviewer entity created in an earlier DI scope inside a later `UserManager` scope. This is a test-harness entity-lifetime defect; the HTTP acceptance is not PASS.
+
+Failure evidence (operator machine): `D:\\GitHub\\YangSpaceApp-F2a3-ReviewerAuth-QA\\logs\\yangspace\\f2a3-reviewer-auth\\7ed7ab3d0e00-20261113-060137-7782b371`. Runner wrote `gate.txt`; no passing manifest was produced.
+
+Correction committed in PR #23: the revocation test reloads reviewer by ID through the active scoped `UserManager`, verifies the role is present, then removes it using that same-scope entity. Runner now requires markers for both the reload and pre-revocation role check. Current corrected source candidate at the time of this entry: `9ced228838c11b4584229160fe1b40565aff3c7f` (the documentation commit that follows may advance the SHA).
+
+**Current state: SOURCE CORRECTION COMMITTED / CORRECTED SHA NOT YET TESTED / PR #23 DRAFT-HOLD.** Next: clean detached worktree at the latest PR head; native parser; restore; Release build with warnings-as-errors; isolated SQLite Identity bearer HTTP; independent stage/manifest/hash postflight and scoped review. No PostgreSQL, CT164/CT152, live DB, claim decision mutation or deployment. Evidence/retention approval remains a separate prerequisite for any future real decision endpoint.

@@ -5,7 +5,17 @@
 **Latest accepted F2a-2 code QA:** tested code SHA `f579c70db9cc0986d2f1df8047158587f0e87eef` (Windows restore/build/tenant regression/real Identity bearer TestServer PASS; operator evidence postflight PASS), documentation-only follow-up `bc0a77ea6b6bc794a2d9d6aefcbe3c12936a329e`, squash-merged by PR #19 as `17d08530db7fed0bbe7ed4444577a7b0e6b73c4d` into the F2a-1 feature branch. This is **not merged into the V2 feature branch or `main`**. Earlier F1b source QA remains historical and valid for its own SHA. Historical CT164/CT152 deployment remains `a4802805421f10e834ad35bbf2f259db4e4eab84`. [Parent PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays Draft. `main` remains the legacy application.  
 **Scope of this update:** GitHub source/PR reconciliation and operator-provided exact-SHA Windows QA + read-only evidence postflight; **no new build, PostgreSQL runtime, real-browser, PVE, or public-origin execution** was performed for this document.
 
-> **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers.
+> **Authoritative summary:** strong design and functional *preview foundation*; real multi-business/owner workflows, public-pilot content governance, SEO, ingress protection, observability and off-host recovery are not accepted. **G0, G1, G2, G3, G4, G-PREVIEW and G-PILOT remain HOLD at this reviewed source baseline.** Do not infer percentages or production readiness from code, screenshots, HTTP 200 or historical PASS markers. F2a-3 technical reviewer/ownership/concurrency policy is owner-approved; evidence/retention and all real claim mutations remain HOLD.
+
+## 2026-11-12 — F2a-3 technical policy approved; reviewer authorization child PR #23
+
+Owner approved the technical reviewer/ownership/concurrency policy recorded in [F2a-3 security contract](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md) and [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). **This is not approval of evidence categories, evidence checklist, private evidence handling, retention/erasure or legal basis**; those remain a mandatory separate gate before any real claim decision mutation.
+
+[Draft PR #23](https://github.com/jvalkovv/YangSpaceApp/pull/23) is stacked on [F2a-1 PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) at parent source SHA `7f3e8d5b37f591c3c0344996b850ad23a3155b0a`. Its bounded scope is dedicated `MerchantClaimReviewer` bearer authorization, persistent live-role check (same-token revocation), self-review/active-member conflict policy and disposable SQLite Identity TestServer tests. A minimal QA access probe is the only new route; claim decision POST, ownership changes, Owner grants, evidence storage, audit writes and migrations are not included.
+
+**Status: DRAFT / SOURCE-ONLY / OPERATOR WINDOWS QA NOT RUN / HOLD.** Next: fetch exact PR #23 head into a clean detached Windows worktree; native PowerShell parser, .NET restore, Release build with warnings-as-errors, exact-SHA HTTP contract runner, then independent manifest/stage/evidence postflight and scoped review. The test is SQLite bearer HTTP, not PostgreSQL bearer HTTP. PR #22's already accepted disposable PostgreSQL transaction QA must not be repeated for this authorization-only change.
+
+Open PR inventory: #23 OPEN/DRAFT/HOLD; #17 OPEN/DRAFT/HOLD; #1 OPEN/DRAFT/HOLD. PRs #19/#21/#22 remain MERGED/CLOSED. No GitHub Actions, CT164/CT152, live DB, public merchant activation or deployment. Continue reporting exact SHA, evidence path, PASS/PARTIAL/HOLD, blockers and next action at each meaningful checkpoint; close only a scoped PR with 100% accepted DoD.
 
 ## 2026-11-12 18:23 Europe/Sofia — PR #22 real PostgreSQL EF transaction QA MERGED/CLOSED
 
@@ -371,3 +381,14 @@ Windows operator confirmed local Docker Desktop Linux Engine v29.9.1. PR #17 F2a
 
 **Next sequence:** re-fetch exact PR #17 HEAD, verify clean detached worktree/PowerShell parse, rerun `Test-F2a-Tenant-Scope-Local.ps1` with source+NuGet Audit PASS, then run guarded PostgreSQL EF migration scaffold and independent review. No database connection, active CT164 migration or public owner write routes. Issues #4/#11 are the implementation acceptance ledger; PR #17 remains Draft/HOLD.
 
+
+
+## 2026-11-13 — F2a-3 reviewer authorization operator QA failure and correction
+
+Operator exact-SHA run on `7ed7ab3d0e00da41fb3d11afeb6ed45c69c2fa1b`: PowerShell parser, .NET restore and Release build **PASS**; isolated Identity bearer HTTP **FAIL** during reviewer-role revocation. EF Core reported duplicate tracked `IdentityUser`: the test reused the reviewer entity created in an earlier DI scope inside a later `UserManager` scope. This is a test-harness entity-lifetime defect; the HTTP acceptance is not PASS.
+
+Failure evidence (operator machine): `D:\\GitHub\\YangSpaceApp-F2a3-ReviewerAuth-QA\\logs\\yangspace\\f2a3-reviewer-auth\\7ed7ab3d0e00-20261113-060137-7782b371`. Runner wrote `gate.txt`; no passing manifest was produced.
+
+Correction committed in PR #23: the revocation test reloads reviewer by ID through the active scoped `UserManager`, verifies the role is present, then removes it using that same-scope entity. Runner now requires markers for both the reload and pre-revocation role check. Current corrected source candidate at the time of this entry: `9ced228838c11b4584229160fe1b40565aff3c7f` (the documentation commit that follows may advance the SHA).
+
+**Current state: SOURCE CORRECTION COMMITTED / CORRECTED SHA NOT YET TESTED / PR #23 DRAFT-HOLD.** Next: clean detached worktree at the latest PR head; native parser; restore; Release build with warnings-as-errors; isolated SQLite Identity bearer HTTP; independent stage/manifest/hash postflight and scoped review. No PostgreSQL, CT164/CT152, live DB, claim decision mutation or deployment. Evidence/retention approval remains a separate prerequisite for any future real decision endpoint.
