@@ -1,3 +1,12 @@
+## 2026-11-13 — F2a-3 PR #27 second Windows QA checkpoint (PG PASS / HTTP HOLD)
+
+- Tested source `fa481beb2b589e2392094bb0ddad695a62fc3d3c`: exact source, Release publish, reviewed PostgreSQL migration SQL, isolated Docker server/sidecar, `/qa` exec mount, Linux SQLite hash, tenant scope and Npgsql application transaction/concurrent writer stages **PASS**. The runner validates all competing-writer one-winner/loser-rollback markers before recording stage PASS.
+- PostgreSQL reviewer Identity HTTP stage **FAIL `EXIT=134`**. Root cause: ASP.NET Core 10 `WebApplicationFactory` tried to locate a source `.sln` under `/qa`, because it sets content root before the existing `WithWebHostBuilder` override. The printed `libgssapi_krb5.so.2` warning was Npgsql's nonfatal fallback, not the crash.
+- New source correction: `WebApplicationFactoryContentRoot` assembly metadata for `/qa/appsettings.json`, deterministic `GetTestAssemblies()`, metadata marker preflight, QA-only `GSS Encryption Mode=Disable`. **Fix NOT WINDOWS-TESTED yet.**
+- Preserve operator stage logs as historical exact-SHA evidence. Keep [child PR #27](https://github.com/jvalkovv/YangSpaceApp/pull/27), [parent PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) **OPEN/DRAFT/HOLD**. No production claim mutation, real evidence, CT164/CT152, GitHub Actions or deployment.
+- Next: clean detached exact-current-HEAD rerun, require full PostgreSQL Identity bearer HTTP matrix, independent manifest, no failure gate and verified Docker cleanup. See [F2A3 dedicated QA contract](F2A3_POSTGRESQL_BEARER_CONCURRENCY_QA_20261113.md).
+
+
 ## 2026-11-13 — F2a-3 PostgreSQL Bearer/Concurrency operator failure and scoped fix (DRAFT/HOLD)
 
 - Child [PR #27](https://github.com/jvalkovv/YangSpaceApp/pull/27) failed Windows exact-SHA runtime QA at `560e027b53d8124710f574eff1e809bcf2ad7406`: after source/EF build/reviewed SQL and disposable PG setup PASS, `pgapp-tenant-scope-regression` exited 134. The Linux native SQLite library at `/tmp/qa/runtimes/linux-x64/native/libe_sqlite3.so` failed executable memory mapping; likely `noexec` tmpfs. No transaction/concurrent-writer or PostgreSQL Identity HTTP QA was executed. Cleanup postflight must be checked separately.
