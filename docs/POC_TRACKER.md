@@ -7,6 +7,25 @@
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
 
+## 2026-11-13 — F2a-1 branch synchronized with current V2 base
+
+**Branch integration commit:** `eb75e0022634499de489578f6f1003be2706a1f1`.
+- First parent: F2a-1 pre-integration HEAD `93809f4f8c6cab18d261123195ec518df4ca9ba5`.
+- Second parent: current V2 base HEAD `92f248dc88fcc888f93c2829727e22db0eb65312`.
+- Merge tree: `c8f095d9413949725c70eec2eb8e1225dc0fce03`, identical to the F2a-1 pre-integration tree; no runtime/source bytes were changed by this merge.
+- GitHub compare from V2 base to F2a-1 integration: **83 ahead / 0 behind**, merge base is the current V2 HEAD. PR #17 now reports **mergeable=true / clean**, but remains **OPEN / DRAFT / HOLD**.
+
+Four overlapping documentation paths were reconciled:
+- `MVP_ROADMAP.md` and `POC_TRACKER.md`: current V2 content retained; F2a acceptance/evidence history retained.
+- `SSOT.md`: two superseded baseline statements were updated to reflect accepted F2a-3 policy and child QA; the remaining V2 baseline content is retained.
+- `F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md`: proposed-only status was superseded by the owner-approved technical and evidence/retention policies. Legal/privacy clearance remains blocked by Issue #24.
+
+**Next exact-SHA operator gate:** use the final current HEAD shown on [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) after this documentation sync. In a clean detached Windows worktree, run `scripts/Test-F2a-Tenant-Scope-Local.ps1` followed by `scripts/Test-F2a-PostgreSql-Disposable-Local.ps1`. Both runners pin the F2a-1 branch remote tip to the exact tested SHA. This validates the combined current source tree; historical child PASS results remain attached to their original exact SHAs. Do not run the PR #22/#23/#26 branch-pinned child runners against this parent branch.
+
+This synchronization is not parent PR acceptance, release approval, legal clearance, production intake, deployment or a claim that the outstanding PostgreSQL bearer/parallel-writer/recovery gates have passed.
+
+
+
 ## 2026-11-13 07:53 Europe/Sofia — F2a-3 synthetic evidence policy accepted
 
 **[PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26) MERGED/CLOSED** by squash commit `7114427be24f0d50a682f1b67834336473c0f594` into the F2a-1 feature branch, not V2 or `main`.
