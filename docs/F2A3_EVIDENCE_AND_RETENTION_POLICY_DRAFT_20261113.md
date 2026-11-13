@@ -91,7 +91,7 @@ These are **operational defaults for owner/legal review**, not a statement that 
 | Data class / claim state | Proposed retention | Deletion behaviour |
 | --- | --- | --- |
 | Pending claim raw files | 90 days after the applicant's last meaningful activity | Expire an inactive claim; delete raw files within 30 days after expiry |
-| Rejected or withdrawn claim raw files | 180 days after the final decision/closure | Delete raw files within 30 days after the period ends; this is an operational dispute window, not a promise of a formal appeal right |
+| Rejected claim raw files (and a withdrawn state only if separately approved) | 180 days after the final decision/closure | Delete raw files within 30 days after the period ends; this is an operational dispute window, not a promise of a formal appeal right |
 | Approved claim raw files | 12 months from approval or the latest re-verification, whichever is later | Re-verify before expiry. If evidence is not refreshed, mark the verification as stale; do not silently change ownership or membership. Delete the old raw files within 30 days after replacement/expiry |
 | Superseded evidence | 30 days after the replacement is accepted | Delete the superseded raw object; preserve only the minimum verification/audit metadata |
 | Evidence access/security logs | 12 months from the event | Then delete or irreversibly aggregate, subject to a documented legal hold |
