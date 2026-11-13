@@ -11,6 +11,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using YangSpace.Api;
 
+// ASP.NET Core 10 WebApplicationFactory resolves content root BEFORE
+// WithWebHostBuilder/UseContentRoot. In our no-repository Linux sidecar the
+// published appsettings.json under /qa is the explicit content-root marker.
+// The assembly-name key is supported by WebApplicationFactory 10. This
+// attribute is inert for other runs without the /qa/appsettings.json marker.
+[assembly: WebApplicationFactoryContentRoot("YangSpace.Api", "/qa", "appsettings.json", "0")]
+
 // Real Identity bearer HTTP through TestServer backed by the disposable
 // PostgreSQL database. This is synthetic QA only: no claim mutation route,
 // real evidence, production credentials, CT access or deployment.
@@ -250,6 +257,16 @@ internal static class PostgreSqlReviewerAuthorizationHttpContract
 
         var token = Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TOKEN")!;
         var suffix = token[..8];
+
+        // Fail with a useful diagnostic instead of the framework's opaque
+        // UseSolutionRelativeContentRoot exception if the publish is incomplete.
+        var expectedRoot = Path.GetFullPath("/qa");
+        var actualRoot = Path.GetFullPath(AppContext.BaseDirectory);
+        Check(OperatingSystem.IsLinux() &&
+              string.Equals(actualRoot, expectedRoot, StringComparison.Ordinal) &&
+              File.Exists(Path.Combine(expectedRoot, "appsettings.json")),
+              "F2A3_PG_REVIEWER_WAF_CONTENT_ROOT_MARKER");
+
         using var startup = new StartupEnvironmentScope(connectionString);
 
         // Program itself must refuse the PostgreSQL QA flag without the
