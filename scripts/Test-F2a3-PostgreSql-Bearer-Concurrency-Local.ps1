@@ -78,7 +78,7 @@ $RuntimeRoot = '/qa'
 $Pg = 'yangspace-f2a3-pgqa-' + $Token.Substring(0,12)
 $App = 'yangspace-f2a3-appqa-' + $Token.Substring(0,12)
 $Conn = 'Host=127.0.0.1;Port=5432;Database=' + $Database +
-        ';Username=postgres;SSL Mode=Disable;Pooling=false;Timeout=5;Command Timeout=10'
+        ';Username=postgres;SSL Mode=Disable;GSS Encryption Mode=Disable;Pooling=false;Timeout=5;Command Timeout=10'
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceTarStreamStage.ps1')
 
@@ -349,6 +349,7 @@ try {
     )
     foreach ($Marker in @(
         'F2A3_PG_REVIEWER_HTTP_PROVIDER=NPGSQL_REAL_POSTGRESQL',
+        'F2A3_PG_REVIEWER_WAF_CONTENT_ROOT_MARKER=PASS',
         'F2A3_PG_REVIEWER_IDENTITY_HTTP=PASS',
         'F2A3_PG_REVIEWER_HTTP_SENTINEL_MATCHED=PASS',
         'F2A3_PG_REVIEWER_DISPOSABLE_SCOPE_REQUIRED=PASS',
