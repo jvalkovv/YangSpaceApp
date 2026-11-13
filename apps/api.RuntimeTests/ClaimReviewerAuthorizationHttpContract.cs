@@ -297,7 +297,14 @@ internal static class ClaimReviewerAuthorizationHttpContract
             using (var scope = factory.Services.CreateScope())
             {
                 var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-                Check((await users.RemoveFromRoleAsync(reviewer, ClaimReviewRoles.Reviewer)).Succeeded,
+                // Resolve a tracked user instance from this scope. Never pass the
+                // detached entity retained from the earlier seeding scope.
+                var reviewerForRevocation = await users.FindByIdAsync(reviewer.Id);
+                Check(reviewerForRevocation is not null,
+                    "CLAIM_REVIEW_REVIEWER_RELOADED_IN_REVOCATION_SCOPE");
+                Check(await users.IsInRoleAsync(reviewerForRevocation!, ClaimReviewRoles.Reviewer),
+                    "CLAIM_REVIEW_REVIEWER_ROLE_PRESENT_BEFORE_REVOCATION");
+                Check((await users.RemoveFromRoleAsync(reviewerForRevocation!, ClaimReviewRoles.Reviewer)).Succeeded,
                     "CLAIM_REVIEW_REVIEWER_ROLE_REVOKED");
             }
             Check((await RequestAsync(http, AccessPath, reviewerToken)).Status == HttpStatusCode.Forbidden,

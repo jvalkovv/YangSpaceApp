@@ -49,7 +49,7 @@ The runner pins HEAD and `origin/<branch>` to the same SHA, requires a clean wor
 - Default-off route and auth login; fail closed in Development and Production; PostgreSQL provider rejected for this SQLite-only harness.
 - Real Identity bearer login; anonymous/invalid bearer/cookie-only 401.
 - Dedicated reviewer 200; PlatformAdmin-only and non-reviewer 403.
-- Same bearer returns 403 immediately after the persisted reviewer role is revoked.
+- The revocation test reloads the reviewer through the same scoped UserManager/DbContext that performs removal (no cross-scope EF entity reuse), verifies the role exists before removal, then proves the same bearer returns 403.
 - Registration and claim decision mutation route are not exposed.
 - Self-review, active target-organization membership, unknown claim and missing reviewer identity fail closed; revoked membership and unrelated reviewer do not conflict.
 - No business rows, claim rows or audit rows are created or changed by the probe/policy checks.
