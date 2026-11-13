@@ -260,8 +260,9 @@ internal static class PostgreSqlReviewerAuthorizationHttpContract
 
         // Fail with a useful diagnostic instead of the framework's opaque
         // UseSolutionRelativeContentRoot exception if the publish is incomplete.
-        var expectedRoot = Path.GetFullPath("/qa");
-        var actualRoot = Path.GetFullPath(AppContext.BaseDirectory);
+        var expectedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath("/qa"));
+        var actualRoot = Path.TrimEndingDirectorySeparator(
+            Path.GetFullPath(AppContext.BaseDirectory));
         Check(OperatingSystem.IsLinux() &&
               string.Equals(actualRoot, expectedRoot, StringComparison.Ordinal) &&
               File.Exists(Path.Combine(expectedRoot, "appsettings.json")),
