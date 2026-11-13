@@ -120,8 +120,11 @@ try {
         throw 'F2A3_EVIDENCE_TEST_CHANGED_SOURCE'
     }
 
+    $RunnerScriptHash = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
     [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]@(
         ('COMMIT_SHA=' + $CommitSha)
+        'RUNNER_SYNTAX=PASS'
+        ('RUNNER_SCRIPT_SHA256=' + $RunnerScriptHash)
         'SOURCE_RESTORE_BUILD=PASS'
         'F2A3_EVIDENCE_POLICY_SYNTHETIC_ONLY=PASS'
         'TEST_PROVIDER=PURE_POLICY_PLUS_IN_MEMORY_SYNTHETIC_STORE'
