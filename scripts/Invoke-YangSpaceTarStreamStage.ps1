@@ -1,6 +1,8 @@
 # Windows PowerShell 5.1: binary-safe, one-way host TAR -> docker exec stdin.
 # Docker cp cannot write to --read-only container rootfs even when /tmp is tmpfs.
-# This helper preserves read-only rootfs and writes only to sidecar /tmp tmpfs.
+# This helper preserves read-only rootfs and writes only to an approved sidecar tmpfs.
+# Existing callers retain /tmp/qa; the isolated PG bearer QA uses /qa so
+# /tmp stays noexec while packaged native libraries can be memory mapped.
 # Never use PowerShell's byte pipeline: it transforms binary data.
 function Invoke-YangSpaceTarStreamStage {
     [CmdletBinding()]
@@ -9,6 +11,7 @@ function Invoke-YangSpaceTarStreamStage {
         [Parameter(Mandatory=$true)][string]$Container,
         [Parameter(Mandatory=$true)][string]$Archive,
         [Parameter(Mandatory=$true)][string]$EvidenceDirectory,
+        [ValidateSet('/tmp/qa','/qa')][string]$Destination = '/tmp/qa',
         [ValidateRange(1,1800)][int]$TimeoutSeconds = 600
     )
     if ($Container -cnotmatch '^yangspace-f2a3-appqa-[a-f0-9]{12}$') {
@@ -32,7 +35,7 @@ function Invoke-YangSpaceTarStreamStage {
     [IO.File]::WriteAllLines($CmdPath, [string[]]@(
         '@echo off',
         'REM Binary input was streamed directly by System.Diagnostics.Process.',
-        'REM Recipient: docker exec -i CONTAINER sh -c "mkdir -p /tmp/qa && tar -C /tmp/qa -xf -"',
+        ('REM Recipient: docker exec -i CONTAINER sh -c "mkdir -p ' + $Destination + ' && tar -C ' + $Destination + ' -xf -"'),
         'REM This receipt is intentionally non-replayable without verified input.',
         'exit /b 1'
     ))
@@ -47,7 +50,7 @@ function Invoke-YangSpaceTarStreamStage {
         $info = New-Object System.Diagnostics.ProcessStartInfo
         $info.FileName = $Docker
         $info.Arguments = 'exec -i ' + $Container +
-            ' sh -c "mkdir -p /tmp/qa && tar -C /tmp/qa -xf -"'
+            ' sh -c "mkdir -p ' + $Destination + ' && tar -C ' + $Destination + ' -xf -"'
         $info.UseShellExecute = $false
         $info.CreateNoWindow = $true
         $info.RedirectStandardInput = $true
