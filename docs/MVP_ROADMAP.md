@@ -313,20 +313,14 @@ Correction committed in PR #23: the revocation test reloads reviewer by ID throu
 **Next gate:** Issue #20 remains OPEN. Before a real Approve/Reject endpoint, explicitly approve evidence categories, accepted proof checklist, private evidence access/storage, retention/erasure and legal basis. Then create a separate decision-mutation child with PostgreSQL HTTP, parallel claim writers, transaction rollback and uncertain-COMMIT reconciliation tests. Parent PR #17 remains Draft/HOLD. No GitHub Actions, CT164/CT152, live DB or deployment.
 
 
-## 2026-11-13 — F2a-3 evidence and retention policy drafted
+## 2026-11-13 — F2a-3 Evidence & Retention Policy OWNER-APPROVED
 
-**New canonical proposal:** [F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md). This is governance/documentation only; no application code, route, schema, upload, storage or live database was changed.
+Canonical policy v1: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md).
 
-Draft covers:
-- business identity, applicant authority, physical location, regulated activity and supplementary contact proof;
-- service-area/online-only cases;
-- minimum proof thresholds and reviewer checklist;
-- prohibited data and mandatory redaction;
-- private vault, claim-scoped access, encryption, file allowlist/limits, malware scan and access audit;
-- retention proposal: Pending 90 days inactive; Rejected 180 days; Approved raw evidence 12 months with re-verification; minimum decision metadata 24 months after closure; access logs 12 months; backup expiry 35 days;
-- idempotent deletion, restore-time tombstone replay and legal-hold controls;
-- GDPR lawful-basis, controller/processor, privacy notice and transfer/DPIA review checklist.
+**Owner approval recorded:** 2026-11-13. Approved operational defaults cover evidence categories/proof thresholds, minimisation/redaction, private claim-scoped access/storage, file allowlist/limits, retention, deletion, audit and backup recovery.
 
-**Status:** draft complete; owner approval NOT RECORDED; legal/privacy review NOT COMPLETE. No evidence collection or claim mutation is authorized.
+**Legal/privacy gate remains BLOCKED:** [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) tracks controller/processor roles, lawful basis and necessity assessment, privacy notice, processor/subprocessor and transfer review, DPIA screening, data-subject requests and final written clearance. Owner approval is not legal clearance.
 
-**Next:** owner reviews the operational defaults in section 8 of the draft; privacy/legal adviser confirms lawful basis, controller/processor roles, notice and retention. Only after both gates pass may a separate implementation child PR be opened.
+No real evidence collection/processing, production upload/storage or live claim-decision activation is authorized until Issue #24 is accepted. Isolated non-production work using synthetic data only may proceed if it cannot accept real evidence and remains disabled from production.
+
+**Next:** complete legal/privacy clearance in Issue #24; in parallel, prepare a bounded synthetic-data-only QA implementation plan. Parent PR #17 remains Draft/HOLD.
