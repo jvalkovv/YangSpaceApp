@@ -37,7 +37,7 @@ if ($Config.PublicAccounts.Email.Password -ne '' -or $Config.PublicAccounts.Emai
 foreach ($Required in @('PUBLIC_ACCOUNT_SCOPE_REFUSED','PUBLIC_ACCOUNT_POSTGRESQL_REQUIRED',
     'PUBLIC_ACCOUNT_CANONICAL_ORIGIN_REFUSED','PUBLIC_ACCOUNT_HOST_POLICY_REFUSED',
     'PublicAccountEmailSettings.RequireConfigured','RequireRateLimiting("auth")',
-    'IdentityConstants.BearerScheme','users.GetRolesAsync(user)',
+    'IdentityConstants.BearerScheme','manager.GetRolesAsync(user)',
     'IPasswordValidator<IdentityUser>','EmailConfirmed = false')) {
     if (!$Policy.Contains($Required)) { throw ('F2B_STATIC_POLICY_MISSING=' + $Required) }
 }
