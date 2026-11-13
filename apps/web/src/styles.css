@@ -362,3 +362,56 @@ p { line-height: 1.7; }
 @media (max-width: 560px) {
   .locations-grid.is-single { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* F2b public account UI — separate from the protected preview/admin CMS. */
+.account-nav { display: flex; gap: 11px; align-items: center; white-space: nowrap; }
+.account-nav a { color: var(--forest); font-size: 12px; font-weight: 800; }
+.account-nav .account-register { padding: 9px 13px; border-radius: 10px; border: 1px solid #c9d9c9; }
+.account-nav a:hover { text-decoration: underline; }
+.auth-shell { display: grid; grid-template-columns: minmax(0, 1.03fr) minmax(0, .97fr); gap: clamp(25px, 5vw, 90px); align-items: center; padding-block: 85px 110px; min-height: 650px; }
+.auth-intro h1 { font-size: clamp(35px, 4.5vw, 58px); letter-spacing: -2px; line-height: 1.11; color: var(--forest); margin: 15px 0 22px; }
+.auth-intro h1 span { color: var(--forest-soft); }
+.auth-intro > p { color: #6c7f70; max-width: 510px; font-size: 15px; }
+.auth-points { margin: 33px 0; display: grid; gap: 12px; }
+.auth-points div { display: flex; align-items: center; gap: 13px; font-size: 13px; font-weight: 700; }
+.auth-points strong { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 12px; background: #e8f0e5; color: #367252; font-size: 11px; }
+.auth-back { display: inline-flex; color: #366a4b; font-size: 13px; font-weight: 800; margin-top: 22px; }
+.auth-back:hover { text-decoration: underline; }
+.auth-card { background: #fff; border: 1px solid #e1e9df; box-shadow: 0 25px 70px rgb(15 57 34 / 8%); padding: clamp(23px, 3.5vw, 42px); border-radius: 22px; min-width: 0; }
+.auth-card-header { display: flex; gap: 17px; align-items: center; }
+.auth-icon { display: grid; place-items: center; flex: 0 0 49px; height: 49px; border-radius: 15px; color: white; font-size: 24px; font-weight: 900; background: var(--forest); }
+.auth-card h2 { font-size: 26px; margin: 3px 0 0; letter-spacing: -.65px; }
+.auth-description { margin: 20px 0 22px; color: #69816e; font-size: 13px; }
+.auth-form { display: grid; gap: 10px; }
+.auth-form label { margin-top: 8px; font-size: 12px; font-weight: 800; color: #304c3e; }
+.auth-form input, .auth-form textarea { width: 100%; min-width: 0; border: 1px solid #cedccc; border-radius: 10px; padding: 13px 14px; color: var(--forest); background: #fcfdfa; font-size: 14px; }
+.auth-form input:focus-visible, .auth-form textarea:focus-visible { outline: 3px solid #bdd7bf; outline-offset: 1px; }
+.auth-hint { margin: 6px 0; color: #748475; font-size: 11px; }
+.auth-form .auth-submit { width: 100%; margin-top: 16px; }
+.auth-links { display: flex; flex-wrap: wrap; gap: 12px 19px; margin-top: 24px; padding-top: 22px; border-top: 1px solid #ebf0e9; }
+.auth-links a { font-size: 12px; font-weight: 800; color: #4b7757; }
+.auth-links a:hover { text-decoration: underline; }
+.auth-message { border: 1px solid #c0d6c6; border-radius: 12px; background: #eef6ef; color: #23583e; font-size: 13px; padding: 12px 14px; line-height: 1.5; }
+.auth-message.auth-error { border-color: #e3c5bf; background: #fff3f0; color: #8f3835; }
+.auth-complete { display: grid; gap: 12px; color: var(--forest); }
+.auth-complete strong { font-size: 16px; }
+.auth-complete p { font-size: 13px; color: #62796a; }
+.auth-profile { display: grid; gap: 13px; }
+.auth-profile p { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 7px; margin: 0; border-bottom: 1px solid #e8eee7; padding-block: 13px; font-size: 13px; }
+.auth-profile p span { color: #66806c; overflow-wrap: anywhere; }
+.auth-profile button { justify-self: start; margin-top: 11px; }
+@media (max-width: 890px) {
+  .auth-shell { grid-template-columns: 1fr; padding-block: 49px 72px; max-width: 720px; }
+  .auth-intro > p { max-width: 650px; }
+  .auth-points { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .auth-points div { align-items: flex-start; }
+  .account-nav { gap: 9px; }
+}
+@media (max-width: 620px) {
+  .auth-shell { padding-block: 34px 53px; }
+  .auth-intro h1 { font-size: 35px; letter-spacing: -1.3px; }
+  .auth-intro > p { font-size: 13px; }
+  .auth-points { grid-template-columns: 1fr; gap: 8px; }
+  .auth-card { border-radius: 16px; padding: 23px 17px; }
+  .account-nav .account-register { display: none; }
+}
