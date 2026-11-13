@@ -3,7 +3,9 @@
 **Date:** 2026-11-13  
 **Status:** OWNER-APPROVED PRODUCT / TECHNICAL POLICY (2026-11-13) — LEGAL / PRIVACY CLEARANCE REQUIRED BEFORE REAL EVIDENCE COLLECTION OR PROCESSING  
 **Parent work item:** [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20)  
-**Related technical contract:** [F2a-3 Claim Review Security Contract](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md)
+**Related technical contract:** [F2a-3 Claim Review Security Contract](F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md)  
+**Legal/privacy clearance:** [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) — blocking before real evidence collection/processing.  
+**Synthetic-only technical foundation:** [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) · [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26)
 
 > This policy was explicitly approved by the product owner on 2026-11-13 as the operational product/technical baseline. It is not legal advice and does not establish a GDPR lawful basis. Real evidence collection or processing, production upload/storage and live claim-decision activation remain blocked until the separate legal/privacy review is completed and the responsible controller confirms the processing can proceed.
 
@@ -119,7 +121,7 @@ Do not retain extracted document text, OCR output, a duplicate document in the d
 
 ## 7. Lawful basis, transparency and legal review — NOT DECIDED
 
-No GDPR lawful basis is selected by this draft. Legal counsel / the responsible privacy owner must document:
+No GDPR lawful basis is selected by this policy. Legal counsel / the responsible privacy owner must document the items tracked in [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24):
 
 - controller and processor roles for YangSpace and each hosting/storage/scan provider;
 - the purpose and lawful basis for each data class (possible Article 6(1)(b) pre-contractual steps and/or Article 6(1)(f) legitimate interests require an actual necessity/balancing assessment; Article 6(1)(c) applies only where a specific legal obligation exists);
@@ -149,7 +151,7 @@ Do not treat consent as a default substitute for identifying the correct lawful 
 
 ## 9. Implementation gate / Definition of Done
 
-The owner has approved the operational defaults on 2026-11-13. No real evidence collection, production upload/storage or live claim-decision activation starts until the legal/privacy review confirms the processing can proceed and the responsible controller documents the lawful basis and required notices/processor controls. Implementation work before that clearance must remain isolated, non-production and incapable of collecting real personal data.
+The owner has approved the operational defaults on 2026-11-13. No real evidence collection, production upload/storage or live claim-decision activation starts until the legal/privacy review confirms the processing can proceed and the responsible controller documents the lawful basis and required notices/processor controls. Implementation work before that clearance is limited to [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) and must remain isolated, non-production and incapable of collecting real personal data. Its current source candidate is [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26).
 
 After approval, a separate child PR must implement and test:
 
