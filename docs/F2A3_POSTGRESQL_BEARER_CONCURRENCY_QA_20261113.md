@@ -25,6 +25,25 @@ Before running any runtime acceptance, the runner verifies actual `/proc/mounts`
 
 **Current gate:** SOURCE FIX COMMITTED / WINDOWS EXACT-SHA RERUN NOT YET PERFORMED / PR #27 DRAFT-HOLD. After all source/doc commits, fetch the current child HEAD and run the unchanged exact-SHA operator command. A new clean detached worktree is required. No CT164/CT152, production DB, claim mutation route or deployment.
 
+## 2026-11-13 — second operator run: PostgreSQL concurrency PASS, WAF bootstrap HOLD
+
+**Exact tested SHA:** `fa481beb2b589e2392094bb0ddad695a62fc3d3c`.
+The existing exact-SHA worktree produced a `WORKTREE_EXISTS` guard during a redundant `git worktree add`; the operator reused that directory and the runner itself confirmed `F2A3_PG_EXACT_SOURCE=PASS`. This is not the runtime failure.
+
+**Windows stages now PASS:** EF tool restore/build/model diff; pinned PostgreSQL SQL checksum; isolated PG 17 and migration; sidecar `/qa` exec mount and `/tmp` noexec mount checks; runtime and native SQLite hashes; tenant regression; `pgapp-real-ef-transaction` (including synchronized competing Npgsql EF writers and expected one-winner/loser-rollback markers, enforced by the runner before advancing to the HTTP stage). The original SQLite executable-mapping issue is resolved.
+
+**Failed stage:** `pgapp-reviewer-identity-http EXIT=134`. The provider/sentinel startup markers appeared, but `WebApplicationFactory<ApiAssemblyMarker>` raised `System.InvalidOperationException: Solution root could not be located using application root /qa/`. ASP.NET Core 10 calls `SetContentRoot` before the test's `WithWebHostBuilder(...).UseContentRoot(...)` configuration, falling back to a solution-file lookup when no content-root metadata is available. The container correctly has no source tree or `.sln`. **Identity HTTP acceptance markers were NOT reached.**
+
+`Cannot load library libgssapi_krb5.so.2` was also printed. This is a nonfatal Npgsql 10 GSSAPI fallback when Kerberos is absent in a minimal .NET image (Npgsql release notes); it is not the exception that terminated the stage. This disposable, non-Kerberos QA connection now specifies `GSS Encryption Mode=Disable` to avoid the unrelated log noise. This setting does not change production database TLS policy.
+
+**Scoped source recovery (still untested):**
+- The runtime test assembly declares `[assembly: WebApplicationFactoryContentRoot("YangSpace.Api", "/qa", "appsettings.json", "0")]`. `/qa/appsettings.json` was already hash-verified by the runner.
+- An isolated `WebApplicationFactory<ApiAssemblyMarker>` subclass overrides `GetTestAssemblies()` to return the real runtime test assembly explicitly. This makes metadata resolution deterministic even in a published, source-free container.
+- The runtime preflight verifies `AppContext.BaseDirectory` and the assembly's metadata key/marker. The runner now requires `F2A3_PG_REVIEWER_WAF_CONTENT_ROOT_MARKER=PASS` and `F2A3_PG_REVIEWER_WAF_METADATA_MATCHED=PASS` before any HTTP PASS claim.
+- No production API route, migrations, claim mutation, evidence intake, CT164/CT152, deployment, or permission escalation was introduced.
+
+**Gate:** PR #27 remains DRAFT/HOLD. Only a clean exact-current-SHA Windows rerun with the complete HTTP matrix, manifest, absence of `gate.txt`, independent cleanup proof and source review may make this bounded child eligible for acceptance. Parent PR #17 and public release remain HOLD. Do not label the overall product 100% complete from these synthetic QA passes.
+
 ## Purpose
 
 Close the remaining bounded QA gap between:
