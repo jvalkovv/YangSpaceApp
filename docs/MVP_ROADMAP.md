@@ -296,3 +296,18 @@ Failure evidence (operator machine): `D:\\GitHub\\YangSpaceApp-F2a3-ReviewerAuth
 Correction committed in PR #23: the revocation test reloads reviewer by ID through the active scoped `UserManager`, verifies the role is present, then removes it using that same-scope entity. Runner now requires markers for both the reload and pre-revocation role check. Current corrected source candidate at the time of this entry: `9ced228838c11b4584229160fe1b40565aff3c7f` (the documentation commit that follows may advance the SHA).
 
 **Current state: SOURCE CORRECTION COMMITTED / CORRECTED SHA NOT YET TESTED / PR #23 DRAFT-HOLD.** Next: clean detached worktree at the latest PR head; native parser; restore; Release build with warnings-as-errors; isolated SQLite Identity bearer HTTP; independent stage/manifest/hash postflight and scoped review. No PostgreSQL, CT164/CT152, live DB, claim decision mutation or deployment. Evidence/retention approval remains a separate prerequisite for any future real decision endpoint.
+
+
+## 2026-11-13 — F2a-3 reviewer authorization QA accepted
+
+- Bounded child PR [#23](https://github.com/jvalkovv/YangSpaceApp/pull/23) **MERGED** into the F2a-1 parent feature branch. Merge commit: `c54c6cc4f4cd58b184c5d6b0dc7ec6a7c3507808`.
+- Exact tested source SHA: `e4ba6bbd697eeaeec4bf6fafe81ab78e30d3f5c4`.
+- Windows native parser, .NET restore, Release build with warnings-as-errors, isolated Identity bearer HTTP and independent evidence postflight: **PASS**.
+- All **27/27** required HTTP contract markers passed. Exact source identity, clean worktree, manifest, three stage receipts, stage commands, no failure gate and SHA-256 receipts independently verified.
+- Evidence: `D:\GitHub\YangSpaceApp-F2a3-ReviewerAuth-QA-v2\logs\yangspace\f2a3-reviewer-auth\e4ba6bbd697e-20261113-061414-30f957ed`.
+- Manifest SHA-256: `7c3c3894c229f9020c9892f8b618d0220b79dd4561e64b8eea26b8a0385aa9d0`.
+- HTTP stdout SHA-256: `a1007fed8f985d94bfcc eb7ee221425b2d2ea55f6571ba7e68c2a9a87313f2b7`.
+
+**Scope accepted:** live Identity reviewer-role authorization/revocation, conflict-policy helper, default-OFF QA guardrails and disposable SQLite bearer HTTP. This is not PostgreSQL bearer HTTP or claim mutation acceptance.
+
+**Next gate:** Issue #20 remains OPEN. Before a real Approve/Reject endpoint, explicitly approve evidence categories, accepted proof checklist, private evidence access/storage, retention/erasure and legal basis. Then create a separate decision-mutation child with PostgreSQL HTTP, parallel claim writers, transaction rollback and uncertain-COMMIT reconciliation tests. Parent PR #17 remains Draft/HOLD. No GitHub Actions, CT164/CT152, live DB or deployment.
