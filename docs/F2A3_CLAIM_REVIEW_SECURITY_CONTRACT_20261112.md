@@ -1,7 +1,7 @@
 # F2a-3 — Reviewer-controlled claim decisions and atomic Owner membership
 
 **Date:** 2026-11-12 (Europe/Sofia)  
-**Status:** **TECHNICAL SECURITY POLICY APPROVED — BOUNDED REVIEWER-AUTHORIZATION QA ACCEPTED (PR #23 MERGED); EVIDENCE / RETENTION GATE OPEN; CLAIM-DECISION RELEASE HOLD**. Owner approval was given on 2026-11-12. This authorizes only the isolated reviewer-authorization QA slice; it does not authorize claim-decision mutations, evidence collection, merchant onboarding, production flags, credentials or live environment changes.  
+**Status:** **TECHNICAL SECURITY POLICY APPROVED — REVIEWER-AUTHORIZATION QA ACCEPTED (PR #23 MERGED); EVIDENCE & RETENTION POLICY OWNER-APPROVED; LEGAL/PRIVACY CLEARANCE BLOCKED (ISSUE #24); CLAIM-DECISION RELEASE HOLD**. Owner approval was given on 2026-11-12. This authorizes only the isolated reviewer-authorization QA slice; it does not authorize claim-decision mutations, evidence collection, merchant onboarding, production flags, credentials or live environment changes.  
 **Primary work item:** [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20), derived from [Issue #4](https://github.com/jvalkovv/YangSpaceApp/issues/4); F2b content-audit follow-on is [Issue #11](https://github.com/jvalkovv/YangSpaceApp/issues/11).
 
 ## 2026-11-12 — owner decision and implementation boundary
@@ -19,7 +19,7 @@ Approved technical decisions:
 - Audit remains allowlisted and immutable; use a unique operation/idempotency fence and independent reconciliation for an unknown COMMIT. Never blindly retry.
 - Separate, default-OFF QA feature gate; no Production/Development activation and no coupling to `MerchantRead`.
 
-**Not approved / separate mandatory gate:** evidence categories, acceptable proof checklist, private evidence access/storage, retention duration, deletion/erasure and legal basis. These must be documented and explicitly approved before any real Approve/Reject endpoint can be implemented or enabled.
+**Owner-approved operational policy:** evidence categories, proof thresholds, minimisation/redaction, private claim-scoped handling, retention/deletion, audit and backup recovery are recorded in [Evidence & Retention Policy v1](F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md). **Separate legal/privacy gate remains BLOCKED:** lawful basis, controller/processor roles, notice, processor/transfer review, DPIA screening and written clearance are tracked by [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24). No real Approve/Reject endpoint, real evidence intake or production storage may be enabled before Issue #24 is accepted.
 
 **Current authorized work:** reviewer identity authorization, live role-revocation enforcement, claim-specific conflict-policy helper and isolated SQLite Identity bearer HTTP tests only. The QA access probe is not a claim decision route. No claim mutation, evidence storage, owner grant, audit write, migration or deployment is authorized by this decision.
 
@@ -37,7 +37,7 @@ Approved technical decisions:
 | Reviewer authority | Dedicated offline-provisioned `MerchantClaimReviewer`; separate from `PlatformAdmin` and merchant Owner/Editor; no HTTP self-grant | **APPROVED** |
 | Reviewer revocation | Read current Identity role membership from persistent storage on every request/decision; same-token revocation must deny immediately | **APPROVED** |
 | Conflict of interest | Deny applicant reviewing own claim; deny an active member of the target organization reviewing that claim; actor comes only from bearer subject | **APPROVED** |
-| Claim evidence | Evidence categories, reviewer checklist, private access/storage, retention, erasure and legal basis | **SEPARATE APPROVAL GATE OPEN** |
+| Claim evidence | Operational categories, proof thresholds, minimisation, private handling and retention policy | **OWNER-APPROVED; LEGAL/PRIVACY BLOCKED BY ISSUE #24** |
 | Scope of current QA slice | Default-OFF reviewer access probe + live role check + conflict-policy helper/tests; no claim mutation route | **APPROVED / QA ONLY** |
 | Claim lifecycle | Future decision is `Pending → Approved` or `Pending → Rejected`, with required `expectedRevision`; decided claims immutable | **APPROVED FOR FUTURE MUTATION SLICE** |
 | Location ownership | Approve only if target `BusinessLocation.OrganizationId IS NULL`; existing owners require a separately verified transfer workflow | **APPROVED** |
@@ -48,7 +48,7 @@ Approved technical decisions:
 
 ## 3. Proposed API and authorization boundary
 
-- Future mutation route sketch: `POST /api/v1/staff/claims/{claimId:guid}/decision`, server-observed `Approve|Reject`, `expectedRevision` and bounded `reason` (max 500 characters). It is **not authorized or mapped in the current QA slice**; evidence/retention approval is a prerequisite.
+- Future mutation route sketch: `POST /api/v1/staff/claims/{claimId:guid}/decision`, server-observed `Approve|Reject`, `expectedRevision` and bounded `reason` (max 500 characters). It is **not authorized or mapped in the current QA slice**; legal/privacy clearance under Issue #24 and the separate PostgreSQL/concurrency/fault-injection acceptance are prerequisites.
 - Current QA probe: `GET /api/v1/staff/claim-review/access`, only when the separate `ClaimReview:QaEnabled` gate is enabled in `YangSpaceQa` with disposable SQLite. It returns no claim or user data and performs no writes.
 - Use ASP.NET Identity **BearerScheme** only and a dedicated authorization policy. A `PlatformAdmin` without the reviewer role remains forbidden. Always check the role live in persistent Identity state, with explicit denial if reviewer revoked after token issuance.
 - Never trust `ActorUserId`, membership, organization ownership, role or reviewer metadata in headers/body. Resolve actor ID from the authenticated subject; resolve applicant, target org, location and current claim solely via DB.
@@ -87,9 +87,9 @@ The existing disposable PG runner deliberately uses `--network none` with no pub
 
 ## 7. Acceptance sequence and immutable evidence
 
-1. Technical reviewer/ownership/concurrency policy is **owner-approved on 2026-11-12** and recorded in [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). Evidence categories, reviewer checklist, private evidence handling and retention/erasure remain a separate mandatory gate.
+1. Technical reviewer/ownership/concurrency policy and Evidence & Retention Policy v1 are **owner-approved** and recorded in [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20). Legal/privacy clearance remains **BLOCKED** under [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24).
 2. Current child PR #23 implements only QA-gated reviewer bearer authorization, live role revocation and conflict-policy checks on the F2a-1 feature branch. It does not expose claim mutations or write business/audit rows.
-3. A later decision-mutation PR may begin only after the evidence/retention gate is explicitly approved; it must have its own isolated PostgreSQL HTTP/concurrency/fault-injection acceptance.
+3. A real decision-mutation PR may begin only after legal/privacy clearance is recorded in Issue #24; it must have its own isolated PostgreSQL bearer HTTP, concurrency and fault-injection acceptance. Synthetic-only QA remains separately bounded and must not accept real evidence.
 4. EF migration (if needed) generated and reviewed, with isolated PG apply/negative index tests and explicit migration/rollback receipts. Avoid hand-editing generated snapshots.
 5. Real bearer HTTP tests in an approved isolated PostgreSQL topology and concurrent clients; all negative assertions verify status **and** zero DB side effects. Forced errors and uncertain COMMIT evidence must pass.
 6. Exact-SHA .NET restore/build warnings-as-errors, static review, peer review, signed/hashed local manifests, cleanup and owner approval. Only then merge the scoped mutation PR into its feature parent.
@@ -102,7 +102,7 @@ The bounded QA-only implementation in [PR #23](https://github.com/jvalkovv/YangS
 
 The 27/27 isolated SQLite Identity bearer HTTP markers passed, including live same-token role revocation and fail-closed QA boundaries. This does not certify PostgreSQL bearer HTTP, claim mutation, Owner membership grant, audit transaction, concurrency, uncertain COMMIT or production.
 
-The separate evidence categories/checklist, private evidence handling, retention/erasure and legal-basis gate remains OPEN. No real Approve/Reject endpoint may be implemented or enabled before that approval and its separate PostgreSQL/concurrency/fault-injection acceptance.
+Evidence & Retention Policy v1 is now owner-approved. The independent legal/privacy gate remains OPEN/BLOCKED in Issue #24. No real Approve/Reject endpoint may be implemented or enabled before written legal/privacy clearance and its separate PostgreSQL/concurrency/fault-injection acceptance.
 
 
 ## 2026-11-13 — evidence, privacy and retention policy owner-approved
@@ -114,10 +114,16 @@ The owner approved the operational policy on 2026-11-13. Canonical policy: [F2A3
 No real evidence intake, production upload/storage, live claim decision or Owner grant may be activated before legal/privacy clearance. Only isolated non-production implementation using synthetic data, incapable of accepting real evidence, may proceed under [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25); [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the legal/privacy release gate. Existing reviewer-auth QA remains bounded to isolated SQLite bearer HTTP; no release or production approval is implied.
 
 
-## 2026-11-13 — F2a-3 synthetic evidence policy code candidate
+## 2026-11-13 — F2a-3 synthetic evidence policy technical QA accepted
 
-[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is now implemented as [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact candidate `519809875658e7e27232d6a49536f2d71933ea69`.
+[PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26) is **MERGED/CLOSED** by squash commit `7114427be24f0d50a682f1b67834336473c0f594` into the F2a-1 feature branch. Exact Windows-tested source SHA: `519809875658e7e27232d6a49536f2d71933ea69`.
 
-Source-only scope: pure evidence file validation, deterministic retention calculation, UTC timestamp validation, fail-closed malware scanner configuration guard and synthetic-only runtime tests. No HTTP route, evidence schema/migration, production storage or real evidence intake.
+- PowerShell runner syntax/source identity, .NET 10 restore, Release build with warnings-as-errors, synthetic runtime policy contract and independent evidence postflight: **PASS**.
+- Manifest SHA-256: `e53fd7ec1e2de2acec19d90f174bc211eb156b938b7a744e56ce1018010142ec`.
+- Evidence directory: `logs/yangspace/f2a3-evidence-policy/519809875658-20261113-072609-f43b3a39`; full local logs and postflight receipts remain on the operator workstation.
+- Accepted scope is synthetic-only validation/retention calculation and an in-memory test fixture. No upload/download route, DB migration, production storage, real evidence, claim mutation or deployment was introduced.
+- [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is **CLOSED/COMPLETED** for this bounded technical DoD.
+- [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains **OPEN/BLOCKING** for legal/privacy clearance. Owner approval of operational policy is not legal clearance.
+- Known production blockers remain: full document parser validation, real malware scanner integration, deletion worker, legal-hold enforcement and backup deletion-tombstone replay.
 
-**State: NOT WINDOWS-TESTED / DRAFT / HOLD.** Exact-SHA restore, Release build, runtime execution and independent evidence postflight are still required. [Legal/privacy Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard gate before any real evidence collection or production activation.
+No real evidence intake, production upload/storage, live claim decision or Owner grant is authorized.
