@@ -1,3 +1,24 @@
+## 2026-11-13 — F2a-3 exact-SHA Windows acceptance: PASS (synthetic-only)
+
+Operator ran the dedicated `scripts/Test-F2a3-PostgreSql-Bearer-Concurrency-Local.ps1` on clean detached worktree at exact SHA `ede8a3f2064b8f93cdc2e1757278890574ea4458`. The operator transcript reports:
+
+- Git exact source, local Docker image identity, .NET 10 restore/Release publish, EF migration model diff and pinned reviewed PostgreSQL SQL hash: **PASS**.
+- PostgreSQL 17 `--network none`, read-only .NET sidecar, actual mount flags, native Linux SQLite SHA-256 and `appsettings.json` transfer verification: **PASS**.
+- `STAGE_PASS=pgapp-tenant-scope-regression`: **PASS**.
+- `STAGE_PASS=pgapp-real-ef-transaction`: **PASS**; the script requires all transaction, parallel-writer, one-winner, Owner membership and loser-rollback markers before advancing.
+- `STAGE_PASS=pgapp-reviewer-identity-http`: **PASS**; the runner requires real PostgreSQL-backed Identity bearer HTTP, WAF metadata/content-root, same-token reviewer role revocation, 401/403 and no business side effects.
+- `F2A3_PG_BEARER_CONCURRENCY_ISOLATED_ONLY=PASS` and independent operator postflight `F2A3_INDEPENDENT_POSTFLIGHT=PASS`: required manifest markers, no `gate.txt`, and no leftover matching Docker QA containers.
+
+**Operator-local evidence:** `logs/yangspace/f2a3-pg-bearer-concurrency/ede8a3f2064b-20261113-143712-f50743ec`  
+**Manifest SHA-256:** `A278A5C4A31655F305F16384DBF4607A0352303BFC0A6C7287CB6FC24D0C0EAA`
+
+This is acceptance of the **bounded synthetic-only QA on the exact tested source SHA**. Full stage/evidence bytes reside on the operator workstation; only console transcript and manifest hash are available in this GitHub checkpoint. Do not claim independent download/hash verification.
+
+**NOT release authorization:** no public registration/onboarding UI, production claim decision endpoint, real evidence intake, production storage, PostgreSQL least-privilege app role, uncertain-COMMIT/idempotency/fault injection, or off-host restore acceptance. CT164 and CT152 untouched by this QA. Legal/privacy Issue #24 remains OPEN for real business evidence.
+
+Child PR #27 is mergeable/clean but remains **OPEN/DRAFT** pending final scoped code review and merge decision. Parent PR #17 and V2 PR #1 remain OPEN/DRAFT/HOLD. No deployment, no GitHub Actions.
+
+
 ## 2026-11-13 — F2a-3 PR #27 second Windows QA checkpoint (PG PASS / HTTP HOLD)
 
 - Tested source `fa481beb2b589e2392094bb0ddad695a62fc3d3c`: exact source, Release publish, reviewed PostgreSQL migration SQL, isolated Docker server/sidecar, `/qa` exec mount, Linux SQLite hash, tenant scope and Npgsql application transaction/concurrent writer stages **PASS**. The runner validates all competing-writer one-winner/loser-rollback markers before recording stage PASS.
