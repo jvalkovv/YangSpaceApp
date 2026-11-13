@@ -323,4 +323,4 @@ Canonical policy v1: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://gi
 
 No real evidence collection/processing, production upload/storage or live claim-decision activation is authorized until Issue #24 is accepted. Isolated non-production work using synthetic data only may proceed if it cannot accept real evidence and remains disabled from production.
 
-**Next:** complete legal/privacy clearance in Issue #24; in parallel, prepare a bounded synthetic-data-only QA implementation plan. Parent PR #17 remains Draft/HOLD.
+**Next:** [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is opened for the bounded synthetic-data-only evidence handling foundation; [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the blocking legal/privacy gate for any real evidence. Parent PR #17 remains Draft/HOLD.
