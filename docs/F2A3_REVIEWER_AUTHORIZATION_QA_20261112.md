@@ -76,7 +76,7 @@ Report exact SHA, stage PASS/PARTIAL/HOLD, evidence path and next action at each
 - Independent postflight: exact local/remote SHA, clean worktree, manifest values, all three stage receipts and command lines: **PASS**.
 - HTTP contract: **27/27 required markers PASS**, including same-token live Identity role revocation; no `gate.txt`.
 - Manifest SHA-256: `7c3c3894c229f9020c9892f8b618d0220b79dd4561e64b8eea26b8a0385aa9d0`.
-- HTTP stdout SHA-256: `a1007fed8f985d94bfcc eb7ee221425b2d2ea55f6571ba7e68c2a9a87313f2b7` (canonical digest without display whitespace: `a1007fed8f985d94bfcc eb7ee221425b2d2ea55f6571ba7e68c2a9a87313f2b7`).
+- HTTP stdout SHA-256: `a1007fed8f985d94bfcceb7ee221425b2d2ea55f6571ba7e68c2a9a87313f2b7` (canonical digest without display whitespace: `a1007fed8f985d94bfcceb7ee221425b2d2ea55f6571ba7e68c2a9a87313f2b7`).
 
 Operator evidence directory: `D:\GitHub\YangSpaceApp-F2a3-ReviewerAuth-QA-v2\logs\yangspace\f2a3-reviewer-auth\e4ba6bbd697e-20261113-061414-30f957ed`.
 
