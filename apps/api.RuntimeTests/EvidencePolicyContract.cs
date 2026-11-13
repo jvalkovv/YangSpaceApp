@@ -198,7 +198,8 @@ internal static class EvidencePolicyContract
             EvidenceRetentionKind.PendingClaimRaw,
             new(LastMeaningfulActivityAtUtc: baseline));
         Check(
-            pending?.DeleteEligibleAtUtc == baseline.AddDays(90) &&
+            pending is not null &&
+            pending.DeleteEligibleAtUtc == baseline.AddDays(90) &&
             pending.DeleteByUtc == baseline.AddDays(120),
             "EVIDENCE_PENDING_90_PLUS_30_DAYS");
 
@@ -206,7 +207,8 @@ internal static class EvidencePolicyContract
             EvidenceRetentionKind.RejectedClaimRaw,
             new(FinalDecisionAtUtc: baseline));
         Check(
-            rejected?.DeleteEligibleAtUtc == baseline.AddDays(180) &&
+            rejected is not null &&
+            rejected.DeleteEligibleAtUtc == baseline.AddDays(180) &&
             rejected.DeleteByUtc == baseline.AddDays(210),
             "EVIDENCE_REJECTED_180_PLUS_30_DAYS");
 
@@ -217,7 +219,8 @@ internal static class EvidencePolicyContract
                 LastReverifiedAtUtc: baseline.AddMonths(3)));
         var approvedStaleAt = baseline.AddMonths(15);
         Check(
-            approved?.VerificationStaleAtUtc == approvedStaleAt &&
+            approved is not null &&
+            approved.VerificationStaleAtUtc == approvedStaleAt &&
             approved.DeleteEligibleAtUtc == approvedStaleAt &&
             approved.DeleteByUtc == approvedStaleAt.AddDays(30),
             "EVIDENCE_APPROVED_REVERIFY_12_MONTHS_PLUS_30_DAYS");
@@ -226,7 +229,8 @@ internal static class EvidencePolicyContract
             EvidenceRetentionKind.SupersededRaw,
             new(ReplacementAcceptedAtUtc: baseline));
         Check(
-            superseded?.DeleteEligibleAtUtc == baseline.AddDays(30) &&
+            superseded is not null &&
+            superseded.DeleteEligibleAtUtc == baseline.AddDays(30) &&
             superseded.DeleteByUtc == baseline.AddDays(30),
             "EVIDENCE_SUPERSEDED_30_DAYS");
 
@@ -234,7 +238,8 @@ internal static class EvidencePolicyContract
             EvidenceRetentionKind.EvidenceAccessLog,
             new(AccessEventAtUtc: baseline));
         Check(
-            accessLog?.DeleteEligibleAtUtc == baseline.AddMonths(12) &&
+            accessLog is not null &&
+            accessLog.DeleteEligibleAtUtc == baseline.AddMonths(12) &&
             accessLog.DeleteByUtc == baseline.AddMonths(12),
             "EVIDENCE_ACCESS_LOG_12_MONTHS");
 
@@ -248,7 +253,8 @@ internal static class EvidencePolicyContract
             EvidenceRetentionKind.ClaimDecisionMetadata,
             new(ClaimClosedAtUtc: baseline, ClaimIsActive: false));
         Check(
-            metadata?.DeleteEligibleAtUtc == baseline.AddMonths(24) &&
+            metadata is not null &&
+            metadata.DeleteEligibleAtUtc == baseline.AddMonths(24) &&
             metadata.DeleteByUtc == baseline.AddMonths(24),
             "EVIDENCE_DECISION_METADATA_24_MONTHS");
 
@@ -256,7 +262,8 @@ internal static class EvidencePolicyContract
             EvidenceRetentionKind.EncryptedBackupObject,
             new(PrimaryObjectDeletedAtUtc: baseline));
         Check(
-            backup?.DeleteEligibleAtUtc == baseline.AddDays(35) &&
+            backup is not null &&
+            backup.DeleteEligibleAtUtc == baseline.AddDays(35) &&
             backup.DeleteByUtc == baseline.AddDays(35),
             "EVIDENCE_BACKUP_MAX_35_DAYS");
 
