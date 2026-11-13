@@ -266,6 +266,12 @@ if (args.Length == 1 && string.Equals(args[0], "--claim-reviewer-auth-http-only"
     Console.WriteLine("F2A3_REVIEWER_AUTH_HTTP_ISOLATED_ONLY=PASS");
     return;
 }
+if (args.Length == 1 && string.Equals(args[0], "--postgres-claim-reviewer-http-only", StringComparison.Ordinal))
+{
+    await PostgreSqlReviewerAuthorizationHttpContract.RunAsync();
+    Console.WriteLine("F2A3_PG_REVIEWER_HTTP_ISOLATED_ONLY=PASS");
+    return;
+}
 if (args.Length == 1 && string.Equals(args[0], "--evidence-policy-only", StringComparison.Ordinal))
 {
     await EvidencePolicyContract.RunAsync();
