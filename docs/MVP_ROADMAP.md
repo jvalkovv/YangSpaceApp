@@ -62,3 +62,7 @@
 ## Definition of Done за всяка функционалност
 
 Source + tests + reviewed DB migration + auth check + audit/logging + docs + visual/mobile QA + runtime evidence. Всеки deployment има commit SHA, версия, backup reference, verify output и rollback path. Без `main` auto-deploy.
+
+## Product Growth Direction — 2026-11-13 (not an MVP release approval)
+
+See [verified local discovery, merchant growth and Varna pilot plan](PRODUCT_GROWTH_PILOT_20261113.md). Emphasize verified/fresh businesses, offers, brochures, jobs, mobile discovery, QR deep links and privacy-safe owner action analytics. Events/opt-in notifications and clearly labeled promotions are separate post-pilot possibilities. Do **not** add checkout, booking, accounting, warehouse, trade/POS or fixed subscription fees to M0–M5. Existing security, claim and PostgreSQL approval gates remain mandatory.
