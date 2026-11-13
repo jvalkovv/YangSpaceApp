@@ -1,3 +1,11 @@
+## 2026-11-13 — F2a-3 PostgreSQL Bearer/Concurrency operator failure and scoped fix (DRAFT/HOLD)
+
+- Child [PR #27](https://github.com/jvalkovv/YangSpaceApp/pull/27) failed Windows exact-SHA runtime QA at `560e027b53d8124710f574eff1e809bcf2ad7406`: after source/EF build/reviewed SQL and disposable PG setup PASS, `pgapp-tenant-scope-regression` exited 134. The Linux native SQLite library at `/tmp/qa/runtimes/linux-x64/native/libe_sqlite3.so` failed executable memory mapping; likely `noexec` tmpfs. No transaction/concurrent-writer or PostgreSQL Identity HTTP QA was executed. Cleanup postflight must be checked separately.
+- Child-source correction: binary-safe streamed runtime relocated to dedicated `/qa:rw,exec,nosuid,nodev` tmpfs; `/tmp:rw,noexec,nosuid,nodev` retained. Runner checks actual `/proc/mounts`, read-only rootfs/no binds/no ports and native `libe_sqlite3.so` SHA-256 before running the unchanged tenant, PG transaction/concurrent-writers and Identity bearer HTTP gates.
+- **State:** source fix committed, exact-new-SHA Windows QA **NOT RUN**. No retroactive PASS and no parent acceptance. Full incident and runner contract: [F2A3_POSTGRESQL_BEARER_CONCURRENCY_QA_20261113.md](F2A3_POSTGRESQL_BEARER_CONCURRENCY_QA_20261113.md).
+- Keep [PR #27](https://github.com/jvalkovv/YangSpaceApp/pull/27) and parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) **OPEN/DRAFT/HOLD**. No CT164/CT152, production DB/evidence, claim mutation route or deployment; legal/privacy [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains blocking for real evidence.
+
+
 # YangSpace 2.0 — Single Source of Truth (SSOT)
 
 **Status:** ACTIVE planning/status authority on the YangSpace V2 feature branch; introduced by merged PR #9. This document does **not** authorize deployment, database mutation, exposure, or feature-to-`main` merge.  
