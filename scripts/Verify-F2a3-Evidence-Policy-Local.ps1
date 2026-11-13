@@ -13,6 +13,15 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$Tokens = $null
+$ParseErrors = $null
+[void][System.Management.Automation.Language.Parser]::ParseFile(
+    $PSCommandPath, [ref]$Tokens, [ref]$ParseErrors)
+if ($ParseErrors.Count -ne 0) { throw 'F2A3_EVIDENCE_POSTFLIGHT_RUNNER_SYNTAX_FAILED' }
+$VerifierScriptHash = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$RunnerScriptPath = Join-Path $PSScriptRoot 'Test-F2a3-Evidence-Policy-Local.ps1'
+$RunnerScriptHash = (Get-FileHash -LiteralPath $RunnerScriptPath -Algorithm SHA256).Hash.ToLowerInvariant()
+
 $Branch = 'feat/f2a3-evidence-synthetic-qa-20261113'
 $Git = (Get-Command git.exe -ErrorAction Stop).Source
 
@@ -50,8 +59,13 @@ if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
     throw 'F2A3_EVIDENCE_POSTFLIGHT_MANIFEST_MISSING'
 }
 $Manifest = Get-Content -LiteralPath $ManifestPath
+if ($Manifest -cnotcontains ('RUNNER_SCRIPT_SHA256=' + $RunnerScriptHash)) {
+    throw 'F2A3_EVIDENCE_POSTFLIGHT_RUNNER_HASH_MISMATCH'
+}
 foreach ($Required in @(
     ('COMMIT_SHA=' + $CommitSha)
+    'RUNNER_SYNTAX=PASS'
+    ('RUNNER_SCRIPT_SHA256=' + $RunnerScriptHash)
     'SOURCE_RESTORE_BUILD=PASS'
     'F2A3_EVIDENCE_POLICY_SYNTHETIC_ONLY=PASS'
     'TEST_PROVIDER=PURE_POLICY_PLUS_IN_MEMORY_SYNTHETIC_STORE'
@@ -142,6 +156,8 @@ $ManifestHash = (Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash
 $Postflight = @(
     ('COMMIT_SHA=' + $CommitSha)
     'F2A3_EVIDENCE_POSTFLIGHT=PASS'
+    'VERIFY_SCRIPT_SYNTAX=PASS'
+    ('VERIFY_SCRIPT_SHA256=' + $VerifierScriptHash)
     ('MANIFEST_SHA256=' + $ManifestHash)
 ) + $HashLines.ToArray()
 [IO.File]::WriteAllLines((Join-Path $Evidence 'postflight.txt'),[string[]]$Postflight)
