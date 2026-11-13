@@ -16,6 +16,7 @@ var allowPreviewRegistration = builder.Configuration.GetValue<bool>("Preview:All
 var productionAdmin = builder.Configuration.GetValue<bool>("Admin:Enabled");
 var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
 var claimReviewQa = builder.Configuration.GetValue<bool>("ClaimReview:QaEnabled");
+var publicAccounts = builder.Configuration.GetValue<bool>("PublicAccounts:Enabled");
 // F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
 // It is impossible to enable accidentally in Development, Preview, or Production.
 if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
@@ -57,6 +58,8 @@ if (string.IsNullOrWhiteSpace(connection))
 var databaseProvider = builder.Configuration["Database:Provider"];
 if (string.IsNullOrWhiteSpace(databaseProvider))
     throw new InvalidOperationException("Database:Provider must explicitly select SQLite or PostgreSQL.");
+PublicAccountEndpoints.ValidateConfiguration(builder.Configuration, builder.Environment,
+    preview, merchantRead, claimReviewQa, productionAdmin);
 // QA-only: an isolated SQLite model created by the test harness; no production
 // PostgreSQL role or database is implicitly approved through this feature.
 if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
@@ -97,6 +100,9 @@ switch (databaseProvider.Trim().ToLowerInvariant())
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;
+    // Only the public account feature requires email confirmation to sign in.
+    // Existing offline-provisioned admins have EmailConfirmed=true.
+    options.SignIn.RequireConfirmedEmail = publicAccounts;
     options.Password.RequiredLength = 12;
     options.Password.RequireDigit = true;
     options.Password.RequireUppercase = true;
@@ -104,6 +110,8 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>();
+if (publicAccounts)
+    builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpPublicIdentityEmailSender>();
 builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
 builder.Services.AddScoped<ClaimReviewConflictPolicy>();
 
@@ -229,6 +237,8 @@ if (preview || productionAdmin || merchantRead || claimReviewQa)
     if (preview || productionAdmin)
         app.MapAdmin(gatewaySecret);
 }
+if (publicAccounts)
+    app.MapPublicAccounts();
 if (merchantRead)
     app.MapMerchantRead();
 if (claimReviewQa)
