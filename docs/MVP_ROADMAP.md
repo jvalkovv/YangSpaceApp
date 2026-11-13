@@ -285,3 +285,14 @@ This is a **standing execution requirement** for all YangSpace work, including e
 ## Definition of Done за всяка функционалност
 
 Source + tests + reviewed DB migration + auth check + audit/logging + docs + visual/mobile QA + runtime evidence. Всеки deployment има commit SHA, версия, backup reference, verify output и rollback path. Без `main` auto-deploy.
+
+
+## 2026-11-13 — F2a-3 reviewer authorization operator QA failure and correction
+
+Operator exact-SHA run on `7ed7ab3d0e00da41fb3d11afeb6ed45c69c2fa1b`: PowerShell parser, .NET restore and Release build **PASS**; isolated Identity bearer HTTP **FAIL** during reviewer-role revocation. EF Core reported duplicate tracked `IdentityUser`: the test reused the reviewer entity created in an earlier DI scope inside a later `UserManager` scope. This is a test-harness entity-lifetime defect; the HTTP acceptance is not PASS.
+
+Failure evidence (operator machine): `D:\\GitHub\\YangSpaceApp-F2a3-ReviewerAuth-QA\\logs\\yangspace\\f2a3-reviewer-auth\\7ed7ab3d0e00-20261113-060137-7782b371`. Runner wrote `gate.txt`; no passing manifest was produced.
+
+Correction committed in PR #23: the revocation test reloads reviewer by ID through the active scoped `UserManager`, verifies the role is present, then removes it using that same-scope entity. Runner now requires markers for both the reload and pre-revocation role check. Current corrected source candidate at the time of this entry: `9ced228838c11b4584229160fe1b40565aff3c7f` (the documentation commit that follows may advance the SHA).
+
+**Current state: SOURCE CORRECTION COMMITTED / CORRECTED SHA NOT YET TESTED / PR #23 DRAFT-HOLD.** Next: clean detached worktree at the latest PR head; native parser; restore; Release build with warnings-as-errors; isolated SQLite Identity bearer HTTP; independent stage/manifest/hash postflight and scoped review. No PostgreSQL, CT164/CT152, live DB, claim decision mutation or deployment. Evidence/retention approval remains a separate prerequisite for any future real decision endpoint.
