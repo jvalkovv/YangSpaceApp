@@ -74,6 +74,7 @@ New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 $Publish = Join-Path $Evidence 'publish'
 $Sql = Join-Path $Evidence 'reviewed-initial.sql'
 $Archive = Join-Path $Evidence 'runtime-publish.tar'
+$RuntimeRoot = '/qa'
 $Pg = 'yangspace-f2a3-pgqa-' + $Token.Substring(0,12)
 $App = 'yangspace-f2a3-appqa-' + $Token.Substring(0,12)
 $Conn = 'Host=127.0.0.1;Port=5432;Database=' + $Database +
@@ -164,6 +165,11 @@ try {
         throw 'F2A3_PG_PUBLISH_OUTPUT_MISSING'
     }
     $DllHash = (Get-FileHash -LiteralPath $Dll -Algorithm SHA256).Hash.ToLowerInvariant()
+    $NativeSqlite = Join-Path $Publish 'runtimes\linux-x64\native\libe_sqlite3.so'
+    if (!(Test-Path -LiteralPath $NativeSqlite -PathType Leaf)) {
+        throw 'F2A3_PG_LINUX_SQLITE_NATIVE_ASSET_MISSING'
+    }
+    $NativeSqliteHash = (Get-FileHash -LiteralPath $NativeSqlite -Algorithm SHA256).Hash.ToLowerInvariant()
     $ApiSettings = Join-Path $Repo 'apps\api\appsettings.json'
     Copy-Item -LiteralPath $ApiSettings -Destination (Join-Path $Publish 'appsettings.json') -Force
     $ApiSettingsHash = (Get-FileHash -LiteralPath (Join-Path $Publish 'appsettings.json') -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -219,43 +225,80 @@ try {
         'exec',$Pg,'psql','-X','-v','ON_ERROR_STOP=1',
         '-U','postgres','-d',$Database,'-c',$GuardSql
     )
+    # The old runner unpacked native .so files in /tmp; the Docker tmpfs
+    # default noexec prevented ELF executable mappings even when files existed.
+    # Keep /tmp noexec for general temporary files. Only the bounded, hash-
+    # verified published runtime tree in /qa may host executable mappings.
     $AppAttempted = $true
     Stage -Label 'pgapp-sidecar-start' -Executable $Docker -Arguments @(
         'run','-d','--rm','--network',('container:' + $Pg),
-        '--read-only','--tmpfs','/tmp:rw,size=256m,mode=1777',
+        '--read-only',
+        '--tmpfs','/tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777',
+        '--tmpfs','/qa:rw,exec,nosuid,nodev,size=256m,mode=0700',
         '--name',$App,'--entrypoint','sleep',$RuntimeImage,'1200'
     )
     AssertContainerIsolation -Name $App -ExpectedNetwork ('container:' + $Pg)
     $ReadOnly = (@(& $Docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' $App) -join '').Trim()
-    $Tmpfs = (@(& $Docker inspect --format '{{json .HostConfig.Tmpfs}}' $App) -join '').Trim()
-    if ($LASTEXITCODE -ne 0 -or $ReadOnly -cne 'true' -or
-        $Tmpfs -notmatch '"/tmp"') {
-        throw 'F2A3_PG_READONLY_TMPFS_ISOLATION_FAILED'
+    $TmpfsRaw = (@(& $Docker inspect --format '{{json .HostConfig.Tmpfs}}' $App) -join '').Trim()
+    if ($LASTEXITCODE -ne 0 -or $ReadOnly -cne 'true') {
+        throw 'F2A3_PG_READONLY_ROOTFS_REQUIRED'
     }
+    $TmpfsConfig = ConvertFrom-Json -InputObject $TmpfsRaw
+    $TmpOptions = $TmpfsConfig.PSObject.Properties['/tmp']
+    $QaOptions = $TmpfsConfig.PSObject.Properties['/qa']
+    if (!$TmpOptions -or !$QaOptions -or
+        $TmpOptions.Value -notmatch '(^|,)noexec(,|$)' -or
+        $QaOptions.Value -notmatch '(^|,)exec(,|$)' -or
+        $QaOptions.Value -match '(^|,)noexec(,|$)') {
+        throw 'F2A3_PG_EXEC_TMPFS_CONFIG_REFUSED'
+    }
+    Stage -Label 'pgapp-verify-mounts' -Executable $Docker -Arguments @(
+        'exec',$App,'cat','/proc/mounts'
+    )
+    $MountLines = @(Get-Content -LiteralPath (Join-Path $Evidence 'pgapp-verify-mounts.stdout.log'))
+    $TmpMount = @($MountLines | Where-Object { $_ -match '\s/tmp\s+tmpfs\s+' })
+    $QaMount = @($MountLines | Where-Object { $_ -match '\s/qa\s+tmpfs\s+' })
+    if ($TmpMount.Count -ne 1 -or $QaMount.Count -ne 1) {
+        throw 'F2A3_PG_EXEC_TMPFS_MOUNT_MISSING'
+    }
+    $TmpFlags = ($TmpMount[0] -split '\s+')[3]
+    $QaFlags = ($QaMount[0] -split '\s+')[3]
+    if ($TmpFlags -notmatch '(^|,)noexec(,|$)' -or
+        $QaFlags -match '(^|,)noexec(,|$)' -or
+        $QaFlags -notmatch '(^|,)rw(,|$)') {
+        throw 'F2A3_PG_EXEC_TMPFS_MOUNT_OPTIONS_REFUSED'
+    }
+    Write-Host 'F2A3_PG_RUNTIME_EXEC_MOUNT=PASS'
     Write-Host 'F2A3_PG_TWO_CONTAINERS_ISOLATED=PASS'
 
-    # Docker cp is rejected for containers with --read-only rootfs even when
-    # /tmp is tmpfs. Stream the tar bytes through docker exec -i instead.
+    # Stream verified tar bytes into the dedicated exec-capable tmpfs.
+    # The rest of the sidecar stays read-only; /tmp remains noexec.
     Invoke-YangSpaceTarStreamStage -Docker $Docker -Container $App `
-        -Archive $Archive -EvidenceDirectory $Evidence
+        -Archive $Archive -EvidenceDirectory $Evidence -Destination $RuntimeRoot
     Stage -Label 'pgapp-verify-runtime-dll' -Executable $Docker -Arguments @(
-        'exec',$App,'sha256sum','/tmp/qa/YangSpace.Api.RuntimeTests.dll'
+        'exec',$App,'sha256sum',($RuntimeRoot + '/YangSpace.Api.RuntimeTests.dll')
     )
     RequireMarker -Label 'pgapp-verify-runtime-dll' -Marker `
-        ($DllHash + '  /tmp/qa/YangSpace.Api.RuntimeTests.dll')
+        ($DllHash + '  ' + $RuntimeRoot + '/YangSpace.Api.RuntimeTests.dll')
     Write-Host 'F2A3_PG_RUNTIME_TRANSFER_SHA256=PASS'
+    Stage -Label 'pgapp-verify-native-sqlite' -Executable $Docker -Arguments @(
+        'exec',$App,'sha256sum',($RuntimeRoot + '/runtimes/linux-x64/native/libe_sqlite3.so')
+    )
+    RequireMarker -Label 'pgapp-verify-native-sqlite' -Marker `
+        ($NativeSqliteHash + '  ' + $RuntimeRoot + '/runtimes/linux-x64/native/libe_sqlite3.so')
+    Write-Host 'F2A3_PG_NATIVE_SQLITE_SHA256=PASS'
     Stage -Label 'pgapp-verify-api-content-root' -Executable $Docker -Arguments @(
-        'exec',$App,'sha256sum','/tmp/qa/appsettings.json'
+        'exec',$App,'sha256sum',($RuntimeRoot + '/appsettings.json')
     )
     RequireMarker -Label 'pgapp-verify-api-content-root' -Marker `
-        ($ApiSettingsHash + '  /tmp/qa/appsettings.json')
+        ($ApiSettingsHash + '  ' + $RuntimeRoot + '/appsettings.json')
     Write-Host 'F2A3_PG_API_CONTENT_ROOT=PASS'
     Stage -Label 'pgapp-tenant-scope-regression' -Executable $Docker -Arguments @(
         'exec',
         '-e','DOTNET_CLI_HOME=/tmp',
         '-e','HOME=/tmp',
         '-e','DOTNET_EnableDiagnostics=0',
-        $App,'dotnet','/tmp/qa/YangSpace.Api.RuntimeTests.dll',
+        $App,'dotnet',($RuntimeRoot + '/YangSpace.Api.RuntimeTests.dll'),
         '--tenant-scope-only'
     )
     RequireMarker -Label 'pgapp-tenant-scope-regression' -Marker 'F2A_TENANT_SCOPE_ISOLATED_ONLY=PASS'
@@ -267,7 +310,7 @@ try {
         '-e','DOTNET_CLI_HOME=/tmp',
         '-e','HOME=/tmp',
         '-e','DOTNET_EnableDiagnostics=0',
-        $App,'dotnet','/tmp/qa/YangSpace.Api.RuntimeTests.dll',
+        $App,'dotnet',($RuntimeRoot + '/YangSpace.Api.RuntimeTests.dll'),
         '--postgres-claim-transaction-only'
     )
     foreach ($Marker in @(
@@ -301,7 +344,7 @@ try {
         '-e','DOTNET_CLI_HOME=/tmp',
         '-e','HOME=/tmp',
         '-e','DOTNET_EnableDiagnostics=0',
-        $App,'dotnet','/tmp/qa/YangSpace.Api.RuntimeTests.dll',
+        $App,'dotnet',($RuntimeRoot + '/YangSpace.Api.RuntimeTests.dll'),
         '--postgres-claim-reviewer-http-only'
     )
     foreach ($Marker in @(
@@ -383,12 +426,16 @@ $Manifest = @(
     ('PG_SQL_SHA256=' + $SqlHash),
     ('RUNTIME_ARCHIVE_SHA256=' + $ArchiveHash),
     ('RUNTIME_DLL_SHA256=' + $DllHash),
+    ('LINUX_SQLITE_NATIVE_SHA256=' + $NativeSqliteHash),
     'PG_NETWORK=none',
     'DOTNET_NETWORK=container:postgresql',
     'PUBLISHED_PORTS=none',
     'HOST_BINDS=none',
     'RUNTIME_ROOTFS=read-only',
-    'RUNTIME_TMPFS=/tmp',
+    'RUNTIME_TMPFS=/qa:rw,exec,nosuid,nodev',
+    'GENERAL_TMPFS=/tmp:rw,noexec,nosuid,nodev',
+    'RUNTIME_EXEC_MOUNT=PASS',
+    'NATIVE_SQLITE_SHA256=PASS',
     'RUNTIME_TRANSFER=BINARY_STREAMED_TAR',
     'RUNTIME_TRANSFER_SHA256=PASS',
     'TEST_DATABASE=yangspace_f2a3_disposable',
