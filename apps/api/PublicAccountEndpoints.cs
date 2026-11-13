@@ -11,8 +11,6 @@ namespace YangSpace.Api;
 // Enabled only by the explicit production + PostgreSQL + email readiness gate.
 internal static class PublicAccountEndpoints
 {
-    private const string StaffRole = "PlatformAdmin";
-    private const string ReviewerRole = "MerchantClaimReviewer";
     private const string ConfirmPath = "/api/public-account/confirm";
 
     internal static void ValidateConfiguration(IConfiguration configuration, IWebHostEnvironment environment,
@@ -43,6 +41,7 @@ internal static class PublicAccountEndpoints
         group.MapPost("/register", async Task<IResult> (
             PublicRegisterRequest request,
             UserManager<IdentityUser> users,
+            IPasswordValidator<IdentityUser> passwordValidator,
             IEmailSender<IdentityUser> emails,
             IConfiguration configuration) =>
         {
@@ -50,12 +49,18 @@ internal static class PublicAccountEndpoints
             if (email is null || string.IsNullOrEmpty(request.Password) || request.Password.Length > 256)
                 return Results.BadRequest(new { error = "Invalid registration details." });
 
+            var user = new IdentityUser { UserName = email, Email = email, EmailConfirmed = false };
+            // Validate the submitted password BEFORE probing existing email
+            // identity, avoiding a weak-password account-existence oracle.
+            var validPassword = await passwordValidator.ValidateAsync(users, user, request.Password);
+            if (!validPassword.Succeeded)
+                return Results.BadRequest(new { error = "Password does not meet the account security policy." });
+
             // Duplicate and already-existing account outcomes must not
             // identify whether an email belongs to an existing user.
             if (await users.FindByEmailAsync(email) is not null)
                 return Results.Accepted();
 
-            var user = new IdentityUser { UserName = email, Email = email, EmailConfirmed = false };
             var result = await users.CreateAsync(user, request.Password);
             if (!result.Succeeded)
             {
@@ -204,8 +209,12 @@ internal static class PublicAccountEndpoints
             ? email : null;
     }
 
+    // Deny *every* existing or future Identity role on this public login
+    // surface. Merchant tenancy is a separate database membership, never an
+    // automatic Identity role grant. The admin/reviewer login remains behind
+    // its independently protected gateway.
     private static async Task<bool> IsStaffAsync(UserManager<IdentityUser> manager, IdentityUser user) =>
-        await manager.IsInRoleAsync(user, StaffRole) || await manager.IsInRoleAsync(user, ReviewerRole);
+        (await manager.GetRolesAsync(user)).Count != 0;
 }
 
 internal sealed record PublicRegisterRequest(string Email, string Password);
