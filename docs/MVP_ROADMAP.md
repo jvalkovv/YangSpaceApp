@@ -1,3 +1,12 @@
+## 2026-11-13 — Public registration gap / ASP.NET Core Identity clarification
+
+- **Architecture:** ASP.NET Core Identity in the .NET API is the credential, role and bearer-token implementation. There is **no Microsoft Entra ID / Microsoft social login integration** in the current V2 implementation.
+- **Frontend gap:** Angular routes currently include `/`, `/obekt/:slug`, `/admin`. Public `/register`/`/login` views and calls-to-action are **NOT IMPLEMENTED** in this reviewed source. A live deployed frontend inspection was not possible here; do not equate GitHub branch source with the public server's exact build.
+- **Backend boundary:** `Preview:AllowRegistration=false` by default; self-registration is explicitly rejected in Production CMS mode; reviewer QA endpoints use isolated bearer auth but do **not** enable production registrations.
+- **Backlog:** [Issue #28 — Public Identity signup/login UI and guarded business onboarding](https://github.com/jvalkovv/YangSpaceApp/issues/28). Distinguish ordinary verified user signup from merchant claim review and Owner membership; neither public account creation nor Owner auto-grants are authorized by PR #27.
+- **Release note:** public read-only directory may remain anonymous. User signup and merchant onboarding are explicit product/release gates; no enabling without verified-email/anti-abuse, privacy, operational and recovery acceptance. Evidence/claim decision remain blocked by [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24).
+
+
 ## 2026-11-13 — F2a-3 exact-SHA Windows acceptance: PASS (synthetic-only)
 
 Operator ran the dedicated `scripts/Test-F2a3-PostgreSql-Bearer-Concurrency-Local.ps1` on clean detached worktree at exact SHA `ede8a3f2064b8f93cdc2e1757278890574ea4458`. The operator transcript reports:
