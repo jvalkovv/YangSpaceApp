@@ -419,3 +419,15 @@ The current YangSpace branch has **zero** EF migration artifacts. A repeatable m
 
 **Next operator action:** exact-SHA Windows source build + tenant contract at `bc498f5bfdc933d2959b8352db3bb3e5523dbf30`. Only after PASS run the PostgreSQL initial migration scaffold. Keep PR #17 Draft/HOLD and parent #1 Draft/Open.
 
+
+
+## 2026-11-13 — F2a-3 Evidence & Retention Policy owner-approved
+
+Canonical policy v1: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md).
+
+- Owner approved the operational policy on 2026-11-13.
+- Legal/privacy clearance is still blocked on [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24); lawful basis and privacy notice are not yet approved.
+- No real evidence collection/processing, production upload/storage or live claim-decision activation is authorized before written legal/privacy clearance.
+- Isolated non-production work may proceed only with synthetic data and only if it cannot accept real evidence or be enabled in production.
+- The broader parent PR #17 and release remain Draft/HOLD.
+
