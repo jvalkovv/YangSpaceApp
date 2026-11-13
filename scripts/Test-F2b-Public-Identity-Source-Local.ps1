@@ -50,7 +50,7 @@ foreach ($Route in @('login','register','recover','reset','resend-confirmation',
 }
 Write-Host 'F2B_STATIC_SECURITY_INVARIANTS=PASS'
 
-$RunId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
+$RunId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + ([guid]::NewGuid().ToString('N').Substring(0,8))
 $Evidence = Join-Path $Repo ('logs\yangspace\f2b-public-identity\' + $CommitSha.Substring(0,12) + '-' + $RunId)
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
