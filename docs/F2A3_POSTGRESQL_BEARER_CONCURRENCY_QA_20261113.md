@@ -6,6 +6,25 @@
 **Parent:** F2a-1 branch / PR #17 at `e1a05c30fb2ff8ff967d5e028229b6d2bb8898d5`  
 **Tracking:** [Issue #27](https://github.com/jvalkovv/YangSpaceApp/issues/27), parent contract [Issue #20](https://github.com/jvalkovv/YangSpaceApp/issues/20)
 
+## 2026-11-13 — Windows operator failure and scoped QA recovery
+
+**Failed exact SHA:** `560e027b53d8124710f574eff1e809bcf2ad7406`  
+**Result:** `STAGE_FAILED=pgapp-tenant-scope-regression EXIT=134`; **NO GATE PASS**.  
+**Operator worktree:** `%TEMP%\YangSpace-F2a3-PG-Bearer-QA-560e027b53d8`.  
+**Evidence:** failure-stage logs are local to that worktree under `logs/yangspace/f2a3-pg-bearer-concurrency/`; the operator transcript does not contain an exact run-ID/evidence folder or postflight cleanup proof.
+
+Accepted preliminary stages only: exact SHA, local images, EF tooling restore/build/model diff, pinned reviewed SQL hash, runtime restore/publish, isolated PostgreSQL 17 creation and initial migration, sentinel, read-only sidecar isolation, runtime transfer/DLL and appsettings SHA-256. The first runtime tenant contract failed with `System.DllNotFoundException`: the native `libe_sqlite3.so` present at `/tmp/qa/runtimes/linux-x64/native/libe_sqlite3.so` could not map an ELF segment. This implicates the default `noexec` flag of the `/tmp` tmpfs used by the read-only sidecar; this diagnosis is source/error-based until confirmed by the next mount preflight.
+
+**New untested source correction:** `9219b42b995be416b2cfab8dd0d8b27195aeeebf` (runner); the preceding helper commit introduced a narrowly allowlisted `/qa` target for binary-safe archive streaming.
+
+The corrected runner now mounts:
+- `/tmp` as **rw,noexec,nosuid,nodev**, 64 MiB (temporary process data).
+- `/qa` as **rw,exec,nosuid,nodev**, 256 MiB, mode 0700 (hash-verified packaged runtime and native .so only).
+
+Before running any runtime acceptance, the runner verifies actual `/proc/mounts` flags in the sidecar, checks immutable source identity and read-only rootfs/no ports/no binds, and compares the Linux SQLite native asset hash from the local publish with the exact transferred `/qa` copy. All three tenant/EF transaction+parallel writers/PostgreSQL reviewer HTTP runtime gates remain mandatory. A skipped tenant test is **not** permitted.
+
+**Current gate:** SOURCE FIX COMMITTED / WINDOWS EXACT-SHA RERUN NOT YET PERFORMED / PR #27 DRAFT-HOLD. After all source/doc commits, fetch the current child HEAD and run the unchanged exact-SHA operator command. A new clean detached worktree is required. No CT164/CT152, production DB, claim mutation route or deployment.
+
 ## Purpose
 
 Close the remaining bounded QA gap between:
@@ -62,7 +81,7 @@ The runner `scripts/Test-F2a3-PostgreSql-Bearer-Concurrency-Local.ps1`:
 - restores/builds/publishes Release with warnings-as-errors;
 - verifies the reviewed PostgreSQL initial SQL SHA-256;
 - starts PostgreSQL 17 with `--network none`, tmpfs database storage, no published ports or host binds;
-- starts a read-only .NET sidecar sharing only the PostgreSQL network namespace, with `/tmp` as tmpfs;
+- starts a read-only .NET sidecar sharing only the PostgreSQL network namespace, with separate `/tmp` noexec and `/qa` exec tmpfs mounts; validates the actual mount flags and the Linux native SQLite SHA-256 before runtime tests;
 - transfers the runtime as a hashed tar stream and verifies both the runtime DLL and API `appsettings.json`;
 - applies the reviewed SQL and creates a unique per-run sentinel;
 - runs the transaction/concurrency mode, then the PostgreSQL reviewer HTTP mode;
