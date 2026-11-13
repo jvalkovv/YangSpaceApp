@@ -1,6 +1,6 @@
 # F2a-3 — Reviewer authorization and conflict-policy QA
 
-**Status:** DRAFT / SOURCE-ONLY / OPERATOR WINDOWS QA NOT RUN / RELEASE HOLD.  
+**Status:** ACCEPTED — OPERATOR WINDOWS QA PASS / INDEPENDENT EVIDENCE POSTFLIGHT PASS / CHILD PR #23 MERGED; BROADER F2a-3 RELEASE HOLD.  
 **Parent:** [F2a-1 PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17).  
 **Policy:** technical security policy explicitly approved by the owner on 2026-11-12. Evidence categories, reviewer evidence checklist and evidence retention/erasure remain a separate mandatory approval gate.
 
@@ -64,3 +64,22 @@ The earlier PR #22 PostgreSQL QA proves only a synthetic disposable Npgsql EF tr
 ## Governance
 
 Report exact SHA, stage PASS/PARTIAL/HOLD, evidence path and next action at each meaningful milestone. Merge/close only when this child’s own bounded DoD is 100% accepted. No GitHub Actions, CT164/CT152 access, live DB or deployment.
+
+
+## 2026-11-13 — final exact-SHA operator acceptance
+
+**Status: ACCEPTED for this bounded reviewer-authorization QA child.** The broader F2a-3 claim-decision/release gate remains HOLD.
+
+- Tested source SHA: `e4ba6bbd697eeaeec4bf6fafe81ab78e30d3f5c4`.
+- [PR #23](https://github.com/jvalkovv/YangSpaceApp/pull/23) merged into the F2a-1 parent feature branch as `c54c6cc4f4cd58b184c5d6b0dc7ec6a7c3507808`.
+- Native PowerShell parser, .NET restore, Release build with warnings-as-errors and isolated ASP.NET Core Identity bearer HTTP: **PASS**.
+- Independent postflight: exact local/remote SHA, clean worktree, manifest values, all three stage receipts and command lines: **PASS**.
+- HTTP contract: **27/27 required markers PASS**, including same-token live Identity role revocation; no `gate.txt`.
+- Manifest SHA-256: `7c3c3894c229f9020c9892f8b618d0220b79dd4561e64b8eea26b8a0385aa9d0`.
+- HTTP stdout SHA-256: `a1007fed8f985d94bfcc eb7ee221425b2d2ea55f6571ba7e68c2a9a87313f2b7` (canonical digest without display whitespace: `a1007fed8f985d94bfcc eb7ee221425b2d2ea55f6571ba7e68c2a9a87313f2b7`).
+
+Operator evidence directory: `D:\GitHub\YangSpaceApp-F2a3-ReviewerAuth-QA-v2\logs\yangspace\f2a3-reviewer-auth\e4ba6bbd697e-20261113-061414-30f957ed`.
+
+The earlier failure at `7ed7ab3d0e00da41fb3d11afeb6ed45c69c2fa1b` remains documented as a superseded test-harness defect. The corrected source was rerun at the exact SHA above.
+
+**Proof boundary:** disposable SQLite TestServer bearer HTTP only. No PostgreSQL bearer HTTP, claim decision mutation, Owner grant, evidence storage, audit mutation, production activation, CT164/CT152 access or deployment. The evidence categories, accepted proof checklist, private evidence access/storage, retention/erasure and legal basis remain a separate mandatory approval gate. Parent PR #17 remains Draft/HOLD for its broader F2a-1 DoD.
