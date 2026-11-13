@@ -20,6 +20,10 @@ import { NgIf } from '@angular/common';
           <a routerLink="/" fragment="offers" (click)="closeMenu()">Промоции</a>
           <a routerLink="/" fragment="jobs" (click)="closeMenu()">Работа</a>
           <a routerLink="/" fragment="business" (click)="closeMenu()">За бизнеса</a>
+          <a class="nav-account-link" [routerLink]="account.profile() ? '/account' : '/login'" (click)="closeMenu()">
+            {{ account.profile() ? 'Моят профил' : 'Вход' }}
+          </a>
+          <a *ngIf="!account.profile()" class="nav-account-link" routerLink="/register" (click)="closeMenu()">Регистрация</a>
         </nav>
         <div class="account-nav">
           <a [routerLink]="account.profile() ? '/account' : '/login'">

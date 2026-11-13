@@ -415,3 +415,18 @@ p { line-height: 1.7; }
   .auth-card { border-radius: 16px; padding: 23px 17px; }
   .account-nav .account-register { display: none; }
 }
+
+/* Account navigation stays reachable on 320px mobile without topbar overflow. */
+@media (min-width: 761px) { .mainnav .nav-account-link { display: none; } }
+@media (max-width: 1180px) {
+  .topbar-inner { gap: 18px; }
+  .account-nav .account-register { display: none; }
+}
+@media (max-width: 980px) {
+  .preview-pill { display: none; }
+  .mainnav { gap: 17px; }
+}
+@media (max-width: 760px) {
+  .account-nav { display: none; }
+  .mainnav .nav-account-link { display: block; }
+}
