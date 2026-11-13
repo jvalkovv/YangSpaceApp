@@ -403,3 +403,14 @@ Windows exact-SHA QA and independent postflight passed: parser, restore, Release
 **Bounded result only:** reviewer role is checked against persisted Identity state on every request; same-token revocation denies access; conflict helper and default-OFF QA restrictions pass. Test uses disposable SQLite TestServer. PostgreSQL bearer HTTP, real claim mutation, ownership grant, evidence handling and production remain NOT ACCEPTED.
 
 Issue #20 remains OPEN for the separate evidence/retention/legal approval and subsequent claim-decision implementation. Parent PR #17 remains Draft/HOLD for broader F2a-1 acceptance. No CT164/CT152, live DB, Actions or deployment.
+
+
+## 2026-11-13 — F2a-3 evidence/retention governance draft
+
+Canonical proposal: [F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md).
+
+Draft-only, no runtime changes. It specifies evidence categories/proof thresholds, minimisation/redaction, private storage and reviewer access, file restrictions, retention/deletion/backup behaviour and legal review items.
+
+**Owner approval PENDING. Legal/privacy review PENDING.** No evidence upload, storage, claim decision route, Owner grant or production activation is authorized. Proposed operational retention defaults: Pending 90 days inactive; Rejected 180 days; Approved raw evidence 12 months with re-verification; decision metadata 24 months after closure; access logs 12 months; backup expiry 35 days.
+
+Next gate is explicit owner approval of the operational defaults plus written legal/privacy clearance. Only then create a separate evidence/claim mutation implementation PR with PostgreSQL HTTP, concurrency, fault-injection and deletion lifecycle acceptance.
