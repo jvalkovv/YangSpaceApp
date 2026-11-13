@@ -413,4 +413,4 @@ Canonical policy v1: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://gi
 
 No real evidence collection/processing, production upload/storage or live claim-decision activation before written legal/privacy clearance. Isolated non-production QA with synthetic data only may proceed if it is technically incapable of accepting real evidence and is not wired into production.
 
-F2a-3 remains **RELEASE HOLD**. Next gate is legal/privacy clearance; technical preparation must remain synthetic-only.
+F2a-3 remains **RELEASE HOLD**. [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) tracks the synthetic-data-only QA foundation; [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard legal/privacy gate for any real evidence.
