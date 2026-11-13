@@ -258,4 +258,10 @@ public static class EvidenceMalwareScannerGuard
 {
     public static IEvidenceMalwareScanner RequireConfigured(IEvidenceMalwareScanner? scanner) =>
         scanner ?? throw new InvalidOperationException("EVIDENCE_MALWARE_SCANNER_NOT_CONFIGURED");
+
+    public static void RequireClean(EvidenceMalwareScanResult result)
+    {
+        if (result != EvidenceMalwareScanResult.Clean)
+            throw new InvalidOperationException("EVIDENCE_MALWARE_SCAN_NOT_CLEAN");
+    }
 }
