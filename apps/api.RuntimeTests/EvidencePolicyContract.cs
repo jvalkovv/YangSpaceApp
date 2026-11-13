@@ -273,6 +273,14 @@ internal static class EvidencePolicyContract
                 new()),
             "LastMeaningfulActivityAtUtc",
             "EVIDENCE_MISSING_RETENTION_ANCHOR_FAILS");
+
+        ExpectArgumentException(
+            () => EvidenceRetentionPolicy.Calculate(
+                EvidenceRetentionKind.PendingClaimRaw,
+                new(LastMeaningfulActivityAtUtc:
+                    new DateTimeOffset(2026, 11, 13, 0, 0, 0, TimeSpan.FromHours(2)))),
+            "must use UTC offset zero",
+            "EVIDENCE_NON_UTC_RETENTION_ANCHOR_REJECTED");
     }
 
     private static void ValidateFailClosedScannerGuard()
