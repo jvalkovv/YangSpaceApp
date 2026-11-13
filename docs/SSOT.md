@@ -405,12 +405,12 @@ Windows exact-SHA QA and independent postflight passed: parser, restore, Release
 Issue #20 remains OPEN for the separate evidence/retention/legal approval and subsequent claim-decision implementation. Parent PR #17 remains Draft/HOLD for broader F2a-1 acceptance. No CT164/CT152, live DB, Actions or deployment.
 
 
-## 2026-11-13 — F2a-3 evidence/retention governance draft
+## 2026-11-13 — F2a-3 Evidence & Retention Policy OWNER-APPROVED
 
-Canonical proposal: [F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_DRAFT_20261113.md).
+Canonical policy v1: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md).
 
-Draft-only, no runtime changes. It specifies evidence categories/proof thresholds, minimisation/redaction, private storage and reviewer access, file restrictions, retention/deletion/backup behaviour and legal review items.
+**Owner approval: RECORDED 2026-11-13. Legal/privacy clearance: BLOCKED on [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24).** The approved operational baseline includes evidence categories/proof thresholds, data minimisation/redaction, private claim-scoped access/storage, file controls, retention/deletion, audit and backup tombstone replay.
 
-**Owner approval PENDING. Legal/privacy review PENDING.** No evidence upload, storage, claim decision route, Owner grant or production activation is authorized. Proposed operational retention defaults: Pending 90 days inactive; Rejected 180 days; Approved raw evidence 12 months with re-verification; decision metadata 24 months after closure; access logs 12 months; backup expiry 35 days.
+No real evidence collection/processing, production upload/storage or live claim-decision activation before written legal/privacy clearance. Isolated non-production QA with synthetic data only may proceed if it is technically incapable of accepting real evidence and is not wired into production.
 
-Next gate is explicit owner approval of the operational defaults plus written legal/privacy clearance. Only then create a separate evidence/claim mutation implementation PR with PostgreSQL HTTP, concurrency, fault-injection and deletion lifecycle acceptance.
+F2a-3 remains **RELEASE HOLD**. Next gate is legal/privacy clearance; technical preparation must remain synthetic-only.
