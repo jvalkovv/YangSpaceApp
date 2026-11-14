@@ -59,18 +59,29 @@ if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf) -or
     -not (Test-Path -LiteralPath $ChecksumsPath -PathType Leaf)) {
     throw 'F2A_S2_S1_EVIDENCE_MISSING'
 }
-$manifestText = Get-Content -LiteralPath $ManifestPath -Raw
-foreach ($required in @(
-    'SOURCE_SHA=' + $ExpectedS1Sha,
-    'F2A_SQLITE_BASELINE_SCAFFOLD=PASS',
-    'F2A_SQLITE_GENERATED_FILES=UNCOMMITTED',
-    'DISPOSABLE_UPGRADE=NOT_RUN',
+# Read as bytes-to-text explicitly, strip a possible BOM/NUL, and normalize
+# all whitespace. The S1 manifest is generated with WriteAllLines; this
+# accepts CRLF/LF and editor/tool line-ending normalization without weakening
+# the exact key=value checks.
+$manifestText = [IO.File]::ReadAllText($ManifestPath)
+$manifestText = $manifestText.TrimStart([char]0xFEFF).Replace([string][char]0, '')
+$manifestNormalized = [regex]::Replace($manifestText, '\\s+', ' ')
+
+$requiredEntries = [string[]]@(
+    ("SOURCE_SHA={0}" -f $ExpectedS1Sha)
+    'F2A_SQLITE_BASELINE_SCAFFOLD=PASS'
+    'F2A_SQLITE_GENERATED_FILES=UNCOMMITTED'
+    'DISPOSABLE_UPGRADE=NOT_RUN'
     'RELEASE_GATE=HOLD'
-)) {
-    if ($manifestText -notmatch [regex]::Escape($required)) {
-        throw ('F2A_S2_S1_MANIFEST_GATE=' + $required)
+)
+foreach ($entry in $requiredEntries) {
+    if ($manifestNormalized.IndexOf($entry, [StringComparison]::Ordinal) -lt 0) {
+        $manifestHash = (Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        throw ("F2A_S2_S1_MANIFEST_GATE_MISSING={0}; MANIFEST_SHA256={1}; LENGTH={2}" -f
+            $entry, $manifestHash, $manifestText.Length)
     }
 }
+Write-Host 'F2A_S2_S1_MANIFEST=PASS'
 
 $expectedFiles = @(
     'apps/api/Migrations/' + $MigrationName + '.cs',
