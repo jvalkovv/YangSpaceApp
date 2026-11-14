@@ -60,7 +60,6 @@ $initialStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all |
 if ($LASTEXITCODE -ne 0) {
     throw 'F2A_S2_GIT_STATUS_FAILED'
 }
-$initialDifference = @(Compare-Object -ReferenceObject @() -DifferenceObject $initialStatus)
 if ($initialStatus.Count -ne 0) {
     $initialDifference = @(Compare-Object -ReferenceObject $expectedStatus -DifferenceObject $initialStatus)
     if ($initialDifference.Count -ne 0) {
