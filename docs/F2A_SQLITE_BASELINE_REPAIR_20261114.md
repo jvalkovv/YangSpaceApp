@@ -79,3 +79,22 @@ This makes the operator rerun safe if the previous attempt already copied the ge
 **Next exact S2 runner source:** `33d9843ae689c1ef643a340e85e6e1c665b2f0b4`.
 
 Acceptance remains HOLD until the runner passes generated-artifact verification, .NET restore/build, disposable SQLite upgrade, and all fault-injection/restore-recovery cases. CT164/production remain untouched.
+
+## 2026-11-14 — S2 runtime execution and first fault-boundary expectation correction
+
+Operator run at exact test source `ce7dd1c9f998a5fc5f4c1aea57c04789c76d3873` established:
+- S1 manifest, exact source and generated artifact SHA256: PASS.
+- .NET RuntimeTests restore and Release build: PASS.
+- Disposable historic SQLite upgrade: PASS.
+- All seeded Location fields and Offers/Brochures/Jobs preserved: PASS.
+- Identity users/roles/claims/logins/tokens and role membership preserved: PASS.
+- Four F2a tables, Location/Organization relationships, indexes, SQLite integrity and FK checks: PASS.
+- No Outbox table: PASS.
+
+The first injected failure was correctly triggered before the SQLite `PRAGMA foreign_keys = 0` command. The test then failed its own expectation that Location's new `OrganizationId` and `Revision` columns were still absent. The failure marker proves the migration has already executed preceding DDL before the FK-driven SQLite table rebuild. The new columns are introduced before the FK-off/rebuild segment; at this interruption boundary they should already exist with the legacy Location row retained, `OrganizationId IS NULL`, and `Revision=0`. The temporary rebuild table should not yet exist.
+
+Corrected only the first fault-boundary expected state to require those two columns. The second boundary (before FK re-enable, after the rebuild) and third boundary (before EF migration-history insert) remain unchanged. This is a **test expectation correction**, not a migration/schema change.
+
+**Next exact S2 test source:** `bad3c9670c4f51ce562465d545aeb50ee785a41b`.
+
+S2 acceptance remains HOLD. The three fault-injection recovery scenarios must all pass on the updated exact source and the full evidence must be reviewed. The successful disposable upgrade does not authorize production apply. CT164/production were not accessed.
