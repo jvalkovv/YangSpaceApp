@@ -1,4 +1,6 @@
-# YangSpace 2.0 — Execution Tracker
+## 2026-11-14 — Scoped PostgreSQL QA merged / V2 strategy reconciled
+
+PR #27 MERGED/CLOSED via `1b59aa94cee410212df954223693153faa1c7d1d`; operator synthetic QA tested `ede8a3f2064b8f93cdc2e1757278890574ea4458`, independent postflight PASS, manifest `A278A5C4A31655F305F16384DBF4607A0352303BFC0A6C7287CB6FC24D0C0EAA`. Parent #17 remains DRAFT/HOLD, #29 account HTTP/mail HOLD, no CT164. Approved strategy integrated in V2 at `5dddd6e629c011f0a4cb231a12bc1a0ea34c11cb`.
 
 ## 2026-11-14 — V2 product growth execution backlog (PROPOSED; technical gates unchanged)
 
@@ -21,7 +23,45 @@
 
 **Required progress updates:** at every implemented step report task, candidate SHA/PR, tested SHA, evidence path and manifest hash, PASS/PARTIAL/HOLD, blocker, next operator command, deployment/rollback state. No GitHub Actions, no CT164 modification from document review. Do not close #1/#17/#27/#29 based on strategy adoption.
 
+## 2026-11-13 — F2a-3 exact-SHA Windows acceptance: PASS (synthetic-only)
 
+Operator ran the dedicated `scripts/Test-F2a3-PostgreSql-Bearer-Concurrency-Local.ps1` on clean detached worktree at exact SHA `ede8a3f2064b8f93cdc2e1757278890574ea4458`. The operator transcript reports:
+
+- Git exact source, local Docker image identity, .NET 10 restore/Release publish, EF migration model diff and pinned reviewed PostgreSQL SQL hash: **PASS**.
+- PostgreSQL 17 `--network none`, read-only .NET sidecar, actual mount flags, native Linux SQLite SHA-256 and `appsettings.json` transfer verification: **PASS**.
+- `STAGE_PASS=pgapp-tenant-scope-regression`: **PASS**.
+- `STAGE_PASS=pgapp-real-ef-transaction`: **PASS**; the script requires all transaction, parallel-writer, one-winner, Owner membership and loser-rollback markers before advancing.
+- `STAGE_PASS=pgapp-reviewer-identity-http`: **PASS**; the runner requires real PostgreSQL-backed Identity bearer HTTP, WAF metadata/content-root, same-token reviewer role revocation, 401/403 and no business side effects.
+- `F2A3_PG_BEARER_CONCURRENCY_ISOLATED_ONLY=PASS` and independent operator postflight `F2A3_INDEPENDENT_POSTFLIGHT=PASS`: required manifest markers, no `gate.txt`, and no leftover matching Docker QA containers.
+
+**Operator-local evidence:** `logs/yangspace/f2a3-pg-bearer-concurrency/ede8a3f2064b-20261113-143712-f50743ec`  
+**Manifest SHA-256:** `A278A5C4A31655F305F16384DBF4607A0352303BFC0A6C7287CB6FC24D0C0EAA`
+
+This is acceptance of the **bounded synthetic-only QA on the exact tested source SHA**. Full stage/evidence bytes reside on the operator workstation; only console transcript and manifest hash are available in this GitHub checkpoint. Do not claim independent download/hash verification.
+
+**NOT release authorization:** no public registration/onboarding UI, production claim decision endpoint, real evidence intake, production storage, PostgreSQL least-privilege app role, uncertain-COMMIT/idempotency/fault injection, or off-host restore acceptance. CT164 and CT152 untouched by this QA. Legal/privacy Issue #24 remains OPEN for real business evidence.
+
+Child PR #27 is mergeable/clean but remains **OPEN/DRAFT** pending final scoped code review and merge decision. Parent PR #17 and V2 PR #1 remain OPEN/DRAFT/HOLD. No deployment, no GitHub Actions.
+
+
+## 2026-11-13 — F2a-3 PR #27 second Windows QA checkpoint (PG PASS / HTTP HOLD)
+
+- Tested source `fa481beb2b589e2392094bb0ddad695a62fc3d3c`: exact source, Release publish, reviewed PostgreSQL migration SQL, isolated Docker server/sidecar, `/qa` exec mount, Linux SQLite hash, tenant scope and Npgsql application transaction/concurrent writer stages **PASS**. The runner validates all competing-writer one-winner/loser-rollback markers before recording stage PASS.
+- PostgreSQL reviewer Identity HTTP stage **FAIL `EXIT=134`**. Root cause: ASP.NET Core 10 `WebApplicationFactory` tried to locate a source `.sln` under `/qa`, because it sets content root before the existing `WithWebHostBuilder` override. The printed `libgssapi_krb5.so.2` warning was Npgsql's nonfatal fallback, not the crash.
+- New source correction: `WebApplicationFactoryContentRoot` assembly metadata for `/qa/appsettings.json`, deterministic `GetTestAssemblies()`, metadata marker preflight, QA-only `GSS Encryption Mode=Disable`. **Fix NOT WINDOWS-TESTED yet.**
+- Preserve operator stage logs as historical exact-SHA evidence. Keep [child PR #27](https://github.com/jvalkovv/YangSpaceApp/pull/27), [parent PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) **OPEN/DRAFT/HOLD**. No production claim mutation, real evidence, CT164/CT152, GitHub Actions or deployment.
+- Next: clean detached exact-current-HEAD rerun, require full PostgreSQL Identity bearer HTTP matrix, independent manifest, no failure gate and verified Docker cleanup. See [F2A3 dedicated QA contract](F2A3_POSTGRESQL_BEARER_CONCURRENCY_QA_20261113.md).
+
+
+## 2026-11-13 — F2a-3 PostgreSQL Bearer/Concurrency operator failure and scoped fix (DRAFT/HOLD)
+
+- Child [PR #27](https://github.com/jvalkovv/YangSpaceApp/pull/27) failed Windows exact-SHA runtime QA at `560e027b53d8124710f574eff1e809bcf2ad7406`: after source/EF build/reviewed SQL and disposable PG setup PASS, `pgapp-tenant-scope-regression` exited 134. The Linux native SQLite library at `/tmp/qa/runtimes/linux-x64/native/libe_sqlite3.so` failed executable memory mapping; likely `noexec` tmpfs. No transaction/concurrent-writer or PostgreSQL Identity HTTP QA was executed. Cleanup postflight must be checked separately.
+- Child-source correction: binary-safe streamed runtime relocated to dedicated `/qa:rw,exec,nosuid,nodev` tmpfs; `/tmp:rw,noexec,nosuid,nodev` retained. Runner checks actual `/proc/mounts`, read-only rootfs/no binds/no ports and native `libe_sqlite3.so` SHA-256 before running the unchanged tenant, PG transaction/concurrent-writers and Identity bearer HTTP gates.
+- **State:** source fix committed, exact-new-SHA Windows QA **NOT RUN**. No retroactive PASS and no parent acceptance. Full incident and runner contract: [F2A3_POSTGRESQL_BEARER_CONCURRENCY_QA_20261113.md](F2A3_POSTGRESQL_BEARER_CONCURRENCY_QA_20261113.md).
+- Keep [PR #27](https://github.com/jvalkovv/YangSpaceApp/pull/27) and parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) **OPEN/DRAFT/HOLD**. No CT164/CT152, production DB/evidence, claim mutation route or deployment; legal/privacy [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains blocking for real evidence.
+
+
+# YangSpace 2.0 — Execution Tracker
 
 > **Current gates and ordering:** [SSOT.md](SSOT.md). Keep this file as the detailed task-ID/evidence ledger; dated rows record their own acceptance scope and may be older than the SSOT snapshot. Do not promote a task to DONE from a newer source commit without fresh exact-SHA runtime evidence. CT164 guest preparation is not an activated application release.
 
@@ -29,6 +69,41 @@
 **Branch:** `feat/yangspace-v2-foundation-20261108` · **PR:** [#1](https://github.com/jvalkovv/YangSpaceApp/pull/1) (Draft).  
 **Status values:** DONE = proven, PARTIAL = source present without full gate, TODO = not built/verified, BLOCKED = unmet dependency, HOLD = intentionally deferred.  
 **Governance:** evidence is required before marking DONE. Do not infer progress percentages from file counts.
+
+## 2026-11-13 — F2a-1 branch synchronized with current V2 base
+
+**Branch integration commit:** `eb75e0022634499de489578f6f1003be2706a1f1`.
+- First parent: F2a-1 pre-integration HEAD `93809f4f8c6cab18d261123195ec518df4ca9ba5`.
+- Second parent: current V2 base HEAD `92f248dc88fcc888f93c2829727e22db0eb65312`.
+- Merge tree: `c8f095d9413949725c70eec2eb8e1225dc0fce03`, identical to the F2a-1 pre-integration tree; no runtime/source bytes were changed by this merge.
+- GitHub compare from V2 base to F2a-1 integration: **83 ahead / 0 behind**, merge base is the current V2 HEAD. PR #17 now reports **mergeable=true / clean**, but remains **OPEN / DRAFT / HOLD**.
+
+Four overlapping documentation paths were reconciled:
+- `MVP_ROADMAP.md` and `POC_TRACKER.md`: current V2 content retained; F2a acceptance/evidence history retained.
+- `SSOT.md`: two superseded baseline statements were updated to reflect accepted F2a-3 policy and child QA; the remaining V2 baseline content is retained.
+- `F2A3_CLAIM_REVIEW_SECURITY_CONTRACT_20261112.md`: proposed-only status was superseded by the owner-approved technical and evidence/retention policies. Legal/privacy clearance remains blocked by Issue #24.
+
+**Next exact-SHA operator gate:** use the final current HEAD shown on [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) after this documentation sync. In a clean detached Windows worktree, run `scripts/Test-F2a-Tenant-Scope-Local.ps1` followed by `scripts/Test-F2a-PostgreSql-Disposable-Local.ps1`. Both runners pin the F2a-1 branch remote tip to the exact tested SHA. This validates the combined current source tree; historical child PASS results remain attached to their original exact SHAs. Do not run the PR #22/#23/#26 branch-pinned child runners against this parent branch.
+
+This synchronization is not parent PR acceptance, release approval, legal clearance, production intake, deployment or a claim that the outstanding PostgreSQL bearer/parallel-writer/recovery gates have passed.
+
+
+
+## 2026-11-13 07:53 Europe/Sofia — F2a-3 synthetic evidence policy accepted
+
+**[PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26) MERGED/CLOSED** by squash commit `7114427be24f0d50a682f1b67834336473c0f594` into the F2a-1 feature branch, not V2 or `main`.
+
+- Exact Windows-tested source SHA: `519809875658e7e27232d6a49536f2d71933ea69`.
+- Native PowerShell runner syntax/source identity, .NET 10 restore, Release build with warnings-as-errors, synthetic runtime contract and independent evidence postflight: **PASS**.
+- Operator markers: `STAGE_PASS=f2a3-evidence-restore`, `STAGE_PASS=f2a3-evidence-build`, `STAGE_PASS=f2a3-evidence-policy`, `F2A3_EVIDENCE_POLICY_SYNTHETIC_ONLY=PASS`, `F2A3_EVIDENCE_POSTFLIGHT=PASS`.
+- Manifest SHA-256: `e53fd7ec1e2de2acec19d90f174bc211eb156b938b7a744e56ce1018010142ec`.
+- Operator-local evidence: `logs/yangspace/f2a3-evidence-policy/519809875658-20261113-072609-f43b3a39`. Full logs and `postflight.txt` remain operator-local; no claim of cross-host artifact-byte verification.
+- Accepted scope: pure PDF/JPEG/PNG validation contract, deterministic retention calculations, UTC-anchor rejection, fail-closed scanner guard and test-assembly-only synthetic in-memory store.
+- Source review: five changed files only; no HTTP intake/download route, EF entity/migration, API-host storage registration, production storage, claim mutation or deployment path.
+- Explicit limitations: magic-byte checks are not full format parsing; PDF `/Encrypt` detection is heuristic; no scanner implementation, deletion worker, legal-hold processor or backup tombstone replay exists. These are future gates before any real intake.
+- [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is **CLOSED — completed for this bounded synthetic-only DoD**. [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains **OPEN/BLOCKING** for legal/privacy clearance.
+- Parent [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains OPEN/DRAFT/HOLD; V2 [PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) remains OPEN/DRAFT/HOLD. No CT164/CT152, live DB, real evidence, GitHub Actions or production deployment.
+
 
 ## 2026-11-12 18:23 Europe/Sofia — PR #22 real PostgreSQL EF transaction QA MERGED/CLOSED
 
@@ -368,3 +443,123 @@ Production persistence clarification: even with the CMS disabled, Production sta
 ### 2026-11-10 — S2-02 Initial EF migration tooling (not yet generated)
 
 The current YangSpace branch has **zero** EF migration artifacts. A repeatable manual operator for the existing Windows machine is added at `scripts/New-InitialMigration-Local.ps1`: exact full Git SHA and branch check, clean worktree, pinned EF Core 10.0.0 local CLI/tool package, disposable in-memory design-time context (never Production or Preview DB), build-before/after, three generated C# files/snapshot, `has-pending-model-changes` check and initial SQL review script/hash manifest under ignored `logs/yangspace/migration-scaffold`. There is **no migration file yet** because EF tooling has not executed; hand-authored model snapshots are rejected. Generator never runs a DB update, starts listeners, modifies active DB, creates PVE resources or pushes GitHub. Source code static checks only; Windows dotnet runtime needs operator execution. Production remains blocked by its migration presence/drift guard and private proxy/security acceptance. See `docs/S2_INITIAL_MIGRATION_20261110.md`.
+
+
+## 2026-11-12 — real disposable PostgreSQL gate preparation
+
+| Item | State | Evidence / next gate |
+| --- | --- | --- |
+| Windows Docker Linux Engine | **PASS — capability only** | Docker v29.9.1, Linux and local named-pipe context confirmed by operator |
+| PG initial migration tracked in Git | **PASS at `e1287058...`** | Exactly three independently reviewed EF files; exact-commit Windows tenant/build and EF snapshot-diff PASS |
+| PG disposable runner + SQL test data | **SOURCE ADDED, NOT RUN** | Network-disabled, no host port/mount, tmpfs container; test constraints/revision CAS/audit DB rollback and synthetic backup→second-DB restore |
+| Real PostgreSQL initial migration / restore | **HOLD — not executed** | Require operator new exact-SHA test output and logs, no inferred PASS |
+| Owner bearer and F2b audit/recovery/production | **HOLD** | Separate identity/transactional/least-privilege/off-host gates |
+
+
+
+
+
+
+
+
+
+
+
+## F2a-1 schema contract audit and remediation — 2026-11-11 22:09
+
+| Workstream | Current status | Evidence / acceptance |
+| --- | --- | --- |
+| PostgreSQL initial migration archive | **Static integrity PASS; schema contract HOLD** | Source `ccd2acb...`; archived ZIP SHA-256 `96544589a2a27560a64df8e9da09235d9f81c6716ae151dc92bbc4d915e252c5`; verified generated EF/SQL; 15 tables, 22 indexes; missing active-claim uniqueness and Location Revision |
+| BusinessClaims uniqueness | **SOURCE FIX / NOT TESTED** | One Approved per Location and one Pending per Location+Organization via filtered unique indexes; distinct orgs may apply concurrently |
+| Location Revision | **SOURCE FIX / NOT TESTED** | New application-managed long EF concurrency token, initial 0; HTTP 409 and audited writes remain F2b |
+| Isolation and concurrency regression | **SOURCE ADDED / NOT RUN** | Duplicate approved/pending rejection, competing applicants, resubmission after withdrawn, stale EF update rejection in SQLite `:memory:` |
+| New PostgreSQL scaffold | **NOT RUN** | Generate from clean exact-new-HEAD worktree, review C#/Designer/snapshot/SQL/hashes; do not reuse old ZIP |
+| Real PostgreSQL/HTTP | **HOLD** | Disposable PG migration/backup/restore, ownership and audit API tests required before merge |
+| Production/demo | **NO CHANGE** | PR #17 remains Draft; CT164/CT152 and active SQLite untouched |
+
+
+
+
+
+
+
+
+
+
+
+## F2a-1 dependency security gate — 2026-11-11 21:07 Sofia
+
+**Operator exact candidate `aa4fec12873b5319072087317a6b64eb6a8a5162`:** PowerShell preflight PASS; `STAGE=f2a-restore` **FAIL EXIT=1** due NuGet Audit NU1902/NU1903 for transitive `Pkcs/Xml 9.0.0` introduced by the PostgreSQL migrations project's EF design-time graph. Restore blocked as designed (warnings-as-errors). Build, tenant scope and PG scaffold NOT RUN. Evidence at `D:\GitHub\YangSpaceApp-F2a1-PG-QA\logs\yangspace\f2a-tenant-scope\aa4fec12873b-20261111-210730-fb959c92` (operator-local).
+
+**Fix source `8d2511308ff8e14b6d9a25ba6ec5539c8f2de4aa`:** patched Pkcs/Xml `10.0.14` pins in PG migrations csproj plus safe Git stdout handling for detached scaffolding. **No QA PASS on fix yet**. Required: exact-current-HEAD re-run, NuGet restore/build/tenant regression, then scaffold/review PostgreSQL EF artifacts. CT164/live DB untouched. [PR #17](https://github.com/jvalkovv/YangSpaceApp/pull/17) remains Draft/HOLD.
+
+
+
+
+
+
+
+
+
+
+
+## 2026-11-11 19:07 — F2a-1 implementation and provider architecture checkpoint
+
+| Item | Current state | Evidence / next gate |
+| --- | --- | --- |
+| ADR-019 / PR #16 | **MERGED/CLOSED** at `fb3e032944f0afafed3922c87b0e53dfb99c3220` | PostgreSQL target direction selected; activation is not authorized |
+| PR #17 tenant source | **Draft/Open**, candidate `bc498f5bfdc933d2959b8352db3bb3e5523dbf30` | 7-file domain candidate plus provider split; no owner endpoints or audit writes |
+| Prior F2a isolated QA | **PASS at `b9aaaace...`** | Owner evidence: PowerShell syntax, .NET restore, Release build with warnings-as-errors and disposable SQLite `:memory:` tenant contract PASS; `D:\GitHub\YangSpaceApp-F2a1-QA\logs\yangspace\f2a-tenant-scope\b9aaaace4c85-20261111-190535-047e666b` |
+| Provider-refactor NuGet restore | **FAIL on `aa4fec1...`, FIX SOURCE on `8d2511...`, re-run required** | NU1902/NU1903 on transitive `System.Security.Cryptography.Pkcs/Xml 9.0.0` in PostgreSQL migrations project; both pinned to audited `10.0.14`, `TreatWarningsAsErrors` retained; fix not yet tested |
+| PostgreSQL migration | **NOT GENERATED** | New exact-SHA scaffold script `scripts/New-PostgreSqlInitialMigration-Local.ps1`; emits C# + review SQL only, no connection/apply |
+| PostgreSQL DB tests | **NOT RUN** | Require isolated disposable PG database: fresh schema, legacy-data backfill rehearsal, FK/unique/isolation, backup/restore, real API bearer tests |
+| Production/demo | **UNCHANGED** | No CT164/CT152 operation, active DB write, service provision, release or public owner route |
+
+**Next operator action:** exact-SHA Windows source build + tenant contract at `bc498f5bfdc933d2959b8352db3bb3e5523dbf30`. Only after PASS run the PostgreSQL initial migration scaffold. Keep PR #17 Draft/HOLD and parent #1 Draft/Open.
+
+
+
+## 2026-11-13 — F2a-3 Evidence & Retention Policy owner-approved
+
+Canonical policy v1: [F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md](https://github.com/jvalkovv/YangSpaceApp/blob/feat/yangspace-f2a1-domain-foundation-20261111/docs/F2A3_EVIDENCE_AND_RETENTION_POLICY_20261113.md).
+
+- Owner approved the operational policy on 2026-11-13.
+- Legal/privacy clearance is still blocked on [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24); lawful basis and privacy notice are not yet approved.
+- No real evidence collection/processing, production upload/storage or live claim-decision activation is authorized before written legal/privacy clearance.
+- Isolated non-production work may proceed only with synthetic data and only if it cannot accept real evidence or be enabled in production.
+- The broader parent PR #17 and release remain Draft/HOLD.
+
+
+
+## 2026-11-13 — F2a-3 next execution split
+
+- [Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25): bounded synthetic-data-only evidence validation/retention foundation; no endpoint, migration, production storage or real documents.
+- [Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24): legal/privacy clearance; mandatory before real evidence collection/processing, production upload/storage or live claim-decision activation.
+- Policy owner approval is recorded; release remains HOLD until the independent legal/privacy gate and all technical acceptance gates pass.
+
+
+## 2026-11-13 — F2a-3 synthetic evidence policy code candidate
+
+[Issue #25](https://github.com/jvalkovv/YangSpaceApp/issues/25) is now implemented as [Draft PR #26](https://github.com/jvalkovv/YangSpaceApp/pull/26), exact candidate `519809875658e7e27232d6a49536f2d71933ea69`.
+
+Source-only scope: pure evidence file validation, deterministic retention calculation, UTC timestamp validation, fail-closed malware scanner configuration guard and synthetic-only runtime tests. No HTTP route, evidence schema/migration, production storage or real evidence intake.
+
+**State: NOT WINDOWS-TESTED / DRAFT / HOLD.** Exact-SHA restore, Release build, runtime execution and independent evidence postflight are still required. [Legal/privacy Issue #24](https://github.com/jvalkovv/YangSpaceApp/issues/24) remains the hard gate before any real evidence collection or production activation.
+
+## 2026-11-13 08:24 Europe/Sofia — combined-head regression PASS
+
+Operator ran both required Windows exact-SHA runners from a clean detached worktree at `cf32e641c9fdf45bcdf981b5ebd0a922fb2467ec`. Console evidence supplied in the project conversation:
+
+- Tenant runner: restore, Release build and tenant-scope contract all PASS; `F2A_TENANT_SCOPE_ISOLATED_ONLY=PASS`.
+- PostgreSQL runner: EF tool restore, migrations restore/build, pending-model-diff, reviewed SQL hash, isolated PostgreSQL 17 container, initial migration, constraints, synthetic dump, restore to second DB and restored-state verification all PASS; `F2A_PG_DISPOSABLE_RUNTIME=PASS`.
+- Independent postflight found both manifests, required markers, no `gate.txt`, and no leftover `yangspace-f2a-pgqa-` containers.
+- Tenant evidence directory: `logs/yangspace/f2a-tenant-scope/cf32e641c9fd-20261113-081601-7ad450a6`; manifest SHA-256: `0197FA2ECE84FEB71B9C411CB6772355FB39FAF12665AB93407F3C1B524A686E`.
+- PostgreSQL evidence directory: `logs/yangspace/pg-disposable/cf32e641c9fd-20261113-081618-7632fff2`; manifest SHA-256: `0BDFC76E5C6764A1ED8DFCFED741D08F9FEE1994E4F4429D12AD356EB7FC08D6`.
+- Both manifests retain `CT164_DB=NOT_ACCESSED` and `RELEASE_GATE=HOLD`. PG runner scope explicitly leaves real bearer and parallel writers NOT TESTED.
+
+**Acceptance:** combined source/build + tenant regression + disposable PostgreSQL schema/constraints/CAS/rollback/backup-restore gate is PASS on exact head `cf32e641c9fdf45bcdf981b5ebd0a922fb2467ec`. The evidence directories and full raw stage logs remain operator-local; only the console transcript and manifest hashes were supplied here. Do not claim independent byte-level re-verification of local evidence files.
+
+**Still NOT TESTED:** PostgreSQL-backed ASP.NET Core Identity bearer HTTP; real application-layer concurrent EF writers; atomic claim/organization/location/Owner membership/audit transaction under competing writers; fault injection across mutation boundaries; least-privilege PostgreSQL app role; off-host recovery. No real claim decision endpoint, evidence intake, production storage, CT164/CT152 access, deployment or release approval.
+
+**Next:** a separate default-OFF, synthetic-only PostgreSQL bearer HTTP + competing EF writer child slice. Keep parent PR #17 OPEN/DRAFT/HOLD until all parent DoD and independent release gates pass.
+

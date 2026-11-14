@@ -19,8 +19,6 @@ These are criteria for future scoped PRs, not added production routes or accepta
 
 All rows are initially **NOT TESTED / HOLD**. Stage acceptance requires exact-SHA API, DB, browser and/or real-origin evidence, manual operator receipts and rollback as applicable. Existing G0-G4/G-PREVIEW/G-PILOT remain authoritative.
 
-
-
 > **Current PASS/HOLD verdicts and execution queue:** [SSOT.md](SSOT.md). This matrix is the authoritative set of **test criteria**, not evidence that all scenarios have run. Historical PASS entries remain bounded to the stated commit, test fixture and environment.
 
 > **ADR-018 overrides all prior hosted CI references.** GitHub Actions are excluded. Tests run manually from an exact SHA; proof is local command logs and manifests.

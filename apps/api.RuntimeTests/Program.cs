@@ -75,7 +75,7 @@ static async Task ApplyMigrationAsync(string connectionString)
     await connection.OpenAsync();
 
     var options = new DbContextOptionsBuilder<DirectoryDb>()
-        .UseSqlite(connection)
+        .UseSqlite(connection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
         .Options;
 
     await using var db = new DirectoryDb(options);
@@ -125,7 +125,7 @@ static async Task RunRecoveryRehearsalAsync(
     {
         await active.OpenAsync();
         var activeOptions = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(active)
+            .UseSqlite(active, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
         await using var activeDb = new DirectoryDb(activeOptions);
         activeDb.Locations.Add(new BusinessLocation
@@ -201,7 +201,7 @@ static async Task RunRecoveryRehearsalAsync(
     }
 
     var restoredOptions = new DbContextOptionsBuilder<DirectoryDb>()
-        .UseSqlite(reopened)
+        .UseSqlite(reopened, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
         .Options;
     await using var restoredDb = new DirectoryDb(restoredOptions);
     await ProductionSchemaGate.ValidateSchemaAsync(restoredDb);
@@ -228,6 +228,67 @@ static async Task RunRecoveryRehearsalAsync(
 
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
+
+// Opt-in real PostgreSQL app transaction QA. The disposable connection
+// must be verified by the in-container sentinel; never use app config,
+// create/migrate schema, or expose a merchant/reviewer HTTP route here.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--postgres-claim-transaction-only", StringComparison.Ordinal))
+{
+    await PostgreSqlClaimTransactionContract.RunAsync();
+    Console.WriteLine("F2A3_PG_APP_TRANSACTION_ISOLATED_ONLY=PASS");
+    return;
+}
+
+// F2a-3 isolated feasibility gate: transaction + forced audit error
+// in a disposable SQLite model. This does not enable claim-review HTTP
+// or prove PostgreSQL/application-level transaction acceptance.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--claim-transaction-only", StringComparison.Ordinal))
+{
+    await ClaimTransactionContract.RunAsync();
+    Console.WriteLine("F2A3_CLAIM_TX_ISOLATED_ONLY=PASS");
+    return;
+}
+
+// Scope-only mode deliberately avoids EF migration/runtime gates which
+// correctly remain HOLD until the F2a PostgreSQL schema is reviewed.
+// Never use this mode as proof of production schema or real bearer access.
+if (args.Length == 1 && string.Equals(args[0], "--merchant-bearer-http-only", StringComparison.Ordinal))
+{
+    await MerchantBearerHttpContract.RunAsync();
+    Console.WriteLine("F2A_MERCHANT_BEARER_HTTP_ISOLATED_ONLY=PASS");
+    return;
+}
+if (args.Length == 1 && string.Equals(args[0], "--claim-reviewer-auth-http-only", StringComparison.Ordinal))
+{
+    await ClaimReviewerAuthorizationHttpContract.RunAsync();
+    Console.WriteLine("F2A3_REVIEWER_AUTH_HTTP_ISOLATED_ONLY=PASS");
+    return;
+}
+if (args.Length == 1 && string.Equals(args[0], "--postgres-claim-reviewer-http-only", StringComparison.Ordinal))
+{
+    await PostgreSqlReviewerAuthorizationHttpContract.RunAsync();
+    Console.WriteLine("F2A3_PG_REVIEWER_HTTP_ISOLATED_ONLY=PASS");
+    return;
+}
+if (args.Length == 1 && string.Equals(args[0], "--evidence-policy-only", StringComparison.Ordinal))
+{
+    await EvidencePolicyContract.RunAsync();
+    Console.WriteLine("F2A3_EVIDENCE_POLICY_SYNTHETIC_ONLY=PASS");
+    return;
+}
+if (args.Length == 1 && string.Equals(args[0], "--tenant-scope-only", StringComparison.Ordinal))
+{
+    await TenantScopeContract.RunAsync();
+    Console.WriteLine("F2A_TENANT_SCOPE_ISOLATED_ONLY=PASS");
+    return;
+}
+if (args.Length != 0)
+    throw new InvalidOperationException("Unsupported isolated runtime test argument.");
+
+// Fail-closed tenant-scoping uses only a disposable SQLite :memory: model.
+await TenantScopeContract.RunAsync();
 
 var sandbox = Path.Combine(
     Path.GetTempPath(),
@@ -264,7 +325,7 @@ try
         await connection.OpenAsync();
 
         var options = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(connection)
+            .UseSqlite(connection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
 
         await using var db = new DirectoryDb(options);
@@ -390,7 +451,7 @@ try
     {
         await disabledConnection.OpenAsync();
         var disabledOptions = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(disabledConnection)
+            .UseSqlite(disabledConnection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
         await using var disabledDb = new DirectoryDb(disabledOptions);
 
@@ -426,7 +487,7 @@ try
     {
         await integrityConnection.OpenAsync();
         var integrityOptions = new DbContextOptionsBuilder<DirectoryDb>()
-            .UseSqlite(integrityConnection)
+            .UseSqlite(integrityConnection, sqlite => sqlite.MigrationsAssembly("YangSpace.Api"))
             .Options;
         await using var integrityDb = new DirectoryDb(integrityOptions);
 

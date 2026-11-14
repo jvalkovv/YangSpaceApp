@@ -8,8 +8,6 @@ The six approved decisions and reviewed resident/merchant growth scope are recor
 
 **Dependency queue:** #27 source review -> #17 foundation reconciliation -> #29 full HTTP/mail acceptance -> real reviewer claim service -> shared Admin/Business CMS -> public discovery/SEO -> protected CT164 release -> Varna Phase A/B. Child QA acceptance is not parent acceptance. No GitHub Actions or production changes.
 
-
-
 > **STATUS AUTHORITY:** [SSOT.md](SSOT.md) is the current cross-project status, gate and sequencing index. This document remains the detailed **product/architecture plan**; its 2026-11-09 baseline statements (including CT provisioning and open tasks) must be read as historical unless reconfirmed by SSOT and later exact-SHA/operator evidence. ADR-018 continues to govern manual QA.
 
 > **Accepted project rule — ADR-018:** GitHub is source/PR only. **GitHub Actions are NOT USED.** QA is operator-run against a pinned SHA with retained logs. See [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md) and [S0 Manual QA](S0_MANUAL_QA_RUNBOOK.md). Any prior hosted CI requirement below is superseded.

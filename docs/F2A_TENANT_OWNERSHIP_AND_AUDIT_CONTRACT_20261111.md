@@ -24,6 +24,19 @@
 
 **No proof by association:** `IsVerified` on `BusinessLocation` is not a substitute for an approved claim, live membership or a freshness confirmation. Historical unknown owners/actors remain **unknown**, not backfilled with a fabricated platform identity.
 
+
+### F2a-1 database uniqueness policy — 2026-11-11
+
+The initial generated PostgreSQL SQL from source `ccd2acb965e98498dd415a5a080a441b88879a3a` was independently reviewed and **HELD**: `BusinessClaims` lacked active-claim uniqueness, and `BusinessLocation` lacked `Revision`. The original ZIP (SHA-256 `96544589a2a27560a64df8e9da09235d9f81c6716ae151dc92bbc4d915e252c5`) is **review evidence only**, not commit-ready.
+
+Proposed F2a-1 source policy, prior to new exact-SHA QA:
+
+- **Approved:** at most **one** `Approved` claim for each `LocationId` across all organizations. Unique filtered index on `LocationId` with persisted string predicate `"Status" = 'Approved'`.
+- **Pending:** at most **one** `Pending` claim for a given `(LocationId, OrganizationId)`, regardless of applicant. A different organization may have its own competing pending application for the same location, subject to reviewer evaluation. Filtered unique index with `"Status" = 'Pending'`.
+- **Resolved:** `Rejected` and `Withdrawn` claims remain historical records; the same organization may submit a new `Pending` application after resolution. Approving a new organization for a previously approved location will require an authorized **atomic** ownership-transfer/reviewer action that resolves the old approved claim first.
+- **Location revision:** `BusinessLocation.Revision` is a nonnullable application-managed `long` optimistic concurrency token, initial value 0. Explicit increment+CAS on successful mutations is the F2b API responsibility; no HTTP 409 or audit atomicity is asserted by the schema alone.
+- These two filtered indexes use provider-neutral EF predicates valid for SQLite and PostgreSQL. Provider-specific SQL must be checked again from EF-generated artifacts and verified with real PostgreSQL negative tests before acceptance. **No generated C#/Designer/snapshot may be edited by hand.**
+
 ## 3. Authorization model — deny by default
 
 1. Authenticate using **Identity bearer**; resolve subject ID from the authenticated principal, never from a supplied `ActorUserId`, organization ID or custom client header.
