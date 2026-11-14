@@ -1,5 +1,19 @@
 # YangSpace 2.0 — Single Source of Truth (SSOT)
 
+## 2026-11-14 — Owner-approved strategy and reviewed growth expansion (DOCS ONLY)
+
+**Scope:** Six base decisions are owner-approved; additional resident/merchant ideas reviewed and prioritized as candidates, NOT implementation/release authorization. Product plan: [YangSpace growth and pilot direction](PRODUCT_GROWTH_PILOT_20261113.md). This new documentation is based on the active YangSpace V2 feature branch; legacy-main Draft PR #30 is a historical source proposal and must NOT be merged directly into main.
+
+**Positioning:** verified hyperlocal discovery plus measurable, privacy-safe customer actions, rather than a phone directory or checkout marketplace. P0: verified listings/owner controls, freshness/publishing, anonymous search, basic contact/route actions, SEO. P1: map, QR, optional favorites, scoped inquiries, aggregated business analytics. P2: events, opted-in notifications, clearly labeled sponsored posts and area/category campaigns. EUR 1-5 merchant subscription is an unvalidated pricing hypothesis; no billing/checkout.
+
+**Execution:** M0 strategy/ADRs; M1 #27 final source review -> #17 parent reconciliation -> #29 full Identity HTTP and SMTP evidence; M2 claim decision/Owner lifecycle and Issue #24 legal; M3 business CMS; M4 geo + discovery/SEO + action counts; M5 CT164 recovery and protected release; M6 Varna pilot 20-30 then 100; M7 growth validation. Engineering gates keep historical names G0-G4/G-PREVIEW/G-PILOT (no duplicate G1/G2/G3 definitions).
+
+**Exact code-state boundary:** Parent V2 HEAD at branch creation was `92f248dc88fcc888f93c2829727e22db0eb65312`; F2a parent #17 remains Draft at `e1a05c30fb2ff8ff967d5e028229b6d2bb8898d5`; #27 Draft tested runtime `ede8a3f2064b8f93cdc2e1757278890574ea4458` (postflight PASS), #29 Draft tested build `3ac9df42023ac36bf0fe970d9cf353bc501dba3d` (HTTP/mail NOT TESTED). No claim mutation, live registration, release or legal/privacy clearance is inferred. #1/#17/#27/#29 still Draft/HOLD, #24 still OPEN.
+
+**Policy:** one modular monolith + PostgreSQL target, manual clean exact-SHA QA/no GitHub Actions, CT164 only permanent app runtime, off-host recovery/observability. Session handling is ADR-pending; source F2b uses memory-only bearer. Privacy/DSA applicability and marketing consent require review before additional lead, analytics and promotional features.
+
+
+
 **Status:** ACTIVE planning/status authority on the YangSpace V2 feature branch; introduced by merged PR #9. This document does **not** authorize deployment, database mutation, exposure, or feature-to-`main` merge.  
 **Baseline date:** 2026-11-11 (Europe/Sofia).  
 **Latest accepted F2a-2 code QA:** tested code SHA `f579c70db9cc0986d2f1df8047158587f0e87eef` (Windows restore/build/tenant regression/real Identity bearer TestServer PASS; operator evidence postflight PASS), documentation-only follow-up `bc0a77ea6b6bc794a2d9d6aefcbe3c12936a329e`, squash-merged by PR #19 as `17d08530db7fed0bbe7ed4444577a7b0e6b73c4d` into the F2a-1 feature branch. This is **not merged into the V2 feature branch or `main`**. Earlier F1b source QA remains historical and valid for its own SHA. Historical CT164/CT152 deployment remains `a4802805421f10e834ad35bbf2f259db4e4eab84`. [Parent PR #1](https://github.com/jvalkovv/YangSpaceApp/pull/1) stays Draft. `main` remains the legacy application.  

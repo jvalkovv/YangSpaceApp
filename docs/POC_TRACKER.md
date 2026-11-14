@@ -1,5 +1,28 @@
 # YangSpace 2.0 — Execution Tracker
 
+## 2026-11-14 — V2 product growth execution backlog (PROPOSED; technical gates unchanged)
+
+**Base decisions accepted; growth extensions prioritized pending their scoped implementation approvals.** [Growth strategy](PRODUCT_GROWTH_PILOT_20261113.md). This row-set is a product backlog, not a claim that implementation tests have run.
+
+| Task ID | Status | Dependency | Scope / required evidence |
+|---|---|---|---|
+| YS-GROW-00 | TODO | owner-approved six decisions | Reconcile ADRs, product strategy and SSOT, preserve existing exact-SHA history; docs-only Draft PR |
+| YS-GROW-01 | BLOCKED | PR #27 review, PR #17 scope | Full PostgreSQL reviewer/claim HTTP + tenancy integration; parent source QA |
+| YS-GROW-02 | BLOCKED | PR #29, PG runtime & SMTP | Public account register/confirm/login/recover negative matrix, outbox/consent and browser session ADR |
+| YS-GROW-03 | BLOCKED | #20, #24, Identity | Reviewer-only claim decision, atomic scoped Owner grant/revoke, audit, idempotent retries |
+| YS-GROW-04 | TODO | #6, #7, #11, ownership | Shared CMS service for Admin/Merchant, publication workflow, media, freshness, audit and expiry |
+| YS-GROW-05 | TODO | verified location data | Public mobile search, canonical URL, geo/city/neighborhood, SEO; external contact/directions P0 |
+| YS-GROW-06 | HOLD | location quality and privacy review | P1 accessible map, QR canonical link, optional favorites |
+| YS-GROW-07 | HOLD | proven external actions and policy | P1 aggregated merchant dashboard; baseline/anti-fraud/event semantics |
+| YS-GROW-08 | HOLD | privacy/abuse/reviewer controls | P1 scoped RFQ/inquiry experiment, no generalized lead market and no automatic fee |
+| YS-GROW-09 | HOLD | successful Phase A and privacy rules | P2 events/notifications, later labeled promotions and neighborhood campaigns |
+| YS-GROW-10 | HOLD | G-PREVIEW, G-PILOT, Issue #24 | Phase A 20-30 verified Varna listings; Phase B 100 only after GO criteria |
+| YS-GROW-11 | HOLD | pilot outcome and unit economics | Subscription EUR 1-5 test, sponsored/campaign commercial ADRs, no in-app checkout |
+
+**Required progress updates:** at every implemented step report task, candidate SHA/PR, tested SHA, evidence path and manifest hash, PASS/PARTIAL/HOLD, blocker, next operator command, deployment/rollback state. No GitHub Actions, no CT164 modification from document review. Do not close #1/#17/#27/#29 based on strategy adoption.
+
+
+
 > **Current gates and ordering:** [SSOT.md](SSOT.md). Keep this file as the detailed task-ID/evidence ledger; dated rows record their own acceptance scope and may be older than the SSOT snapshot. Do not promote a task to DONE from a newer source commit without fresh exact-SHA runtime evidence. CT164 guest preparation is not an activated application release.
 
 **Tracked source baseline:** `20aa30c7da581316ba31900b6953025a3d1f3b00` (homepage code) · **visual QA docs:** `e2edefb70c648199ba8e82f83d7a3396424c88c4`.  
