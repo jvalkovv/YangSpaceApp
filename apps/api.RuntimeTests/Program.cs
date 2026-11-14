@@ -229,6 +229,14 @@ static async Task RunRecoveryRehearsalAsync(
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
 
+// Synthetic-only auth limiter partition checks. No network or database access.
+if (args.Length == 1 && string.Equals(
+        args[0], "--auth-rate-partition-only", StringComparison.Ordinal))
+{
+    AuthRateLimitPartitionContract.Run();
+    return;
+}
+
 // Opt-in real PostgreSQL app transaction QA. The disposable connection
 // must be verified by the in-container sentinel; never use app config,
 // create/migrate schema, or expose a merchant/reviewer HTTP route here.
