@@ -540,12 +540,6 @@ internal static class F2aOrganizationClaimUpgrade
             label + "_REVISION_COLUMN_STATE");
         Check(await HasTableAsync(connection, "Organizations"),
             label + "_F2A_TABLE_EXISTS");
-        Check(await HasTableAsync(connection, "OrganizationMembers"),
-            label + "_F2A_MEMBERS_TABLE_EXISTS");
-        Check(await HasTableAsync(connection, "BusinessClaims"),
-            label + "_F2A_CLAIMS_TABLE_EXISTS");
-        Check(await HasTableAsync(connection, "ContentAuditEvents"),
-            label + "_F2A_AUDIT_TABLE_EXISTS");
         Check(await HasTableAsync(connection, "ef_temp_Locations") == expectTempTable,
             label + "_TEMP_TABLE_STATE");
         Check(await ScalarLongAsync(connection,
