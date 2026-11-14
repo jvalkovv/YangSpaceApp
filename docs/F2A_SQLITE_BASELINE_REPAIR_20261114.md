@@ -33,7 +33,7 @@ The disposable runtime contract:
 3. Creates a pre-F2a SQLite online backup.
 4. Upgrades a distinct clone using EF Core's real `IMigrator` pipeline to `20261114183515_F2aOrganizationClaimFoundation`.
 5. Verifies all original Location fields and child records, nullable new Location ownership, default revision, Identity rows/dependencies, exact migration history, new F2a relationships, FK check and SQLite integrity.
-6. Injects failures before the SQLite FK-off command (after the initial F2a DDL segment), before the post-rebuild Locations index command, and before the F2a migration-history insert. Each failed clone is recovered by restoring the verified pre-upgrade backup to a separate file; the test deliberately does not retry the migration on a partially applied database.
+6. Injects failures before the SQLite FK-off command (after the initial F2a DDL segment), before SQLite foreign keys are re-enabled after the Locations rebuild, and before the F2a migration-history insert. Each failed clone is recovered by restoring the verified pre-upgrade backup to a separate file; the test deliberately does not retry the migration on a partially applied database.
 
 The fault-injection cases prove the restore-only recovery path for these observed command boundaries. They do not simulate host power loss, storage corruption, process kill at every machine instruction, or prove off-host backup durability. Those remain separate operational gates.
 
