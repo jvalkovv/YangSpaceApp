@@ -117,3 +117,39 @@ The failure was the test expecting `ef_temp_Locations` to be absent. The actual 
 **Next exact S2 test source:** `69bb5a6a34215ff2200a69f76183aeb8bce73bb3`.
 
 Acceptance remains HOLD. The next run must pass the first interrupted-state checks, verify backup restore, then exercise the later post-rebuild and pre-history fault boundaries. CT164/production remain untouched.
+
+## 2026-11-14 — S2 full disposable upgrade and recovery operator QA PASS
+
+The Windows operator reran the exact S2 source `93c620e0bbc61d73c8892bafe15fee6772ab0e9a` using the existing S2 worktree and preserved S1 evidence/artifacts.
+
+Observed operator output:
+- `F2A_S2_S1_MANIFEST=PASS`
+- `F2A_S2_EXACT_TEST_SOURCE=PASS`
+- `F2A_S2_GENERATED_ARTIFACT_HASHES=PASS`
+- Runtime restore stage: PASS
+- Runtime Release build stage: PASS
+- Disposable historic upgrade and all recovery scenarios stage: PASS
+- `F2A_S2_OPERATOR_QA=PASS`
+
+The runner only prints the overall PASS after verifying all of these markers in the retained runtime stdout:
+- Legacy baseline and successful disposable upgrade.
+- Every legacy Location field and Offers/Brochures/Jobs preservation.
+- Identity users, roles and dependent records preservation.
+- New F2a schema relationships and no-Outbox assertion.
+- SQLite integrity and foreign-key integrity.
+- Failure injection at all three migration command boundaries.
+- Restore recovery from the verified pre-upgrade backup after each injected failure.
+- No blind retry of a partially applied migration.
+
+Evidence directory:
+`D:\\GitHub\\YangSpaceApp-F2a-S2-Upgrade-QA-20261114\\logs\\yangspace\\f2a-sqlite-org-upgrade\\93c620e0bbc6-20261114-224645-5294f69e`
+
+**S2 runtime acceptance: PASS at the exact tested source above.** The runner's generated evidence manifest intentionally records `RELEASE_GATE=HOLD_PENDING_OPERATOR_EVIDENCE_REVIEW`. Therefore this result is not yet a release/merge approval: the complete manifest, stage receipts, runtime stdout/stderr and worktree final status still require independent review.
+
+Still pending:
+1. Review the S2 evidence directory and verify the manifest and stage receipts.
+2. Commit the three S1-generated migration/designer/snapshot files using their already verified hashes.
+3. Run exact-source build/regression after that artifact commit.
+4. Only then decide whether PR #39 can leave Draft/HOLD and be merged into parent #17.
+
+The operator runner reports `MIGRATION_ARTIFACTS=UNCOMMITTED`, `PRODUCTION_DATABASE=NOT_ACCESSED`, `CT164=NOT_ACCESSED`, `HTTP_LISTENER=NOT_STARTED`, and `PVE_DEPLOYMENT=NONE`. No production or CT164 database was changed.
