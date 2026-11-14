@@ -18,6 +18,7 @@ var productionAdmin = builder.Configuration.GetValue<bool>("Admin:Enabled");
 var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
 var claimReviewQa = builder.Configuration.GetValue<bool>("ClaimReview:QaEnabled");
 var claimReviewPostgreSqlQa = builder.Configuration.GetValue<bool>("ClaimReviewPostgreSqlQa:Enabled");
+var publicAccounts = builder.Configuration.GetValue<bool>("PublicAccounts:Enabled");
 // F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
 // It is impossible to enable accidentally in Development, Preview, or Production.
 if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
@@ -108,6 +109,8 @@ if (claimReviewPostgreSqlQa)
 var databaseProvider = builder.Configuration["Database:Provider"];
 if (string.IsNullOrWhiteSpace(databaseProvider))
     throw new InvalidOperationException("Database:Provider must explicitly select SQLite or PostgreSQL.");
+PublicAccountEndpoints.ValidateConfiguration(builder.Configuration, builder.Environment,
+    preview, merchantRead, claimReviewQa, productionAdmin);
 // QA-only: an isolated SQLite model created by the test harness; no production
 // PostgreSQL role or database is implicitly approved through this feature.
 if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
@@ -167,6 +170,8 @@ switch (databaseProvider.Trim().ToLowerInvariant())
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;
+    // Public accounts require verified email before login.
+    options.SignIn.RequireConfirmedEmail = publicAccounts;
     options.Password.RequiredLength = 12;
     options.Password.RequireDigit = true;
     options.Password.RequireUppercase = true;
@@ -174,6 +179,8 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>();
+if (publicAccounts)
+    builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpPublicIdentityEmailSender>();
 builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
 builder.Services.AddScoped<ClaimReviewConflictPolicy>();
 
@@ -201,12 +208,9 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("auth", limiter =>
-    {
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.PermitLimit = 12;
-        limiter.QueueLimit = 0;
-    });
+    // A shared limiter allows one client to exhaust everyone's auth budget.
+    // Trust only the transport peer here; never parse untrusted forwarding headers.
+    options.AddPolicy<string>("auth", AuthRateLimitPolicy.CreatePartition);
 });
 builder.Services.AddProblemDetails();
 
@@ -301,6 +305,8 @@ if (preview || productionAdmin || merchantRead || claimReviewQa || claimReviewPo
 }
 if (merchantRead)
     app.MapMerchantRead();
+if (publicAccounts)
+    app.MapPublicAccounts();
 if (claimReviewQa || claimReviewPostgreSqlQa)
     app.MapClaimReviewQa();
 await PreviewBootstrap.Initialize(app);

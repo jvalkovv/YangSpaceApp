@@ -1,3 +1,68 @@
+## 2026-11-14 13:55 Europe/Sofia — F2b integrated exact-source/build + operator postflight PASS (SOURCE GATE ACCEPTED)
+
+**Tested integrated source SHA:** `113c05ff0a171cc3b6d456af7d9ca6b3224e3bca` (reconciled F2b public Identity with F2a reviewer/PostgreSQL QA). Operator used clean detached worktree, matched origin branch, and supplied Windows output:
+- `F2B_EXACT_SOURCE=PASS`, `F2B_STATIC_SECURITY_INVARIANTS=PASS`.
+- All five source build stages PASS: .NET API Release restore/build, Angular npm ci, typecheck, production build.
+- `F2B_PUBLIC_IDENTITY_SOURCE_ONLY=PASS`.
+- Subsequent separate independent operator postflight `F2B_INTEGRATED_SOURCE_POSTFLIGHT=PASS`: manifest exact SHA and mandatory PASS/NOT_TESTED/HOLD lines, 5×3 command/stdout/stderr receipts, no failure gate, both `PublicAccounts:Enabled=false` and `ClaimReviewPostgreSqlQa:Enabled=false`, clean worktree.
+- **Evidence:** `D:\GitHub\YangSpaceApp-F2b-Integrated-QA-20261114\logs\yangspace\f2b-public-identity\113c05ff0a17-20261114-135340-556e84a0`.
+- **Manifest SHA-256:** `5d156889d1e9f54e0923d880427f2d777fe2da244b3c417eb7f8bced87061700`. Logs and manifest bytes remain operator-local; this records verified operator transcript, not direct independent download of local evidence.
+
+**Accepted scope = integrated F2b SOURCE GATE ONLY.** It is 100% for the bounded static security/build/typecheck gate at the tested SHA. The doc-only follow-up to record this milestone must **not** be represented as a new application-code QA run.
+
+**Explicit open blockers:** `PUBLIC_IDENTITY_HTTP=NOT_TESTED`, `PUBLIC_SMTP_DELIVERY=NOT_TESTED`, `OWNER_GRANT=NOT_IMPLEMENTED_NOT_AUTHORIZED`, `CT164_DB=NOT_ACCESSED`, `RELEASE_GATE=HOLD`. Additional P0: PostgreSQL TestServer with non-superuser connection/TLS VerifyFull and reviewed migrations, realistic confirmation/lockout/recovery/role/anti-enumeration matrix, injectable fake email/outbox delivery failure + retry policy, browser privacy/accessibility and production ingress/backups. Issue #24 legal/privacy blocks real business evidence. PR #29 and #17 remain OPEN/DRAFT/HOLD; #1 stays Draft. No runtime deploy, email sends, real registrations or production DB changes.
+
+**Next actionable work:** add scoped disposable F2b PostgreSQL Identity HTTP/email contract and QA runner on PR #29 in a separate code commit, then run new exact-SHA Windows acceptance and operator postflight. Keep default-OFF throughout.
+
+---
+
+## 2026-11-14 — F2b/F2a integration candidate (NOT TESTED)
+
+F2b Identity source from `8846a71ef40e142ac1d00d5e337b4b19bcea314a` reconciled with accepted F2a parent `1f1307250eed0d2e5df24570eb560e5ea16e20ee` (PR #27 QA included). PublicAccounts and ClaimReviewPostgreSqlQa remain disabled by default. Source/build PASS on historic F2b SHA `3ac9df42023ac36bf0fe970d9cf353bc501dba3d` and F2a parent regression PASS `1f1307250eed0d2e5df24570eb560e5ea16e20ee` must not be relabeled as testing this integration. Full exact-head build and subsequent isolated PostgreSQL Identity HTTP/mail QA pending. PR #29 stays DRAFT/HOLD. No CT164, real registrations, claim decisions or production permissions changed.
+
+## 2026-11-13 — F2b exact-SHA Windows operator source QA PASS
+
+**Exact source SHA:** `3ac9df42023ac36bf0fe970d9cf353bc501dba3d`. **Result: SOURCE BUILD/TYPECHECK PASS, NOT HTTP/SMTP/PRODUCTION ACCEPTANCE.**
+
+Operator transcript (17:52 local):
+- `F2B_EXACT_SOURCE=PASS` and `F2B_STATIC_SECURITY_INVARIANTS=PASS`.
+- `STAGE_PASS=f2b-api-restore`, `STAGE_PASS=f2b-api-build` (Release).
+- `STAGE_PASS=f2b-web-npm-ci`, `STAGE_PASS=f2b-web-typecheck`, `STAGE_PASS=f2b-web-build` (Angular production).
+- `F2B_PUBLIC_IDENTITY_SOURCE_ONLY=PASS` and independent `F2B_SOURCE_POSTFLIGHT=PASS` (manifest markers and no failure gate).
+
+**Operator-local evidence:** `logs/yangspace/f2b-public-identity/3ac9df42023a-20261113-175209-a7bdefdb`.  
+**Manifest SHA-256:** `829E2B8A9BF07FB22FCA9368F89F30D86AD214ED614FFD601F3D5F35062D5122`.
+
+**Independent evidence limit:** Manifest SHA and stage PASS were provided in the operator console transcript; the file bytes/logs remain operator-local and were not independently fetched by the GitHub connector. This PASS is valid for the tested source SHA; a documentation-only follow-up commit must not relabel it as a new runtime test.
+
+**Next required release gates:** disposable PostgreSQL TestServer with fake email transport and a full registration/confirmation/login/reset/role/lockout/anti-enumeration matrix; backend mail delivery failure/outbox durability; approved privacy notice and lawful basis, browser/mobile/ingress, off-host restore and CT164 deployment review.
+
+**PR #29: OPEN/DRAFT/HOLD**, source compile gate achieved; do not merge until all scoped DoD accepted. `PublicAccounts:Enabled=false` remains default, no production deployment. Issue #24 separately blocks real merchant evidence.
+
+
+## 2026-11-13 — F2b source QA preflight failure and corrected marker
+
+**Operator-tested source:** `f8f71044bb38b93d63574984f3692fc9276076aa`; `F2B_EXACT_SOURCE=PASS`, then **`F2B_STATIC_POLICY_MISSING=users.GetRolesAsync(user)`** before any .NET restore/build, npm CI, Angular typecheck or production build. **No build PASS and no live operation.**
+
+**Root cause:** static QA string literal used `users.GetRolesAsync(user)`, while the actual guarded function `IsStaffAsync(UserManager<IdentityUser> manager, IdentityUser user)` correctly invokes `manager.GetRolesAsync(user)`. This is a harness-only false-negative, not evidence of a role authorization bypass.
+
+**Fix code commit:** `0f1d4313f11ca45ecdb3c3b634a1951708d36ee0`, one-line source QA marker correction; no API/Angular behavior changed. Independent source comparison after fix confirms **10/10 public-account backend policy markers, 3/3 startup/program gates, 6/6 Angular auth routes, and default OFF**. This verification is static-only and cannot establish successful compilation.
+
+**Next:** rerun `scripts/Test-F2b-Public-Identity-Source-Local.ps1` from a clean detached worktree at the **current exact F2b branch HEAD**, with origin ref parity; require .NET Release build, npm-ci, Angular typecheck and build, manifest and evidence hash. **PR #29 stays OPEN/DRAFT/HOLD**, no CT164, no SMTP, no signup enablement, and no Owner grants.
+
+
+## 2026-11-13 — F2b public Identity implementation in Draft PR #29
+
+**Branch:** `feat/yangspace-f2b-public-identity-foundation-20261113` stacked on F2a-1 PR #17. **Runtime code SHA:** `c0dca5074733cbfab8158f8e78d9a5ddbd188308`.  
+**[PR #29](https://github.com/jvalkovv/YangSpaceApp/pull/29): OPEN / DRAFT / SOURCE NOT WINDOWS-TESTED / HOLD.** [Issue #28](https://github.com/jvalkovv/YangSpaceApp/issues/28): OPEN/P0.
+
+- API: dedicated `/api/public-account` registration, canonical email confirmation/resend, confirmed-only login, password reset and bearer session. Reuses ASP.NET Core Identity and existing EF user store; no Microsoft Entra, no new migration.
+- Security: default-off flag, Production+PostgreSQL+explicit host+canonical origin+STARTTLS SMTP preflight, rate-limit, memory-only bearer token, generic duplicate signup outcome, prior password validation, deny public login/reset/confirm for **any** Identity staff role, no Owner/membership grants, no bypass of admin `/api/auth` gateway.
+- Angular: responsive `/login`, `/register`, `/recover`, `/reset`, `/resend-confirmation`, `/account` with keyboard-aware forms, complete mobile dropdown auth navigation and error/disabled messages.
+- Evidence scaffolding: `scripts/Test-F2b-Public-Identity-Source-Local.ps1` exact-SHA Windows .NET Release build + Angular typecheck/production build; `docs/F2B_PUBLIC_ACCOUNTS_FOUNDATION_20261113.md`.
+- **No QA PASS yet.** Pending Windows exact-SHA compile/typecheck, disposable PostgreSQL TestServer/SMTP sink integration, privacy notice and lawful-basis approval, mail retries/outbox decision, ingress/real-browser/CT164 recovery acceptance. No production flag change, no real registrations and no deployment. Issue #24 remains blocking for real business evidence and claim decisions.
+
+
 ## 2026-11-14 — F2a-3 QA scoped merge accepted
 
 PR #27 MERGED/CLOSED into F2a parent at `1b59aa94cee410212df954223693153faa1c7d1d`. Exact tested source `ede8a3f2064b8f93cdc2e1757278890574ea4458` passed disposable PostgreSQL real bearer/reviewer role revocation and synchronized competing EF writers, reported independent postflight PASS; manifest SHA `A278A5C4A31655F305F16384DBF4607A0352303BFC0A6C7287CB6FC24D0C0EAA`. Logs remain operator-local. This acceptance is synthetic QA only, NOT current-parent runtime test, production claim decision/Owner grant, legal approval or CT164 deployment. PR #17 and #29 stay DRAFT/HOLD; Issue #24 blocks real evidence.

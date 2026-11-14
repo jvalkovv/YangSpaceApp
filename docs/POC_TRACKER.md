@@ -1,3 +1,21 @@
+## 2026-11-14 13:55 Europe/Sofia — F2b integrated exact-source/build + operator postflight PASS (SOURCE GATE ACCEPTED)
+
+**Tested integrated source SHA:** `113c05ff0a171cc3b6d456af7d9ca6b3224e3bca` (reconciled F2b public Identity with F2a reviewer/PostgreSQL QA). Operator used clean detached worktree, matched origin branch, and supplied Windows output:
+- `F2B_EXACT_SOURCE=PASS`, `F2B_STATIC_SECURITY_INVARIANTS=PASS`.
+- All five source build stages PASS: .NET API Release restore/build, Angular npm ci, typecheck, production build.
+- `F2B_PUBLIC_IDENTITY_SOURCE_ONLY=PASS`.
+- Subsequent separate independent operator postflight `F2B_INTEGRATED_SOURCE_POSTFLIGHT=PASS`: manifest exact SHA and mandatory PASS/NOT_TESTED/HOLD lines, 5×3 command/stdout/stderr receipts, no failure gate, both `PublicAccounts:Enabled=false` and `ClaimReviewPostgreSqlQa:Enabled=false`, clean worktree.
+- **Evidence:** `D:\GitHub\YangSpaceApp-F2b-Integrated-QA-20261114\logs\yangspace\f2b-public-identity\113c05ff0a17-20261114-135340-556e84a0`.
+- **Manifest SHA-256:** `5d156889d1e9f54e0923d880427f2d777fe2da244b3c417eb7f8bced87061700`. Logs and manifest bytes remain operator-local; this records verified operator transcript, not direct independent download of local evidence.
+
+**Accepted scope = integrated F2b SOURCE GATE ONLY.** It is 100% for the bounded static security/build/typecheck gate at the tested SHA. The doc-only follow-up to record this milestone must **not** be represented as a new application-code QA run.
+
+**Explicit open blockers:** `PUBLIC_IDENTITY_HTTP=NOT_TESTED`, `PUBLIC_SMTP_DELIVERY=NOT_TESTED`, `OWNER_GRANT=NOT_IMPLEMENTED_NOT_AUTHORIZED`, `CT164_DB=NOT_ACCESSED`, `RELEASE_GATE=HOLD`. Additional P0: PostgreSQL TestServer with non-superuser connection/TLS VerifyFull and reviewed migrations, realistic confirmation/lockout/recovery/role/anti-enumeration matrix, injectable fake email/outbox delivery failure + retry policy, browser privacy/accessibility and production ingress/backups. Issue #24 legal/privacy blocks real business evidence. PR #29 and #17 remain OPEN/DRAFT/HOLD; #1 stays Draft. No runtime deploy, email sends, real registrations or production DB changes.
+
+**Next actionable work:** add scoped disposable F2b PostgreSQL Identity HTTP/email contract and QA runner on PR #29 in a separate code commit, then run new exact-SHA Windows acceptance and operator postflight. Keep default-OFF throughout.
+
+---
+
 ## 2026-11-14 — Scoped PostgreSQL QA merged / V2 strategy reconciled
 
 PR #27 MERGED/CLOSED via `1b59aa94cee410212df954223693153faa1c7d1d`; operator synthetic QA tested `ede8a3f2064b8f93cdc2e1757278890574ea4458`, independent postflight PASS, manifest `A278A5C4A31655F305F16384DBF4607A0352303BFC0A6C7287CB6FC24D0C0EAA`. Parent #17 remains DRAFT/HOLD, #29 account HTTP/mail HOLD, no CT164. Approved strategy integrated in V2 at `5dddd6e629c011f0a4cb231a12bc1a0ea34c11cb`.
