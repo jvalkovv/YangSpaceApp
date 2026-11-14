@@ -41,9 +41,31 @@ $activeBranch = GitValue @('branch','--show-current')
 if ($activeBranch -and $activeBranch -cne $ExpectedTestBranch) {
     throw 'F2A_S2_BRANCH_MISMATCH'
 }
-$initialStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all)
-if ($LASTEXITCODE -ne 0 -or $initialStatus.Count -ne 0) {
-    throw 'F2A_S2_TEST_WORKTREE_NOT_CLEAN'
+# The first S2 attempt may already have copied the three hash-verified
+# S1 artifacts before a later post-copy assertion failed. Accept either a
+# clean worktree or exactly that expected generated-artifact changeset.
+[string[]]$expectedFiles = @(
+    ("apps/api/Migrations/{0}.cs" -f $MigrationName)
+    ("apps/api/Migrations/{0}.Designer.cs" -f $MigrationName)
+    'apps/api/Migrations/DirectoryDbModelSnapshot.cs'
+)
+[string[]]$expectedStatus = @(
+    ' M apps/api/Migrations/DirectoryDbModelSnapshot.cs'
+    ("?? apps/api/Migrations/{0}.Designer.cs" -f $MigrationName)
+    ("?? apps/api/Migrations/{0}.cs" -f $MigrationName)
+) | Sort-Object
+
+$initialStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all |
+    ForEach-Object { $_ } | Sort-Object)
+if ($LASTEXITCODE -ne 0) {
+    throw 'F2A_S2_GIT_STATUS_FAILED'
+}
+$initialDifference = @(Compare-Object -ReferenceObject @() -DifferenceObject $initialStatus)
+if ($initialStatus.Count -ne 0) {
+    $initialDifference = @(Compare-Object -ReferenceObject $expectedStatus -DifferenceObject $initialStatus)
+    if ($initialDifference.Count -ne 0) {
+        throw 'F2A_S2_TEST_WORKTREE_NOT_CLEAN_OR_EXPECTED_ARTIFACTS'
+    }
 }
 
 $Source = (Resolve-Path -LiteralPath $SourceWorktree).Path
@@ -83,13 +105,6 @@ foreach ($entry in $requiredEntries) {
 }
 Write-Host 'F2A_S2_S1_MANIFEST=PASS'
 
-# Keep each path as one scalar string. Avoid combining PowerShell's
-# comma/array operator with string concatenation inside an array expression.
-[string[]]$expectedFiles = @(
-    ("apps/api/Migrations/{0}.cs" -f $MigrationName)
-    ("apps/api/Migrations/{0}.Designer.cs" -f $MigrationName)
-    'apps/api/Migrations/DirectoryDbModelSnapshot.cs'
-)
 if ($expectedFiles.Count -ne 3 -or
     @($expectedFiles | Where-Object { $_ -isnot [string] -or [string]::IsNullOrWhiteSpace($_) }).Count -ne 0) {
     throw 'F2A_S2_EXPECTED_FILE_LIST_INVALID'
@@ -116,22 +131,32 @@ foreach ($relative in $expectedFiles) {
 }
 
 foreach ($relative in $expectedFiles) {
+    $sourceFile = Join-Path $Source $relative
     $destination = Join-Path $Repo $relative
     $parent = Split-Path -Parent $destination
     if (-not (Test-Path -LiteralPath $parent -PathType Container)) {
         throw ('F2A_S2_DESTINATION_DIRECTORY_MISSING=' + $parent)
     }
-    Copy-Item -LiteralPath (Join-Path $Source $relative) -Destination $destination -Force
+
+    if (Test-Path -LiteralPath $destination -PathType Leaf) {
+        $destinationHash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant()
+        $sourceHash = (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($destinationHash -cne $sourceHash) {
+            throw ('F2A_S2_EXISTING_DESTINATION_HASH_MISMATCH=' + $relative)
+        }
+    }
+    else {
+        Copy-Item -LiteralPath $sourceFile -Destination $destination
+    }
 }
 
-[string[]]$expectedStatus = @(
-    ' M apps/api/Migrations/DirectoryDbModelSnapshot.cs'
-    ("?? apps/api/Migrations/{0}.Designer.cs" -f $MigrationName)
-    ("?? apps/api/Migrations/{0}.cs" -f $MigrationName)
-) | Sort-Object
-$actualStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all | ForEach-Object { $_ } | Sort-Object)
-if ($LASTEXITCODE -ne 0 -or
-    (Compare-Object -ReferenceObject $expectedStatus -DifferenceObject $actualStatus).Count -ne 0) {
+$actualStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all |
+    ForEach-Object { $_ } | Sort-Object)
+if ($LASTEXITCODE -ne 0) {
+    throw 'F2A_S2_GIT_STATUS_FAILED_AFTER_COPY'
+}
+$changesetDifference = @(Compare-Object -ReferenceObject $expectedStatus -DifferenceObject $actualStatus)
+if ($changesetDifference.Count -ne 0) {
     throw 'F2A_S2_GENERATED_CHANGESET_NOT_EXACT'
 }
 
@@ -179,9 +204,13 @@ foreach ($marker in @(
     }
 }
 
-$finalStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all | ForEach-Object { $_ } | Sort-Object)
-if ($LASTEXITCODE -ne 0 -or
-    (Compare-Object -ReferenceObject $expectedStatus -DifferenceObject $finalStatus).Count -ne 0) {
+$finalStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all |
+    ForEach-Object { $_ } | Sort-Object)
+if ($LASTEXITCODE -ne 0) {
+    throw 'F2A_S2_GIT_STATUS_FAILED_FINAL'
+}
+$finalDifference = @(Compare-Object -ReferenceObject $expectedStatus -DifferenceObject $finalStatus)
+if ($finalDifference.Count -ne 0) {
     throw 'F2A_S2_UNEXPECTED_WORKTREE_CHANGES'
 }
 
