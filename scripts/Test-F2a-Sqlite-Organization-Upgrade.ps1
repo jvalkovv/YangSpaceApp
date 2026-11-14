@@ -65,7 +65,7 @@ if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf) -or
 # the exact key=value checks.
 $manifestText = [IO.File]::ReadAllText($ManifestPath)
 $manifestText = $manifestText.TrimStart([char]0xFEFF).Replace([string][char]0, '')
-$manifestNormalized = [regex]::Replace($manifestText, '\\s+', ' ')
+$manifestNormalized = [regex]::Replace($manifestText, '\s+', ' ')
 
 $requiredEntries = [string[]]@(
     ("SOURCE_SHA={0}" -f $ExpectedS1Sha),
