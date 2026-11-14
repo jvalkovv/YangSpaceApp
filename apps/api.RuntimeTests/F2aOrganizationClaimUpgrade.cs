@@ -654,7 +654,7 @@ internal static class F2aOrganizationClaimUpgrade
             await RunFaultRecoveryAsync(
                 root, backupPath, ids,
                 "fault-after-locations-rebuild",
-                "CREATE INDEX \"IX_Locations_City_Neighborhood_Category\"",
+                "PRAGMA foreign_keys = 1",
                 expectLocationColumns: true,
                 expectTempTable: false);
 
