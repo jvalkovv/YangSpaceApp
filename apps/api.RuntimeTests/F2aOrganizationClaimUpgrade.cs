@@ -648,7 +648,9 @@ internal static class F2aOrganizationClaimUpgrade
                 root, backupPath, ids,
                 "fault-after-f2a-ddl",
                 "PRAGMA foreign_keys = 0",
-                expectLocationColumns: false,
+                // EF applies the two nullable/defaulted Location columns
+                // before the SQLite FK-driven table rebuild begins.
+                expectLocationColumns: true,
                 expectTempTable: false);
 
             await RunFaultRecoveryAsync(
