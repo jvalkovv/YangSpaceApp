@@ -312,7 +312,8 @@ internal static class F2aOrganizationClaimUpgrade
               AND "Phone"='+359000000000' AND "Website"='https://example.org'
               AND "ImageUrl"='https://example.org/image.png'
               AND "OpeningHours"='09:00-18:00'
-              AND "IsPublished"=1 AND "IsVerified"=1;
+              AND "IsPublished"=1 AND "IsVerified"=1
+              AND "UpdatedAtUtc"='2026-11-14T10:00:00.0000000Z';
             """, ("$id", GuidText(ids.Location))) == 1,
             prefix + "_LOCATION_DATA");
 
