@@ -1,3 +1,19 @@
+## 2026-11-14 — F2a-3 QA scoped merge accepted
+
+PR #27 MERGED/CLOSED into F2a parent at `1b59aa94cee410212df954223693153faa1c7d1d`. Exact tested source `ede8a3f2064b8f93cdc2e1757278890574ea4458` passed disposable PostgreSQL real bearer/reviewer role revocation and synchronized competing EF writers, reported independent postflight PASS; manifest SHA `A278A5C4A31655F305F16384DBF4607A0352303BFC0A6C7287CB6FC24D0C0EAA`. Logs remain operator-local. This acceptance is synthetic QA only, NOT current-parent runtime test, production claim decision/Owner grant, legal approval or CT164 deployment. PR #17 and #29 stay DRAFT/HOLD; Issue #24 blocks real evidence.
+
+## 2026-11-14 — Owner-approved strategy and reviewed growth expansion (DOCS ONLY)
+
+**Scope:** Six base decisions are owner-approved; additional resident/merchant ideas reviewed and prioritized as candidates, NOT implementation/release authorization. Product plan: [YangSpace growth and pilot direction](PRODUCT_GROWTH_PILOT_20261113.md). This new documentation is based on the active YangSpace V2 feature branch; legacy-main Draft PR #30 is a historical source proposal and must NOT be merged directly into main.
+
+**Positioning:** verified hyperlocal discovery plus measurable, privacy-safe customer actions, rather than a phone directory or checkout marketplace. **2026-11-14 Bulgarian-market clarification:** international design examples are not proof of direct local competition; the presence of Google Business Profile in Bulgaria and partial local offer/brochure alternatives is not proof that YangSpace cannot acquire users. Neither demand nor willingness-to-pay is established by comparison alone: validate Varna resident engagement, active local supply, repeat merchant publishing and acquisition/support economics during the pilot. P0: verified listings/owner controls, freshness/publishing, anonymous search, basic contact/route actions, SEO. P1: map, QR, optional favorites, scoped inquiries, aggregated business analytics. P2: events, opted-in notifications, clearly labeled sponsored posts and area/category campaigns. EUR 1-5 merchant subscription is an unvalidated pricing hypothesis; no billing/checkout.
+
+**Execution:** M0 strategy/ADRs; M1 #27 final source review -> #17 parent reconciliation -> #29 full Identity HTTP and SMTP evidence; M2 claim decision/Owner lifecycle and Issue #24 legal; M3 business CMS; M4 geo + discovery/SEO + action counts; M5 CT164 recovery and protected release; M6 Varna pilot 20-30 then 100; M7 growth validation. Engineering gates keep historical names G0-G4/G-PREVIEW/G-PILOT (no duplicate G1/G2/G3 definitions).
+
+**Exact code-state boundary:** Parent V2 HEAD at branch creation was `92f248dc88fcc888f93c2829727e22db0eb65312`; F2a parent #17 remains Draft at `e1a05c30fb2ff8ff967d5e028229b6d2bb8898d5`; #27 Draft tested runtime `ede8a3f2064b8f93cdc2e1757278890574ea4458` (postflight PASS), #29 Draft tested build `3ac9df42023ac36bf0fe970d9cf353bc501dba3d` (HTTP/mail NOT TESTED). No claim mutation, live registration, release or legal/privacy clearance is inferred. #1/#17/#27/#29 still Draft/HOLD, #24 still OPEN.
+
+**Policy:** one modular monolith + PostgreSQL target, manual clean exact-SHA QA/no GitHub Actions, CT164 only permanent app runtime, off-host recovery/observability. Session handling is ADR-pending; source F2b uses memory-only bearer. Privacy/DSA applicability and marketing consent require review before additional lead, analytics and promotional features.
+
 ## 2026-11-13 — Public registration gap / ASP.NET Core Identity clarification
 
 - **Architecture:** ASP.NET Core Identity in the .NET API is the credential, role and bearer-token implementation. There is **no Microsoft Entra ID / Microsoft social login integration** in the current V2 implementation.

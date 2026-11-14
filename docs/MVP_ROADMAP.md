@@ -1,3 +1,24 @@
+## 2026-11-14 — PR #27 synthetic QA ACCEPTED / parent HOLD
+
+PR #27 merged to F2a parent at `1b59aa94cee410212df954223693153faa1c7d1d`; operator exact-source `ede8a3f...` PG reviewer HTTP and concurrency passed. Next parent exact-head QA and F2b account HTTP/mail. This documentation change is not a new runtime test or release.
+
+## 2026-11-14 — Owner-approved direction / unified product milestones (docs-only)
+
+See [Product Growth & Pilot](PRODUCT_GROWTH_PILOT_20261113.md). The six base product/architecture decisions are approved; supplementary residents/merchant growth modules are **candidate P1/P2 scopes**, not authorized runtime implementation. Preserve existing engineering gates **G0-G4, G-PREVIEW, G-PILOT**; the following M0-M7 are product work packages and do not rename those gates.
+
+| Package | Priority | Deliverable | Exit evidence |
+|---|---|---|---|
+| M0 Architecture/SSOT | P0 | PostgreSQL target ADR, Identity session/CSRF ADR, geo and SEO design, integrated dependency graph | Owner-reviewed ADRs and single current tracker |
+| M1 Foundation & Identity | P0 | #27 source review -> #17 integration -> #29 account HTTP/mail + protected PG runtime | Exact SHA builds, real HTTP/DB/auth negatives, mail outbox semantics |
+| M2 Ownership & Moderation | P0 | Issue #20 reviewer decision, atomic claim/Owner/revoke/audit; Issue #24 privacy legal gate | Real scoped auth/idempotency with synthetic-first and legal clearance before real evidence |
+| M3 Verified Business CMS | P0 | Locations, offers, brochures, jobs, uploads, expiry, field-level audit, owner freshness | End-to-end create/review/publish/hide/restore persisted with tenant controls |
+| M4 Public Discovery | P0/P1 | Search/neighborhood, data accuracy, action CTAs, mobile UX, SEO; map/QR/favorites as P1 | Crawl/geo/performance/a11y + correct aggregated action counters |
+| M5 Reliable Private Release | P0 | CT164 controlled activation, TLS/origin, migrations, alerting, backup/restore/rollback | G-PREVIEW then G-PILOT evidence as relevant |
+| M6 Varna Pilot | P0 | Phase A 20-30 verified local places; Phase B 100 conditional on Phase A | Freshness, useful actions, repeatability, costs, 30 owner interviews and 10 intent signals in Phase B |
+| M7 Commercial Growth | P1/P2 | QR/analytics/limited inquiries; later events, notifications and sponsored campaigns | Measured merchant value, separate privacy/DSA and billing/commercial ADRs |
+
+**Guardrails:** no online checkout, automated billing, booking, POS, CV store, native app or AI assistant for MVP; no production Owner grant based solely on email confirmation; no field-level analytics masquerading as a real-world sale/visit. Small PRs close only after their individual 100%-accepted DoD and logged recovery evidence. Draft legacy-main PR #30 must not override this active V2 history.
+
 ## 2026-11-13 — Public registration gap / ASP.NET Core Identity clarification
 
 - **Architecture:** ASP.NET Core Identity in the .NET API is the credential, role and bearer-token implementation. There is **no Microsoft Entra ID / Microsoft social login integration** in the current V2 implementation.

@@ -1,5 +1,24 @@
 # YangSpace 2.0 — PoC / Pilot Acceptance Matrix
 
+## 2026-11-14 — Additional product feature acceptance contracts (NOT YET TESTED)
+
+These are criteria for future scoped PRs, not added production routes or acceptance of source.
+
+| ID | Feature | Required acceptance/evidence |
+|---|---|---|
+| GROW-A01 | Public contact actions | Correct call/website/directions/offer/job target from verified published profile, honest labeling, keyboard/mobile; no actual-visit claim |
+| GROW-A02 | Privacy-safe analytics | Aggregate by location/action/coarse UTC period/campaign; no silent GPS, visitor fingerprint or cross-site identity graph; legal basis/cookies review and bot exclusions |
+| GROW-A03 | QR deep links | Stable canonical HTTPS URL, safe printed QR, soft 404/redirect policy for hidden or renamed locations; scan != customer/visit/sale |
+| GROW-A04 | Map and location search | Verified non-null coordinates, graceful list fallback, accessibility, inaccurate geolocation refusal, no auto-GPS consent bundling |
+| GROW-A05 | Favorites | Local optional persistence can clear; no authentication forced; cloud sync only with scoped authenticated privacy plan |
+| GROW-A06 | Inquiry/RFQ | Business recipient and category explicit, minimum data, spam limits, delivery/acknowledge, deletion/retention plan, consent and incident procedure |
+| GROW-A07 | Events | Verified organizer, content review, expiry/timezone and cancellation, no ticketing/payment |
+| GROW-A08 | Notifications | Distinct opt-in from account service mail, quiet hours, unsubscribe, retention, rate and outbox error monitoring |
+| GROW-A09 | Sponsored posts | Clear paid label/sponsor, organic ranking integrity, targeting limitations, complaints, DSA applicability review and campaign reporting |
+| GROW-A10 | Pilot validation | Phase A 20-30 + Phase B 100 verified listings, true freshness, zero expired-public items, cross-tenant negatives, load/mobile/SEO, restore drill, concrete owner interviews and unit economics |
+
+All rows are initially **NOT TESTED / HOLD**. Stage acceptance requires exact-SHA API, DB, browser and/or real-origin evidence, manual operator receipts and rollback as applicable. Existing G0-G4/G-PREVIEW/G-PILOT remain authoritative.
+
 > **Current PASS/HOLD verdicts and execution queue:** [SSOT.md](SSOT.md). This matrix is the authoritative set of **test criteria**, not evidence that all scenarios have run. Historical PASS entries remain bounded to the stated commit, test fixture and environment.
 
 > **ADR-018 overrides all prior hosted CI references.** GitHub Actions are excluded. Tests run manually from an exact SHA; proof is local command logs and manifests.
