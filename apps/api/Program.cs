@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using YangSpace.Api;
 
 // Explicit offline enrollment cannot be triggered by an HTTP request, nor
@@ -16,6 +17,7 @@ var allowPreviewRegistration = builder.Configuration.GetValue<bool>("Preview:All
 var productionAdmin = builder.Configuration.GetValue<bool>("Admin:Enabled");
 var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
 var claimReviewQa = builder.Configuration.GetValue<bool>("ClaimReview:QaEnabled");
+var claimReviewPostgreSqlQa = builder.Configuration.GetValue<bool>("ClaimReviewPostgreSqlQa:Enabled");
 // F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
 // It is impossible to enable accidentally in Development, Preview, or Production.
 if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
@@ -27,6 +29,14 @@ if (claimReviewQa && (preview || productionAdmin || allowPreviewRegistration || 
                       !builder.Environment.IsEnvironment("YangSpaceQa")))
     throw new InvalidOperationException(
         "Claim review QA endpoints require explicit YangSpaceQa environment with Preview/Admin/Registration/MerchantRead disabled.");
+// PostgreSQL reviewer HTTP is a distinct opt-in QA surface. It never relaxes
+// the existing SQLite-only reviewer QA contract and cannot coexist with any
+// other preview/admin/merchant/SQLite-reviewer QA surface.
+if (claimReviewPostgreSqlQa && (preview || productionAdmin || allowPreviewRegistration ||
+                                merchantRead || claimReviewQa ||
+                                !builder.Environment.IsEnvironment("YangSpaceQa")))
+    throw new InvalidOperationException(
+        "Claim review PostgreSQL QA endpoints require explicit YangSpaceQa with Preview/Admin/Registration/MerchantRead/SQLite reviewer QA disabled.");
 // Never enable the CMS implicitly from a DNS record or a general Production deployment.
 if (productionAdmin && (preview || !builder.Environment.IsProduction()))
     throw new InvalidOperationException("Production CMS requires Production environment and Preview:Enabled=false.");
@@ -51,6 +61,47 @@ if (preview && builder.Environment.IsProduction())
 var connection = builder.Configuration.GetConnectionString("Main");
 if (string.IsNullOrWhiteSpace(connection))
     throw new InvalidOperationException("ConnectionStrings:Main must be supplied from environment or protected config.");
+// The PostgreSQL reviewer HTTP QA surface is only valid inside the disposable
+// container network namespace created by its exact-SHA operator runner.
+if (claimReviewPostgreSqlQa)
+{
+    if (Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_DISPOSABLE_ONLY") !=
+            "CONFIRMED_CONTAINER_NETNS_ONLY" ||
+        Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TESTSERVER_ONLY") !=
+            "CONFIRMED_WEBAPPLICATIONFACTORY_ONLY" ||
+        !Guid.TryParseExact(
+            Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TOKEN"), "N", out _))
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require explicit disposable-container and WebApplicationFactory TestServer scopes.");
+
+    NpgsqlConnectionStringBuilder scoped;
+    try
+    {
+        scoped = new NpgsqlConnectionStringBuilder(connection);
+    }
+    catch (ArgumentException)
+    {
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require a valid disposable PostgreSQL connection.");
+    }
+
+    var scopedConnection = Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_CONNECTION");
+    if (string.IsNullOrWhiteSpace(scopedConnection) ||
+        !string.Equals(connection, scopedConnection, StringComparison.Ordinal))
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require an exact scoped connection match.");
+
+    if (scoped.Host != "127.0.0.1" ||
+        scoped.Port != 5432 ||
+        scoped.Database != "yangspace_f2a3_disposable" ||
+        scoped.Username != "postgres" ||
+        scoped.SslMode != SslMode.Disable ||
+        !string.IsNullOrEmpty(scoped.Password) ||
+        scoped.Pooling ||
+        scoped.IncludeErrorDetail)
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints refuse non-disposable PostgreSQL connection settings.");
+}
 
 // Provider choice is explicit in appsettings/configuration. Preview always
 // stays on SQLite; PostgreSQL is a separate target with its own migrations assembly.
@@ -63,6 +114,25 @@ if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.
     throw new InvalidOperationException("Merchant read QA endpoints require isolated SQLite persistence.");
 if (claimReviewQa && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
     throw new InvalidOperationException("Claim review QA endpoints require isolated SQLite persistence.");
+if (claimReviewPostgreSqlQa && !string.Equals(databaseProvider, "PostgreSQL", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Claim review PostgreSQL QA endpoints require PostgreSQL persistence.");
+
+// Do not expose even the QA probe unless the database itself proves possession
+// of this runner's one-time sentinel. This check is PostgreSQL-QA-only.
+if (claimReviewPostgreSqlQa)
+{
+    await using var qaConnection = new NpgsqlConnection(connection);
+    await qaConnection.OpenAsync();
+    await using var sentinelCommand = qaConnection.CreateCommand();
+    sentinelCommand.CommandText =
+        "SELECT scope_token FROM yangspace_f2a3_qa_guard LIMIT 1";
+    var actualToken = (string?)await sentinelCommand.ExecuteScalarAsync();
+    var expectedToken = Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TOKEN");
+    if (actualToken is null ||
+        !string.Equals(actualToken, expectedToken, StringComparison.Ordinal))
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require a matching disposable PostgreSQL sentinel.");
+}
 
 if (preview && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
     throw new InvalidOperationException("Preview mode is permanently pinned to its isolated SQLite provider.");
@@ -176,7 +246,7 @@ if (app.Environment.IsProduction())
     }
 }
 
-if (preview || productionAdmin || merchantRead || claimReviewQa)
+if (preview || productionAdmin || merchantRead || claimReviewQa || claimReviewPostgreSqlQa)
 {
     var auth = app.MapGroup("/api/auth").RequireRateLimiting("auth");
     auth.AddEndpointFilter(async (context, next) =>
@@ -202,7 +272,7 @@ if (preview || productionAdmin || merchantRead || claimReviewQa)
                 request.Query.ContainsKey("useSessionCookies"))
                 return Results.BadRequest(new { error = "Cookie authentication is disabled for the CMS." });
         }
-        else if (merchantRead || claimReviewQa)
+        else if (merchantRead || claimReviewQa || claimReviewPostgreSqlQa)
         {
             // For the isolated QA harness, enable only credential login and
             // bearer refresh. All enrollment, recovery and account endpoints
@@ -231,7 +301,7 @@ if (preview || productionAdmin || merchantRead || claimReviewQa)
 }
 if (merchantRead)
     app.MapMerchantRead();
-if (claimReviewQa)
+if (claimReviewQa || claimReviewPostgreSqlQa)
     app.MapClaimReviewQa();
 await PreviewBootstrap.Initialize(app);
 app.Run();
