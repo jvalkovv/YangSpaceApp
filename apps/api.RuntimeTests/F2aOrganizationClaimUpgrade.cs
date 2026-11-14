@@ -318,13 +318,13 @@ internal static class F2aOrganizationClaimUpgrade
             prefix + "_LOCATION_DATA");
 
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"Title\"='Legacy offer' AND \"Description\"='Offer description';",
+            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"Title\"='Legacy offer' AND \"Description\"='Offer description' AND \"StartsAtUtc\"='2026-11-14T00:00:00.0000000Z' AND \"EndsAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
             ("$id", GuidText(ids.Offer))) == 1, prefix + "_OFFER_DATA");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf';",
+            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf' AND \"ValidFromUtc\"='2026-11-14T00:00:00.0000000Z' AND \"ValidToUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
             ("$id", GuidText(ids.Brochure))) == 1, prefix + "_BROCHURE_DATA");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply';",
+            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply' AND \"ExpiresAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
             ("$id", GuidText(ids.Job))) == 1, prefix + "_JOB_DATA");
 
         await AssertIdentityDataAsync(connection, prefix);
@@ -338,7 +338,7 @@ internal static class F2aOrganizationClaimUpgrade
         string prefix)
     {
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"AspNetUsers\" WHERE \"Id\"='fixture-user-1' AND \"Email\"='fixture@example.org' AND \"PasswordHash\"='hash-1';") == 1,
+            "SELECT COUNT(*) FROM \"AspNetUsers\" WHERE \"Id\"='fixture-user-1' AND \"UserName\"='fixture-admin' AND \"NormalizedUserName\"='FIXTURE-ADMIN' AND \"Email\"='fixture@example.org' AND \"NormalizedEmail\"='FIXTURE@EXAMPLE.ORG' AND \"EmailConfirmed\"=1 AND \"PasswordHash\"='hash-1' AND \"SecurityStamp\"='security-1' AND \"ConcurrencyStamp\"='concurrency-1' AND \"PhoneNumber\"='+359000000001' AND \"PhoneNumberConfirmed\"=1 AND \"TwoFactorEnabled\"=0 AND \"LockoutEnabled\"=1 AND \"AccessFailedCount\"=0;") == 1,
             prefix + "_IDENTITY_USER");
         Check(await ScalarLongAsync(connection,
             "SELECT COUNT(*) FROM \"AspNetRoles\" WHERE \"Id\"='fixture-role-1' AND \"NormalizedName\"='PLATFORMADMIN';") == 1,
@@ -393,13 +393,13 @@ internal static class F2aOrganizationClaimUpgrade
             "F2A_S2_LOCATION_ALL_FIELDS_PRESERVED");
 
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"Title\"='Legacy offer' AND \"Description\"='Offer description' AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
+            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"Title\"='Legacy offer' AND \"Description\"='Offer description' AND \"StartsAtUtc\"='2026-11-14T00:00:00.0000000Z' AND \"EndsAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
             ("$id", GuidText(ids.Offer))) == 1, "F2A_S2_OFFERS_PRESERVED");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf' AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
+            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf' AND \"ValidFromUtc\"='2026-11-14T00:00:00.0000000Z' AND \"ValidToUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;,
             ("$id", GuidText(ids.Brochure))) == 1, "F2A_S2_BROCHURES_PRESERVED");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply' AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
+            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply' AND \"ExpiresAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;,
             ("$id", GuidText(ids.Job))) == 1, "F2A_S2_JOBS_PRESERVED");
 
         await AssertIdentityDataAsync(connection, "F2A_S2");
