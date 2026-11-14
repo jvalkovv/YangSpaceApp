@@ -210,7 +210,7 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     // A shared limiter allows one client to exhaust everyone's auth budget.
     // Trust only the transport peer here; never parse untrusted forwarding headers.
-    options.AddPolicy("auth", AuthRateLimitPolicy.CreatePartition);
+    options.AddPolicy<string>("auth", AuthRateLimitPolicy.CreatePartition);
 });
 builder.Services.AddProblemDetails();
 

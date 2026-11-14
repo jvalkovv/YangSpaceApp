@@ -30,7 +30,8 @@ $Dirty = @(git -C $Repo status --porcelain --untracked-files=all | Where-Object 
 if ($LASTEXITCODE -ne 0 -or $Dirty.Count -ne 0) { throw 'AUTH_RATE_SOURCE_DIRTY' }
 Write-Host 'F2B_AUTH_RATE_EXACT_SOURCE=PASS'
 
-$RunId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
+$RunId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' +
+    ([guid]::NewGuid().ToString('N').Substring(0,8))
 $Evidence = Join-Path $Repo ('logs\yangspace\f2b-auth-rate\' +
     $CommitSha.Substring(0,12) + '-' + $RunId)
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
@@ -48,6 +49,14 @@ try {
     Stage 'auth-rate-build' @('build',$Project,'-c','Release','--no-restore','-warnaserror')
     Stage 'auth-rate-runtime' @('run','--project',$Project,'-c','Release',
         '--no-restore','--no-build','--','--auth-rate-partition-only')
+
+    foreach ($Label in @('auth-rate-restore','auth-rate-build','auth-rate-runtime')) {
+        foreach ($Suffix in @('runner.cmd','stdout.log','stderr.log')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $Evidence "$Label.$Suffix") -PathType Leaf)) {
+                throw "AUTH_RATE_STAGE_ARTIFACT_MISSING=$Label.$Suffix"
+            }
+        }
+    }
 
     $RuntimeLog = Join-Path $Evidence 'auth-rate-runtime.stdout.log'
     $Log = [IO.File]::ReadAllText($RuntimeLog)
