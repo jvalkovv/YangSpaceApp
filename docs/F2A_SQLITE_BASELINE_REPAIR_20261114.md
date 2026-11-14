@@ -19,3 +19,30 @@
 Operator transcript at source `3eea6ee387b12fcbf79e51ac30b2739501025bf2` showed three uncommitted EF artifacts in the existing exact-SHA detached Windows worktree (migration `20261114172551_F2aOrganizationClaimFoundation`, Designer, changed SQLite snapshot). Subsequent scaffold rerun failed its expected `F2A_S1_DIRTY_WORKTREE` guard. Static C# console review suggests F2a-only changes; no reviewed SQL, independent local artifact hashes, disposable historic-database upgrade or restore acceptance was supplied. The operator looked for evidence under the main repo instead of the detached worktree; do not infer the generation stage result from that search.
 
 Source QA defect fixed in this branch: both generator and independent postflight had `"ef_temp_Locations"\\b` after the closing quoted identifier. This fails for valid EF SQLite `INSERT INTO "ef_temp_Locations" (...) SELECT ...`. The replacement `"ef_temp_Locations"(?=\\s*\\()` checks the expected opening column list without rejecting valid SQL. **Prior generated artifacts at old SHA must be preserved; this source fix changes the branch SHA.** Run a NEW clean detached worktree at the new head; do not reset/clean the old operator worktree or copy unchecked generated files. Tests and operator QA on the new head are still **NOT RUN / HOLD**. No live DB, CT164 or GitHub Actions.
+
+
+## F2a-S2 — disposable historic upgrade and restore-recovery contract
+
+The Windows operator runner is `scripts/Test-F2a-Sqlite-Organization-Upgrade.ps1`; its runtime contract is `apps/api.RuntimeTests/F2aOrganizationClaimUpgrade.cs`, selected only with `--f2a-organization-claim-upgrade-only`.
+
+The runner consumes the exact S1 generated artifacts from the hash-verified operator evidence at source `35c9f576bbc64c0825c1a117b3ee415d3ca9869d`. It verifies the S1 manifest and each generated migration/designer/snapshot SHA256 before copying those artifacts into a clean exact-branch test worktree. The generated migration artifacts remain uncommitted after QA.
+
+The disposable runtime contract:
+1. Applies only the two previously accepted migrations to a newly created SQLite file.
+2. Seeds synthetic historic Location, Offer, Brochure, Job and ASP.NET Identity user/role plus role/user claims, login, token and user-role data.
+3. Creates a pre-F2a SQLite online backup.
+4. Upgrades a distinct clone using EF Core's real `IMigrator` pipeline to `20261114183515_F2aOrganizationClaimFoundation`.
+5. Verifies all original Location fields and child records, nullable new Location ownership, default revision, Identity rows/dependencies, exact migration history, new F2a relationships, FK check and SQLite integrity.
+6. Injects failures before the SQLite FK-off command (after the initial F2a DDL segment), before the post-rebuild Locations index command, and before the F2a migration-history insert. Each failed clone is recovered by restoring the verified pre-upgrade backup to a separate file; the test deliberately does not retry the migration on a partially applied database.
+
+The fault-injection cases prove the restore-only recovery path for these observed command boundaries. They do not simulate host power loss, storage corruption, process kill at every machine instruction, or prove off-host backup durability. Those remain separate operational gates.
+
+Operator invocation (run in the exact test branch worktree, with the original S1 worktree preserved):
+
+```powershell
+.\scripts\Test-F2a-Sqlite-Organization-Upgrade.ps1 `
+    -CommitSha <EXACT_TEST_BRANCH_HEAD_SHA> `
+    -SourceWorktree 'D:\GitHub\YangSpaceApp-F2a-Sqlite-Baseline-QA-R2'
+```
+
+Acceptance requires all runner markers and a reviewed evidence manifest. No HTTP listener, CT164, PVE, production connection string, deployment or GitHub Actions are used. PR remains Draft/HOLD until the operator result is reviewed and the generated migration artifacts are committed with their verified hashes.
