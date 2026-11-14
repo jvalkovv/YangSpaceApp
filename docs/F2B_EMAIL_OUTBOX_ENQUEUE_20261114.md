@@ -1,3 +1,13 @@
+## 2026-11-14 — O1 accepted; O2 offline dual-provider migration scaffold READY / NOT RUN
+
+O1 tested application source `4aeeb1c351140f43168aad1eaa62d3bd31ce00ae`: native Windows .NET 10 Release build, disposable SQLite in-memory enqueue/rollback contract, exact-SHA independent postflight PASS. Manifest SHA-256 `8a6e06cfe5e4386bcf01f499988515fb2ca4205ff3a34120d4b5d56cf1815ef6`. Synthetic test is accepted ONLY for O1; PostgreSQL migrations and worker remain NOT IMPLEMENTED.
+
+O2 operator helper: `scripts/New-F2b-Outbox-Migrations-Offline.ps1` requires clean exact-source detached worktree, pinned `dotnet-ef 10.0.0`, both explicit design-time opt-ins. It scaffolds two EF migrations and snapshots, checks six changed source files, rebuilds projects, checks model diff and creates **offline SQL deltas** for human review. It never opens a database, applies SQL, mails users, or accesses CT164. Generated files remain UNCOMMITTED; the script is NOT YET TESTED on Windows. Any unexpected schema change causes HOLD.
+
+**Do not merge PR #37 after the migration scaffold alone.** Require migration SQL inspection, both provider upgrades on disposable DBs and rollback/restore, leased dispatcher/at-least-once retry, DataProtection, real PostgreSQL TLS/restricted-account HTTP and ingress test gates. PublicAccounts remains OFF.
+
+---
+
 # F2b O1 — durable email intent foundation (Draft, 2026-11-14)
 
 **Tracking:** Issue #36 (https://github.com/jvalkovv/YangSpaceApp/issues/36) / parent #33 / master #32.
