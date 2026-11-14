@@ -17,6 +17,10 @@ internal static class PublicAccountEndpoints
         bool preview, bool merchantQa, bool reviewerQa, bool productionAdmin)
     {
         if (!configuration.GetValue<bool>("PublicAccounts:Enabled")) return;
+        // Outbox enqueue is not deliverability. Keep public endpoints disabled
+        // until the migration and leased worker pass independent QA.
+        if (!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable)
+            throw new InvalidOperationException("PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY");
         if (!environment.IsProduction() || preview || merchantQa || reviewerQa ||
             configuration.GetValue<bool>("Preview:AllowRegistration"))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_SCOPE_REFUSED");
@@ -43,6 +47,7 @@ internal static class PublicAccountEndpoints
             UserManager<IdentityUser> users,
             IPasswordValidator<IdentityUser> passwordValidator,
             IEmailSender<IdentityUser> emails,
+            DirectoryDb db,
             IConfiguration configuration) =>
         {
             var email = NormalizeEmail(request.Email);
@@ -61,6 +66,8 @@ internal static class PublicAccountEndpoints
             if (await users.FindByEmailAsync(email) is not null)
                 return Results.Accepted();
 
+            // Atomic Identity + email intent; no SMTP inside request.
+            await using var registrationTx = await db.Database.BeginTransactionAsync();
             var result = await users.CreateAsync(user, request.Password);
             if (!result.Succeeded)
             {
@@ -70,6 +77,7 @@ internal static class PublicAccountEndpoints
             }
 
             await SendConfirmationAsync(user, users, emails, configuration);
+            await registrationTx.CommitAsync();
             return Results.Accepted();
         });
 

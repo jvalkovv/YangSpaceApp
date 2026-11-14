@@ -237,6 +237,15 @@ if (args.Length == 1 && string.Equals(
     return;
 }
 
+// Disposable SQLite-only email intent/rollback unit contract.
+// Does not test PostgreSQL migrations, SMTP, HTTP or any real data.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--outbox-enqueue-synthetic-only", StringComparison.Ordinal))
+{
+    await IdentityEmailOutboxEnqueueContract.RunAsync();
+    return;
+}
+
 // Opt-in real PostgreSQL app transaction QA. The disposable connection
 // must be verified by the in-container sentinel; never use app config,
 // create/migrate schema, or expose a merchant/reviewer HTTP route here.
