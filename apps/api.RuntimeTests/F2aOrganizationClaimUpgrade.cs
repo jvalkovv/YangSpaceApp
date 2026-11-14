@@ -524,7 +524,8 @@ internal static class F2aOrganizationClaimUpgrade
     private static async Task AssertInterruptedStateAsync(
         string path,
         FixtureIds ids,
-        string label)
+        string label,
+        bool expectTempTable)
     {
         await using var connection = new SqliteConnection(
             ConnectionString(path, SqliteOpenMode.ReadWrite));
@@ -536,8 +537,8 @@ internal static class F2aOrganizationClaimUpgrade
             label + "_REVISION_COLUMN_EXISTS");
         Check(await HasTableAsync(connection, "Organizations"),
             label + "_F2A_TABLE_EXISTS");
-        Check(!await HasTableAsync(connection, "ef_temp_Locations"),
-            label + "_NO_TEMP_TABLE");
+        Check(await HasTableAsync(connection, "ef_temp_Locations") == expectTempTable,
+            label + "_TEMP_TABLE_STATE");
         Check(await ScalarLongAsync(connection,
             "SELECT COUNT(*) FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\"=$id;",
             ("$id", F2a)) == 0, label + "_HISTORY_NOT_ADVANCED");
@@ -556,7 +557,8 @@ internal static class F2aOrganizationClaimUpgrade
         string backupPath,
         FixtureIds ids,
         string label,
-        string commandMarker)
+        string commandMarker,
+        bool expectTempTable)
     {
         var interruptedPath = Path.Combine(root, label + ".interrupted.db");
         var recoveredPath = Path.Combine(root, label + ".recovered.db");
@@ -576,7 +578,7 @@ internal static class F2aOrganizationClaimUpgrade
         }
 
         Check(injected && interceptor.Triggered, label + "_FAILURE_INJECTED");
-        await AssertInterruptedStateAsync(interruptedPath, ids, label.ToUpperInvariant());
+        await AssertInterruptedStateAsync(interruptedPath, ids, label.ToUpperInvariant(), expectTempTable);
 
         // Recovery contract is deliberately restore-only. Never blindly rerun
         // a migration on a database whose command history is uncertain.
@@ -628,17 +630,20 @@ internal static class F2aOrganizationClaimUpgrade
             await RunFaultRecoveryAsync(
                 root, backupPath, ids,
                 "fault-after-f2a-ddl",
-                "PRAGMA foreign_keys = 0");
+                "PRAGMA foreign_keys = 0",
+                expectTempTable: true);
 
             await RunFaultRecoveryAsync(
                 root, backupPath, ids,
                 "fault-after-locations-rebuild",
-                "CREATE INDEX \"IX_Locations_City_Neighborhood_Category\"");
+                "CREATE INDEX \"IX_Locations_City_Neighborhood_Category\"",
+                expectTempTable: false);
 
             await RunFaultRecoveryAsync(
                 root, backupPath, ids,
                 "fault-before-migration-history",
-                "INSERT INTO \"__EFMigrationsHistory\"");
+                "INSERT INTO \"__EFMigrationsHistory\"",
+                expectTempTable: false);
 
             Console.WriteLine("F2A_S2_RECOVERY_ALL_BOUNDARIES=PASS");
             Console.WriteLine("F2A_S2_DISPOSABLE_UPGRADE_RECOVERY=PASS");
