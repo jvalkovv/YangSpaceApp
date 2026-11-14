@@ -1,5 +1,13 @@
 # YangSpace 2.0 — Product PoC & Technical Master Plan
 
+## Owner-approved V2 growth architecture checkpoint — 2026-11-14
+
+The six approved decisions and reviewed resident/merchant growth scope are recorded in [Product Growth & Pilot](PRODUCT_GROWTH_PILOT_20261113.md), indexed by [SSOT](SSOT.md). This is a product/architecture extension to the historical 2026-11-09 plan: one modular monolith, PostgreSQL production target, Identity/claim/CMS P0, geo correctness and SEO before interactive map, pilot Phase A 20-30 then Phase B 100, no billing until economic validation, one SSOT/existing G0-G4/G-PREVIEW/G-PILOT engineering gate system.
+
+**Historical conflicts resolved only at decision level:** older PostgreSQL-vs-SQL Server passages and first-pilot SQLite options are superseded as target direction, NOT evidence that production schema is migrated. The detailed PostgreSQL operations ADR, browser session/CSRF ADR and SEO SSR/prerender ADR remain to be written and accepted. Browser anonymous directory access must stay available. No real claims or evidence before legal/privacy Issue #24. Add privacy-safe action counters P0; QR/map/favorites and limited leads P1; events/notifications/labeled sponsorships P2. Do not implement marketplace/checkout, payments or auto-subscribed merchants.
+
+**Dependency queue:** #27 source review -> #17 foundation reconciliation -> #29 full HTTP/mail acceptance -> real reviewer claim service -> shared Admin/Business CMS -> public discovery/SEO -> protected CT164 release -> Varna Phase A/B. Child QA acceptance is not parent acceptance. No GitHub Actions or production changes.
+
 > **STATUS AUTHORITY:** [SSOT.md](SSOT.md) is the current cross-project status, gate and sequencing index. This document remains the detailed **product/architecture plan**; its 2026-11-09 baseline statements (including CT provisioning and open tasks) must be read as historical unless reconfirmed by SSOT and later exact-SHA/operator evidence. ADR-018 continues to govern manual QA.
 
 > **Accepted project rule — ADR-018:** GitHub is source/PR only. **GitHub Actions are NOT USED.** QA is operator-run against a pinned SHA with retained logs. See [ADR-018](ADR-018-NO-GITHUB-ACTIONS.md) and [S0 Manual QA](S0_MANUAL_QA_RUNBOOK.md). Any prior hosted CI requirement below is superseded.

@@ -13,6 +13,7 @@ internal static class PostgreSqlClaimTransactionContract
 
     private sealed record Fixture(
         Guid ClaimId, Guid OrganizationId, Guid LocationId, string ApplicantId);
+    private sealed record CompetingFixturePair(Fixture First, Fixture Second);
 
     private static void Check(bool condition, string marker)
     {
@@ -114,6 +115,53 @@ internal static class PostgreSqlClaimTransactionContract
         return new Fixture(claim.Id, organization.Id, location.Id, applicantId);
     }
 
+    private static async Task<CompetingFixturePair> SeedCompetingAsync(
+        DirectoryDb db, string suffix, string firstApplicantId, string secondApplicantId)
+    {
+        var firstOrganization = new Organization
+        {
+            Name = "F2a3 competing org A " + suffix,
+            Status = OrganizationStatus.PendingReview
+        };
+        var secondOrganization = new Organization
+        {
+            Name = "F2a3 competing org B " + suffix,
+            Status = OrganizationStatus.PendingReview
+        };
+        var location = new BusinessLocation
+        {
+            Slug = "f2a3-pg-competing-" + suffix,
+            Name = "F2a3 competing synthetic location",
+            Category = "test",
+            Neighborhood = "test",
+            Address = "Disposable PostgreSQL only",
+            OrganizationId = null
+        };
+        var firstClaim = new BusinessClaim
+        {
+            LocationId = location.Id,
+            OrganizationId = firstOrganization.Id,
+            ApplicantUserId = firstApplicantId,
+            Status = BusinessClaimStatus.Pending
+        };
+        var secondClaim = new BusinessClaim
+        {
+            LocationId = location.Id,
+            OrganizationId = secondOrganization.Id,
+            ApplicantUserId = secondApplicantId,
+            Status = BusinessClaimStatus.Pending
+        };
+
+        db.Organizations.AddRange(firstOrganization, secondOrganization);
+        db.Locations.Add(location);
+        db.BusinessClaims.AddRange(firstClaim, secondClaim);
+        await db.SaveChangesAsync();
+
+        return new CompetingFixturePair(
+            new Fixture(firstClaim.Id, firstOrganization.Id, location.Id, firstApplicantId),
+            new Fixture(secondClaim.Id, secondOrganization.Id, location.Id, secondApplicantId));
+    }
+
     private static ContentAuditEvent Audit(
         Fixture fixture,
         string entityType,
@@ -189,6 +237,190 @@ internal static class PostgreSqlClaimTransactionContract
         }
     }
 
+    private static async Task<bool> TryApproveCompetingWriterAsync(
+        DbContextOptions<DirectoryDb> options,
+        Fixture fixture,
+        TaskCompletionSource<bool> release,
+        Action signalLoaded)
+    {
+        await using var db = new DirectoryDb(options);
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var claim = await db.BusinessClaims.SingleAsync(x => x.Id == fixture.ClaimId);
+        var org = await db.Organizations.SingleAsync(x => x.Id == fixture.OrganizationId);
+        var location = await db.Locations.SingleAsync(x => x.Id == fixture.LocationId);
+
+        if (claim.Status != BusinessClaimStatus.Pending ||
+            org.Status != OrganizationStatus.PendingReview ||
+            location.OrganizationId != null ||
+            claim.Revision != 0 || org.Revision != 0 || location.Revision != 0)
+            throw new InvalidOperationException("F2A3_PG_PARALLEL_PRECONDITION_FAILED");
+
+        // Both independent DbContexts must observe the same original revision
+        // before either writer is allowed to issue its first UPDATE.
+        signalLoaded();
+        if (!await release.Task.WaitAsync(TimeSpan.FromSeconds(30)))
+            throw new InvalidOperationException("F2A3_PG_PARALLEL_WRITER_CANCELLED");
+
+        claim.Status = BusinessClaimStatus.Approved;
+        claim.ReviewedByUserId = "qa-reviewer";
+        claim.ReviewedAtUtc = DateTime.UtcNow;
+        claim.DecisionReason = "synthetic concurrent QA";
+        claim.Revision++;
+
+        org.Status = OrganizationStatus.Active;
+        org.Revision++;
+
+        location.OrganizationId = org.Id;
+        location.UpdatedAtUtc = DateTime.UtcNow;
+        location.Revision++;
+
+        var member = new OrganizationMember
+        {
+            OrganizationId = org.Id,
+            UserId = fixture.ApplicantId,
+            Role = OrganizationMemberRole.Owner,
+            GrantedByUserId = "qa-reviewer"
+        };
+        db.OrganizationMembers.Add(member);
+
+        try
+        {
+            // Commit neither phase independently: the first SaveChanges writes
+            // claim/org/location/member under the same outer transaction.
+            // Only after those concurrency-checked writes succeed do we insert
+            // the four audit rows in a second SaveChanges.
+            await db.SaveChangesAsync();
+            db.ContentAuditEvents.AddRange(
+                Audit(fixture, "BusinessClaim", claim.Id, 0, 1),
+                Audit(fixture, "Organization", org.Id, 0, 1),
+                Audit(fixture, "BusinessLocation", location.Id, 0, 1),
+                Audit(fixture, "OrganizationMember", member.Id, -1, 0));
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException postgres &&
+            postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
+            postgres.ConstraintName == "UX_BusinessClaims_ApprovedLocation")
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+    }
+
+    private static async Task RunCompetingWritersAsync(
+        DbContextOptions<DirectoryDb> options,
+        CompetingFixturePair pair)
+    {
+        var bothLoaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrivals = 0;
+
+        void SignalLoaded()
+        {
+            if (Interlocked.Increment(ref arrivals) == 2)
+                bothLoaded.TrySetResult(true);
+        }
+
+        var firstTask = TryApproveCompetingWriterAsync(
+            options, pair.First, release, SignalLoaded);
+        var secondTask = TryApproveCompetingWriterAsync(
+            options, pair.Second, release, SignalLoaded);
+
+        bool[] outcomes;
+        try
+        {
+            await bothLoaded.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            Check(arrivals == 2, "F2A3_PG_PARALLEL_BOTH_READ_SAME_REVISION");
+            release.TrySetResult(true);
+            outcomes = await Task.WhenAll(firstTask, secondTask);
+        }
+        catch
+        {
+            release.TrySetResult(false);
+            try { await Task.WhenAll(firstTask, secondTask); }
+            catch { /* Preserve the original synchronization/test failure. */ }
+            throw;
+        }
+
+        Check(outcomes.Count(x => x) == 1,
+            "F2A3_PG_PARALLEL_EXACTLY_ONE_WINNER");
+
+        await using var verify = new DirectoryDb(options);
+        var firstClaim = await verify.BusinessClaims.AsNoTracking()
+            .SingleAsync(x => x.Id == pair.First.ClaimId);
+        var secondClaim = await verify.BusinessClaims.AsNoTracking()
+            .SingleAsync(x => x.Id == pair.Second.ClaimId);
+        var firstOrg = await verify.Organizations.AsNoTracking()
+            .SingleAsync(x => x.Id == pair.First.OrganizationId);
+        var secondOrg = await verify.Organizations.AsNoTracking()
+            .SingleAsync(x => x.Id == pair.Second.OrganizationId);
+        var location = await verify.Locations.AsNoTracking()
+            .SingleAsync(x => x.Id == pair.First.LocationId);
+
+        var firstWon = firstClaim.Status == BusinessClaimStatus.Approved;
+        var secondWon = secondClaim.Status == BusinessClaimStatus.Approved;
+        Check(firstWon != secondWon &&
+              outcomes[0] == firstWon && outcomes[1] == secondWon,
+            "F2A3_PG_PARALLEL_WINNER_MATCHES_PERSISTED_STATE");
+
+        var winner = firstWon ? pair.First : pair.Second;
+        var loser = firstWon ? pair.Second : pair.First;
+        var winnerClaim = firstWon ? firstClaim : secondClaim;
+        var loserClaim = firstWon ? secondClaim : firstClaim;
+        var winnerOrg = firstWon ? firstOrg : secondOrg;
+        var loserOrg = firstWon ? secondOrg : firstOrg;
+
+        Check(winnerClaim.Status == BusinessClaimStatus.Approved &&
+              winnerClaim.Revision == 1 &&
+              winnerOrg.Status == OrganizationStatus.Active &&
+              winnerOrg.Revision == 1 &&
+              location.OrganizationId == winner.OrganizationId &&
+              location.Revision == 1,
+            "F2A3_PG_PARALLEL_WINNER_STATE_CONSISTENT");
+
+        var ownerMembers = await verify.OrganizationMembers.AsNoTracking()
+            .Where(x => (x.OrganizationId == pair.First.OrganizationId ||
+                         x.OrganizationId == pair.Second.OrganizationId) &&
+                        x.Role == OrganizationMemberRole.Owner &&
+                        x.RevokedAtUtc == null)
+            .ToArrayAsync();
+        Check(ownerMembers.Length == 1 &&
+              ownerMembers[0].OrganizationId == winner.OrganizationId &&
+              ownerMembers[0].UserId == winner.ApplicantId,
+            "F2A3_PG_PARALLEL_OWNER_UNIQUENESS");
+
+        var auditEvents = await verify.ContentAuditEvents.AsNoTracking()
+            .Where(x => x.LocationId == pair.First.LocationId)
+            .ToArrayAsync();
+        Check(auditEvents.Length == 4 &&
+              auditEvents.All(x => x.OrganizationId == winner.OrganizationId) &&
+              auditEvents.Select(x => x.EntityType).Distinct().Count() == 4,
+            "F2A3_PG_PARALLEL_AUDIT_CARDINALITY");
+
+        Check(loserClaim.Status == BusinessClaimStatus.Pending &&
+              loserClaim.Revision == 0 &&
+              loserOrg.Status == OrganizationStatus.PendingReview &&
+              loserOrg.Revision == 0 &&
+              await verify.OrganizationMembers.AsNoTracking().CountAsync(x =>
+                  x.OrganizationId == loser.OrganizationId) == 0 &&
+              !await verify.ContentAuditEvents.AsNoTracking().AnyAsync(x =>
+                  x.OrganizationId == loser.OrganizationId),
+            "F2A3_PG_PARALLEL_LOSER_ROLLBACK");
+
+        Console.WriteLine("F2A3_PG_PARALLEL_WRITERS_PROVIDER=NPGSQL_REAL_POSTGRESQL");
+        Console.WriteLine("F2A3_PG_PARALLEL_WRITERS_ISOLATED_ONLY=PASS");
+    }
+
     public static async Task RunAsync()
     {
         var connectionString = RequireIsolatedConnection();
@@ -199,6 +431,7 @@ internal static class PostgreSqlClaimTransactionContract
         var token = Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TOKEN")!;
         Fixture approved;
         Fixture rollback;
+        CompetingFixturePair competing;
 
         await using (var db = new DirectoryDb(options))
         {
@@ -216,11 +449,16 @@ internal static class PostgreSqlClaimTransactionContract
             db.Users.AddRange(
                 new IdentityUser { Id = "qa-reviewer-" + token, UserName = "qa-reviewer" },
                 new IdentityUser { Id = "qa-applicant-a-" + token, UserName = "qa-applicant-a" },
-                new IdentityUser { Id = "qa-applicant-b-" + token, UserName = "qa-applicant-b" });
+                new IdentityUser { Id = "qa-applicant-b-" + token, UserName = "qa-applicant-b" },
+                new IdentityUser { Id = "qa-applicant-c-" + token, UserName = "qa-applicant-c" },
+                new IdentityUser { Id = "qa-applicant-d-" + token, UserName = "qa-applicant-d" });
             await db.SaveChangesAsync();
 
             approved = await SeedAsync(db, "approved-" + token, "qa-applicant-a-" + token);
             rollback = await SeedAsync(db, "rollback-" + token, "qa-applicant-b-" + token);
+            competing = await SeedCompetingAsync(
+                db, "parallel-" + token,
+                "qa-applicant-c-" + token, "qa-applicant-d-" + token);
         }
 
         await using (var db = new DirectoryDb(options))
@@ -301,8 +539,10 @@ internal static class PostgreSqlClaimTransactionContract
                 "F2A3_PG_APP_TX_OUTER_ROLLBACK_ALL_ROWS");
         }
 
+        await RunCompetingWritersAsync(options, competing);
+
         Console.WriteLine("F2A3_PG_APP_TX_PROVIDER=NPGSQL_REAL_POSTGRESQL");
-        Console.WriteLine("F2A3_PG_REVIEWER_HTTP=NOT_TESTED");
-        Console.WriteLine("F2A3_PG_PARALLEL_WRITERS=NOT_TESTED");
+        Console.WriteLine("F2A3_PG_REVIEWER_HTTP=NOT_TESTED_IN_TRANSACTION_MODE");
+        Console.WriteLine("F2A3_PG_PARALLEL_WRITERS=PASS_DISPOSABLE_ONLY");
     }
 }
