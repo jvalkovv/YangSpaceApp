@@ -63,3 +63,19 @@ Current acceptance remains:
 - Disposable historic SQLite upgrade: NOT STARTED.
 - Fault injection/restore recovery: NOT STARTED.
 - CT164/production: NOT ACCESSED.
+
+## 2026-11-14 — S2 null-safe changeset gate and resumable artifact copy
+
+The operator rerun at source `132faba89f26c98f60224ff191c094479661ae8b` passed the S1 manifest gate, then failed with a strict-mode missing `Count` property. Source inspection identifies the failing expression: `(Compare-Object ...).Count`. When the expected and actual changesets are identical, `Compare-Object` emits no objects (null), so strict mode rejects the property access. This occurs after the runner has copied the three generated S1 artifacts and before it creates the S2 evidence directory or starts .NET restore/build.
+
+The runner now:
+- wraps every `Compare-Object` result in an array before checking `.Count`;
+- accepts either a clean test worktree or exactly the three expected generated artifact changes;
+- re-hashes any already-present destination artifact against the S1 source before proceeding, and copies only missing artifacts;
+- still rejects any additional or altered worktree changes.
+
+This makes the operator rerun safe if the previous attempt already copied the generated migration/designer/snapshot. No S1 source artifacts are modified. No database was opened by the failed attempt.
+
+**Next exact S2 runner source:** `33d9843ae689c1ef643a340e85e6e1c665b2f0b4`.
+
+Acceptance remains HOLD until the runner passes generated-artifact verification, .NET restore/build, disposable SQLite upgrade, and all fault-injection/restore-recovery cases. CT164/production remain untouched.
