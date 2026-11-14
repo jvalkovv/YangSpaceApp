@@ -532,19 +532,35 @@ internal static class F2aOrganizationClaimUpgrade
             ConnectionString(path, SqliteOpenMode.ReadWrite));
         await connection.OpenAsync();
 
-        var hasOrganizationId = await HasColumnAsync(connection, "Locations", "OrganizationId");
-        var hasRevision = await HasColumnAsync(connection, "Locations", "Revision");
+        var locationColumns = await ReadColumnsAsync(connection, "Locations");
+        var hasOrganizationId = locationColumns.Contains("OrganizationId");
+        var hasRevision = locationColumns.Contains("Revision");
+        var hasOrganizationsTable = await HasTableAsync(connection, "Organizations");
+        var hasTempTable = await HasTableAsync(connection, "ef_temp_Locations");
+        var f2aHistoryCount = await ScalarLongAsync(connection,
+            "SELECT COUNT(*) FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\"=$id;",
+            ("$id", F2a));
+
+        // Emit the observed interrupted schema before assertions so a failed
+        // boundary test is diagnosable from the retained operator stdout log.
+        Console.WriteLine(label + "_OBSERVED_LOCATION_COLUMNS=" +
+            string.Join(",", locationColumns.OrderBy(column => column, StringComparer.Ordinal)));
+        Console.WriteLine(label + "_OBSERVED_ORGANIZATION_ID=" + hasOrganizationId);
+        Console.WriteLine(label + "_OBSERVED_REVISION=" + hasRevision);
+        Console.WriteLine(label + "_OBSERVED_ORGANIZATIONS_TABLE=" + hasOrganizationsTable);
+        Console.WriteLine(label + "_OBSERVED_TEMP_TABLE=" + hasTempTable);
+        Console.WriteLine(label + "_OBSERVED_F2A_HISTORY_COUNT=" + f2aHistoryCount);
+
         Check(hasOrganizationId == expectLocationColumns,
             label + "_ORGANIZATION_COLUMN_STATE");
         Check(hasRevision == expectLocationColumns,
             label + "_REVISION_COLUMN_STATE");
-        Check(await HasTableAsync(connection, "Organizations"),
+        Check(hasOrganizationsTable,
             label + "_F2A_TABLE_EXISTS");
-        Check(await HasTableAsync(connection, "ef_temp_Locations") == expectTempTable,
+        Check(hasTempTable == expectTempTable,
             label + "_TEMP_TABLE_STATE");
-        Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\"=$id;",
-            ("$id", F2a)) == 0, label + "_HISTORY_NOT_ADVANCED");
+        Check(f2aHistoryCount == 0,
+            label + "_HISTORY_NOT_ADVANCED");
 
         var locationSql = expectLocationColumns
             ? """
