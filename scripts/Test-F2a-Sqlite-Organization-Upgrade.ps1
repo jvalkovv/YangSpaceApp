@@ -68,10 +68,10 @@ $manifestText = $manifestText.TrimStart([char]0xFEFF).Replace([string][char]0, '
 $manifestNormalized = [regex]::Replace($manifestText, '\\s+', ' ')
 
 $requiredEntries = [string[]]@(
-    ("SOURCE_SHA={0}" -f $ExpectedS1Sha)
-    'F2A_SQLITE_BASELINE_SCAFFOLD=PASS'
-    'F2A_SQLITE_GENERATED_FILES=UNCOMMITTED'
-    'DISPOSABLE_UPGRADE=NOT_RUN'
+    ("SOURCE_SHA={0}" -f $ExpectedS1Sha),
+    'F2A_SQLITE_BASELINE_SCAFFOLD=PASS',
+    'F2A_SQLITE_GENERATED_FILES=UNCOMMITTED',
+    'DISPOSABLE_UPGRADE=NOT_RUN',
     'RELEASE_GATE=HOLD'
 )
 foreach ($entry in $requiredEntries) {
