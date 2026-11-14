@@ -61,7 +61,7 @@ $ExpectedTables=@('Organizations','BusinessClaims','ContentAuditEvents',
 Check ($Names.Count -eq 5 -and
     @(Compare-Object -ReferenceObject ($Names | Sort-Object) -DifferenceObject ($ExpectedTables | Sort-Object)).Count -eq 0) 'F2A_ONLY_CREATE_TABLE_SCOPE'
 Check ($Sql -notmatch 'IdentityEmailOutbox') 'NO_OUTBOX_TABLE'
-Check ($Sql -match '(?im)^\s*INSERT\s+INTO\s+"ef_temp_Locations"\b' -and
+Check ($Sql -match '(?im)^\s*INSERT\s+INTO\s+"ef_temp_Locations"(?=\s*\()' -and
     $Sql -match '(?im)^\s*DROP\s+TABLE\s+"Locations"\s*;' -and
     $Sql -match '(?im)^\s*ALTER\s+TABLE\s+"ef_temp_Locations"\s+RENAME\s+TO\s+"Locations"') 'LOCATIONS_REBUILD_PATTERN_REVIEWABLE'
 $SumPath=Join-Path $Directory 'SHA256SUMS.txt'

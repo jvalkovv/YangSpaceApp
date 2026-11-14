@@ -86,7 +86,7 @@ try {
     }
     if ($Sql -match '(?i)IdentityEmailOutbox') { throw 'F2A_S1_OUTBOX_LEAKED_INTO_BASELINE' }
     if (@([regex]::Matches($Sql,'(?im)^\s*DROP\s+TABLE\s+"Locations"\s*;')).Count -ne 1 -or
-        $Sql -notmatch '(?im)^\s*INSERT\s+INTO\s+"ef_temp_Locations"\b' -or
+        $Sql -notmatch '(?im)^\s*INSERT\s+INTO\s+"ef_temp_Locations"(?=\s*\()' -or
         $Sql -notmatch '(?im)^\s*ALTER\s+TABLE\s+"ef_temp_Locations"\s+RENAME\s+TO\s+"Locations"') {
         throw 'F2A_S1_LOCATIONS_REBUILD_NOT_REVIEWABLE'
     }
