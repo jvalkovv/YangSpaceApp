@@ -47,3 +47,7 @@
 ## Evidence policy
 
 For each P0 fix: issue/PR link, commit SHA, test command, sanitized output, affected endpoint list, threat model note. Security findings are based on repository code; live exploitability must be assessed in an isolated test environment.
+
+## Legacy isolation (YangSpace 2.0)
+
+The insecure .NET 8/Angular 18 implementation is preserved in Git history and `archive/yangspace-v1-2024`. It is not compiled or deployed by the v2 CI/runtime. Existing credentials in history remain an incident/rotation consideration if ever reused. The new `apps/` implementation is PREVIEW ONLY and requires independent verification before production.

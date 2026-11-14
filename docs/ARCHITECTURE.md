@@ -59,7 +59,7 @@ These are **proposed contracts**, not implemented endpoints.
 
 ## Не използваме
 
-Azure hosting/deploy, Windows IIS, Jenkins, Kubernetes или Docker като production зависимост. GitHub остава source control и CI; PVE LXC е целевият runtime.
+Azure hosting/deploy, Windows IIS, Jenkins, Kubernetes или Docker като production зависимост. GitHub остава само source control и PR; operator-run exact-SHA QA с локални logs замества CI. PVE LXC е целевият runtime. GitHub Actions не се използват.
 
 ## Legacy migration principle
 

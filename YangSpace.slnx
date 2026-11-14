@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="apps/api/YangSpace.Api.csproj" />
+  <Project Path="apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj" />
+</Solution>

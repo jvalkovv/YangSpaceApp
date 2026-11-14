@@ -1,0 +1,76 @@
+<section class="panel pub-panel" *ngIf="token && locationId">
+  <div class="pub-heading">
+    <div>
+      <span class="kicker">ПУБЛИКАЦИИ</span>
+      <h2>Съдържание на избрания обект</h2>
+      <p class="admin-help">Архивирането запазва данните. Изтеклите публикации изискват нов срок преди възстановяване.</p>
+    </div>
+    <button type="button" class="btn btn-outline" [disabled]="loading || busy" (click)="reload()">Обнови</button>
+  </div>
+  <p *ngIf="loading" role="status" class="admin-help">Зареждане на публикациите…</p>
+
+  <div *ngIf="!loading" class="pub-groups">
+    <section aria-labelledby="pub-offers-heading">
+      <h3 id="pub-offers-heading">Оферти ({{content.offers.length}})</h3>
+      <p class="pub-empty" *ngIf="!content.offers.length">Няма създадени оферти.</p>
+      <div class="pub-row" *ngFor="let item of content.offers; trackBy: trackItem">
+        <div><strong>{{item.title}}</strong>
+          <small>{{item.startsAtUtc | date:'dd.MM.yyyy HH:mm'}} – {{item.endsAtUtc | date:'dd.MM.yyyy HH:mm'}}</small>
+          <span class="pub-state" [class.pub-state-muted]="!item.isPublished || expired('offers',item)">{{state('offers',item)}}</span>
+        </div>
+        <div class="pub-row-actions">
+          <button type="button" class="text-button" [disabled]="busy" (click)="begin('offers',item)">Редактирай</button>
+          <button type="button" class="text-button" *ngIf="item.isPublished" [disabled]="busy" (click)="changeVisibility('offers',item,'hide')">Архивирай</button>
+          <button type="button" class="text-button" *ngIf="!item.isPublished" [disabled]="busy || expired('offers',item)" (click)="changeVisibility('offers',item,'restore')">Възстанови</button>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="pub-brochures-heading">
+      <h3 id="pub-brochures-heading">Брошури ({{content.brochures.length}})</h3>
+      <p class="pub-empty" *ngIf="!content.brochures.length">Няма създадени брошури.</p>
+      <div class="pub-row" *ngFor="let item of content.brochures; trackBy: trackItem">
+        <div><strong>{{item.title}}</strong><small>{{item.validToUtc | date:'dd.MM.yyyy HH:mm'}} · {{item.url}}</small>
+          <span class="pub-state" [class.pub-state-muted]="!item.isPublished || expired('brochures',item)">{{state('brochures',item)}}</span>
+        </div>
+        <div class="pub-row-actions">
+          <button type="button" class="text-button" [disabled]="busy" (click)="begin('brochures',item)">Редактирай</button>
+          <button type="button" class="text-button" *ngIf="item.isPublished" [disabled]="busy" (click)="changeVisibility('brochures',item,'hide')">Архивирай</button>
+          <button type="button" class="text-button" *ngIf="!item.isPublished" [disabled]="busy || expired('brochures',item)" (click)="changeVisibility('brochures',item,'restore')">Възстанови</button>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="pub-jobs-heading">
+      <h3 id="pub-jobs-heading">Работни позиции ({{content.jobs.length}})</h3>
+      <p class="pub-empty" *ngIf="!content.jobs.length">Няма създадени обяви.</p>
+      <div class="pub-row" *ngFor="let item of content.jobs; trackBy: trackItem">
+        <div><strong>{{item.title}}</strong><small>До {{item.expiresAtUtc | date:'dd.MM.yyyy HH:mm'}}</small>
+          <span class="pub-state" [class.pub-state-muted]="!item.isPublished || expired('jobs',item)">{{state('jobs',item)}}</span>
+        </div>
+        <div class="pub-row-actions">
+          <button type="button" class="text-button" [disabled]="busy" (click)="begin('jobs',item)">Редактирай</button>
+          <button type="button" class="text-button" *ngIf="item.isPublished" [disabled]="busy" (click)="changeVisibility('jobs',item,'hide')">Архивирай</button>
+          <button type="button" class="text-button" *ngIf="!item.isPublished" [disabled]="busy || expired('jobs',item)" (click)="changeVisibility('jobs',item,'restore')">Възстанови</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="pub-editor" *ngIf="editKind" aria-label="Редактиране на публикация">
+    <div class="pub-heading">
+      <h3>Редакция на {{kindLabel(editKind)}}</h3>
+      <button type="button" class="btn btn-outline" [disabled]="busy" (click)="cancel()">Откажи</button>
+    </div>
+    <div class="pub-edit-fields">
+      <label>Заглавие <input [(ngModel)]="editTitle" maxlength="120" /></label>
+      <label *ngIf="editKind !== 'brochures'">Описание <textarea [(ngModel)]="editDescription" maxlength="2000" rows="3"></textarea></label>
+      <label *ngIf="editKind !== 'offers'">HTTPS URL <input type="url" [(ngModel)]="editUrl" /></label>
+      <label *ngIf="editKind !== 'jobs'">Начало <input type="datetime-local" [(ngModel)]="editFrom" /></label>
+      <label>Краен срок <input type="datetime-local" [(ngModel)]="editTo" /></label>
+    </div>
+    <label class="checkline"><input type="checkbox" [(ngModel)]="editPublished" /> Публикувана</label>
+    <button type="button" class="btn btn-primary" [disabled]="busy" (click)="save()">Запази публикацията</button>
+  </section>
+  <div class="pub-feedback" *ngIf="message" [attr.role]="isError ? 'alert' : 'status'" aria-live="polite" [class.pub-feedback-error]="isError">{{message}}</div>
+</section>

@@ -6,7 +6,7 @@
 - **Runtime:** отделен Linux LXC за YangSpace 2.0 (Debian 13 или Ubuntu 24.04 LTS след compatibility review).
 - **Services:** Nginx (reverse proxy/TLS), ASP.NET Core API под systemd, Angular SSR/статичен frontend според окончателната реализация, DB и background worker.
 - **Без:** Azure, Windows IIS, Jenkins, Kubernetes, Docker за production.
-- **GitHub:** source/PR/CI; deployment — контролирана отделна операция, не автоматично при push.
+- **GitHub:** source/PR; **без GitHub Actions**. QA е локална, с exact SHA logs; deployment — отделна контролирана операция.
 
 ## LXC topology за MVP
 
@@ -23,14 +23,14 @@
 - Unprivileged LXC ако dependency compatibility позволява; минимални capabilities и достъп.
 - Непривилегировани systemd service accounts с ограничени директории.
 - Firewall: само необходимите inbound HTTPS/SSH management routes; DB/worker не са публични.
-- Secrets в protected host-local files или секретен store, с permission management и rotation; никога в Git/CI logs.
+- Secrets в protected host-local files или секретен store, с permission management и rotation; никога в Git/QA logs.
 - Upload quarantine, type/size validation, antivirus/scanning where feasible, separate storage.
 - Automatic security patch policy, pinned application dependencies, audit log и rate limits.
 - Non-production test environment отделно от live данни, без копия на чувствителни данни.
 
 ## Release procedure (план, НЕ изпълнени команди)
 
-1. Проверка на review/CI/build artifacts и точен commit SHA.
+1. Проверка на source review, ръчните source/API PASS manifests и точен commit SHA.
 2. Consistent database backup + media snapshot и off-site copy; verify успешност.
 3. Maintenance gate при breaking DB change; review of migrations и forward/backward compatibility.
 4. Release to versioned directory; config stays outside build output.
