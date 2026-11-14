@@ -91,7 +91,7 @@ Operator run at exact test source `ce7dd1c9f998a5fc5f4c1aea57c04789c76d3873` est
 - Four F2a tables, Location/Organization relationships, indexes, SQLite integrity and FK checks: PASS.
 - No Outbox table: PASS.
 
-The first injected failure was correctly triggered before the SQLite `PRAGMA foreign_keys = 0` command. The test then failed its own expectation that Location's new `OrganizationId` and `Revision` columns were still absent. The failure marker proves the migration has already executed preceding DDL before the FK-driven SQLite table rebuild. The new columns are introduced before the FK-off/rebuild segment; at this interruption boundary they should already exist with the legacy Location row retained, `OrganizationId IS NULL`, and `Revision=0`. The temporary rebuild table should not yet exist.
+The first injected failure was correctly triggered before the SQLite `PRAGMA foreign_keys = 0` command. The test then failed its own expectation that Location's new `OrganizationId` and `Revision` columns were still absent. The failure marker proves the migration has already executed preceding DDL before the FK-driven SQLite table rebuild. The new columns are introduced before the FK-off/rebuild segment; at this interruption boundary they already exist with the legacy Location row retained, `OrganizationId IS NULL`, and `Revision=0`. The operator's next run at `3aeedb0730470e9394b36b92ef632916149ca88f` observed that `ef_temp_Locations` also already exists before the intercepted `PRAGMA foreign_keys = 0` command. The first fault boundary therefore expects the temporary table to exist while the original `Locations` table and its row remain intact. This is an observed command-order fact, not an inferred EF convention.
 
 Corrected only the first fault-boundary expected state to require those two columns. The second boundary (before FK re-enable, after the rebuild) and third boundary (before EF migration-history insert) remain unchanged. This is a **test expectation correction**, not a migration/schema change.
 
@@ -100,3 +100,20 @@ Corrected only the first fault-boundary expected state to require those two colu
 S2 acceptance remains HOLD. The three fault-injection recovery scenarios must all pass on the updated exact source and the full evidence must be reviewed. The successful disposable upgrade does not authorize production apply. CT164/production were not accessed.
 
 The interrupted-state assertion now emits the observed `Locations` column set, the individual `OrganizationId`/`Revision` states, Organizations/temp-table presence, and F2a history count before evaluating expectations. These diagnostics are retained in the operator stdout evidence if a later boundary still disagrees with the generated SQL.
+
+## 2026-11-14 — S2 first fault boundary: temp table creation precedes FK-off interception
+
+Operator rerun at exact source `3aeedb0730470e9394b36b92ef632916149ca88f` again passed S1 manifest/artifact hash gates, .NET restore/build, the successful disposable historic upgrade, data preservation, Identity preservation, F2a relationships, integrity/FK checks and no-Outbox assertions.
+
+The first injected failure was triggered before execution of `PRAGMA foreign_keys = 0`. New diagnostics observed:
+- `OrganizationId=True`
+- `Revision=True`
+- `Organizations=True`
+- `ef_temp_Locations=True`
+- F2a migration-history row count = 0
+
+The failure was the test expecting `ef_temp_Locations` to be absent. The actual runtime command order has already created that temporary rebuild table before the intercepted FK-off command. The first boundary now expects the temp table to exist, while the original `Locations` table/row remain present and the F2a migration history remains unadvanced. No migration SQL, model or generated artifact was changed.
+
+**Next exact S2 test source:** `69bb5a6a34215ff2200a69f76183aeb8bce73bb3`.
+
+Acceptance remains HOLD. The next run must pass the first interrupted-state checks, verify backup restore, then exercise the later post-rebuild and pre-history fault boundaries. CT164/production remain untouched.
