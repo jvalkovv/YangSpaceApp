@@ -46,3 +46,20 @@ Operator invocation (run in the exact test branch worktree, with the original S1
 ```
 
 Acceptance requires all runner markers and a reviewed evidence manifest. No HTTP listener, CT164, PVE, production connection string, deployment or GitHub Actions are used. PR remains Draft/HOLD until the operator result is reviewed and the generated migration artifacts are committed with their verified hashes.
+
+## 2026-11-14 — S2 generated-artifact preflight correction
+
+Operator rerun at test source `66e654810b8eced7482f01a0c4e46f27f5adbc63` passed PowerShell syntax and the S1 manifest gate, then stopped before artifact copy, restore/build or SQLite execution. The error printed all three expected generated paths as one value. Root cause: ambiguous PowerShell array construction combined string concatenation (`+`) with comma-separated entries in both `$expectedFiles` and the later `$expectedStatus` exact-change-set list.
+
+Both lists now use explicit `[string[]]` declarations and scalar format-string elements. The expected file list also has a three-entry/scalar guard. The S1 source worktree and its uncommitted generated artifacts were not modified.
+
+**Next exact S2 runner source:** `507645cbf2e8dcea4095b1ac5058f27c19356ee9`.
+
+Current acceptance remains:
+- S1 manifest verification: PASS.
+- S2 PowerShell syntax: PASS on prior runner revision; rerun required on updated SHA.
+- S2 generated artifact copy/hash verification: PENDING.
+- .NET restore/build: NOT STARTED.
+- Disposable historic SQLite upgrade: NOT STARTED.
+- Fault injection/restore recovery: NOT STARTED.
+- CT164/production: NOT ACCESSED.
