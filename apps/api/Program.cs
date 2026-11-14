@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using YangSpace.Api;
 
 // Explicit offline enrollment cannot be triggered by an HTTP request, nor
@@ -13,6 +15,28 @@ var builder = WebApplication.CreateBuilder(offlineProvision ? Array.Empty<string
 var preview = builder.Configuration.GetValue<bool>("Preview:Enabled");
 var allowPreviewRegistration = builder.Configuration.GetValue<bool>("Preview:AllowRegistration");
 var productionAdmin = builder.Configuration.GetValue<bool>("Admin:Enabled");
+var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
+var claimReviewQa = builder.Configuration.GetValue<bool>("ClaimReview:QaEnabled");
+var claimReviewPostgreSqlQa = builder.Configuration.GetValue<bool>("ClaimReviewPostgreSqlQa:Enabled");
+// F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
+// It is impossible to enable accidentally in Development, Preview, or Production.
+if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
+                     !builder.Environment.IsEnvironment("YangSpaceQa")))
+    throw new InvalidOperationException(
+        "Merchant read QA endpoints require explicit YangSpaceQa environment with Preview/Admin/Registration disabled.");
+// Reviewer identity QA is a separate, read-only probe and cannot coexist with other QA surfaces.
+if (claimReviewQa && (preview || productionAdmin || allowPreviewRegistration || merchantRead ||
+                      !builder.Environment.IsEnvironment("YangSpaceQa")))
+    throw new InvalidOperationException(
+        "Claim review QA endpoints require explicit YangSpaceQa environment with Preview/Admin/Registration/MerchantRead disabled.");
+// PostgreSQL reviewer HTTP is a distinct opt-in QA surface. It never relaxes
+// the existing SQLite-only reviewer QA contract and cannot coexist with any
+// other preview/admin/merchant/SQLite-reviewer QA surface.
+if (claimReviewPostgreSqlQa && (preview || productionAdmin || allowPreviewRegistration ||
+                                merchantRead || claimReviewQa ||
+                                !builder.Environment.IsEnvironment("YangSpaceQa")))
+    throw new InvalidOperationException(
+        "Claim review PostgreSQL QA endpoints require explicit YangSpaceQa with Preview/Admin/Registration/MerchantRead/SQLite reviewer QA disabled.");
 // Never enable the CMS implicitly from a DNS record or a general Production deployment.
 if (productionAdmin && (preview || !builder.Environment.IsProduction()))
     throw new InvalidOperationException("Production CMS requires Production environment and Preview:Enabled=false.");
@@ -37,17 +61,109 @@ if (preview && builder.Environment.IsProduction())
 var connection = builder.Configuration.GetConnectionString("Main");
 if (string.IsNullOrWhiteSpace(connection))
     throw new InvalidOperationException("ConnectionStrings:Main must be supplied from environment or protected config.");
+// The PostgreSQL reviewer HTTP QA surface is only valid inside the disposable
+// container network namespace created by its exact-SHA operator runner.
+if (claimReviewPostgreSqlQa)
+{
+    if (Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_DISPOSABLE_ONLY") !=
+            "CONFIRMED_CONTAINER_NETNS_ONLY" ||
+        Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TESTSERVER_ONLY") !=
+            "CONFIRMED_WEBAPPLICATIONFACTORY_ONLY" ||
+        !Guid.TryParseExact(
+            Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TOKEN"), "N", out _))
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require explicit disposable-container and WebApplicationFactory TestServer scopes.");
 
-// SQLite foreign-key enforcement is connection-scoped. Normalize the
-// connection string once so every EF connection enables PRAGMA foreign_keys
-// before it can execute application SQL.
-var runtimeConnection = SqliteRuntimePolicy.EnableForeignKeys(connection);
+    NpgsqlConnectionStringBuilder scoped;
+    try
+    {
+        scoped = new NpgsqlConnectionStringBuilder(connection);
+    }
+    catch (ArgumentException)
+    {
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require a valid disposable PostgreSQL connection.");
+    }
 
-// Production reads and CMS writes BOTH require the same migration-managed,
-// pre-existing external DB. No accidental SQLite creation for public GETs.
-if (builder.Environment.IsProduction())
-    ProductionSqlitePolicy.RequirePreparedDatabase(runtimeConnection, builder.Environment.ContentRootPath);
-builder.Services.AddDbContext<DirectoryDb>(options => options.UseSqlite(runtimeConnection));
+    var scopedConnection = Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_CONNECTION");
+    if (string.IsNullOrWhiteSpace(scopedConnection) ||
+        !string.Equals(connection, scopedConnection, StringComparison.Ordinal))
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require an exact scoped connection match.");
+
+    if (scoped.Host != "127.0.0.1" ||
+        scoped.Port != 5432 ||
+        scoped.Database != "yangspace_f2a3_disposable" ||
+        scoped.Username != "postgres" ||
+        scoped.SslMode != SslMode.Disable ||
+        !string.IsNullOrEmpty(scoped.Password) ||
+        scoped.Pooling ||
+        scoped.IncludeErrorDetail)
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints refuse non-disposable PostgreSQL connection settings.");
+}
+
+// Provider choice is explicit in appsettings/configuration. Preview always
+// stays on SQLite; PostgreSQL is a separate target with its own migrations assembly.
+var databaseProvider = builder.Configuration["Database:Provider"];
+if (string.IsNullOrWhiteSpace(databaseProvider))
+    throw new InvalidOperationException("Database:Provider must explicitly select SQLite or PostgreSQL.");
+// QA-only: an isolated SQLite model created by the test harness; no production
+// PostgreSQL role or database is implicitly approved through this feature.
+if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Merchant read QA endpoints require isolated SQLite persistence.");
+if (claimReviewQa && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Claim review QA endpoints require isolated SQLite persistence.");
+if (claimReviewPostgreSqlQa && !string.Equals(databaseProvider, "PostgreSQL", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Claim review PostgreSQL QA endpoints require PostgreSQL persistence.");
+
+// Do not expose even the QA probe unless the database itself proves possession
+// of this runner's one-time sentinel. This check is PostgreSQL-QA-only.
+if (claimReviewPostgreSqlQa)
+{
+    await using var qaConnection = new NpgsqlConnection(connection);
+    await qaConnection.OpenAsync();
+    await using var sentinelCommand = qaConnection.CreateCommand();
+    sentinelCommand.CommandText =
+        "SELECT scope_token FROM yangspace_f2a3_qa_guard LIMIT 1";
+    var actualToken = (string?)await sentinelCommand.ExecuteScalarAsync();
+    var expectedToken = Environment.GetEnvironmentVariable("YANGSPACE_F2A3_PG_TOKEN");
+    if (actualToken is null ||
+        !string.Equals(actualToken, expectedToken, StringComparison.Ordinal))
+        throw new InvalidOperationException(
+            "Claim review PostgreSQL QA endpoints require a matching disposable PostgreSQL sentinel.");
+}
+
+if (preview && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Preview mode is permanently pinned to its isolated SQLite provider.");
+
+switch (databaseProvider.Trim().ToLowerInvariant())
+{
+    case "sqlite":
+    {
+        var runtimeConnection = SqliteRuntimePolicy.EnableForeignKeys(connection);
+        if (builder.Environment.IsProduction())
+            ProductionSqlitePolicy.RequirePreparedDatabase(runtimeConnection, builder.Environment.ContentRootPath);
+
+        builder.Services.AddDbContext<DirectoryDb>(options =>
+            options.UseSqlite(runtimeConnection,
+                sqlite => sqlite.MigrationsAssembly("YangSpace.Api")));
+        break;
+    }
+    case "postgresql":
+    {
+        if (builder.Environment.IsProduction())
+            ProductionPostgreSqlPolicy.RequirePreparedConnection(connection);
+
+        builder.Services.AddDbContext<DirectoryDb>(options =>
+            options.UseNpgsql(connection,
+                postgres => postgres.MigrationsAssembly("YangSpace.PostgreSql.Migrations")));
+        break;
+    }
+    default:
+        throw new InvalidOperationException(
+            "Database:Provider must be exactly SQLite or PostgreSQL; implicit provider fallback is forbidden.");
+}
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;
@@ -58,13 +174,30 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>();
+builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
+builder.Services.AddScoped<ClaimReviewConflictPolicy>();
 
 // Only the Identity bearer scheme may authorize CMS writes. Identity's
 // default composite scheme also accepts cookies; that is not our CMS contract.
-builder.Services.AddAuthorization(options => options.AddPolicy("PlatformAdmin", policy =>
-    policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
-          .RequireAuthenticatedUser()
-          .RequireRole("PlatformAdmin")));
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("PlatformAdmin", policy =>
+        policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+              .RequireAuthenticatedUser()
+              .RequireRole("PlatformAdmin"));
+
+    // Never use Identity's composite bearer+cookie scheme for private tenant data.
+    // The per-request membership JOIN below is the source of tenant authority.
+    options.AddPolicy("MerchantBearerRead", policy =>
+        policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+              .RequireAuthenticatedUser());
+
+    // The persistent Identity role is checked per request; stale bearer role claims cannot survive revocation.
+    options.AddPolicy("MerchantClaimReviewer", policy =>
+        policy.AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+              .RequireAuthenticatedUser()
+              .AddRequirements(new LiveIdentityRoleRequirement(ClaimReviewRoles.Reviewer)));
+});
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -113,7 +246,7 @@ if (app.Environment.IsProduction())
     }
 }
 
-if (preview || productionAdmin)
+if (preview || productionAdmin || merchantRead || claimReviewQa || claimReviewPostgreSqlQa)
 {
     var auth = app.MapGroup("/api/auth").RequireRateLimiting("auth");
     auth.AddEndpointFilter(async (context, next) =>
@@ -139,6 +272,19 @@ if (preview || productionAdmin)
                 request.Query.ContainsKey("useSessionCookies"))
                 return Results.BadRequest(new { error = "Cookie authentication is disabled for the CMS." });
         }
+        else if (merchantRead || claimReviewQa || claimReviewPostgreSqlQa)
+        {
+            // For the isolated QA harness, enable only credential login and
+            // bearer refresh. All enrollment, recovery and account endpoints
+            // remain unmapped to callers via fail-closed endpoint filtering.
+            var supported = HttpMethods.IsPost(request.Method) &&
+                (string.Equals(path, "/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(path, "/api/auth/refresh", StringComparison.OrdinalIgnoreCase));
+            if (!supported) return Results.NotFound();
+            if (request.Query.ContainsKey("useCookies") ||
+                request.Query.ContainsKey("useSessionCookies"))
+                return Results.BadRequest(new { error = "Cookie authentication is disabled." });
+        }
         else if (HttpMethods.IsPost(request.Method) &&
                  string.Equals(path, "/api/auth/register", StringComparison.OrdinalIgnoreCase) &&
                  !allowPreviewRegistration)
@@ -149,9 +295,16 @@ if (preview || productionAdmin)
     });
     auth.MapIdentityApi<IdentityUser>();
 
-    // No change to the preview QA behavior. Production CMS requires BOTH
-    // PlatformAdmin identity and an internal-gateway request gate.
-    app.MapAdmin(gatewaySecret);
+    // Preserve existing preview/admin routing and its secure gateway boundary.
+    if (preview || productionAdmin)
+        app.MapAdmin(gatewaySecret);
 }
+if (merchantRead)
+    app.MapMerchantRead();
+if (claimReviewQa || claimReviewPostgreSqlQa)
+    app.MapClaimReviewQa();
 await PreviewBootstrap.Initialize(app);
 app.Run();
+
+// Exposes an entry point to the isolated WebApplicationFactory HTTP harness.
+public partial class Program { }
