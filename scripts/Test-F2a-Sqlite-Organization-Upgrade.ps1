@@ -36,7 +36,9 @@ if ((GitValue @('rev-parse','--verify',('refs/remotes/origin/' + $ExpectedTestBr
     throw 'F2A_S2_REMOTE_SHA_MISMATCH'
 }
 $activeBranch = GitValue @('branch','--show-current')
-if ($activeBranch -cne $ExpectedTestBranch) {
+# Detached exact-SHA worktrees are accepted; the fetched remote ref below
+# remains the authoritative branch identity and must equal CommitSha.
+if ($activeBranch -and $activeBranch -cne $ExpectedTestBranch) {
     throw 'F2A_S2_BRANCH_MISMATCH'
 }
 $initialStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all)
