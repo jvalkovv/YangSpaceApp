@@ -1,3 +1,21 @@
+## 2026-11-15 00:34 Europe/Sofia — F2a parent integrated runtime regression PASS; evidence review pending
+
+Operator completed the final integrated regression on exact parent source SHA `511a377a5d8436802fd17cc62c13f831c9b51832`, tree `58741d770eb4d5f3ceaa741e03811d3b8b317f7c`.
+
+**Three independent runtime gates PASS:**
+- Tenant scope: restore, Release build and isolated tenant-scope contract PASS. Evidence: `logs/yangspace/f2a-tenant-scope/511a377a5d84-20261115-001115-f235b864`.
+- PostgreSQL 17: EF tool/project restore, Release build, model diff, reviewed initial migration SQL, disposable container migration, constraints, sequential CAS, transaction rollback, synthetic dump/restore and restored-state verification PASS. Evidence: `logs/yangspace/pg-disposable/511a377a5d84-20261115-002151-53c5a86c`. Container cleanup PASS.
+- SQLite: historic baseline, Release build, successful migration, legacy Locations/Offers/Brochures/Jobs and Identity preservation, F2a relationships, integrity/FK checks, no-Outbox assertion, three fault injections and restore-only recovery 3/3 PASS. Evidence: `logs/yangspace/f2a-sqlite-parent-integrated/20261115-003349-ece87e11`.
+
+Combined bundle: `logs/yangspace/f2a-parent-integrated-bundle/20261115-003349-ece87e11`.
+Operator ZIP: `YangSpace-F2a-Parent-Integrated-20261115-003349-ece87e11.zip`. The console transcript supplied only a truncated archive SHA-256; the full digest and archive bytes have not yet been supplied for independent byte-level verification.
+
+**Acceptance boundary:** this is a successful isolated runtime regression, not production/release approval. The operator evidence ZIP must be uploaded and independently checked for archive integrity, manifest identity, SHA256SUMS, runner receipts, stdout/stderr, required markers and absence of failure gates. No CT164/production DB, PVE deployment or HTTP listener was accessed. Real PostgreSQL Bearer HTTP and real application-layer parallel writers remain NOT TESTED. Claim decision mutation and real evidence processing remain gated separately by the existing legal/privacy requirements.
+
+**GitHub state at this checkpoint:** PR #17 remains OPEN / Draft / mergeable-clean at the tested SHA; issue #38 remains OPEN until the independent evidence review completes. Open PR inventory: #17, #29, #37 and #1 (four total). PR #29 is currently mergeable-state DIRTY against its older F2a base; #37 is stacked on #29 and must be reconciled only after parent acceptance. PR #1 remains the V2 foundation Draft.
+
+**Next:** upload the exact operator ZIP for independent verification. Keep PR #17 Draft/HOLD and issue #38 open until the archive review and remaining acceptance boundaries are explicitly resolved. No GitHub Actions.
+
 ## 2026-11-14 — F2a-S SQLite baseline merged into F2a parent
 
 - Child [PR #39](https://github.com/jvalkovv/YangSpaceApp/pull/39) is **MERGED/CLOSED** into this F2a feature branch by squash commit `da31427d47bc86994f4e3e800900101383ec81d1`; it was not merged to V2 `main` or deployed.
