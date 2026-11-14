@@ -1,3 +1,38 @@
+## 2026-11-15 00:49 Europe/Sofia — F2a-S3 integrated parent evidence review ACCEPTED
+
+Independent review completed for operator archive `YangSpace-F2a-Parent-Integrated-20261115-003349-ece87e11.zip`.
+
+**Archive integrity and identity**
+- ZIP integrity test: PASS; 72 entries; 82,901 bytes uncompressed.
+- Archive SHA-256: `363AEA8BAA7BE3633A26F6D8DB182CFA6C3D12418820EA28E6C77773CC92F9DF`.
+- All 71 entries in `SHA256SUMS.txt` were independently re-hashed: **71/71 PASS**, zero mismatch/missing/malformed.
+- Root manifest identifies exact tested source `511a377a5d8436802fd17cc62c13f831c9b51832`, tree `58741d770eb4d5f3ceaa741e03811d3b8b317f7c`.
+- 22 runner/stdout/stderr triplets are present; all 22 stderr files are empty; no `gate.txt` is present. Eight empty PostgreSQL stdout logs are expected for copy/dump/restore operations or EF SQL redirected to the reviewed SQL file.
+
+**Tenant scope**
+- Exact-SHA tenant manifest PASS; restore/build PASS (Release build 0 warnings/0 errors).
+- All 18 tenant contract markers present, including cross-tenant denial, revoked membership, suspended org, legacy unclaimed location, no implicit PlatformAdmin ownership and stale revision denial.
+- Evidence: `tenant/` in the reviewed archive.
+
+**PostgreSQL 17 disposable migration**
+- Exact-SHA PostgreSQL runner source reviewed: it requires exact HEAD, matching origin tip, clean worktree, local Docker endpoint, no network, no published ports and no bind mounts; PostgreSQL data is on tmpfs.
+- Reviewed generated SQL SHA-256 matches the runner's pinned expected value and PG manifest: `2c6175976c82463eea5d40a3082528b8d72e1505f8803188a3c4473129bb7ee7`.
+- Static SQL inspection: 15 mapped tables + EF history, 17 foreign keys, 24 indexes; no DROP/TRUNCATE/DELETE statements. Approved/Pending partial unique indexes are present.
+- Constraints script from the exact tested commit validates schema counts, competing pending claims, duplicate rejection, single approved claim, FK rejection, reapplication after withdrawal, sequential revision CAS and audit rollback; all required markers appear in stdout.
+- Synthetic backup has PostgreSQL custom-dump `PGDMP` header; SHA-256 matches manifest: `221ffd3fa0afa8a43b74c7badce069b7770c56bf72355e34546c644ae003187f`. Restore verification checks schema, EF history, Identity users, orgs, locations/revision, claim states, audit and unique indexes. Restore marker PASS.
+- PG manifest explicitly retains REAL_BEARER, PARALLEL_WRITERS and APP_ROLE_LEAST_PRIVILEGE as NOT_TESTED.
+
+**Historic SQLite upgrade and recovery**
+- Release build PASS (0 warnings/0 errors); all required historic baseline, Location fields, Offers/Brochures/Jobs, Identity users/roles/dependencies, new F2a relationships, migration history, SQLite integrity/FK and no-Outbox markers present.
+- Three distinct injected migration interruption boundaries PASS; each recovery uses the verified pre-upgrade backup (restore-only, no blind retry). All three recovery markers PASS.
+- SQLite stage command/stdout/stderr triplets and complete runtime output are present. The root bundle manifest binds the integrated run to the exact parent SHA above.
+
+**S3 decision: ACCEPTED.** The evidence package is internally consistent and supports the required disposable-only F2a-S3 acceptance. The operator's root manifest was intentionally written with `RELEASE_GATE=HOLD_PENDING_EVIDENCE_REVIEW`; this review records that evidence gate as accepted without altering the immutable archive.
+
+**Scope boundary remains unchanged:** no production DB/CT164 access, HTTP listener or PVE deployment. This does NOT test PostgreSQL-backed Identity Bearer HTTP, true concurrent application-layer EF writers, runtime app-role least privilege, off-host DR, real claim decision endpoints or real evidence processing. Those remain separate parent/F2b/legal gates. PR #17 remains OPEN / Draft / HOLD.
+
+Issue [#38](https://github.com/jvalkovv/YangSpaceApp/issues/38) — F2a SQLite baseline repair — is complete and may be closed. F2b O2/O3/O4 and PR #29/#37 reconciliation remain follow-on work; no Outbox work is accepted by this review.
+
 ## 2026-11-15 00:34 Europe/Sofia — F2a parent integrated runtime regression PASS; evidence review pending
 
 Operator completed the final integrated regression on exact parent source SHA `511a377a5d8436802fd17cc62c13f831c9b51832`, tree `58741d770eb4d5f3ceaa741e03811d3b8b317f7c`.
