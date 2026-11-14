@@ -318,14 +318,14 @@ internal static class F2aOrganizationClaimUpgrade
             prefix + "_LOCATION_DATA");
 
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"Title\"='Legacy offer' AND \"Description\"='Offer description' AND \"StartsAtUtc\"='2026-11-14T00:00:00.0000000Z' AND \"EndsAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
-            ("$id", GuidText(ids.Offer))) == 1, prefix + "_OFFER_DATA");
+            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"LocationId\"=$locationId AND \"Title\"='Legacy offer' AND \"Description\"='Offer description' AND \"StartsAtUtc\"='2026-11-14T00:00:00.0000000Z' AND \"EndsAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
+            ("$id", GuidText(ids.Offer)), ("$locationId", GuidText(ids.Location))) == 1, prefix + "_OFFER_DATA");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf' AND \"ValidFromUtc\"='2026-11-14T00:00:00.0000000Z' AND \"ValidToUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
-            ("$id", GuidText(ids.Brochure))) == 1, prefix + "_BROCHURE_DATA");
+            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"LocationId\"=$locationId AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf' AND \"ValidFromUtc\"='2026-11-14T00:00:00.0000000Z' AND \"ValidToUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
+            ("$id", GuidText(ids.Brochure)), ("$locationId", GuidText(ids.Location))) == 1, prefix + "_BROCHURE_DATA");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply' AND \"ExpiresAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
-            ("$id", GuidText(ids.Job))) == 1, prefix + "_JOB_DATA");
+            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"LocationId\"=$locationId AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply' AND \"ExpiresAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1;",
+            ("$id", GuidText(ids.Job)), ("$locationId", GuidText(ids.Location))) == 1, prefix + "_JOB_DATA");
 
         await AssertIdentityDataAsync(connection, prefix);
         await AssertHistoryAsync(connection, new[] { Initial, Freshness },
@@ -388,19 +388,20 @@ internal static class F2aOrganizationClaimUpgrade
               AND "ImageUrl"='https://example.org/image.png'
               AND "OpeningHours"='09:00-18:00'
               AND "IsPublished"=1 AND "IsVerified"=1
+              AND "UpdatedAtUtc"='2026-11-14T10:00:00.0000000Z'
               AND "OrganizationId" IS NULL AND "Revision"=0;
             """, ("$id", GuidText(ids.Location))) == 1,
             "F2A_S2_LOCATION_ALL_FIELDS_PRESERVED");
 
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"Title\"='Legacy offer' AND \"Description\"='Offer description' AND \"StartsAtUtc\"='2026-11-14T00:00:00.0000000Z' AND \"EndsAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
-            ("$id", GuidText(ids.Offer))) == 1, "F2A_S2_OFFERS_PRESERVED");
+            "SELECT COUNT(*) FROM \"Offers\" WHERE \"Id\"=$id AND \"LocationId\"=$locationId AND \"Title\"='Legacy offer' AND \"Description\"='Offer description' AND \"StartsAtUtc\"='2026-11-14T00:00:00.0000000Z' AND \"EndsAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
+            ("$id", GuidText(ids.Offer)), ("$locationId", GuidText(ids.Location))) == 1, "F2A_S2_OFFERS_PRESERVED");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf' AND \"ValidFromUtc\"='2026-11-14T00:00:00.0000000Z' AND \"ValidToUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;,
-            ("$id", GuidText(ids.Brochure))) == 1, "F2A_S2_BROCHURES_PRESERVED");
+            "SELECT COUNT(*) FROM \"Brochures\" WHERE \"Id\"=$id AND \"LocationId\"=$locationId AND \"Title\"='Legacy brochure' AND \"Url\"='https://example.org/brochure.pdf' AND \"ValidFromUtc\"='2026-11-14T00:00:00.0000000Z' AND \"ValidToUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
+            ("$id", GuidText(ids.Brochure)), ("$locationId", GuidText(ids.Location))) == 1, "F2A_S2_BROCHURES_PRESERVED");
         Check(await ScalarLongAsync(connection,
-            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply' AND \"ExpiresAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;,
-            ("$id", GuidText(ids.Job))) == 1, "F2A_S2_JOBS_PRESERVED");
+            "SELECT COUNT(*) FROM \"Jobs\" WHERE \"Id\"=$id AND \"LocationId\"=$locationId AND \"Title\"='Legacy job' AND \"Description\"='Job description' AND \"ApplyUrl\"='https://example.org/apply' AND \"ExpiresAtUtc\"='2026-12-14T00:00:00.0000000Z' AND \"IsPublished\"=1 AND \"CreatedAtUtc\" IS NULL AND \"UpdatedAtUtc\" IS NULL AND \"PublishedAtUtc\" IS NULL;",
+            ("$id", GuidText(ids.Job)), ("$locationId", GuidText(ids.Location))) == 1, "F2A_S2_JOBS_PRESERVED");
 
         await AssertIdentityDataAsync(connection, "F2A_S2");
         await AssertHistoryAsync(connection, new[] { Initial, Freshness, F2a },
@@ -414,6 +415,8 @@ internal static class F2aOrganizationClaimUpgrade
 
         Check(!await HasTableAsync(connection, "ef_temp_Locations"),
             "F2A_S2_TEMP_TABLE_REMOVED");
+        Check(!await HasTableAsync(connection, "IdentityEmailOutbox"),
+            "F2A_S2_NO_OUTBOX_TABLE");
 
         Check(await ScalarLongAsync(connection,
             "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name IN ('IX_Locations_City_Neighborhood_Category','IX_Locations_Slug','IX_Locations_OrganizationId');") == 3,
@@ -518,6 +521,36 @@ internal static class F2aOrganizationClaimUpgrade
         await migrator.MigrateAsync(F2a);
     }
 
+    private static async Task AssertInterruptedStateAsync(
+        string path,
+        FixtureIds ids,
+        string label)
+    {
+        await using var connection = new SqliteConnection(
+            ConnectionString(path, SqliteOpenMode.ReadWrite));
+        await connection.OpenAsync();
+
+        Check(await HasColumnAsync(connection, "Locations", "OrganizationId"),
+            label + "_ORGANIZATION_COLUMN_EXISTS");
+        Check(await HasColumnAsync(connection, "Locations", "Revision"),
+            label + "_REVISION_COLUMN_EXISTS");
+        Check(await HasTableAsync(connection, "Organizations"),
+            label + "_F2A_TABLE_EXISTS");
+        Check(!await HasTableAsync(connection, "ef_temp_Locations"),
+            label + "_NO_TEMP_TABLE");
+        Check(await ScalarLongAsync(connection,
+            "SELECT COUNT(*) FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\"=$id;",
+            ("$id", F2a)) == 0, label + "_HISTORY_NOT_ADVANCED");
+        Check(await ScalarLongAsync(connection, """
+            SELECT COUNT(*) FROM "Locations"
+            WHERE "Id"=$id AND "Slug"='f2a-s2-legacy-location'
+              AND "Name"='Legacy location' AND "OrganizationId" IS NULL
+              AND "Revision"=0;
+            """, ("$id", GuidText(ids.Location))) == 1,
+            label + "_LOCATION_ROW_SURVIVES");
+        await AssertIntegrityAsync(connection, label);
+    }
+
     private static async Task RunFaultRecoveryAsync(
         string root,
         string backupPath,
@@ -543,6 +576,7 @@ internal static class F2aOrganizationClaimUpgrade
         }
 
         Check(injected && interceptor.Triggered, label + "_FAILURE_INJECTED");
+        await AssertInterruptedStateAsync(interruptedPath, ids, label.ToUpperInvariant());
 
         // Recovery contract is deliberately restore-only. Never blindly rerun
         // a migration on a database whose command history is uncertain.
