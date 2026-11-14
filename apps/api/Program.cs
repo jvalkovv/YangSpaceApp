@@ -208,12 +208,9 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("auth", limiter =>
-    {
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.PermitLimit = 12;
-        limiter.QueueLimit = 0;
-    });
+    // A shared limiter allows one client to exhaust everyone's auth budget.
+    // Trust only the transport peer here; never parse untrusted forwarding headers.
+    options.AddPolicy<string>("auth", AuthRateLimitPolicy.CreatePartition);
 });
 builder.Services.AddProblemDetails();
 
