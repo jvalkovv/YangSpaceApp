@@ -525,29 +525,49 @@ internal static class F2aOrganizationClaimUpgrade
         string path,
         FixtureIds ids,
         string label,
+        bool expectLocationColumns,
         bool expectTempTable)
     {
         await using var connection = new SqliteConnection(
             ConnectionString(path, SqliteOpenMode.ReadWrite));
         await connection.OpenAsync();
 
-        Check(await HasColumnAsync(connection, "Locations", "OrganizationId"),
-            label + "_ORGANIZATION_COLUMN_EXISTS");
-        Check(await HasColumnAsync(connection, "Locations", "Revision"),
-            label + "_REVISION_COLUMN_EXISTS");
+        var hasOrganizationId = await HasColumnAsync(connection, "Locations", "OrganizationId");
+        var hasRevision = await HasColumnAsync(connection, "Locations", "Revision");
+        Check(hasOrganizationId == expectLocationColumns,
+            label + "_ORGANIZATION_COLUMN_STATE");
+        Check(hasRevision == expectLocationColumns,
+            label + "_REVISION_COLUMN_STATE");
         Check(await HasTableAsync(connection, "Organizations"),
             label + "_F2A_TABLE_EXISTS");
+        Check(await HasTableAsync(connection, "OrganizationMembers"),
+            label + "_F2A_MEMBERS_TABLE_EXISTS");
+        Check(await HasTableAsync(connection, "BusinessClaims"),
+            label + "_F2A_CLAIMS_TABLE_EXISTS");
+        Check(await HasTableAsync(connection, "ContentAuditEvents"),
+            label + "_F2A_AUDIT_TABLE_EXISTS");
         Check(await HasTableAsync(connection, "ef_temp_Locations") == expectTempTable,
             label + "_TEMP_TABLE_STATE");
         Check(await ScalarLongAsync(connection,
             "SELECT COUNT(*) FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\"=$id;",
             ("$id", F2a)) == 0, label + "_HISTORY_NOT_ADVANCED");
-        Check(await ScalarLongAsync(connection, """
-            SELECT COUNT(*) FROM "Locations"
-            WHERE "Id"=$id AND "Slug"='f2a-s2-legacy-location'
-              AND "Name"='Legacy location' AND "OrganizationId" IS NULL
-              AND "Revision"=0;
-            """, ("$id", GuidText(ids.Location))) == 1,
+
+        var locationSql = expectLocationColumns
+            ? """
+                SELECT COUNT(*) FROM "Locations"
+                WHERE "Id"=$id AND "Slug"='f2a-s2-legacy-location'
+                  AND "Name"='Legacy location' AND "OrganizationId" IS NULL
+                  AND "Revision"=0;
+                """
+            : """
+                SELECT COUNT(*) FROM "Locations"
+                WHERE "Id"=$id AND "Slug"='f2a-s2-legacy-location'
+                  AND "Name"='Legacy location' AND "City"='Варна'
+                  AND "UpdatedAtUtc"='2026-11-14T10:00:00.0000000Z';
+                """;
+
+        Check(await ScalarLongAsync(connection, locationSql,
+            ("$id", GuidText(ids.Location))) == 1,
             label + "_LOCATION_ROW_SURVIVES");
         await AssertIntegrityAsync(connection, label);
     }
@@ -558,6 +578,7 @@ internal static class F2aOrganizationClaimUpgrade
         FixtureIds ids,
         string label,
         string commandMarker,
+        bool expectLocationColumns,
         bool expectTempTable)
     {
         var interruptedPath = Path.Combine(root, label + ".interrupted.db");
@@ -578,7 +599,9 @@ internal static class F2aOrganizationClaimUpgrade
         }
 
         Check(injected && interceptor.Triggered, label + "_FAILURE_INJECTED");
-        await AssertInterruptedStateAsync(interruptedPath, ids, label.ToUpperInvariant(), expectTempTable);
+        await AssertInterruptedStateAsync(
+            interruptedPath, ids, label.ToUpperInvariant(),
+            expectLocationColumns, expectTempTable);
 
         // Recovery contract is deliberately restore-only. Never blindly rerun
         // a migration on a database whose command history is uncertain.
@@ -631,18 +654,21 @@ internal static class F2aOrganizationClaimUpgrade
                 root, backupPath, ids,
                 "fault-after-f2a-ddl",
                 "PRAGMA foreign_keys = 0",
-                expectTempTable: true);
+                expectLocationColumns: false,
+                expectTempTable: false);
 
             await RunFaultRecoveryAsync(
                 root, backupPath, ids,
                 "fault-after-locations-rebuild",
                 "CREATE INDEX \"IX_Locations_City_Neighborhood_Category\"",
+                expectLocationColumns: true,
                 expectTempTable: false);
 
             await RunFaultRecoveryAsync(
                 root, backupPath, ids,
                 "fault-before-migration-history",
                 "INSERT INTO \"__EFMigrationsHistory\"",
+                expectLocationColumns: true,
                 expectTempTable: false);
 
             Console.WriteLine("F2A_S2_RECOVERY_ALL_BOUNDARIES=PASS");
