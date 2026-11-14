@@ -229,6 +229,15 @@ static async Task RunRecoveryRehearsalAsync(
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
 
+// F2a-S2: exact disposable historic SQLite upgrade + restore recovery only.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2a-organization-claim-upgrade-only", StringComparison.Ordinal))
+{
+    await F2aOrganizationClaimUpgrade.RunAsync();
+    Console.WriteLine("F2A_S2_DISPOSABLE_UPGRADE_RECOVERY=PASS");
+    return;
+}
+
 // Opt-in real PostgreSQL app transaction QA. The disposable connection
 // must be verified by the in-container sentinel; never use app config,
 // create/migrate schema, or expose a merchant/reviewer HTTP route here.
