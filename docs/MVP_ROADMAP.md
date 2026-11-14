@@ -1,3 +1,13 @@
+## 2026-11-14 — F2a-S SQLite baseline merged into F2a parent
+
+- Child [PR #39](https://github.com/jvalkovv/YangSpaceApp/pull/39) is **MERGED/CLOSED** into this F2a feature branch by squash commit `da31427d47bc86994f4e3e800900101383ec81d1`; it was not merged to V2 `main` or deployed.
+- Exact operator-tested source: `6adf829affbfad9eb69786fe5635e71762d356b9`. The merged commit and tested commit have the identical Git tree `e7b7d03d67a9ab0366a1cc5217a3ddeea2b2eaf6`, so the squash introduced no source-tree drift.
+- F2a-S1 offline EF scaffold, SQL/model review, F2a-S2 historic SQLite data-preservation and three fault-injection/backup-restore cases, exact-tree Release build and post-commit evidence review: **PASS**.
+- Independent post-commit evidence archive SHA-256: `a05ef6f21815feec41405582f359d38dd73148e777c089eb8dc0629b8bf1786b`. All 10 checksum entries verified; Release build 0 warnings/errors; 17 runtime acceptance markers PASS.
+- Migration scope: four F2a domain tables, nullable `Locations.OrganizationId`, `Locations.Revision`, expected indexes/FKs; no Outbox. Legacy Locations, Offers, Brochures, Jobs and Identity fixture data preserved. Interrupted migration recovery is restore-from-verified-pre-upgrade-backup only; do not blindly rerun or use `Down()` as a data-preserving rollback.
+- Current F2a parent PR #17 HEAD: `da31427d47bc86994f4e3e800900101383ec81d1`. **Next gate:** clean exact-HEAD Windows regression on this integrated parent commit: tenant scope, disposable PostgreSQL migration/constraints/backup/restore, and the historic SQLite upgrade/recovery harness. Preserve independent manifests, receipts and cleanup evidence before parent acceptance.
+- M2 claim-decision mutations, real evidence intake and production activation remain separate gates; legal/privacy Issue #24 remains OPEN/BLOCKING for real evidence. No CT164/CT152, live DB, PVE deployment, HTTP listener or GitHub Actions.
+
 ## 2026-11-14 — PR #27 synthetic QA ACCEPTED / parent HOLD
 
 PR #27 merged to F2a parent at `1b59aa94cee410212df954223693153faa1c7d1d`; operator exact-source `ede8a3f...` PG reviewer HTTP and concurrency passed. Next parent exact-head QA and F2b account HTTP/mail. This documentation change is not a new runtime test or release.
