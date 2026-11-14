@@ -98,3 +98,5 @@ Corrected only the first fault-boundary expected state to require those two colu
 **Next exact S2 test source:** `bad3c9670c4f51ce562465d545aeb50ee785a41b`.
 
 S2 acceptance remains HOLD. The three fault-injection recovery scenarios must all pass on the updated exact source and the full evidence must be reviewed. The successful disposable upgrade does not authorize production apply. CT164/production were not accessed.
+
+The interrupted-state assertion now emits the observed `Locations` column set, the individual `OrganizationId`/`Revision` states, Organizations/temp-table presence, and F2a history count before evaluating expectations. These diagnostics are retained in the operator stdout evidence if a later boundary still disagrees with the generated SQL.
