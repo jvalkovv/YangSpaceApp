@@ -153,3 +153,41 @@ Still pending:
 4. Only then decide whether PR #39 can leave Draft/HOLD and be merged into parent #17.
 
 The operator runner reports `MIGRATION_ARTIFACTS=UNCOMMITTED`, `PRODUCTION_DATABASE=NOT_ACCESSED`, `CT164=NOT_ACCESSED`, `HTTP_LISTENER=NOT_STARTED`, and `PVE_DEPLOYMENT=NONE`. No production or CT164 database was changed.
+
+## 2026-11-14 — independent S1/S2 operator evidence archive review
+
+Reviewed the operator-uploaded `YangSpace-F2a-S1-S2-Evidence-Review.zip`.
+
+Archive/evidence integrity:
+- ZIP integrity test: PASS.
+- Archive SHA256: `DBDEAE9D7E5F335D76B728A9332EBD1811CA199DFF75E8C3FFE27F3364D32689`.
+- 37 entries: 26 S1 receipts and 11 S2 receipts.
+- All 11 captured stderr logs are empty.
+- S1 SQL review artifact SHA256 recalculated from the archive and matches `SHA256SUMS.txt`: `b85e7995c5388396c52c55496689413d03d8499fbbd8f30c807ea20ab9108202`.
+- S1 build-before and build-after receipts both report Release build success with 0 warnings and 0 errors. EF tool restore/version receipts show dotnet-ef 10.0.0. Model-diff receipt reports no changes since the generated migration.
+- S1 manifest correctly remains `RELEASE_GATE=HOLD`, `DISPOSABLE_UPGRADE=NOT_RUN`, and `LIVE_DB_APPLY=NOT_RUN`.
+
+SQL review:
+- Exactly four F2a domain tables are created: Organizations, BusinessClaims, ContentAuditEvents and OrganizationMembers.
+- `ef_temp_Locations` is the SQLite table-rebuild staging table.
+- The SQL includes the expected Locations copy/rebuild, drop/rename and FK PRAGMA transitions.
+- No Outbox table or Outbox reference is present.
+- The SQL archive checksum was independently recalculated and matches the recorded S1 checksum.
+
+S2 runtime receipts:
+- S2 manifest matches tested commit `93c620e0bbc61d73c8892bafe15fee6772ab0e9a` and S1 source `35c9f576bbc64c0825c1a117b3ee415d3ca9869d`.
+- Restore and Release build receipts pass; build reports 0 warnings and 0 errors.
+- Runtime stdout contains every required success marker: historic baseline, successful upgrade, all Location fields, Offers/Brochures/Jobs, Identity records/dependencies, F2a tables and relationships, no-Outbox, SQLite/FK integrity, all three injected failure boundaries, restore-only recovery for each, and all-boundaries summary.
+- The test code uses disposable files under the OS temp directory and deletes its fixture directory in `finally`.
+- S2 manifest records no production DB, CT164, HTTP listener or PVE deployment access.
+
+Operator preflight note:
+- The uploaded transcript shows `S2_TEST_HEAD_MISMATCH` in the later archive-review command because its local `$TestSha` literal omitted the final `a`. The correct 40-character tested SHA is `93c620e0bbc61d73c8892bafe15fee6772ab0e9a`.
+- This is a typo in the post-run evidence-packaging check, not the S2 test invocation: the S2 runner itself checks the supplied commit against both local HEAD and the fetched origin branch before running and only then prints `F2A_S2_EXACT_TEST_SOURCE=PASS`. Its S2 manifest records the correct 40-character SHA.
+
+Remaining artifact gate:
+- The ZIP contains the S1 `SHA256SUMS.txt` but not the three generated EF C# artifacts themselves. Therefore the archive alone cannot independently recompute those three file hashes.
+- The S2 runner did verify the three actual S1 worktree artifacts against those checksums before copying them into the S2 worktree; its manifest records `GENERATED_ARTIFACT_HASHES=PASS`.
+- The operator's final status output confirms exactly the expected three uncommitted paths: modified SQLite snapshot plus new migration and Designer. Before committing, re-hash those three current files in the S2 worktree against the S1 `SHA256SUMS.txt` and confirm the exact three-file status.
+
+**Evidence review result: PASS for S1/S2 receipts, SQL checksum and disposable runtime/recovery acceptance. Release/merge remains HOLD only for current three-file re-hash, commit, and exact-new-HEAD build/regression.** No production or CT164 access is authorized by this QA.
