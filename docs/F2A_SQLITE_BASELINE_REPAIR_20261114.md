@@ -161,7 +161,7 @@ Reviewed the operator-uploaded `YangSpace-F2a-S1-S2-Evidence-Review.zip`.
 Archive/evidence integrity:
 - ZIP integrity test: PASS.
 - Archive SHA256: `DBDEAE9D7E5F335D76B728A9332EBD1811CA199DFF75E8C3FFE27F3364D32689`.
-- 37 entries: 26 S1 receipts and 11 S2 receipts.
+- 37 entries: 27 S1 receipts and 10 S2 receipts.
 - All 11 captured stderr logs are empty.
 - S1 SQL review artifact SHA256 recalculated from the archive and matches `SHA256SUMS.txt`: `b85e7995c5388396c52c55496689413d03d8499fbbd8f30c807ea20ab9108202`.
 - S1 build-before and build-after receipts both report Release build success with 0 warnings and 0 errors. EF tool restore/version receipts show dotnet-ef 10.0.0. Model-diff receipt reports no changes since the generated migration.
