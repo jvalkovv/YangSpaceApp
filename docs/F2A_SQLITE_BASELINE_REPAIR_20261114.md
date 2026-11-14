@@ -18,7 +18,7 @@
 
 Operator transcript at source `3eea6ee387b12fcbf79e51ac30b2739501025bf2` showed three uncommitted EF artifacts in the existing exact-SHA detached Windows worktree (migration `20261114172551_F2aOrganizationClaimFoundation`, Designer, changed SQLite snapshot). Subsequent scaffold rerun failed its expected `F2A_S1_DIRTY_WORKTREE` guard. Static C# console review suggests F2a-only changes; no reviewed SQL, independent local artifact hashes, disposable historic-database upgrade or restore acceptance was supplied. The operator looked for evidence under the main repo instead of the detached worktree; do not infer the generation stage result from that search.
 
-Source QA defect fixed in this branch: both generator and independent postflight had `"ef_temp_Locations"\\b` after the closing quoted identifier. This fails for valid EF SQLite `INSERT INTO "ef_temp_Locations" (...) SELECT ...`. The replacement `"ef_temp_Locations"(?=\\s*\\()` checks the expected opening column list without rejecting valid SQL. **Prior generated artifacts at old SHA must be preserved; this source fix changes the branch SHA.** Run a NEW clean detached worktree at the new head; do not reset/clean the old operator worktree or copy unchecked generated files. Tests and operator QA on the new head are still **NOT RUN / HOLD**. No live DB, CT164 or GitHub Actions.
+Source QA defect fixed in this branch: both generator and independent postflight had `"ef_temp_Locations"\b` after the closing quoted identifier. This fails for valid EF SQLite `INSERT INTO "ef_temp_Locations" (...) SELECT ...`. The replacement `"ef_temp_Locations"(?=\s*\()` checks the expected opening column list without rejecting valid SQL. **Prior generated artifacts at old SHA must be preserved; this source fix changes the branch SHA.** Run a NEW clean detached worktree at the new head; do not reset/clean the old operator worktree or copy unchecked generated files. Tests and operator QA on the new head are still **NOT RUN / HOLD**. No live DB, CT164 or GitHub Actions.
 
 
 ## F2a-S2 — disposable historic upgrade and restore-recovery contract
@@ -142,7 +142,7 @@ The runner only prints the overall PASS after verifying all of these markers in 
 - No blind retry of a partially applied migration.
 
 Evidence directory:
-`D:\\GitHub\\YangSpaceApp-F2a-S2-Upgrade-QA-20261114\\logs\\yangspace\\f2a-sqlite-org-upgrade\\93c620e0bbc6-20261114-224645-5294f69e`
+`D:\GitHub\YangSpaceApp-F2a-S2-Upgrade-QA-20261114\logs\yangspace\f2a-sqlite-org-upgrade\93c620e0bbc6-20261114-224645-5294f69e`
 
 **S2 runtime acceptance: PASS at the exact tested source above.** The runner's generated evidence manifest intentionally records `RELEASE_GATE=HOLD_PENDING_OPERATOR_EVIDENCE_REVIEW`. Therefore this result is not yet a release/merge approval: the complete manifest, stage receipts, runtime stdout/stderr and worktree final status still require independent review.
 
