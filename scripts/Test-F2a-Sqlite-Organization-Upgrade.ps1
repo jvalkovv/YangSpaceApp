@@ -83,11 +83,17 @@ foreach ($entry in $requiredEntries) {
 }
 Write-Host 'F2A_S2_S1_MANIFEST=PASS'
 
-$expectedFiles = @(
-    'apps/api/Migrations/' + $MigrationName + '.cs',
-    'apps/api/Migrations/' + $MigrationName + '.Designer.cs',
+# Keep each path as one scalar string. Avoid combining PowerShell's
+# comma/array operator with string concatenation inside an array expression.
+[string[]]$expectedFiles = @(
+    ("apps/api/Migrations/{0}.cs" -f $MigrationName)
+    ("apps/api/Migrations/{0}.Designer.cs" -f $MigrationName)
     'apps/api/Migrations/DirectoryDbModelSnapshot.cs'
 )
+if ($expectedFiles.Count -ne 3 -or
+    @($expectedFiles | Where-Object { $_ -isnot [string] -or [string]::IsNullOrWhiteSpace($_) }).Count -ne 0) {
+    throw 'F2A_S2_EXPECTED_FILE_LIST_INVALID'
+}
 $checksumLines = Get-Content -LiteralPath $ChecksumsPath
 foreach ($relative in $expectedFiles) {
     $sourceFile = Join-Path $Source $relative
@@ -118,10 +124,10 @@ foreach ($relative in $expectedFiles) {
     Copy-Item -LiteralPath (Join-Path $Source $relative) -Destination $destination -Force
 }
 
-$expectedStatus = @(
-    ' M apps/api/Migrations/DirectoryDbModelSnapshot.cs',
-    '?? apps/api/Migrations/' + $MigrationName + '.Designer.cs',
-    '?? apps/api/Migrations/' + $MigrationName + '.cs'
+[string[]]$expectedStatus = @(
+    ' M apps/api/Migrations/DirectoryDbModelSnapshot.cs'
+    ("?? apps/api/Migrations/{0}.Designer.cs" -f $MigrationName)
+    ("?? apps/api/Migrations/{0}.cs" -f $MigrationName)
 ) | Sort-Object
 $actualStatus = @(& $Git -C $Repo status --porcelain=v1 --untracked-files=all | ForEach-Object { $_ } | Sort-Object)
 if ($LASTEXITCODE -ne 0 -or
