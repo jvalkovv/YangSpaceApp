@@ -68,6 +68,9 @@ $Required = @{
     POSTGRES_ANONYMOUS_VOLUMES='none'
     POSTGRES_IMAGE_DECLARED_VOLUME='/var/lib/postgresql/data'
     POSTGRES_IMAGE_VOLUME_OVERRIDE='EXPLICIT_TMPFS'
+    POSTGRES_TLS_INITDB_CONFIG='PASS'
+    POSTGRES_HBA_POLICY_ACTIVE='PASS'
+    POSTGRES_CONTAINER_RESTARTS='0'
     POSTGRES_DATA_STORAGE='tmpfs'
     POSTGRES_TMPFS_MOUNTS='PASS'
     POSTGRES_HBA_POLICY='HOSTSSL_SCRAM_HOSTNOSSL_REJECT'
@@ -113,12 +116,16 @@ $Stages = @(
     'o2-tool-restore','o2-ef-version','o2-runtime-restore','o2-runtime-build',
     'o2-sqlite-model-diff','o2-postgresql-model-diff','o2-sqlite-review-sql',
     'o2-postgresql-review-sql','o2-sqlite-migration-contract',
-    'o2-pg-network-create','o2-pg-container-start','o2-pg-cert-dir-owner',
+    'o2-pg-network-create','o2-pg-container-create','o2-pg-init-script-copy',
+    'o2-pg-container-start','o2-pg-init-script-receipts','o2-pg-cert-dir-owner',
     'o2-pg-cert-ca','o2-pg-cert-server-csr','o2-pg-cert-server-sign',
     'o2-pg-cert-wrong-ca','o2-pg-cert-permissions','o2-pg-cert-public-permissions',
-    'o2-pg-cert-san-check','o2-pg-tls-config-copy','o2-pg-hba-config-copy',
-    'o2-pg-config-owner','o2-pg-config-permissions','o2-pg-restart-tls',
-    'o2-pg-server-version','o2-pg-ssl-state','o2-pg-root-ca-copy',
+    'o2-pg-cert-san-check','o2-pg-config-owner','o2-pg-config-permissions',
+    'o2-pg-tls-configured','o2-pg-hba-policy-active','o2-pg-container-state',
+    'o2-pg-server-version','o2-pg-config-paths','o2-pg-config-file-stat',
+    'o2-pg-auto-conf-content','o2-pg-hba-content','o2-pg-setting-sources',
+    'o2-pg-file-settings','o2-pg-startup-log','o2-pg-ssl-state',
+    'o2-pg-root-ca-copy',
     'o2-pg-wrong-ca-copy','o2-pg-roles-sql-copy','o2-pg-roles-create',
     'o2-pg-roles-secret-cleanup','o2-pg-database-create',
     'o2-pg-permissions-sql-copy','o2-pg-permissions-apply',
@@ -132,6 +139,18 @@ foreach ($Stage in $Stages) {
     }
 }
 Check $true 'POSTFLIGHT_ALL_STAGE_RECEIPTS_PRESENT'
+
+$InitReceipts = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-init-script-receipts.stdout.log'))
+foreach ($Marker in @(
+    'F2B_O2_PG_CERTIFICATES_CREATED=PASS',
+    'F2B_O2_PG_HBA_INITDB_CONFIGURED=PASS',
+    'F2B_O2_PG_TLS_INITDB_CONFIGURED=PASS'
+)) {
+    Check ($InitReceipts.Contains($Marker)) ('POSTFLIGHT_' + ($Marker.Split('=')[0]))
+}
+Check (([IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-tls-configured.stdout.log'))).Trim() -ceq 'PASS') 'POSTFLIGHT_TLS_CONFIGURED_AT_INITDB'
+Check (([IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-hba-policy-active.stdout.log'))).Trim() -ceq 'PASS') 'POSTFLIGHT_HBA_POLICY_ACTIVE'
+Check (([IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-container-state.stdout.log'))).Trim() -ceq '0') 'POSTFLIGHT_CONTAINER_NOT_RESTARTED'
 
 $SqliteLog = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-sqlite-migration-contract.stdout.log'))
 $PgLog = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-runtime-contract.stdout.log'))
@@ -168,6 +187,7 @@ foreach ($Marker in @(
 $Forbidden = @(
     'temporary-roles.sql','temporary-db-permissions.sql','temporary-wrong-ca.crt',
     'temporary-postgresql.auto.conf','temporary-pg_hba.conf',
+    'temporary-f2b-o2-postgres-init.sh',
     'yangspace-f2b-o2-sqlite.db','yangspace-f2b-o2-sqlite.db-wal',
     'yangspace-f2b-o2-sqlite.db-shm','yangspace-f2b-o2-sqlite.db-journal'
 )
