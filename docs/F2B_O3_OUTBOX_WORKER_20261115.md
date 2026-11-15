@@ -11,7 +11,7 @@ O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2.
 - Re-read current Identity user, email, email-confirmation state and all assigned roles immediately before dispatch.
 - Deleted, malformed-email, staff-role, already-confirmed confirmation, and unconfirmed password-reset intents are suppressed.
 - Injectable transport. Tests use a fake; production uses the existing STARTTLS SMTP adapter.
-- Bounded retry: 30 seconds, 2 minutes, 10 minutes, 30 minutes, then 1 hour; terminal failures go to DeadLetter.
+- Bounded retry: default maximum 5 total attempts with 30-second, 2-minute, 10-minute and 30-minute delays; if an operator raises MaxAttempts above 5, subsequent retries use a 1-hour delay. Exhausted intents move to DeadLetter.
 - Expired intents are suppressed before dispatch; lease ownership and intent expiry are revalidated immediately before transport.
 - Expired leases, including incomplete/null lease metadata, are reclaimable after process restart. Shutdown cancellation leaves the lease to expire and recover.
 - SMTP uncertain acknowledgement is **at-least-once**. If SMTP accepted a message but the ACK was lost, a retry can duplicate it. Exactly-once delivery is not claimed.
