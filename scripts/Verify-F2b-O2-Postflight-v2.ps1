@@ -46,7 +46,7 @@ Check ($MergeBase -ceq $CommitSha) 'POSTFLIGHT_RUN_COMMIT_ANCESTOR'
 $ChangedPaths = @(& $Git -C $Repo diff --name-only ($CommitSha + '..' + $VerifierSha))
 if ($LASTEXITCODE -ne 0) { throw 'F2B_O2_VERIFIER_DIFF_FAILED' }
 $AllowedVerifierChanges = @(
-    'docs/F2B_O2_VALIDATION_RUNBOOK_20261115.md',
+    'docs/F2B_O2_POSTFLIGHT_RECOVERY_20261115.md',
     'scripts/Verify-F2b-O2-Postflight-v2.ps1'
 )
 $UnexpectedVerifierChanges = @($ChangedPaths | Where-Object { $_ -notin $AllowedVerifierChanges })
