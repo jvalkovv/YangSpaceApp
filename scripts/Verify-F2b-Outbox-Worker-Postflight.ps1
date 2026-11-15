@@ -24,6 +24,9 @@ Require ((Split-Path $Evidence -Leaf).StartsWith($CommitSha.Substring(0,12) + '-
 
 $Head = @(& git -C $Repo rev-parse HEAD)
 Require ($LASTEXITCODE -eq 0 -and ($Head -join '').Trim() -ceq $CommitSha) 'SOURCE_SHA'
+$RemoteLine = @(& git -C $Repo ls-remote --heads origin $Branch)
+$RemoteSha = if ($RemoteLine.Count -eq 1) { (($RemoteLine[0] -split '\s+')[0]).Trim() } else { '' }
+Require ($LASTEXITCODE -eq 0 -and $RemoteSha -ceq $CommitSha) 'REMOTE_HEAD'
 $Remote = @(& git -C $Repo rev-parse --verify ('refs/remotes/origin/' + $Branch))
 Require ($LASTEXITCODE -eq 0 -and ($Remote -join '').Trim() -ceq $CommitSha) 'REMOTE_SHA'
 $Dirty = @(& git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
