@@ -125,8 +125,8 @@ $Stages = @(
     'o2-pg-server-version','o2-pg-config-paths','o2-pg-config-file-stat',
     'o2-pg-auto-conf-content','o2-pg-hba-content','o2-pg-setting-sources',
     'o2-pg-file-settings','o2-pg-startup-log','o2-pg-ssl-state',
-    'o2-pg-root-ca-copy',
-    'o2-pg-wrong-ca-copy','o2-pg-roles-sql-copy','o2-pg-roles-create',
+    'o2-pg-root-ca-export','o2-pg-wrong-ca-export',
+    'o2-pg-roles-sql-copy','o2-pg-roles-create',
     'o2-pg-roles-secret-cleanup','o2-pg-database-create',
     'o2-pg-permissions-sql-copy','o2-pg-permissions-apply',
     'o2-pg-permissions-secret-cleanup','o2-pg-runtime-contract'
