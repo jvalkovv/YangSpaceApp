@@ -1,3 +1,18 @@
+## 2026-11-16 — O3 production DI activation covered by synthetic contract (SOURCE COMMITTED / RE-RUN PENDING)
+
+The worker contract now mirrors the actual production DI registrations and resolves:
+- \`IEmailSender<IdentityUser> -> OutboxIdentityEmailSender\`
+- \`SmtpPublicIdentityEmailSender\` without opening an SMTP connection
+- \`IHostedService -> IdentityEmailOutboxWorker\`
+
+The synthetic contract uses \`ValidateOnBuild=true\` and resolves the hosted worker and SMTP adapter, so non-public constructor/DI activation failures are caught before PostgreSQL QA. The worker, SMTP adapter and outbox sender now expose DI-discoverable public constructors (their containing types remain internal). New acceptance marker: \`F2B_O3_WORKER_DI_ACTIVATION=PASS\`.
+
+Production dispatch authorization remains compile-time false until O3 acceptance; only the internal synthetic harness supplies the test-only constructor override with fake transport and in-memory switches.
+
+Current source HEAD: \`28ec89d29c4863dcc77016061eeb15e834d87b07\`. No rerun has been executed at this HEAD; do not infer acceptance from source changes. PostgreSQL worker/concurrency, Postflight and O4 remain blocked.
+
+---
+
 ## 2026-11-16 — production dispatch authorization remains compile-time held (SOURCE COMMITTED / RE-RUN PENDING)
 
 The O3 remediation also restores the explicit production release boundary:

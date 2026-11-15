@@ -1,3 +1,18 @@
+## 2026-11-16 — O3 production DI activation covered by synthetic contract (SOURCE COMMITTED / RE-RUN PENDING)
+
+The worker contract now mirrors the actual production DI registrations and resolves:
+- \`IEmailSender<IdentityUser> -> OutboxIdentityEmailSender\`
+- \`SmtpPublicIdentityEmailSender\` without opening an SMTP connection
+- \`IHostedService -> IdentityEmailOutboxWorker\`
+
+The synthetic contract uses \`ValidateOnBuild=true\` and resolves the hosted worker and SMTP adapter, so non-public constructor/DI activation failures are caught before PostgreSQL QA. The worker, SMTP adapter and outbox sender now expose DI-discoverable public constructors (their containing types remain internal). New acceptance marker: \`F2B_O3_WORKER_DI_ACTIVATION=PASS\`.
+
+Production dispatch authorization remains compile-time false until O3 acceptance; only the internal synthetic harness supplies the test-only constructor override with fake transport and in-memory switches.
+
+Current source HEAD: \`28ec89d29c4863dcc77016061eeb15e834d87b07\`. No rerun has been executed at this HEAD; do not infer acceptance from source changes. PostgreSQL worker/concurrency, Postflight and O4 remain blocked.
+
+---
+
 ## 2026-11-16 — production dispatch authorization remains compile-time held (SOURCE COMMITTED / RE-RUN PENDING)
 
 The O3 remediation also restores the explicit production release boundary:
@@ -37,7 +52,7 @@ Do not proceed to PostgreSQL worker acceptance or O4 Identity HTTP until the rem
 
 # F2b O3 — durable Identity email outbox worker
 
-**Status (2026-11-16):** First exact-SHA Release build PASS at `f63149e8908d19945ca3dd5d2345798a92d68e2f`; synthetic contract FAIL at line 76; initial remediation committed at `1618f2c4fdc7f19c9571523b9cd7721877a1b245`; production compile-time dispatch HOLD restored in current HEAD `de7980008c7109e83f9caf396e480c40ae18714d`; remediated rerun and independent Postflight NOT RUN; RELEASE HOLD.
+**Status (2026-11-16):** First exact-SHA Release build PASS at `f63149e8908d19945ca3dd5d2345798a92d68e2f`; synthetic contract FAIL at line 76; initial remediation committed at `1618f2c4fdc7f19c9571523b9cd7721877a1b245`; production compile-time dispatch HOLD restored in current HEAD `de7980008c7109e83f9caf396e480c40ae18714d`; DI activation smoke test committed at `28ec89d29c4863dcc77016061eeb15e834d87b07`; remediated rerun and independent Postflight NOT RUN; RELEASE HOLD.
 
 ## Implementation
 
@@ -63,7 +78,7 @@ Both switches remain false in appsettings. In addition, the production compile-t
 - PublicAccounts.Enabled = false
 - PublicAccounts.Outbox.DispatchEnabled = false
 
-Dispatch requires both switches and the protected production admin surface. Dispatch cannot be enabled while PublicAccounts is off. No SMTP credentials or live SMTP transport are exercised by the synthetic runner.
+Worker dispatch requires both switches and remains compile-time held in production until O3 acceptance. Operator replay is separately exposed only inside the protected PlatformAdmin and production gateway admin surface. Dispatch cannot be enabled while PublicAccounts is off. No SMTP credentials or live SMTP transport are exercised by the synthetic runner.
 
 ## Exact-SHA local QA
 
