@@ -98,13 +98,14 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
         foreach (var item in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var claimNow = _clock.GetUtcNow().UtcDateTime;
             var leaseId = Guid.NewGuid();
-            var leaseUntil = now.AddSeconds(_options.LeaseSeconds);
+            var leaseUntil = claimNow.AddSeconds(_options.LeaseSeconds);
             var count = await db.IdentityEmailOutbox.Where(x =>
                     x.Id == item.Id && x.Revision == item.Revision &&
-                    x.ExpiresAtUtc > now && x.AttemptCount < _options.MaxAttempts &&
-                    ((x.Status == IdentityEmailOutboxStatus.Pending && x.AvailableAtUtc <= now) ||
-                     (x.Status == IdentityEmailOutboxStatus.Leased && x.LeasedUntilUtc != null && x.LeasedUntilUtc <= now)))
+                    x.ExpiresAtUtc > claimNow && x.AttemptCount < _options.MaxAttempts &&
+                    ((x.Status == IdentityEmailOutboxStatus.Pending && x.AvailableAtUtc <= claimNow) ||
+                     (x.Status == IdentityEmailOutboxStatus.Leased && x.LeasedUntilUtc != null && x.LeasedUntilUtc <= claimNow)))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.Status, IdentityEmailOutboxStatus.Leased)
                     .SetProperty(x => x.LeaseId, (Guid?)leaseId)
