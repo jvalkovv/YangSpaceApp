@@ -1,6 +1,6 @@
 ## 2026-11-15 — O2 PostgreSQL storage gate: second failure; diagnostics added (SOURCE COMMITTED / NOT RUN / HOLD)
 
-**Current exact branch HEAD:** `0ec23554aea27624cd13d3a1352660e26081c4c2`.
+**Runner implementation commit:** `c58716df32c6d0107be36e72feba8852de87c7ea`. At execution time, fetch the branch and pass its exact current HEAD as `-CommitSha`; documentation-only commits may advance the branch without changing the runner implementation.
 
 The rerun at `65d219e561972ee5aa9b496200be111c0717f986` again passed restore/build, SQLite + PostgreSQL model-diff, both SQL review gates, SQLite apply → rollback → reapply, SQLite cleanup, internal network creation and PostgreSQL 17 startup. It then failed at the effective PostgreSQL mount gate. The runner's `finally` cleanup ran; no PostgreSQL migration, TLS, integrity or concurrency test was reached.
 
