@@ -180,7 +180,11 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
     options.Lockout.MaxFailedAccessAttempts = 5;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>();
 if (publicAccounts)
-    builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpPublicIdentityEmailSender>();
+{
+    // Queue inside the registration transaction; no synchronous SMTP in HTTP.
+    builder.Services.AddScoped<IEmailSender<IdentityUser>, OutboxIdentityEmailSender>();
+    builder.Services.AddTransient<SmtpPublicIdentityEmailSender>();
+}
 builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
 builder.Services.AddScoped<ClaimReviewConflictPolicy>();
 
