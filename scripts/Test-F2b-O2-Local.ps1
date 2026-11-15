@@ -849,10 +849,16 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o2-postgresql-only
     [IO.File]::WriteAllText($RuntimeScriptPath,$RuntimeScriptContent,$Utf8NoBom)
 
     Stage -Label 'o2-pg-runtime-copy' -Executable $Docker -Arguments @(
-        'cp',$RuntimePublishDirectory,($Container + ':/run/pgcerts/runtime')
+        'cp',$RuntimePublishDirectory,($Container + ':/tmp/f2b-o2-runtime')
     )
     Stage -Label 'o2-pg-runtime-script-copy' -Executable $Docker -Arguments @(
-        'cp',$RuntimeScriptPath,($Container + ':/run/pgcerts/run-contract.sh')
+        'cp',$RuntimeScriptPath,($Container + ':/tmp/f2b-o2-run-contract.sh')
+    )
+    Stage -Label 'o2-pg-runtime-tmpfs-stage' -Executable $Docker -Arguments @(
+        'exec',$Container,'mv','/tmp/f2b-o2-runtime','/run/pgcerts/runtime'
+    )
+    Stage -Label 'o2-pg-runtime-script-tmpfs-stage' -Executable $Docker -Arguments @(
+        'exec',$Container,'mv','/tmp/f2b-o2-run-contract.sh','/run/pgcerts/run-contract.sh'
     )
     Stage -Label 'o2-pg-runtime-permissions' -Executable $Docker -Arguments @(
         'exec',$Container,'chown','-R','postgres:postgres',
@@ -922,7 +928,8 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o2-postgresql-only
 
     Stage -Label 'o2-pg-runtime-cleanup' -Executable $Docker -Arguments @(
         'exec',$Container,'rm','-rf',
-        '/run/pgcerts/runtime','/run/pgcerts/run-contract.sh'
+        '/run/pgcerts/runtime','/run/pgcerts/run-contract.sh',
+        '/tmp/f2b-o2-runtime','/tmp/f2b-o2-run-contract.sh'
     )
 
     $Completed = $true
