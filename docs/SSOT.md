@@ -1,3 +1,19 @@
+## 2026-11-15 — O2 PostgreSQL storage isolation correction committed (SOURCE COMMITTED / NOT RUN / HOLD)
+
+**Current exact source SHA:** `4836c330794efc45e5afcc270d0096532d8f4dcd` on `fix/yangspace-f2b-o2-race-safe-20261115`.
+
+The first local O2 run reached and passed RuntimeTests restore/build, both provider model-diff checks, both generated-SQL review gates, and the full SQLite apply → rollback → reapply contract. PostgreSQL 17 started, but the runner correctly stopped at the effective mount inspection gate before creating roles or applying PostgreSQL migrations.
+
+**Root cause:** the official `postgres:17` image declares `/var/lib/postgresql/data` in image `Config.Volumes`. The previous runner used the separate Docker `--tmpfs` option and then detected an effective mount set that was not exactly two tmpfs mounts. The container and internal network were removed by the runner's `finally`; the follow-up read-only inspection confirmed both resources were already absent.
+
+**Correction committed:** replace both `--tmpfs` options with explicit `--mount type=tmpfs` entries. The runner now verifies the effective `docker inspect .Mounts` array contains exactly two writable tmpfs mounts at `/var/lib/postgresql/data` and `/run/pgcerts`, checks that the image-declared data volume is overridden, and rejects any volume/bind mount. The independent postflight also requires the corresponding manifest fields. The runbook records the image-volume behavior and acceptance rule.
+
+**Acceptance remains NOT RUN / HOLD.** The correction is source-committed but has not yet been executed on the local Docker Engine. The earlier SQLite PASS remains valid for SHA `b31f7375fdcd35378526357c362a599aa060e2c6`, not for the new exact SHA. Re-run the complete O2 runner against `4836c330794efc45e5afcc270d0096532d8f4dcd`; do not reuse prior evidence as proof for the new commit.
+
+CT164 and production DB remain NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions. CT164 remains gated on a full new-SHA O2 PASS and independent postflight PASS.
+
+---
+
 ## 2026-11-15 — F2b O2 dual-provider runtime harness committed (SOURCE COMMITTED / NOT RUN / HOLD)
 
 The six provider migration artifacts were committed and pushed on `fix/yangspace-f2b-o2-race-safe-20261115` at migration commit `b720f930d9cb64f1a6b26a854af37e8293ada3f5`. **This commit adds** opt-in RuntimeTests selectors for the real SQLite and PostgreSQL 17 migration paths, plus an exact-SHA Windows runner and independent postflight.
