@@ -1,7 +1,7 @@
 # F2b O2: exact-SHA disposable dual-provider migration, integrity and race QA.
 # One local PostgreSQL 17 container on an internal Docker network; PGDATA and keys
-# live on tmpfs. Only a loopback host port is published. No bind mounts/volumes,
-# no image pulls, no CT164/production access, no SMTP and no GitHub Actions.
+# live on tmpfs. No host port is published; the Linux test client runs inside the
+# same disposable container. No bind mounts/volumes, no image pulls, no CT164/production access, no SMTP and no GitHub Actions.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
@@ -846,7 +846,35 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o2-postgresql-only
     $RuntimeScriptContent = $RuntimeScriptContent.Replace('__RUNTIME__',$RuntimeBase64)
     $RuntimeScriptContent = $RuntimeScriptContent.Replace('__SCOPE__',$ScopeBase64)
     $RuntimeScriptContent = $RuntimeScriptContent.Replace('__WRONG_CA__',$WrongCaBase64)
+    # PowerShell here-strings inherit Windows CRLF. Docker cp preserves those bytes,
+    # so normalize the Linux bootstrap to LF before it enters the container.
+    $RuntimeScriptContent = $RuntimeScriptContent.Replace("`r`n","`n").Replace("`r","`n")
     [IO.File]::WriteAllText($RuntimeScriptPath,$RuntimeScriptContent,$Utf8NoBom)
+
+    $RuntimeScriptBytes = [IO.File]::ReadAllBytes($RuntimeScriptPath)
+    $RuntimeScriptText = [Text.Encoding]::UTF8.GetString($RuntimeScriptBytes)
+    if ($RuntimeScriptBytes.Length -lt 4 -or
+        $RuntimeScriptBytes[0] -ne 35 -or
+        ($RuntimeScriptBytes -contains [byte]13) -or
+        -not $RuntimeScriptText.StartsWith(
+            "#!/usr/bin/env bash`nset -Eeuo pipefail`n",
+            [StringComparison]::Ordinal
+        )) {
+        throw 'F2B_O2_RUNTIME_BOOTSTRAP_NOT_LF_UTF8_NO_BOM'
+    }
+    Write-Host 'F2B_O2_RUNTIME_BOOTSTRAP_LF=PASS'
+    Write-Host 'F2B_O2_RUNTIME_BOOTSTRAP_UTF8_NO_BOM=PASS'
+    $BootstrapEvidence = @(
+        'LINE_ENDINGS=LF'
+        'ENCODING=UTF8_NO_BOM'
+        'SHEBANG=PASS'
+        'BASH_OPTIONS=PASS'
+    ) -join "`n"
+    [IO.File]::WriteAllText(
+        (Join-Path $Evidence 'runtime-bootstrap-validation.txt'),
+        $BootstrapEvidence + "`n",
+        $Utf8NoBom
+    )
 
     Stage -Label 'o2-pg-runtime-copy' -Executable $Docker -Arguments @(
         'cp',$RuntimePublishDirectory,($Container + ':/tmp/f2b-o2-runtime')
@@ -1046,7 +1074,7 @@ foreach ($Relative in $HashPaths) {
     }
     $Checksums += ((Get-FileHash -LiteralPath $Full -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $Relative)
 }
-foreach ($Relative in @('outbox.sqlite.review.sql','outbox.postgresql.review.sql','YangSpace.Api.RuntimeTests.dll','pg-root-ca.crt')) {
+foreach ($Relative in @('outbox.sqlite.review.sql','outbox.postgresql.review.sql','YangSpace.Api.RuntimeTests.dll','pg-root-ca.crt','runtime-bootstrap-validation.txt')) {
     $Full = Join-Path $Evidence $Relative
     if (-not (Test-Path -LiteralPath $Full -PathType Leaf)) {
         throw ('F2B_O2_HASH_EVIDENCE_MISSING=' + $Relative)
@@ -1109,6 +1137,8 @@ $Manifest = @(
     "POSTGRES_SQL_SHA256=$PostgreSqlHash",
     "POSTGRES_ROOT_CA_SHA256=$RootCaHash",
     "RUNTIME_DLL_SHA256=$RuntimeDllHash",
+    'RUNTIME_BOOTSTRAP_LINE_ENDINGS=LF',
+    'RUNTIME_BOOTSTRAP_ENCODING=UTF8_NO_BOM',
     'PUBLIC_ACCOUNTS=OFF',
     'DISPATCHER=FAIL_CLOSED',
     'SMTP=NOT_CONNECTED',
