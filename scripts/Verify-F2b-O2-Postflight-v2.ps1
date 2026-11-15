@@ -55,7 +55,7 @@ $AllowedVerifierChanges = @(
 )
 $UnexpectedVerifierChanges = @($ChangedPaths | Where-Object { $_ -notin $AllowedVerifierChanges })
 Check (($ChangedPaths -contains 'scripts/Verify-F2b-O2-Postflight-v2.ps1') -and
-    $UnexpectedVerifierChanges.Count -eq 0) 'POSTFLIGHT_VERIFIER_ONLY_CHANGESET'
+    $UnexpectedVerifierChanges.Count -eq 0) 'POSTFLIGHT_APPROVED_FOLLOWUP_CHANGESET'
 $Dirty = @(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0 -or $Dirty.Count -ne 0) { throw 'F2B_O2_POSTFLIGHT_WORKTREE_NOT_CLEAN' }
 Check $true 'POSTFLIGHT_SOURCE_WORKTREE_CLEAN'
@@ -288,7 +288,7 @@ if ($NetworkMatches.Count -ne 0) { throw 'F2B_O2_POSTFLIGHT_NETWORK_REMAINS' }
 Check $true 'POSTFLIGHT_DOCKER_CONTAINER_AND_NETWORK_REMOVED'
 
 $Postflight = @(
-    "SOURCE_SHA=$CommitSha","VERIFIER_SHA=$VerifierSha",'VERIFIER_ONLY_CHANGESET=PASS',
+    "SOURCE_SHA=$CommitSha","VERIFIER_SHA=$VerifierSha",'APPROVED_FOLLOWUP_CHANGESET=PASS',
     'EXACT_RUN_SOURCE=PASS','SQLITE=PASS','POSTGRESQL_17=PASS',
     'TLS_VERIFYFULL=PASS','MIGRATOR_NON_SUPERUSER=PASS','RUNTIME_OUTBOX_DML_ONLY=PASS',
     'INTEGRITY=PASS','CONCURRENCY=PASS','SHA256=PASS','TEMPORARY_SECRETS=REMOVED',
