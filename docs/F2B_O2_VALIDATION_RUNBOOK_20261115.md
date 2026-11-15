@@ -2,7 +2,7 @@
 
 **Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
-**Latest O2 runner correction:** `51e1e6386d4bf90ada864b84b3aab165940ed9a8` (runner) + `f0f5aaea84360f8aab9d27e2b0cff23257b52c4e` (independent postflight).  
+**Latest O2 runner correction:** `8c7203ab5b8b2c243e0f98f3491d32febc197158` (runner) + `a41199da202186926a37c7a256422e99c9b3cc3f` (independent postflight).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -187,7 +187,7 @@ The exact-SHA run passed PowerShell parsing, SQLite migration/integrity/concurre
 2. Build the existing runtime test project as a self-contained `linux-x64` application on the Windows host; no image pull or second container is introduced.
 3. Copy the self-contained runtime payload to the disposable container layer at `/tmp/f2b-o2-runtime`. Copy the short environment bootstrap script to `/tmp`, then move only that script into `/run/pgcerts` tmpfs. Connection strings and scope token are base64-encoded in the temporary script so secrets do not appear in Docker command arguments or stage logs.
 4. Execute the runtime contract as OS user `postgres` inside the PostgreSQL container. It connects to `localhost:5432`; the positive VerifyFull, wrong-host and wrong-CA tests remain unchanged.
-5. Remove the runtime payload and bootstrap script from tmpfs after the contract. The container is then removed in the existing `finally` cleanup.
+5. Remove the runtime payload from the disposable container layer and the bootstrap script from tmpfs after the contract. The published Linux runtime assembly is retained in evidence and its SHA-256 is independently checked by postflight. The container is then removed in the existing `finally` cleanup.
 6. Validate both requested and effective Docker port bindings are empty. The manifest records `POSTGRES_HOST_PORT_PUBLISHED=none` and `POSTGRES_RUNTIME_EXECUTION=IN_DISPOSABLE_CONTAINER`.
 
 The `/run/pgcerts` tmpfs remains at its original 8 MiB limit and contains only certificates, private keys and the short bootstrap script. The self-contained runtime payload is held in the disposable container layer and disappears when the container is removed; no persistent volume or host bind is added. The independent postflight requires the new publish/copy/script-stage/execute/cleanup receipts and the internal-client marker.
