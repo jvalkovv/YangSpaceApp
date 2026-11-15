@@ -306,8 +306,8 @@ try {
     Stage -Label 'o2-pg-container-start' -Executable $Docker -Arguments @(
         'run','-d','--network',$Network,'--network-alias','pg',
         '--publish',("127.0.0.1:{0}:5432" -f $PgHostPort),
-        '--tmpfs','/var/lib/postgresql/data:rw,size=512m',
-        '--tmpfs','/run/pgcerts:rw,size=8m,mode=0700',
+        '--mount','type=tmpfs,dst=/var/lib/postgresql/data,tmpfs-size=536870912,tmpfs-mode=0700',
+        '--mount','type=tmpfs,dst=/run/pgcerts,tmpfs-size=8388608,tmpfs-mode=0700',
         '--name',$Container,
         '-e','POSTGRES_HOST_AUTH_METHOD=trust',
         $PgImage
@@ -318,17 +318,30 @@ try {
     if ($ContainerNetwork -cne $Network) { throw 'F2B_O2_PG_CONTAINER_NETWORK_MISMATCH' }
     $Binds = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Binds}}',$Container)
     if ($Binds -notin @('null','[]')) { throw 'F2B_O2_PG_HOST_BIND_MOUNTS_REFUSED' }
-    $Tmpfs = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Tmpfs}}',$Container)
-    if ($Tmpfs -notmatch '/var/lib/postgresql/data' -or $Tmpfs -notmatch '/run/pgcerts') {
-        throw 'F2B_O2_PG_TMPFS_LAYOUT_MISMATCH'
+    # postgres:17 declares /var/lib/postgresql/data as an image VOLUME.
+    # Use explicit --mount type=tmpfs entries so Docker registers those mount
+    # points before processing image-declared volumes; --tmpfs alone is stored
+    # separately in HostConfig.Tmpfs and does not reliably override image VOLUME.
+    $ImageVolumesJson = GetDockerValue -Arguments @('image','inspect','--format','{{json .Config.Volumes}}',$PgImage)
+    $ImageVolumes = $ImageVolumesJson | ConvertFrom-Json
+    if (-not ($ImageVolumes.PSObject.Properties.Name -contains '/var/lib/postgresql/data')) {
+        throw 'F2B_O2_PG_EXPECTED_IMAGE_DATA_VOLUME_NOT_DECLARED'
     }
+
     $MountJson = GetDockerValue -Arguments @('inspect','--format','{{json .Mounts}}',$Container)
     $Mounts = @($MountJson | ConvertFrom-Json)
+    $ExpectedTmpfsDestinations = @('/var/lib/postgresql/data','/run/pgcerts')
     if ($Mounts.Count -ne 2 -or
-        @($Mounts | Where-Object { $_.Type -cne 'tmpfs' }).Count -ne 0 -or
-        @($Mounts | Where-Object { $_.Destination -notin @('/var/lib/postgresql/data','/run/pgcerts') }).Count -ne 0) {
+        @($Mounts | Where-Object { $_.Type -cne 'tmpfs' -or $_.RW -ne $true }).Count -ne 0 -or
+        @($Mounts | Where-Object { $_.Destination -notin $ExpectedTmpfsDestinations }).Count -ne 0) {
         throw 'F2B_O2_PG_NON_TMPFS_MOUNT_DETECTED'
     }
+    foreach ($Destination in $ExpectedTmpfsDestinations) {
+        if (@($Mounts | Where-Object { $_.Destination -ceq $Destination }).Count -ne 1) {
+            throw ('F2B_O2_PG_TMPFS_DESTINATION_MISSING=' + $Destination)
+        }
+    }
+    Check ($true) 'F2B_O2_PG_IMAGE_DECLARED_VOLUME_OVERRIDDEN_BY_TMPFS'
     $PortJson = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.PortBindings}}',$Container)
     $PortObject = $PortJson | ConvertFrom-Json
     $PortBinding = @($PortObject.'5432/tcp')
@@ -685,6 +698,8 @@ $Manifest = @(
     'POSTGRES_HOST_BIND=127.0.0.1',
     'POSTGRES_HOST_BINDS=none',
     'POSTGRES_ANONYMOUS_VOLUMES=none',
+    'POSTGRES_IMAGE_DECLARED_VOLUME=/var/lib/postgresql/data',
+    'POSTGRES_IMAGE_VOLUME_OVERRIDE=EXPLICIT_TMPFS',
     'POSTGRES_DATA_STORAGE=tmpfs',
     'POSTGRES_TMPFS_MOUNTS=PASS',
     'POSTGRES_HBA_POLICY=HOSTSSL_SCRAM_HOSTNOSSL_REJECT',
