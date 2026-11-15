@@ -106,7 +106,7 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
                     x.Id == item.Id && x.Revision == item.Revision &&
                     x.ExpiresAtUtc > claimNow && x.AttemptCount < _options.MaxAttempts &&
                     ((x.Status == IdentityEmailOutboxStatus.Pending && x.AvailableAtUtc <= claimNow) ||
-                     (x.Status == IdentityEmailOutboxStatus.Leased && x.LeasedUntilUtc != null && x.LeasedUntilUtc <= claimNow)))
+                     (x.Status == IdentityEmailOutboxStatus.Leased && (x.LeasedUntilUtc == null || x.LeasedUntilUtc <= claimNow))))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.Status, IdentityEmailOutboxStatus.Leased)
                     .SetProperty(x => x.LeaseId, (Guid?)leaseId)

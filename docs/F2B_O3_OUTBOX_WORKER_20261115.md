@@ -6,7 +6,8 @@
 
 O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2. It adds no schema migration. The worker is an ASP.NET Core hosted BackgroundService inside the existing API host; it does not require a separate container, LXC or service process.
 
-- Provider-neutral, revision-guarded compare-and-swap lease claim. This intentionally replaces the older PostgreSQL-only SKIP LOCKED proposal: a conditional UPDATE with the candidate revision and eligible state is atomic on both SQLite and PostgreSQL, and only one worker can advance that revision. PostgreSQL 17 runtime concurrency proof remains mandatory.
+- Provider-neutral, revision-guarded compare-and-swap lease claim. This intentionally replaces the older PostgreSQL-only SKIP LOCKED proposal: a conditional UPDATE with the candidate revision and eligible state is atomic on both SQLite and PostgreSQL, and only one worker can advance that revision. PostgreSQL 17 runtime concurrency proof remains mandatory. Candidate selection and atomic claim use the same eligibility rule, including recovery of a Leased row whose lease deadline is null.
+- Enqueue timestamps and worker eligibility use the same injected TimeProvider; the synthetic contract verifies this deterministically instead of relying on wall-clock timing.
 - Fresh email-confirmation/password-reset Identity tokens generated at dispatch, never at enqueue and never persisted.
 - Re-read current Identity user, email, email-confirmation state and all assigned roles immediately before dispatch.
 - Deleted, malformed-email, staff-role, already-confirmed confirmation, and unconfirmed password-reset intents are suppressed.

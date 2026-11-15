@@ -10,7 +10,7 @@ namespace YangSpace.Api;
 /// Store only a minimal email intent; worker generates fresh Identity tokens
 /// and fetches the current recipient at dispatch. No external I/O here.
 /// </summary>
-internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<IdentityUser>
+internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? clock = null) : IEmailSender<IdentityUser>
 {
     private const string PendingUniqueIndex = "UX_IdentityEmailOutbox_PendingUserPurpose";
     private const int MaxCoalescingAttempts = 4;
@@ -34,7 +34,7 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<I
             !string.Equals(user.Email, recipient, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("OUTBOX_IDENTITY_RECIPIENT_MISMATCH");
 
-        var now = DateTime.UtcNow;
+        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(purpose == IdentityEmailPurpose.ResetPassword
             ? TimeSpan.FromHours(2)
             : TimeSpan.FromHours(24));

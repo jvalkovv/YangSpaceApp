@@ -66,11 +66,14 @@ internal static class IdentityEmailOutboxWorkerContract
             var roles=scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             await db.Database.EnsureCreatedAsync();
             var worker=NewWorker(provider,clock,config);
-            var queue=new OutboxIdentityEmailSender(db);
+            var queue=new OutboxIdentityEmailSender(db,clock);
 
             var user=await NewUser(users,"confirm@example.invalid",false);
             await queue.SendConfirmationLinkAsync(user,user.Email!,"discarded-placeholder");
             var id=await IntentId(db,user.Id,IdentityEmailPurpose.ConfirmEmail);
+            var queued=await Message(db,id);
+            Check(queued.AvailableAtUtc<=clock.GetUtcNow().UtcDateTime,
+                "F2B_O3_WORKER_SHARED_TIME_PROVIDER");
             await worker.ProcessBatchOnceAsync();
             var row=await Message(db,id);
             var delivered=fake.Deliveries.Single(x=>x.Email==user.Email && x.Purpose==IdentityEmailPurpose.ConfirmEmail);
