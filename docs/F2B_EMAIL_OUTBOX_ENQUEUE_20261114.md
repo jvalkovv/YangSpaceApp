@@ -1,3 +1,17 @@
+## 2026-11-15 — O2 runtime harness committed; execution still HOLD
+
+The offline dual-provider migrations have been generated, reviewed at source level and committed on `fix/yangspace-f2b-o2-race-safe-20261115` (migration artifacts commit `b720f930d9cb64f1a6b26a854af37e8293ada3f5`). **This source slice adds** the real migration contract selectors and Windows runner for SQLite + PostgreSQL 17.
+
+The runner performs apply → rollback → reapply against fresh disposable databases, checks FK/index/unique/data integrity, exercises concurrent enqueue and Pending coalescing, validates TLS VerifyFull with negative hostname/CA tests, and proves the migration role is non-superuser while runtime has only Outbox DML privileges.
+
+It uses the existing worktree and an already-cached local `postgres:17` image only. No image pull, extra clone, bind mount, named/anonymous volume, persistent QA container, CT164 access, production DB or SMTP. PostgreSQL data and keys are tmpfs-backed; container/network and temporary secrets are removed. Evidence is SHA256-manifested and independently postflight-verified.
+
+**Do not interpret this source change as O2 PASS.** The harness has not yet been compiled or executed. Keep PR #41 Draft/HOLD until exact-SHA SQLite + PostgreSQL runtime tests and independent postflight both pass. PublicAccounts OFF; dispatcher fail-closed; CT164 remains gated.
+
+See [F2b O2 Validation Runbook](F2B_O2_VALIDATION_RUNBOOK_20261115.md).
+
+---
+
 ## 2026-11-15 — Reconciled parent; exact-SHA QA PENDING
 
 This Outbox branch is being reapplied onto the independently verified current F2b parent after the F2a/F2b reconciliation. The earlier O1 run at `4aeeb1c351140f43168aad1eaa62d3bd31ce00ae` belongs to the pre-reconciliation parent and is **not inherited as acceptance** for this new branch. Re-run the exact-SHA O1 source + synthetic SQLite enqueue/rollback contract and independent postflight on the reconciled branch before O2 migration scaffolding.

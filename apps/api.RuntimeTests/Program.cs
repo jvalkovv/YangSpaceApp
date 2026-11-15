@@ -246,6 +246,23 @@ if (args.Length == 1 && string.Equals(
     return;
 }
 
+// F2b O2 applies real provider migrations only to a guarded disposable SQLite
+// file or a TLS-verified disposable PostgreSQL 17 database. It never enables
+// registration, dispatches mail or touches CT164/production.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o2-sqlite-only", StringComparison.Ordinal))
+{
+    await F2bOutboxO2MigrationContract.RunSqliteAsync();
+    return;
+}
+
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o2-postgresql-only", StringComparison.Ordinal))
+{
+    await F2bOutboxO2MigrationContract.RunPostgreSqlAsync();
+    return;
+}
+
 // Disposable SQLite-only email intent/rollback unit contract.
 // Does not test PostgreSQL migrations, SMTP, HTTP or any real data.
 if (args.Length == 1 &&

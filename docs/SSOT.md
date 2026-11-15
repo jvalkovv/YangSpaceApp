@@ -1,3 +1,22 @@
+## 2026-11-15 — F2b O2 dual-provider runtime harness committed (SOURCE COMMITTED / NOT RUN / HOLD)
+
+The six provider migration artifacts were committed and pushed on `fix/yangspace-f2b-o2-race-safe-20261115` at migration commit `b720f930d9cb64f1a6b26a854af37e8293ada3f5`. **This commit adds** opt-in RuntimeTests selectors for the real SQLite and PostgreSQL 17 migration paths, plus an exact-SHA Windows runner and independent postflight.
+
+**O2 scope encoded in source:**
+- SQLite and PostgreSQL: pinned baseline → Outbox migration → rollback → reapply.
+- Exact schema, FK cascade, ordinary indexes, unique partial Pending index, duplicate/orphan rejection and data integrity.
+- Concurrent enqueue, Pending coalescing, expired Pending refresh and revision CAS.
+- PostgreSQL TLS VerifyFull with hostname/CA negative tests; migrator is non-superuser; runtime role is DML-only on Outbox.
+- SHA256 manifest and cleanup checks.
+
+**Storage boundary:** reuse the existing worktree; no additional clone/worktree. The runner requires an already-present local `postgres:17` image and never pulls one. It creates one disposable container on an internal network, loopback-only port, tmpfs data/cert mounts, and rejects all bind/volume mounts. It removes the container/network and temporary secrets. No Docker prune.
+
+**Current acceptance state: NOT RUN.** The new O2 harness has not yet been compiled or executed. The source is not evidence of a passing test. The exact source SHA is pinned in the PR/commit and must match both local HEAD and origin before running [the O2 validation runbook](F2B_O2_VALIDATION_RUNBOOK_20261115.md).
+
+**Hard boundary:** PublicAccounts OFF; dispatcher fail-closed; SMTP NOT CONNECTED; CT164 and production DB NOT ACCESSED; no deployment, no GitHub Actions. CT164 starts only after O2 PASS and independent postflight PASS.
+
+---
+
 ## 2026-11-15 — Outbox parent reconciliation created; exact-SHA QA PENDING
 
 Evidence archive for F2b parent was independently accepted: `YangSpace-F2b-Reconciled-20261115-070631-e24cc3d0.zip`, SHA-256 `8D5F16512503093A2FBB3FEF0452A545968C646A070CA5D4E32095E718102714`; ZIP integrity PASS and 32/32 internal checksums PASS. Parent tested code SHA `8b887dd657323c9e4bae6b7864110f5f61eb04e7`; parent branch docs-only head before this Outbox slice was `1ef4a4fb5645b345f3dfe0dd855bba901598434e`.
