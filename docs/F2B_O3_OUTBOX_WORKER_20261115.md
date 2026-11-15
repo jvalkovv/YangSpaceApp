@@ -15,7 +15,7 @@ O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2.
 - Expired intents are suppressed before dispatch; lease ownership and intent expiry are revalidated immediately before transport.
 - Expired leases, including incomplete/null lease metadata, are reclaimable after process restart. Shutdown cancellation leaves the lease to expire and recover.
 - SMTP uncertain acknowledgement is **at-least-once**. If SMTP accepted a message but the ACK was lost, a retry can duplicate it. Exactly-once delivery is not claimed.
-- Operator dead-letter listing and replay are inside the existing PlatformAdmin and production gateway-protected route group. Responses do not disclose user IDs, email addresses, tokens or payloads.
+- Operator dead-letter listing and replay are inside the existing PlatformAdmin and production gateway-protected route group. Responses do not disclose user IDs, email addresses, tokens or payloads. Successful replay emits a structured operator audit event with outbox ID and actor ID only.
 - Sent/Suppressed/DeadLetter rows have 30/30/90-day retention windows.
 
 ## Fail-closed configuration
