@@ -176,6 +176,7 @@ $RoleSql = Join-Path $Evidence 'temporary-roles.sql'
 $PermissionSql = Join-Path $Evidence 'temporary-db-permissions.sql'
 $TlsConfig = Join-Path $Evidence 'temporary-postgresql.auto.conf'
 $HbaConfig = Join-Path $Evidence 'temporary-pg_hba.conf'
+$TlsInitScript = Join-Path $Evidence 'temporary-f2b-o2-postgres-init.sh'
 
 $Network = 'ys-f2b-o2-' + $RunToken.Substring(0,12)
 $Container = 'ys-f2b-o2-pg17-' + $RunToken.Substring(0,12)
@@ -303,6 +304,85 @@ try {
     }
     Write-Host 'F2B_O2_SQLITE_DATABASE_CLEANUP=PASS'
 
+    # PostgreSQL PGDATA and TLS material are tmpfs. Never restart the
+    # Docker container after initialization: stopping it destroys both tmpfs
+    # mounts. Generate certificates and write ALTER SYSTEM settings from the
+    # official initdb hook, before the first final PostgreSQL server start.
+    $TlsInitScriptContent = @'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+test -n "$PGDATA"
+test -d /run/pgcerts
+test -w /run/pgcerts
+test -d "$PGDATA"
+test -w "$PGDATA"
+
+openssl req -x509 -newkey rsa:2048 -nodes \
+    -keyout /run/pgcerts/ca.key \
+    -out /run/pgcerts/ca.crt \
+    -days 2 -subj '/CN=YangSpaceF2bO2EphemeralCA' \
+    -addext 'basicConstraints=critical,CA:TRUE' \
+    -addext 'keyUsage=critical,keyCertSign,cRLSign'
+
+openssl req -newkey rsa:2048 -nodes \
+    -keyout /run/pgcerts/server.key \
+    -out /run/pgcerts/server.csr \
+    -subj '/CN=localhost' \
+    -addext 'subjectAltName=DNS:localhost' \
+    -addext 'extendedKeyUsage=serverAuth' \
+    -addext 'keyUsage=critical,digitalSignature,keyEncipherment'
+
+openssl x509 -req \
+    -in /run/pgcerts/server.csr \
+    -CA /run/pgcerts/ca.crt \
+    -CAkey /run/pgcerts/ca.key \
+    -CAcreateserial \
+    -out /run/pgcerts/server.crt \
+    -days 2 -sha256 -copy_extensions copy
+
+openssl req -x509 -newkey rsa:2048 -nodes \
+    -keyout /run/pgcerts/wrong-ca.key \
+    -out /run/pgcerts/wrong-ca.crt \
+    -days 2 -subj '/CN=YangSpaceF2bO2WrongCA' \
+    -addext 'basicConstraints=critical,CA:TRUE'
+
+chmod 600 \
+    /run/pgcerts/server.key \
+    /run/pgcerts/ca.key \
+    /run/pgcerts/wrong-ca.key
+
+chmod 644 \
+    /run/pgcerts/ca.crt \
+    /run/pgcerts/server.crt \
+    /run/pgcerts/wrong-ca.crt
+
+cat > "$PGDATA/pg_hba.conf" <<'HBA'
+local all all trust
+hostssl all all 0.0.0.0/0 scram-sha-256
+hostssl all all ::/0 scram-sha-256
+hostnossl all all 0.0.0.0/0 reject
+hostnossl all all ::/0 reject
+HBA
+chmod 600 "$PGDATA/pg_hba.conf"
+
+psql -X -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
+    -c "ALTER SYSTEM SET ssl = 'on';"
+psql -X -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
+    -c "ALTER SYSTEM SET ssl_cert_file = '/run/pgcerts/server.crt';"
+psql -X -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
+    -c "ALTER SYSTEM SET ssl_key_file = '/run/pgcerts/server.key';"
+psql -X -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
+    -c "ALTER SYSTEM SET password_encryption = 'scram-sha-256';"
+
+printf '%s\n' \
+    'F2B_O2_PG_CERTIFICATES_CREATED=PASS' \
+    'F2B_O2_PG_HBA_INITDB_CONFIGURED=PASS' \
+    'F2B_O2_PG_TLS_INITDB_CONFIGURED=PASS'
+'@
+    [IO.File]::WriteAllText($TlsInitScript,$TlsInitScriptContent,$Utf8NoBom)
+
     $Listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
     $Listener.Start()
     try { $PgHostPort = [int]$Listener.LocalEndpoint.Port }
@@ -314,15 +394,21 @@ try {
     Check ($NetworkInternal -ceq 'true') 'F2B_O2_PG_NETWORK_INTERNAL'
 
     $ContainerAttempted = $true
-    Stage -Label 'o2-pg-container-start' -Executable $Docker -Arguments @(
-        'run','-d','--network',$Network,'--network-alias','pg',
+    Stage -Label 'o2-pg-container-create' -Executable $Docker -Arguments @(
+        'create','--network',$Network,'--network-alias','pg',
         '--publish',("127.0.0.1:{0}:5432" -f $PgHostPort),
         '--mount','type=tmpfs,dst=/var/lib/postgresql/data,tmpfs-size=536870912,tmpfs-mode=0700',
         '--mount','type=tmpfs,dst=/run/pgcerts,tmpfs-size=8388608,tmpfs-mode=0700',
         '--name',$Container,
         '-e','POSTGRES_HOST_AUTH_METHOD=trust',
-        $PgImage
+        '--entrypoint','/bin/bash',
+        $PgImage,
+        '-c','chown postgres:postgres /run/pgcerts && chmod 700 /run/pgcerts && exec /usr/local/bin/docker-entrypoint.sh postgres'
     )
+    Stage -Label 'o2-pg-init-script-copy' -Executable $Docker -Arguments @(
+        'cp',$TlsInitScript,($Container + ':/docker-entrypoint-initdb.d/99-f2b-o2-tls.sh')
+    )
+    Stage -Label 'o2-pg-container-start' -Executable $Docker -Arguments @('start',$Container)
     WaitForPostgreSql $Container
 
     $ContainerNetwork = GetDockerValue -Arguments @('inspect','--format','{{.HostConfig.NetworkMode}}',$Container)
@@ -414,41 +500,68 @@ try {
     }
     Write-Host 'F2B_O2_PG_CONTAINER_ISOLATION=PASS'
 
-    Stage -Label 'o2-pg-cert-dir-owner' -Executable $Docker -Arguments @('exec',$Container,'chown','postgres:postgres','/run/pgcerts')
-    Stage -Label 'o2-pg-cert-ca' -Executable $Docker -Arguments @(
-        'exec','--user','postgres',$Container,'openssl','req','-x509','-newkey','rsa:2048',
-        '-nodes','-keyout','/run/pgcerts/ca.key','-out','/run/pgcerts/ca.crt',
-        '-days','2','-subj','/CN=YangSpaceF2bO2EphemeralCA',
-        '-addext','basicConstraints=critical,CA:TRUE',
-        '-addext','keyUsage=critical,keyCertSign,cRLSign'
+    Stage -Label 'o2-pg-init-script-receipts' -Executable $Docker -Arguments @(
+        'logs','--tail','300',$Container
     )
+    $InitLog = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-init-script-receipts.stdout.log'))
+    foreach ($Marker in @(
+        'F2B_O2_PG_CERTIFICATES_CREATED=PASS',
+        'F2B_O2_PG_HBA_INITDB_CONFIGURED=PASS',
+        'F2B_O2_PG_TLS_INITDB_CONFIGURED=PASS'
+    )) {
+        if (-not $InitLog.Contains($Marker)) {
+            throw ('F2B_O2_POSTGRES_INITDB_RECEIPT_MISSING=' + $Marker)
+        }
+    }
+    Write-Host 'F2B_O2_PG_TLS_AND_HBA_CONFIGURED_BEFORE_FIRST_SERVER_START=PASS'
+
+    Stage -Label 'o2-pg-cert-dir-owner' -Executable $Docker -Arguments @(
+        'exec',$Container,'stat','-c','%U:%G:%a','/run/pgcerts'
+    )
+    $CertDir = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-cert-dir-owner.stdout.log')).Trim()
+    if ($CertDir -cne 'postgres:postgres:700') { throw 'F2B_O2_PG_CERT_DIR_OWNER_OR_MODE_INVALID' }
+
+    Stage -Label 'o2-pg-cert-ca' -Executable $Docker -Arguments @(
+        'exec',$Container,'openssl','x509','-in','/run/pgcerts/ca.crt','-noout','-ext','basicConstraints'
+    )
+    $CaText = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-cert-ca.stdout.log'))
+    if ($CaText -notmatch 'CA:TRUE') { throw 'F2B_O2_PG_CA_CERT_INVALID' }
+
     Stage -Label 'o2-pg-cert-server-csr' -Executable $Docker -Arguments @(
-        'exec','--user','postgres',$Container,'openssl','req','-newkey','rsa:2048',
-        '-nodes','-keyout','/run/pgcerts/server.key','-out','/run/pgcerts/server.csr',
-        '-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost',
-        '-addext','extendedKeyUsage=serverAuth',
-        '-addext','keyUsage=critical,digitalSignature,keyEncipherment'
+        'exec',$Container,'openssl','req','-in','/run/pgcerts/server.csr','-noout','-verify'
     )
     Stage -Label 'o2-pg-cert-server-sign' -Executable $Docker -Arguments @(
-        'exec','--user','postgres',$Container,'openssl','x509','-req',
-        '-in','/run/pgcerts/server.csr','-CA','/run/pgcerts/ca.crt',
-        '-CAkey','/run/pgcerts/ca.key','-CAcreateserial',
-        '-out','/run/pgcerts/server.crt','-days','2','-sha256','-copy_extensions','copy'
+        'exec',$Container,'openssl','verify','-CAfile','/run/pgcerts/ca.crt','/run/pgcerts/server.crt'
     )
+    $ServerCertVerify = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-cert-server-sign.stdout.log'))
+    if ($ServerCertVerify -notmatch 'server\.crt:\s+OK') { throw 'F2B_O2_PG_SERVER_CERT_CHAIN_INVALID' }
+
     Stage -Label 'o2-pg-cert-wrong-ca' -Executable $Docker -Arguments @(
-        'exec','--user','postgres',$Container,'openssl','req','-x509','-newkey','rsa:2048',
-        '-nodes','-keyout','/run/pgcerts/wrong-ca.key','-out','/run/pgcerts/wrong-ca.crt',
-        '-days','2','-subj','/CN=YangSpaceF2bO2WrongCA',
-        '-addext','basicConstraints=critical,CA:TRUE'
+        'exec',$Container,'openssl','x509','-in','/run/pgcerts/wrong-ca.crt','-noout','-ext','basicConstraints'
     )
+    $WrongCaText = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-cert-wrong-ca.stdout.log'))
+    if ($WrongCaText -notmatch 'CA:TRUE') { throw 'F2B_O2_PG_WRONG_CA_CERT_INVALID' }
+
     Stage -Label 'o2-pg-cert-permissions' -Executable $Docker -Arguments @(
-        'exec',$Container,'chmod','600','/run/pgcerts/server.key','/run/pgcerts/ca.key',
-        '/run/pgcerts/wrong-ca.key'
+        'exec',$Container,'stat','-c','%a','/run/pgcerts/server.key',
+        '/run/pgcerts/ca.key','/run/pgcerts/wrong-ca.key'
     )
+    $PrivateModes = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-cert-permissions.stdout.log')) |
+        Where-Object { $_ -match '\S' })
+    if ($PrivateModes.Count -ne 3 -or @($PrivateModes | Where-Object { $_ -cne '600' }).Count -ne 0) {
+        throw 'F2B_O2_PG_PRIVATE_KEY_MODE_INVALID'
+    }
+
     Stage -Label 'o2-pg-cert-public-permissions' -Executable $Docker -Arguments @(
-        'exec',$Container,'chmod','644','/run/pgcerts/ca.crt',
+        'exec',$Container,'stat','-c','%a','/run/pgcerts/ca.crt',
         '/run/pgcerts/server.crt','/run/pgcerts/wrong-ca.crt'
     )
+    $PublicModes = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-cert-public-permissions.stdout.log')) |
+        Where-Object { $_ -match '\S' })
+    if ($PublicModes.Count -ne 3 -or @($PublicModes | Where-Object { $_ -cne '644' }).Count -ne 0) {
+        throw 'F2B_O2_PG_PUBLIC_CERT_MODE_INVALID'
+    }
+
     Stage -Label 'o2-pg-cert-san-check' -Executable $Docker -Arguments @(
         'exec',$Container,'openssl','x509','-in','/run/pgcerts/server.crt',
         '-noout','-ext','subjectAltName'
@@ -456,38 +569,50 @@ try {
     $SanText = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-cert-san-check.stdout.log'))
     if ($SanText -notmatch 'DNS:localhost') { throw 'F2B_O2_PG_SERVER_CERT_SAN_MISMATCH' }
 
-    [IO.File]::WriteAllLines($TlsConfig,[string[]]@(
-        "ssl = on",
-        "ssl_cert_file = '/run/pgcerts/server.crt'",
-        "ssl_key_file = '/run/pgcerts/server.key'",
-        "password_encryption = 'scram-sha-256'"
-    ),$Utf8NoBom)
-    [IO.File]::WriteAllLines($HbaConfig,[string[]]@(
-        'local all all trust',
-        'hostssl all all 0.0.0.0/0 scram-sha-256',
-        'hostssl all all ::/0 scram-sha-256',
-        'hostnossl all all 0.0.0.0/0 reject',
-        'hostnossl all all ::/0 reject'
-    ),$Utf8NoBom)
-
-    Stage -Label 'o2-pg-tls-config-copy' -Executable $Docker -Arguments @(
-        'cp',$TlsConfig,($Container + ':/var/lib/postgresql/data/postgresql.auto.conf')
-    )
-    Stage -Label 'o2-pg-hba-config-copy' -Executable $Docker -Arguments @(
-        'cp',$HbaConfig,($Container + ':/var/lib/postgresql/data/pg_hba.conf')
-    )
     Stage -Label 'o2-pg-config-owner' -Executable $Docker -Arguments @(
-        'exec',$Container,'chown','postgres:postgres',
+        'exec',$Container,'stat','-c','%U:%G',
         '/var/lib/postgresql/data/postgresql.auto.conf',
         '/var/lib/postgresql/data/pg_hba.conf'
     )
+    $ConfigOwners = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-config-owner.stdout.log')) |
+        Where-Object { $_ -match '\S' })
+    if ($ConfigOwners.Count -ne 2 -or @($ConfigOwners | Where-Object { $_ -cne 'postgres:postgres' }).Count -ne 0) {
+        throw 'F2B_O2_PG_CONFIG_OWNER_INVALID'
+    }
+
     Stage -Label 'o2-pg-config-permissions' -Executable $Docker -Arguments @(
-        'exec',$Container,'chmod','600',
+        'exec',$Container,'stat','-c','%a',
         '/var/lib/postgresql/data/postgresql.auto.conf',
         '/var/lib/postgresql/data/pg_hba.conf'
     )
-    Stage -Label 'o2-pg-restart-tls' -Executable $Docker -Arguments @('restart',$Container)
-    WaitForPostgreSql $Container
+    $ConfigModes = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-config-permissions.stdout.log')) |
+        Where-Object { $_ -match '\S' })
+    if ($ConfigModes.Count -ne 2 -or @($ConfigModes | Where-Object { $_ -cne '600' }).Count -ne 0) {
+        throw 'F2B_O2_PG_CONFIG_MODE_INVALID'
+    }
+
+    Stage -Label 'o2-pg-tls-configured' -Executable $Docker -Arguments @(
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT CASE WHEN setting='on' AND sourcefile=current_setting('data_directory') || '/postgresql.auto.conf' AND NOT pending_restart THEN 'PASS' ELSE 'FAIL' END FROM pg_settings WHERE name='ssl';"
+    )
+    $TlsConfigured = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-tls-configured.stdout.log')).Trim()
+    if ($TlsConfigured -cne 'PASS') { throw 'F2B_O2_PG_TLS_INITDB_SETTING_NOT_ACTIVE' }
+
+    Stage -Label 'o2-pg-hba-policy-active' -Executable $Docker -Arguments @(
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT CASE WHEN count(*)=5 AND count(*) FILTER (WHERE error IS NOT NULL)=0 AND count(*) FILTER (WHERE type='local' AND auth_method='trust')=1 AND count(*) FILTER (WHERE type='hostssl' AND auth_method='scram-sha-256')=2 AND count(*) FILTER (WHERE type='hostnossl' AND auth_method='reject')=2 THEN 'PASS' ELSE 'FAIL' END FROM pg_hba_file_rules;"
+    )
+    $HbaPolicy = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-hba-policy-active.stdout.log')).Trim()
+    if ($HbaPolicy -cne 'PASS') { throw 'F2B_O2_PG_HBA_POLICY_NOT_ACTIVE' }
+
+
+    Stage -Label 'o2-pg-container-state' -Executable $Docker -Arguments @(
+        'inspect','--format','{{.RestartCount}}',$Container
+    )
+    $ContainerRestartCount = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-container-state.stdout.log')).Trim()
+    if ($ContainerRestartCount -cne '0') { throw 'F2B_O2_PG_CONTAINER_RESTARTED_TMPFS_STATE_INVALID' }
 
     Stage -Label 'o2-pg-server-version' -Executable $Docker -Arguments @(
         'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
@@ -706,7 +831,7 @@ finally {
             }
         }
 
-        foreach ($Path in @($RoleSql,$PermissionSql,$WrongCaPath,$TlsConfig,$HbaConfig)) {
+        foreach ($Path in @($RoleSql,$PermissionSql,$WrongCaPath,$TlsConfig,$HbaConfig,$TlsInitScript)) {
             if (Test-Path -LiteralPath $Path) {
                 Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
             }
@@ -799,6 +924,9 @@ $Manifest = @(
     'POSTGRES_ANONYMOUS_VOLUMES=none',
     'POSTGRES_IMAGE_DECLARED_VOLUME=/var/lib/postgresql/data',
     'POSTGRES_IMAGE_VOLUME_OVERRIDE=EXPLICIT_TMPFS',
+    'POSTGRES_TLS_INITDB_CONFIG=PASS',
+    'POSTGRES_HBA_POLICY_ACTIVE=PASS',
+    'POSTGRES_CONTAINER_RESTARTS=0',
     'POSTGRES_DATA_STORAGE=tmpfs',
     'POSTGRES_TMPFS_MOUNTS=PASS',
     'POSTGRES_HBA_POLICY=HOSTSSL_SCRAM_HOSTNOSSL_REJECT',
