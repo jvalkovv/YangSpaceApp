@@ -297,11 +297,3 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
     private sealed record Candidate(Guid Id, long Revision);
 }
 
-internal static class IdentityEmailOutboxDispatchPolicy
-{
-    internal static bool DispatcherAvailable => true;
-    internal static bool IsEnabled(IConfiguration configuration) =>
-        DispatcherAvailable &&
-        configuration.GetValue<bool>("PublicAccounts:Enabled") &&
-        configuration.GetValue<bool>("PublicAccounts:Outbox:DispatchEnabled");
-}

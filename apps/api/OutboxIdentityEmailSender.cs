@@ -140,9 +140,14 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<I
     }
 }
 
-// Deliberate compile-time startup HOLD until the reviewed migration, worker,
-// outbox leases and restart recovery have all passed, independent of config.
+// Implementation availability is separate from the explicit runtime switches.
+// Both PublicAccounts and Outbox.DispatchEnabled remain default-OFF.
 internal static class IdentityEmailOutboxDispatchPolicy
 {
-    internal static bool DispatcherAvailable => false;
+    internal static bool DispatcherAvailable => true;
+
+    internal static bool IsEnabled(IConfiguration configuration) =>
+        DispatcherAvailable &&
+        configuration.GetValue<bool>("PublicAccounts:Enabled") &&
+        configuration.GetValue<bool>("PublicAccounts:Outbox:DispatchEnabled");
 }
