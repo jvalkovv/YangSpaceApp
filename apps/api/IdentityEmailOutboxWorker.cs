@@ -166,6 +166,11 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
             var item = await db.IdentityEmailOutbox.AsNoTracking().SingleOrDefaultAsync(
                 x => x.Id == id && x.Status == IdentityEmailOutboxStatus.Leased && x.LeaseId == leaseId, ct);
             if (item is null) return;
+            if (item.ExpiresAtUtc <= _clock.GetUtcNow().UtcDateTime)
+            {
+                await SuppressAsync(db,id,leaseId,"intent_expired",ct);
+                return;
+            }
 
             var user = await users.FindByIdAsync(item.UserId);
             if (user is null) { await SuppressAsync(db,id,leaseId,"user_missing",ct); return; }
@@ -192,6 +197,13 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
                 ? await users.GenerateEmailConfirmationTokenAsync(user)
                 : await users.GeneratePasswordResetTokenAsync(user);
             var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
+            var dispatchNow = _clock.GetUtcNow().UtcDateTime;
+            var stillOwnsLease = await db.IdentityEmailOutbox.AsNoTracking().AnyAsync(x =>
+                x.Id == id && x.Status == IdentityEmailOutboxStatus.Leased &&
+                x.LeaseId == leaseId && x.LeasedUntilUtc != null &&
+                x.LeasedUntilUtc > dispatchNow && x.ExpiresAtUtc > dispatchNow, ct);
+            if (!stillOwnsLease)
+                return;
 
             if (item.Purpose == IdentityEmailPurpose.ConfirmEmail)
             {
