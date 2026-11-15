@@ -52,7 +52,40 @@ $ErrorActionPreference = 'Stop'
 $Repo = 'D:\GitHub\YangSpaceApp-F2b-O2-RaceSafe-20261115'
 $Branch = 'fix/yangspace-f2b-o2-race-safe-20261115'
 $RunCommit = 'e1944650f48f1ec9acc3161df0527a57c70defe9'
-$VerifierCommit = '<EXACT_CURRENT_BRANCH_HEAD>'
+$VerifierCommit = (git rev-parse "origin/$Branch").Trim()
+if ($VerifierCommit -notmatch '^[0-9a-f]{40}
+
+Set-Location $Repo
+git fetch --no-tags origin $Branch
+if ($LASTEXITCODE -ne 0) { throw 'FETCH_FAILED' }
+
+if ((git rev-parse "origin/$Branch").Trim() -cne $VerifierCommit) {
+    throw 'REMOTE_VERIFIER_HEAD_MISMATCH'
+}
+
+git switch --detach $VerifierCommit
+if ($LASTEXITCODE -ne 0) { throw 'CHECKOUT_FAILED' }
+if ((git rev-parse HEAD).Trim() -cne $VerifierCommit) { throw 'LOCAL_VERIFIER_HEAD_MISMATCH' }
+
+if (@(git status --porcelain --untracked-files=all).Count -ne 0) {
+    throw 'WORKTREE_NOT_CLEAN'
+}
+
+$Evidence = Join-Path $Repo 'logs\yangspace\f2b-o2\e1944650f48f-20261115-220828-c3fc043e'
+
+.\scripts\Verify-F2b-O2-Postflight-v2.ps1 `
+    -CommitSha $RunCommit `
+    -EvidenceDirectory $Evidence
+```
+
+Expected final marker: `F2B_O2_POSTFLIGHT=PASS`.
+
+The migration suite is not rerun because no tested application, migration, runtime runner or evidence artifact changed. The original source commit remains independently pinned and hash-verified.
+
+## Release boundary
+
+Even after O2 postflight PASS, release remains `HOLD_CT164_PENDING`. O2 PASS authorizes only the next separately gated CT164 preview/runtime validation; it does not authorize public registration, SMTP dispatch or production migration.
+) { throw 'VERIFIER_COMMIT_INVALID' }
 
 Set-Location $Repo
 git fetch --no-tags origin $Branch
