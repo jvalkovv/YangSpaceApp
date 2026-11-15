@@ -500,6 +500,36 @@ try {
         throw ('F2B_O2_POSTGRESQL_17_REQUIRED=' + $PgVersionNum)
     }
 
+    # Capture the active PostgreSQL configuration paths and effective TLS
+    # setting provenance before enforcing the SSL gate. docker cp success alone
+    # does not prove that PostgreSQL loaded the intended postgresql.auto.conf.
+    Stage -Label 'o2-pg-config-paths' -Executable $Docker -Arguments @(
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT row_to_json(x) FROM (SELECT current_setting('config_file') AS config_file, current_setting('data_directory') AS data_directory, current_setting('hba_file') AS hba_file) x;"
+    )
+    Stage -Label 'o2-pg-config-file-stat' -Executable $Docker -Arguments @(
+        'exec',$Container,'ls','-ln',
+        '/var/lib/postgresql/data/postgresql.auto.conf',
+        '/var/lib/postgresql/data/pg_hba.conf'
+    )
+    Stage -Label 'o2-pg-auto-conf-content' -Executable $Docker -Arguments @(
+        'exec',$Container,'cat','/var/lib/postgresql/data/postgresql.auto.conf'
+    )
+    Stage -Label 'o2-pg-setting-sources' -Executable $Docker -Arguments @(
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT row_to_json(x) FROM (SELECT name, setting, source, sourcefile, sourceline, pending_restart FROM pg_settings WHERE name IN ('ssl','ssl_cert_file','ssl_key_file') ORDER BY name) x;"
+    )
+    Stage -Label 'o2-pg-file-settings' -Executable $Docker -Arguments @(
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT row_to_json(x) FROM (SELECT sourcefile, sourceline, name, setting, applied, error FROM pg_file_settings WHERE name IN ('ssl','ssl_cert_file','ssl_key_file') OR error IS NOT NULL ORDER BY seqno) x;"
+    )
+    Stage -Label 'o2-pg-startup-log' -Executable $Docker -Arguments @(
+        'logs','--tail','200',$Container
+    )
+
     Stage -Label 'o2-pg-ssl-state' -Executable $Docker -Arguments @(
         'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
         '-U','postgres','-d','postgres','-c','SHOW ssl;'
