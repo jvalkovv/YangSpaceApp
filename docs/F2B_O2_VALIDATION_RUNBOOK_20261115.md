@@ -1,8 +1,8 @@
 # F2b O2 — Dual-provider migration, integrity and concurrency validation
 
-**Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
+**Status: O2 RUNNER PASS at `e1944650f48f1ec9acc3161df0527a57c70defe9`; independent postflight pending.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
-**Latest O2 runner correction:** `030f6070bb5600cb88b04857b58fb980dee5a649` (runner) + `c238b3fd909417a6c564e2a9005dc7071584697c` (independent postflight).  
+**Exact O2 runner source:** `e1944650f48f1ec9acc3161df0527a57c70defe9`. **Postflight verifier correction:** `scripts/Verify-F2b-O2-Postflight-v2.ps1` (separate verifier-only commit; does not alter the tested runner source).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -69,10 +69,13 @@ The runner prints `EVIDENCE_DIR=...` only after SQLite and PostgreSQL tests pass
 
 ```powershell
 $Evidence = '<EXACT_EVIDENCE_DIR_FROM_RUNNER>'
-.\scripts\Verify-F2b-O2-Postflight.ps1 -CommitSha $Commit -EvidenceDirectory $Evidence
+.\scripts\Verify-F2b-O2-Postflight-v2.ps1 -CommitSha $Commit -EvidenceDirectory $Evidence
 ```
 
 Do not substitute a different worktree, source SHA, database, image tag or evidence directory. The runner checks the branch tip and clean worktree before doing anything.
+
+The O2 runner evidence SHA remains the exact tested commit. The v2 verifier accepts a later commit only when the run SHA is its ancestor and the complete intervening diff is limited to the v2 verifier and this runbook. It independently pins the verifier HEAD to the remote branch and checks the source worktree is clean. The original verifier file is intentionally retained unchanged because its SHA-256 is part of the runner evidence manifest.
+
 
 ## Evidence layout
 
@@ -204,3 +207,13 @@ The exact-SHA execution at `1cce588544d7408f5972b759e995abbc21e553dd` passed all
 **Independent postflight correction in `c238b3fd909417a6c564e2a9005dc7071584697c`:** require the new manifest keys, include the sanitized validation receipt in the evidence-path checksum allowlist, and verify its exact contents.
 
 **Next gate:** parser-only validation on Windows PowerShell 5.1 at the new exact branch HEAD. If all three scripts parse, rerun the complete O2 runner from the beginning; do not resume the failed container or reuse the `1cce5885` evidence. After a complete runner PASS and successful cleanup, execute independent postflight. CT164 and production remain untouched.
+
+### 2026-11-15 — O2 runner PASS and postflight verifier correction
+
+The complete exact-SHA O2 runner completed at `e1944650f48f1ec9acc3161df0527a57c70defe9` with SQLite, PostgreSQL 17, TLS VerifyFull, integrity, concurrency, Linux runtime contract and cleanup all passing. Evidence directory: `logs/yangspace/f2b-o2/e1944650f48f-20261115-220828-c3fc043e`. Manifest SHA-256: `cdb36392e06cba0ee8b2f42e399d3a75562bc57ead88412e50260b41c06af03f`.
+
+The first independent postflight reached the final Docker cleanup check, then PowerShell 5.1 promoted the expected stderr from `docker inspect` of the already-removed ephemeral container into a terminating error. The O2 evidence itself is not invalidated. The v2 verifier uses successful local Docker container/network listings and exact name matching; Docker CLI/list failures remain hard failures and cannot be mistaken for cleanup success.
+
+To preserve exact-SHA evidence without rerunning the migration suite, the original runner commit remains the `CommitSha`. The follow-up commit is restricted to the new v2 verifier and this runbook. The v2 verifier checks that the runner SHA is an ancestor of its own exact remote-pinned HEAD and rejects any other intervening source changes. The original verifier file remains unchanged because it is covered by the original runner's SHA-256 manifest.
+
+**Current acceptance:** runner PASS; independent postflight pending. CT164 and production DB remain untouched; SMTP disconnected; PublicAccounts OFF; dispatcher fail-closed.
