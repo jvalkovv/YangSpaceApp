@@ -2,7 +2,7 @@
 
 **Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
-**Latest O2 runner correction:** `3d21e68003ff1d5acc0224fc64b9e61151e6c98c` (runner) + `d36729563ae29bd1ca13c031f6e1be1bc1aa3d9b` (independent postflight).  
+**Latest O2 runner correction:** `b56c65fa078657e144bceecb489c29463761e3ac` (runner) + `02153300aecdc86cb81430b178ff62bf893de398` (independent postflight).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -28,9 +28,9 @@ The O2 test runs real EF migrations only against newly created disposable databa
 
 - Reuses the existing Windows worktree. It does not clone another repository or create another worktree.
 - Requires an already-present local `postgres:17` image. **No automatic image pull.** If absent, the runner stops before creating a container.
-- Creates one uniquely named local Docker container (create → copy a temporary entrypoint wrapper and one initdb hook → start once) and one `--internal` network. The container is not restarted: stopping it would discard both tmpfs mounts, including PGDATA.
-- Publishes exactly one PostgreSQL port on `127.0.0.1`; no external bind.
-- PostgreSQL 17's image declares `/var/lib/postgresql/data` as a Dockerfile `VOLUME`. The runner currently requests explicit `--mount type=tmpfs` for the data and TLS paths. This request alone is not treated as proof of effective isolation: while the exact container is alive, the runner writes `o2-pg-storage-diagnostics.json` with Docker Server version/OS, image and container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and effective `.Mounts`. Acceptance still requires exactly two writable tmpfs mounts at the expected destinations and no volume/bind mount. A failed gate must be diagnosed from that file; do not infer the effective mount layout from image metadata alone.
+- Creates one uniquely named local PostgreSQL 17 Docker container and one `--internal` network. The container is started once and never restarted: stopping it would discard both tmpfs mounts, including PGDATA.
+- **No host port is published.** The runtime contract is built as a self-contained `linux-x64` application on the Windows host, copied into the existing PostgreSQL container's `/run/pgcerts` tmpfs, and executed as the unprivileged OS user `postgres`. It connects to `localhost:5432` inside the same container/network namespace. This preserves the single-container, internal-only network boundary and avoids Docker's unsupported internal-network host-port publication path. No second container or additional image is required.
+- PostgreSQL 17's image declares `/var/lib/postgresql/data` as a Dockerfile `VOLUME`. The runner requests explicit `--mount type=tmpfs` for data and TLS/runtime paths: 512 MiB for PGDATA and 128 MiB for `/run/pgcerts`. While the exact container is alive, the runner writes `o2-pg-storage-diagnostics.json` with Docker Server version/OS, image and container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and effective `.Mounts`. Acceptance still requires exactly two writable tmpfs mounts at the expected destinations and no volume/bind mount. A failed gate must be diagnosed from that file; do not infer the effective mount layout from image metadata alone.
 - A single `docker-entrypoint-initdb.d` hook generates the ephemeral CA/server/wrong-CA certificates, writes the strict `pg_hba.conf`, and applies TLS settings with `ALTER SYSTEM` while the official image's temporary initdb server is running. The official entrypoint then stops that temporary server and launches the first final server with TLS already enabled. The runner never calls `docker restart` or copies PostgreSQL config into a running tmpfs data directory.
 - The server certificate is valid for `localhost`; the client uses `SSL Mode=VerifyFull` and the ephemeral CA. Wrong hostname and wrong CA must both fail.
 - The migrator and runtime passwords are random per run and are not written to command logs. Temporary SQL/password files and the wrong CA are removed. Private keys remain inside tmpfs and disappear with the container. Only the public root CA is retained for evidence.
@@ -86,7 +86,7 @@ Do not substitute a different worktree, source SHA, database, image tag or evide
 
 ## Failure and cleanup
 
-The runner intentionally fails closed if the image is missing, the Docker context is not local/Linux, a host bind/volume appears, a port is not loopback-only, the server is not PostgreSQL 17, TLS verification fails, any migration/constraint/concurrency marker is missing, or cleanup cannot be proven.
+The runner intentionally fails closed if the image is missing, the Docker context is not local/Linux, a host bind/volume or host-published port appears, the server is not PostgreSQL 17, the self-contained Linux runtime cannot be published or executed, TLS verification fails, any migration/constraint/concurrency marker is missing, or cleanup cannot be proven.
 
 If PowerShell is interrupted, do **not** run `docker system prune`. Use the exact `POSTGRES_CONTAINER` and `POSTGRES_NETWORK` values from the run manifest, if present:
 
@@ -174,3 +174,22 @@ The exact-SHA invocation at `81f3c62b8b0f299ee23c45b93e41db2cea656ee1` failed du
 The repaired source is 1,044 lines (the clean baseline was 1,002 lines); the duplicate tail and old `docker cp` CA-export stages are absent. The runner itself has not yet been executed or parser-validated in Windows PowerShell 5.1. Previous evidence remains HOLD.
 
 **Next exact branch HEAD:** `3d21e68003ff1d5acc0224fc64b9e61151e6c98c`. First run a parser-only check with Windows PowerShell 5.1, then run the full exact-SHA O2 suite only if parsing succeeds. Follow with independent postflight. CT164 and production remain untouched.
+
+### PostgreSQL host-port publication failure — 2026-11-15
+
+The exact-SHA run passed PowerShell parsing, SQLite migration/integrity/concurrency checks, PostgreSQL 17 startup, TLS certificate generation and validation, TLS/HBA configuration, public CA exports, role creation and database permissions. It then failed at the first Npgsql TLS connection with `SocketException (10061)` against `127.0.0.1:53306`.
+
+**Confirmed architecture mismatch:** the runner attached the PostgreSQL container exclusively to a Docker `--internal` bridge network while also requesting `--publish 127.0.0.1:<host-port>:5432`. Docker accepted the requested `HostConfig.PortBindings`, and the container started, but the published port was not effectively installed. The runner checked only `HostConfig.PortBindings`, not `NetworkSettings.Ports`, so it incorrectly marked the requested mapping as valid. Docker's maintainers documented this exact behavior for containers attached only to internal bridge networks: no default-gateway network means no host port publication; `HostConfig.PortBindings` can retain the request while `NetworkSettings.Ports` and `docker port` show no effective mapping. See [Moby discussion #53256](https://github.com/moby/moby/discussions/53256).
+
+**Correction in runner commit `b56c65fa078657e144bceecb489c29463761e3ac`:**
+
+1. Keep the PostgreSQL container on the single `--internal` network and remove host port publication entirely.
+2. Build the existing runtime test project as a self-contained `linux-x64` application on the Windows host; no image pull or second container is introduced.
+3. Copy the runtime output and a short environment bootstrap script into the existing container's `/run/pgcerts` tmpfs. Connection strings and scope token are base64-encoded in that temporary script so secrets do not appear in Docker command arguments or stage logs.
+4. Execute the runtime contract as OS user `postgres` inside the PostgreSQL container. It connects to `localhost:5432`; the positive VerifyFull, wrong-host and wrong-CA tests remain unchanged.
+5. Remove the runtime payload and bootstrap script from tmpfs after the contract. The container is then removed in the existing `finally` cleanup.
+6. Validate both requested and effective Docker port bindings are empty. The manifest records `POSTGRES_HOST_PORT_PUBLISHED=none` and `POSTGRES_RUNTIME_EXECUTION=IN_DISPOSABLE_CONTAINER`.
+
+The `/run/pgcerts` tmpfs limit increases from 8 MiB to 128 MiB to hold the temporary self-contained runtime. It remains tmpfs; no persistent volume or host bind is added. The independent postflight now requires the new publish/copy/execute/cleanup receipts and the internal-client marker.
+
+**Acceptance is still HOLD.** The new runner has not yet been parser-validated or executed on the operator's Windows/Docker Desktop host. First run parser-only validation on the exact current branch HEAD, then the complete O2 suite and independent postflight. Do not reuse the failed run's evidence. CT164 and production remain untouched.
