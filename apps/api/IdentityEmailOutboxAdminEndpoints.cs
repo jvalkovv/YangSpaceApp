@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -22,9 +23,17 @@ internal static class IdentityEmailOutboxAdminEndpoints
         });
 
         admin.MapPost("/email-outbox/{id:guid}/replay", async (
-            DirectoryDb db, Guid id, TimeProvider clock, CancellationToken ct) =>
+            DirectoryDb db, Guid id, TimeProvider clock, ClaimsPrincipal principal,
+            ILogger<IdentityEmailOutboxAdminEndpoints> logger, CancellationToken ct) =>
         {
             var result = await ReplayDeadLetterAsync(db,id,clock,ct);
+            if (result == IdentityEmailOutboxReplayResult.Replayed)
+            {
+                var actorId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                logger.LogInformation(
+                    "IDENTITY_EMAIL_OUTBOX_OPERATOR_REPLAYED OutboxId={OutboxId} ActorId={ActorId}",
+                    id, actorId);
+            }
             return result switch
             {
                 IdentityEmailOutboxReplayResult.Replayed => Results.Accepted(),
