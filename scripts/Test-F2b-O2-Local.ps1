@@ -285,7 +285,7 @@ try {
         'F2B_O2_DISPATCHER_FAIL_CLOSED=PASS'
     )) { RequireMarker 'o2-sqlite-migration-contract' $Marker }
 
-    foreach ($Suffix in @('','-wal','-shm')) {
+    foreach ($Suffix in @('','-wal','-shm','-journal')) {
         if (Test-Path -LiteralPath ($SqliteDb + $Suffix)) {
             throw 'F2B_O2_SQLITE_DISPOSABLE_DATABASE_NOT_REMOVED'
         }

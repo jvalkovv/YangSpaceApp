@@ -167,7 +167,7 @@ $Forbidden = @(
     'temporary-roles.sql','temporary-db-permissions.sql','temporary-wrong-ca.crt',
     'temporary-postgresql.auto.conf','temporary-pg_hba.conf',
     'yangspace-f2b-o2-sqlite.db','yangspace-f2b-o2-sqlite.db-wal',
-    'yangspace-f2b-o2-sqlite.db-shm'
+    'yangspace-f2b-o2-sqlite.db-shm','yangspace-f2b-o2-sqlite.db-journal'
 )
 foreach ($Name in $Forbidden) {
     Check (-not (Test-Path -LiteralPath (Join-Path $Evidence $Name))) ('POSTFLIGHT_NO_' + ($Name -replace '[^A-Za-z0-9]','_'))

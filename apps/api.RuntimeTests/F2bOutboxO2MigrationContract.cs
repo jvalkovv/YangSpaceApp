@@ -500,7 +500,7 @@ internal static class F2bOutboxO2MigrationContract
         finally
         {
             SqliteConnection.ClearAllPools();
-            foreach (var suffix in new[] { "", "-wal", "-shm" })
+            foreach (var suffix in new[] { "", "-wal", "-shm", "-journal" })
             {
                 var path = databasePath + suffix;
                 if (File.Exists(path))
