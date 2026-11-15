@@ -36,7 +36,9 @@ internal static class IdentityEmailOutboxWorkerContract
             var clock=new MutableClock(DateTimeOffset.UtcNow);
             var fake=new FakeTransport();
             var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
-                ["PublicAccounts:CanonicalOrigin"]="https://yangspace.gndstore.eu"
+                ["PublicAccounts:CanonicalOrigin"]="https://yangspace.gndstore.eu",
+                ["PublicAccounts:Enabled"]="true",
+                ["PublicAccounts:Outbox:DispatchEnabled"]="true"
             }).Build();
             var services=new ServiceCollection();
             services.AddLogging();
@@ -67,6 +69,25 @@ internal static class IdentityEmailOutboxWorkerContract
             await db.Database.EnsureCreatedAsync();
             var worker=NewWorker(provider,clock,config);
             var queue=new OutboxIdentityEmailSender(db,clock);
+
+            var disabledProbe=await NewUser(users,"dispatch-disabled@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(disabledProbe,disabledProbe.Email!,"discarded");
+            var disabledId=await IntentId(db,disabledProbe.Id,IdentityEmailPurpose.ConfirmEmail);
+            var disabledConfig=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
+                ["PublicAccounts:CanonicalOrigin"]="https://yangspace.gndstore.eu",
+                ["PublicAccounts:Enabled"]="true",
+                ["PublicAccounts:Outbox:DispatchEnabled"]="false"
+            }).Build();
+            using (var disabledWorker=NewWorker(provider,clock,disabledConfig))
+            {
+                var disabledCount=await disabledWorker.ProcessBatchOnceAsync();
+                await disabledWorker.StartAsync(CancellationToken.None);
+                await disabledWorker.StopAsync(CancellationToken.None);
+                Check(disabledCount==0 &&
+                    (await Message(db,disabledId)).Status==IdentityEmailOutboxStatus.Pending &&
+                    !fake.Deliveries.Any(x=>x.Email==disabledProbe.Email),
+                    "F2B_O3_WORKER_DISPATCH_DEFAULT_OFF");
+            }
 
             var user=await NewUser(users,"confirm@example.invalid",false);
             await queue.SendConfirmationLinkAsync(user,user.Email!,"discarded-placeholder");

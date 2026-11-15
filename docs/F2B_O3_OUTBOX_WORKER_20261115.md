@@ -21,7 +21,7 @@ O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2.
 
 ## Fail-closed configuration
 
-Both switches remain false in appsettings:
+Both switches remain false in appsettings. The hosted loop and the batch processor each independently refuse to process when either switch is false; the synthetic contract verifies this gate with `F2B_O3_WORKER_DISPATCH_DEFAULT_OFF=PASS`:
 
 - PublicAccounts.Enabled = false
 - PublicAccounts.Outbox.DispatchEnabled = false

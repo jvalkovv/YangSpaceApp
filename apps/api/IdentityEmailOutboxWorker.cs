@@ -43,6 +43,7 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
     private readonly IdentityEmailOutboxOptions _options;
     private readonly TimeProvider _clock;
     private readonly string _canonicalOrigin;
+    private readonly bool _dispatchEnabled;
 
     internal IdentityEmailOutboxWorker(IServiceScopeFactory scopeFactory,
         ILogger<IdentityEmailOutboxWorker> logger, IOptions<IdentityEmailOutboxOptions> options,
@@ -54,12 +55,19 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
         _options.Validate();
         _clock = clock;
         _canonicalOrigin = configuration["PublicAccounts:CanonicalOrigin"] ?? "";
+        _dispatchEnabled = IdentityEmailOutboxDispatchPolicy.IsEnabled(configuration);
         if (_canonicalOrigin != "https://yangspace.gndstore.eu")
             throw new InvalidOperationException("PUBLIC_ACCOUNT_CANONICAL_ORIGIN_REFUSED");
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_dispatchEnabled)
+        {
+            _logger.LogInformation("IDENTITY_EMAIL_OUTBOX_DISPATCH_DISABLED");
+            return;
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try { await ProcessBatchOnceAsync(stoppingToken); }
@@ -76,6 +84,8 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
 
     internal async Task<int> ProcessBatchOnceAsync(CancellationToken cancellationToken = default)
     {
+        if (!_dispatchEnabled) return 0;
+
         var now = _clock.GetUtcNow().UtcDateTime;
         await using var scope = _scopeFactory.CreateAsyncScope();
         var services = scope.ServiceProvider;
