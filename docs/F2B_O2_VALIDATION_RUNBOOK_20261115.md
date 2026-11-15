@@ -2,6 +2,7 @@
 
 **Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
+**Latest TLS/tmpfs lifecycle correction:** `8455b352da8c9bc0f95eee0a2f0309a4808e780d` (runner) + `f0a31a2bc17d159f9fe73a35369ef4534cda204c` (independent postflight).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -27,9 +28,10 @@ The O2 test runs real EF migrations only against newly created disposable databa
 
 - Reuses the existing Windows worktree. It does not clone another repository or create another worktree.
 - Requires an already-present local `postgres:17` image. **No automatic image pull.** If absent, the runner stops before creating a container.
-- Creates one uniquely named local Docker container and one `--internal` network.
+- Creates one uniquely named local Docker container (create → copy one initdb hook → start once) and one `--internal` network. The container is not restarted: stopping it would discard both tmpfs mounts, including PGDATA.
 - Publishes exactly one PostgreSQL port on `127.0.0.1`; no external bind.
 - PostgreSQL 17's image declares `/var/lib/postgresql/data` as a Dockerfile `VOLUME`. The runner currently requests explicit `--mount type=tmpfs` for the data and TLS paths. This request alone is not treated as proof of effective isolation: while the exact container is alive, the runner writes `o2-pg-storage-diagnostics.json` with Docker Server version/OS, image and container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and effective `.Mounts`. Acceptance still requires exactly two writable tmpfs mounts at the expected destinations and no volume/bind mount. A failed gate must be diagnosed from that file; do not infer the effective mount layout from image metadata alone.
+- A single `docker-entrypoint-initdb.d` hook generates the ephemeral CA/server/wrong-CA certificates, writes the strict `pg_hba.conf`, and applies TLS settings with `ALTER SYSTEM` while the official image's temporary initdb server is running. The official entrypoint then stops that temporary server and launches the first final server with TLS already enabled. The runner never calls `docker restart` or copies PostgreSQL config into a running tmpfs data directory.
 - The server certificate is valid for `localhost`; the client uses `SSL Mode=VerifyFull` and the ephemeral CA. Wrong hostname and wrong CA must both fail.
 - The migrator and runtime passwords are random per run and are not written to command logs. Temporary SQL/password files and the wrong CA are removed. Private keys remain inside tmpfs and disappear with the container. Only the public root CA is retained for evidence.
 - Container and network are removed in `finally`. Postflight independently confirms both are absent.
@@ -123,3 +125,21 @@ The official `postgres:17` image declares `/var/lib/postgresql/data` in image `C
 **Source correction:** parse the root array through a JSON object envelope (`{"mounts": <array>}`) and then read `$MountEnvelope.mounts`. A two-item synthetic parser contract is checked before O2 starts. The runner continues to require exactly two writable effective tmpfs mounts at the expected destinations and rejects every bind/volume mount. The diagnostic JSON remains in place for future failures.
 
 Hard acceptance is unchanged: exactly two writable tmpfs mounts at `/var/lib/postgresql/data` and `/run/pgcerts`, no bind/volume mount, and independent postflight proof of cleanup. No weakening of the storage isolation contract. PostgreSQL migration/TLS/integrity/concurrency stages have not yet run; rerun the full O2 suite against the new exact branch HEAD.
+
+
+### Confirmed PostgreSQL tmpfs lifecycle root cause and correction
+
+**Root cause (confirmed from the 2026-11-15 O2 evidence):** the earlier runner copied postgresql.auto.conf and pg_hba.conf into a running container and then invoked docker restart. Both /var/lib/postgresql/data and /run/pgcerts are tmpfs mounts. Stopping/restarting that container discarded the tmpfs contents. The startup log showed a second initdb, and the subsequent postgresql.auto.conf contained only its two default comments; pg_settings therefore reported ssl=off, source=default, and sourcefile=null. This was a runner lifecycle defect, not a certificate-generation or PostgreSQL TLS parsing defect.
+
+**Correction (runner commit 8455b352da8c9bc0f95eee0a2f0309a4808e780d):**
+
+1. Use docker create with the same single PostgreSQL 17 container, internal network, loopback-only port and exactly two tmpfs mounts.
+2. Copy one temporary initdb shell hook into /docker-entrypoint-initdb.d/ while the container is stopped.
+3. Start the container once. A root entrypoint wrapper changes /run/pgcerts ownership to postgres:postgres mode 0700, then delegates to the official PostgreSQL entrypoint.
+4. During the official initdb hook, generate the ephemeral CA, server certificate (SAN DNS:localhost), wrong CA, private/public file permissions, and strict HBA policy. Use ALTER SYSTEM to set ssl=on, certificate/key paths and SCRAM password encryption while the official entrypoint's temporary initialization server is running.
+5. The official entrypoint stops its temporary initialization server and starts the first final PostgreSQL server. It reads the generated postgresql.auto.conf and HBA file on that first final start. No Docker container restart occurs.
+6. Verify init-hook receipts, certificate chain/SAN/permissions, config ownership/modes, pg_settings.sourcefile, pg_hba_file_rules, SHOW ssl=on, and Docker RestartCount=0. The existing TLS VerifyFull positive and negative tests remain unchanged.
+
+The independent postflight was updated in commit f0a31a2bc17d159f9fe73a35369ef4534cda204c to require the new initdb lifecycle receipts and stage logs, assert the TLS/HBA configuration markers and zero container restarts, and reject retention of the temporary init script.
+
+**Acceptance is not yet proven.** The above commits correct the source; the next exact-SHA runner execution and independent postflight must still pass before O2 can be marked PASS. Prior evidence from de927f44 and cfd73dbc remains HOLD and cannot be reused. CT164 remains untouched.
