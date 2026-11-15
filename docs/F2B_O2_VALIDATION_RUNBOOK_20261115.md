@@ -131,7 +131,7 @@ Hard acceptance is unchanged: exactly two writable tmpfs mounts at `/var/lib/pos
 
 **Root cause (confirmed from the 2026-11-15 O2 evidence):** the earlier runner copied postgresql.auto.conf and pg_hba.conf into a running container and then invoked docker restart. Both /var/lib/postgresql/data and /run/pgcerts are tmpfs mounts. Stopping/restarting that container discarded the tmpfs contents. The startup log showed a second initdb, and the subsequent postgresql.auto.conf contained only its two default comments; pg_settings therefore reported ssl=off, source=default, and sourcefile=null. This was a runner lifecycle defect, not a certificate-generation or PostgreSQL TLS parsing defect.
 
-**Correction (runner commit 8455b352da8c9bc0f95eee0a2f0309a4808e780d):**
+**Correction (latest runner commit 628db8cb728566af88773dd6963abe6eafe49f05):**
 
 1. Use docker create with the same single PostgreSQL 17 container, internal network, loopback-only port and exactly two tmpfs mounts.
 2. Copy a temporary entrypoint wrapper to /tmp/ and one initdb shell hook into /docker-entrypoint-initdb.d/ while the container is stopped.
