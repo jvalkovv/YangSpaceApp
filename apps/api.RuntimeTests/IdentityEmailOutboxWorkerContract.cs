@@ -26,7 +26,7 @@ internal static class IdentityEmailOutboxWorkerContract
         try
         {
             var cs=new SqliteConnectionStringBuilder {
-                DataSource="file:yangspace-o3-"+Guid.NewGuid().ToString("N"),
+                DataSource="yangspace-o3-"+Guid.NewGuid().ToString("N"),
                 Mode=SqliteOpenMode.Memory, Cache=SqliteCacheMode.Shared,
                 ForeignKeys=true, Pooling=false, DefaultTimeout=30
             }.ToString();
