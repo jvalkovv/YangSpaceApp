@@ -1,3 +1,15 @@
+## 2026-11-15 — Outbox parent reconciliation created; exact-SHA QA PENDING
+
+Evidence archive for F2b parent was independently accepted: `YangSpace-F2b-Reconciled-20261115-070631-e24cc3d0.zip`, SHA-256 `8D5F16512503093A2FBB3FEF0452A545968C646A070CA5D4E32095E718102714`; ZIP integrity PASS and 32/32 internal checksums PASS. Parent tested code SHA `8b887dd657323c9e4bae6b7864110f5f61eb04e7`; parent branch docs-only head before this Outbox slice was `1ef4a4fb5645b345f3dfe0dd855bba901598434e`.
+
+**Outbox reconciliation:** created new branch `feat/yangspace-f2b-outbox-reconciled-20261115` and Draft PR #40, with one source reconciliation commit `6a7594e622d436b0be904bcd2e78486fae609845`. Git compare is clean **1 ahead / 0 behind** current parent. It reapplies the 11 Outbox paths from stale PR #37, preserves the F2a SQLite recovery selector + F2b auth-rate selector and adds the Outbox selector exactly once. All three PowerShell branch guards now target the new branch. PR #37 remains open/draft as the historical stale-base proposal; no force-push or close.
+
+**Next:** exact-SHA O1 native PowerShell parser + .NET Release build + disposable SQLite enqueue/coalesce/rollback + independent postflight on the current reconciled branch HEAD. Prior O1 evidence from `4aeeb1c351140f43168aad1eaa62d3bd31ce00ae` is from the old parent and is not inherited. Only after fresh O1 PASS run offline dual-provider EF Core 10 migration scaffold, inspect SQLite/PostgreSQL SQL and model snapshots, then test both migrations on disposable DBs with restore.
+
+**HOLD:** worker/leases/retries/poison/uncertain SMTP ACK, real PostgreSQL HTTP/TLS/least-privilege, SMTP delivery, trusted proxy/ingress, browser/a11y, privacy/legal and production recovery remain open. PublicAccounts OFF; CT164/production untouched; no migration apply, real mail, GitHub Actions or deployment.
+ 
+---
+
 ## 2026-11-15 — F2b reconciled evidence archive independently VERIFIED
 
 **Archive:** `YangSpace-F2b-Reconciled-20261115-070631-e24cc3d0.zip`
