@@ -2,7 +2,7 @@
 
 **Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
-**Latest O2 runner correction:** `8c7203ab5b8b2c243e0f98f3491d32febc197158` (runner) + `a41199da202186926a37c7a256422e99c9b3cc3f` (independent postflight).  
+**Latest O2 runner correction:** `030f6070bb5600cb88b04857b58fb980dee5a649` (runner) + `c238b3fd909417a6c564e2a9005dc7071584697c` (independent postflight).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -193,3 +193,14 @@ The exact-SHA run passed PowerShell parsing, SQLite migration/integrity/concurre
 The `/run/pgcerts` tmpfs remains at its original 8 MiB limit and contains only certificates, private keys and the short bootstrap script. The self-contained runtime payload is held in the disposable container layer and disappears when the container is removed; no persistent volume or host bind is added. The independent postflight requires the new publish/copy/script-stage/execute/cleanup receipts and the internal-client marker.
 
 **Acceptance is still HOLD.** The new runner has not yet been parser-validated or executed on the operator's Windows/Docker Desktop host. First run parser-only validation on the exact current branch HEAD, then the complete O2 suite and independent postflight. Do not reuse the failed run's evidence. CT164 and production remain untouched.
+### Linux bootstrap CRLF failure — 2026-11-15
+
+The exact-SHA execution at `1cce588544d7408f5972b759e995abbc21e553dd` passed all three Windows PowerShell 5.1 parser checks, SQLite model/migration/integrity/concurrency checks, PostgreSQL 17 startup, tmpfs isolation, no-host-port gate, TLS/HBA configuration, certificate validation/export, role creation, database permissions, Linux self-contained publish, runtime copy, bootstrap copy, tmpfs staging, permissions, executable and native dependency checks. It stopped at `o2-pg-runtime-contract` before Npgsql tests or migration contract execution.
+
+**Confirmed root cause:** the PowerShell here-string used to generate `/run/pgcerts/run-contract.sh` inherited Windows CRLF line endings. `docker cp` preserved those bytes. Bash parsed the second line as `set -Eeuo pipefail\r` and returned `set: pipefail\r: invalid option name`. This is a Windows-to-Linux text serialization defect; it is not a PostgreSQL, TLS, Npgsql, permission or runtime dependency failure.
+
+**Correction in runner commit `030f6070bb5600cb88b04857b58fb980dee5a649`:** normalize the bootstrap script to LF before writing it; validate the raw bytes contain no CR, begin with the expected shebang, contain the exact `set -Eeuo pipefail` first command, and are UTF-8 without BOM; retain a sanitized `runtime-bootstrap-validation.txt` evidence receipt; record `RUNTIME_BOOTSTRAP_LINE_ENDINGS=LF` and `RUNTIME_BOOTSTRAP_ENCODING=UTF8_NO_BOM` in the manifest; include the validation receipt in `SHA256SUMS.txt`.
+
+**Independent postflight correction in `c238b3fd909417a6c564e2a9005dc7071584697c`:** require the new manifest keys, include the sanitized validation receipt in the evidence-path checksum allowlist, and verify its exact contents.
+
+**Next gate:** parser-only validation on Windows PowerShell 5.1 at the new exact branch HEAD. If all three scripts parse, rerun the complete O2 runner from the beginning; do not resume the failed container or reuse the `1cce5885` evidence. After a complete runner PASS and successful cleanup, execute independent postflight. CT164 and production remain untouched.
