@@ -1,3 +1,19 @@
+## 2026-11-15 — O2 PostgreSQL storage gate: second failure; diagnostics added (SOURCE COMMITTED / NOT RUN / HOLD)
+
+**Current exact branch HEAD:** `c58716df32c6d0107be36e72feba8852de87c7ea`.
+
+The rerun at `65d219e561972ee5aa9b496200be111c0717f986` again passed restore/build, SQLite + PostgreSQL model-diff, both SQL review gates, SQLite apply → rollback → reapply, SQLite cleanup, internal network creation and PostgreSQL 17 startup. It then failed at the effective PostgreSQL mount gate. The runner's `finally` cleanup ran; no PostgreSQL migration, TLS, integrity or concurrency test was reached.
+
+**Correction to the prior diagnosis:** switching from Docker `--tmpfs` to `--mount type=tmpfs` did not resolve the observed failure. The earlier assertion that the image-declared `VOLUME` was the confirmed root cause was premature. Docker documents both flags as supported tmpfs mount methods; the effective mount output must decide the cause, not an assumption based on image metadata.
+
+**New diagnostic source:** commit `c58716df32c6d0107be36e72feba8852de87c7ea` writes non-secret `o2-pg-storage-diagnostics.json` while the exact disposable container is alive. It records Docker Server version/OS, image and container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and effective `.Mounts`. The failure now includes exact mount count/type/destination/writability/bind mismatches. The container is still removed in `finally`.
+
+**Next action:** run the diagnostic-instrumented source once, then inspect the resulting JSON before making another storage-design change. Keep the hard requirement: exactly two writable tmpfs mounts at the PostgreSQL data and TLS paths, no bind/volume mounts. Do not weaken the gate or create additional QA containers/worktrees.
+
+**Acceptance remains NOT RUN / HOLD.** CT164 and production DB remain NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions. Prior evidence is tied to prior SHAs and is not O2 acceptance for this commit.
+
+---
+
 ## 2026-11-15 — O2 PostgreSQL storage isolation correction committed (SOURCE COMMITTED / NOT RUN / HOLD)
 
 **Current exact source SHA:** `4836c330794efc45e5afcc270d0096532d8f4dcd` on `fix/yangspace-f2b-o2-race-safe-20261115`.
