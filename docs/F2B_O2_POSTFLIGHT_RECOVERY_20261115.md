@@ -52,13 +52,13 @@ $ErrorActionPreference = 'Stop'
 $Repo = 'D:\GitHub\YangSpaceApp-F2b-O2-RaceSafe-20261115'
 $Branch = 'fix/yangspace-f2b-o2-race-safe-20261115'
 $RunCommit = 'e1944650f48f1ec9acc3161df0527a57c70defe9'
-$VerifierCommit = (git rev-parse "origin/$Branch").Trim()
-if ($VerifierCommit -notmatch '^[0-9a-f]{40}
 
 Set-Location $Repo
 git fetch --no-tags origin $Branch
 if ($LASTEXITCODE -ne 0) { throw 'FETCH_FAILED' }
 
+$VerifierCommit = (git rev-parse "origin/$Branch").Trim()
+if ($VerifierCommit -notmatch '^[0-9a-f]{40}$') { throw 'VERIFIER_COMMIT_INVALID' }
 if ((git rev-parse "origin/$Branch").Trim() -cne $VerifierCommit) {
     throw 'REMOTE_VERIFIER_HEAD_MISMATCH'
 }
