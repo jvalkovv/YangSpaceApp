@@ -1,20 +1,22 @@
-## 2026-11-15 — F2b O2 ACCEPTED (exact-SHA operator + independent postflight)
+## 2026-11-15 — F2b O2 RUNNER + INITIAL INDEPENDENT POSTFLIGHT PASS
 
-**Bounded acceptance: PASS.** This supersedes earlier O2 `NOT RUN / HOLD` status statements below; those remain historical records of intermediate failed runs.
+The exact O2 runner and its first independent postflight completed successfully. This supersedes earlier O2 `NOT RUN / HOLD` statements below; those remain historical records of intermediate failed runs.
 
 - Runner/source SHA: `e1944650f48f1ec9acc3161df0527a57c70defe9`
-- Independent postflight verifier SHA used by the operator: `3e9697961aa2158fd06f40c0579b239879a42069`
+- Initial independent verifier SHA: `3e9697961aa2158fd06f40c0579b239879a42069`
 - Evidence: `logs/yangspace/f2b-o2/e1944650f48f-20261115-220828-c3fc043e`
 - Manifest SHA-256: `cdb36392e06cba0ee8b2f42e399d3a75562bc57ead88412e50260b41c06af03f`
-- Final marker: `F2B_O2_POSTFLIGHT=PASS`
+- Operator result: `F2B_O2_POSTFLIGHT=PASS`
 
-Accepted scope: SQLite and PostgreSQL 17 real provider migration apply → rollback → reapply; model-diff and generated SQL review; PostgreSQL TLS VerifyFull with hostname/untrusted-CA negatives; non-superuser migrator and Outbox-DML-only runtime role; FK/index/uniqueness/integrity; concurrency and Pending coalescing; Linux runtime contract; complete SHA-256 manifest; temporary-secret, disposable container and network cleanup.
+Accepted runner scope: SQLite and PostgreSQL 17 migration apply → rollback → reapply; model-diff and generated SQL review; TLS VerifyFull with hostname/untrusted-CA negatives; non-superuser migrator and Outbox-DML-only runtime role; FK/index/uniqueness/integrity; concurrency/Pending coalescing; Linux runtime contract; evidence hashes; disposable container/network and temporary-secret cleanup.
 
-**Not accepted by O2:** background worker, SMTP delivery, PostgreSQL-backed Identity HTTP lifecycle, trusted ingress/rate-limit abuse, browser/privacy/legal review, CT164 deployment or production migration.
+**Follow-up note:** after the successful postflight above, the current F2b SSOT/roadmap documents were updated to supersede stale NOT RUN/HOLD text. The v2 verifier now explicitly permits only those four status-document changes plus its own verifier and the recovery handoff. A final read-only postflight against the current branch HEAD is pending to verify that approved documentation-only diff. **Do not rerun the O2 migration suite.** The runner SHA, DB evidence and manifest remain unchanged.
 
-**Safety boundary:** CT164 and production DB NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions; no deployment.
+Not accepted by O2: worker, SMTP delivery, PostgreSQL-backed Identity HTTP lifecycle, ingress/rate-limit abuse, browser/privacy/legal, CT164 deployment or production migration.
 
-**Next:** F2b Outbox O3 worker/lease/retry/dead-letter/fake-transport implementation under Issue #36. Then Issue #33 Production-equivalent HTTP/PG17/TLS/fake-mail integration. PR #41 remains OPEN/DRAFT pending scoped source review and merge decision. M1c in master Issue #32 remains OPEN.
+Safety: CT164 and production DB NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions; no deployment.
+
+Next implementation after final read-only postflight: Outbox O3 worker/lease/retry/dead-letter/fake transport in Issue #36; then Issue #33 HTTP integration QA. PR #41 remains OPEN/DRAFT pending source review and merge decision. Master M1c remains OPEN.
 
 ---
 
