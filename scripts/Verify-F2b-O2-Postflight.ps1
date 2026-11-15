@@ -63,7 +63,10 @@ $Required = @{
     POSTGRESQL_TARGET='20261115101421_F2bIdentityEmailOutbox'
     EF_TOOL_VERSION='10.0.0'
     POSTGRES_NETWORK_INTERNAL='PASS'
-    POSTGRES_HOST_BIND='127.0.0.1'
+    POSTGRES_HOST_PORT_PUBLISHED='none'
+    POSTGRES_RUNTIME_EXECUTION='IN_DISPOSABLE_CONTAINER'
+    POSTGRES_RUNTIME_CLIENT='SELF_CONTAINED_LINUX_X64'
+    POSTGRES_RUNTIME_CONNECTION='LOCALHOST_5432'
     POSTGRES_HOST_BINDS='none'
     POSTGRES_ANONYMOUS_VOLUMES='none'
     POSTGRES_IMAGE_DECLARED_VOLUME='/var/lib/postgresql/data'
@@ -114,7 +117,7 @@ Check ($Manifest['POSTGRES_NETWORK'] -match '^ys-f2b-o2-[0-9a-f]{12}$') 'MANIFES
 
 $Stages = @(
     'o2-tool-restore','o2-ef-version','o2-runtime-restore','o2-runtime-build',
-    'o2-sqlite-model-diff','o2-postgresql-model-diff','o2-sqlite-review-sql',
+    'o2-runtime-linux-publish','o2-sqlite-model-diff','o2-postgresql-model-diff','o2-sqlite-review-sql',
     'o2-postgresql-review-sql','o2-sqlite-migration-contract',
     'o2-pg-network-create','o2-pg-container-create','o2-pg-entry-script-copy','o2-pg-init-script-copy',
     'o2-pg-container-start','o2-pg-init-script-receipts','o2-pg-cert-dir-owner',
@@ -129,7 +132,10 @@ $Stages = @(
     'o2-pg-roles-sql-copy','o2-pg-roles-create',
     'o2-pg-roles-secret-cleanup','o2-pg-database-create',
     'o2-pg-permissions-sql-copy','o2-pg-permissions-apply',
-    'o2-pg-permissions-secret-cleanup','o2-pg-runtime-contract'
+    'o2-pg-permissions-secret-cleanup','o2-pg-runtime-copy',
+    'o2-pg-runtime-script-copy','o2-pg-runtime-permissions',
+    'o2-pg-runtime-executable','o2-pg-runtime-dependencies',
+    'o2-pg-runtime-contract','o2-pg-runtime-cleanup'
 )
 foreach ($Stage in $Stages) {
     foreach ($Suffix in @('.runner.cmd','.stdout.log','.stderr.log')) {
@@ -167,6 +173,7 @@ foreach ($Marker in @(
     Check ($SqliteLog.Contains($Marker)) ('POSTFLIGHT_' + ($Marker.Split('=')[0]))
 }
 foreach ($Marker in @(
+    'F2B_O2_PG_CLIENT_INTERNAL_NETWORK=PASS',
     'F2B_O2_PG_SERVER_VERSION_17_AND_DB_SCOPE=PASS',
     'F2B_O2_PG_DISPOSABLE_SENTINEL_MATCHED=PASS',
     'F2B_O2_PG_OUTBOX_ABSENT_AT_BASELINE=PASS',
