@@ -116,7 +116,7 @@ $Stages = @(
     'o2-tool-restore','o2-ef-version','o2-runtime-restore','o2-runtime-build',
     'o2-sqlite-model-diff','o2-postgresql-model-diff','o2-sqlite-review-sql',
     'o2-postgresql-review-sql','o2-sqlite-migration-contract',
-    'o2-pg-network-create','o2-pg-container-create','o2-pg-init-script-copy',
+    'o2-pg-network-create','o2-pg-container-create','o2-pg-entry-script-copy','o2-pg-init-script-copy',
     'o2-pg-container-start','o2-pg-init-script-receipts','o2-pg-cert-dir-owner',
     'o2-pg-cert-ca','o2-pg-cert-server-csr','o2-pg-cert-server-sign',
     'o2-pg-cert-wrong-ca','o2-pg-cert-permissions','o2-pg-cert-public-permissions',
@@ -187,7 +187,7 @@ foreach ($Marker in @(
 $Forbidden = @(
     'temporary-roles.sql','temporary-db-permissions.sql','temporary-wrong-ca.crt',
     'temporary-postgresql.auto.conf','temporary-pg_hba.conf',
-    'temporary-f2b-o2-postgres-init.sh',
+    'temporary-f2b-o2-postgres-init.sh','temporary-f2b-o2-postgres-entrypoint.sh',
     'yangspace-f2b-o2-sqlite.db','yangspace-f2b-o2-sqlite.db-wal',
     'yangspace-f2b-o2-sqlite.db-shm','yangspace-f2b-o2-sqlite.db-journal'
 )
