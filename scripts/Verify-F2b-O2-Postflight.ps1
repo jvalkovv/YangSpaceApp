@@ -133,7 +133,8 @@ $Stages = @(
     'o2-pg-roles-secret-cleanup','o2-pg-database-create',
     'o2-pg-permissions-sql-copy','o2-pg-permissions-apply',
     'o2-pg-permissions-secret-cleanup','o2-pg-runtime-copy',
-    'o2-pg-runtime-script-copy','o2-pg-runtime-permissions',
+    'o2-pg-runtime-script-copy','o2-pg-runtime-tmpfs-stage',
+    'o2-pg-runtime-script-tmpfs-stage','o2-pg-runtime-permissions',
     'o2-pg-runtime-executable','o2-pg-runtime-dependencies',
     'o2-pg-runtime-contract','o2-pg-runtime-cleanup'
 )
