@@ -1,3 +1,14 @@
+## 2026-11-15 — O2 storage false-negative root cause confirmed; PowerShell JSON parser corrected (SOURCE COMMITTED / NOT YET RE-RUN / HOLD)
+
+The 2026-11-15 18:00 local diagnostic run at `e35f81bcdd73e58a87f2dc441493bdc8d537ea9e` proved Docker Engine 29.9.1/Linux created the intended storage layout: `HostConfig.Mounts` contains two tmpfs targets; effective `.Mounts` contains exactly two writable tmpfs destinations (`/var/lib/postgresql/data`, `/run/pgcerts`); `HostConfig.Binds=null`. The disposable PostgreSQL container was absent after runner cleanup.
+
+**Confirmed root cause:** PowerShell surfaced the root JSON array from `ConvertFrom-Json` as one array-valued pipeline item. The runner then wrapped that item with `@(...)`, so `$Mounts.Count` became 1 and the two destinations were aggregated in property access. This was a validator false-negative, not a Docker storage-isolation failure.
+
+**Correction:** parse the JSON array inside an object envelope and access its array property; add a two-element synthetic parser contract. Keep all effective tmpfs and no-bind/no-volume hard gates. Diagnostics remain enabled.
+
+Earlier successful gates remain: RuntimeTests restore/build, both provider model diffs, both SQL reviews, SQLite apply → rollback → reapply/cleanup, internal Docker network and PostgreSQL 17 startup. PostgreSQL migrations, TLS VerifyFull, least-privilege migrator, integrity, concurrency and postflight are still pending.
+
+**Next action:** run the full O2 runner against the exact current branch HEAD and then independent postflight. Prior evidence is not acceptance for the new SHA. CT164/production remain untouched; SMTP disconnected; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions.
 ## 2026-11-15 — O2 PostgreSQL storage gate: second failure; diagnostics added (SOURCE COMMITTED / NOT RUN / HOLD)
 
 **Runner implementation commit:** `c58716df32c6d0107be36e72feba8852de87c7ea`. At execution time, fetch the branch and pass its exact current HEAD as `-CommitSha`; documentation-only commits may advance the branch without changing the runner implementation.

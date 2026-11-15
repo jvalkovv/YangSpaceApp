@@ -109,10 +109,17 @@ O2 is PASS only when:
 Until then, the state remains HOLD and CT164 is not touched. After O2 PASS, the next stage is the separately gated CT164 preview/runtime validation. PublicAccounts remains OFF, dispatcher remains fail-closed, and SMTP/production remain out of scope.
 
 
-### PostgreSQL 17 storage-gate diagnostics
+### PostgreSQL 17 storage-gate diagnosis and correction
 
-The official `postgres:17` image declares `/var/lib/postgresql/data` in image `Config.Volumes`. The runner requests explicit `--mount type=tmpfs` entries for the data and TLS paths, but the first rerun with this change still failed the generic effective-mount gate. Therefore the previous assumption that switching from `--tmpfs` to `--mount` alone resolves the image-volume interaction is **not established**.
+The official `postgres:17` image declares `/var/lib/postgresql/data` in image `Config.Volumes`. The captured Docker Engine 29.9.1 / Linux diagnostics from the run at 2026-11-15 18:00 local time proved the requested and effective mounts were correct:
 
-The runner now records non-secret Docker storage evidence to `o2-pg-storage-diagnostics.json` before evaluating the gate: Docker Server version and OS, image/container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and the effective `.Mounts` array. The gate emits the exact mismatch (count, type, destination, writability, or bind presence) rather than a generic error. Use this captured evidence to determine the actual Docker Engine behavior before changing the storage design.
+- `HostConfig.Mounts`: exactly two `tmpfs` entries, targets `/var/lib/postgresql/data` and `/run/pgcerts`.
+- Effective `.Mounts`: exactly two writable `tmpfs` entries, destinations `/run/pgcerts` and `/var/lib/postgresql/data`.
+- `HostConfig.Binds=null`; no bind mount was present.
+- The disposable container was absent when inspected after the runner stopped.
 
-Hard acceptance remains: exactly two writable tmpfs mounts at `/var/lib/postgresql/data` and `/run/pgcerts`, no bind/volume mount, and independent postflight proof of container/network removal. No weakening of the storage isolation contract.
+**Confirmed root cause:** the runner piped a root JSON array directly into `ConvertFrom-Json` and wrapped its output with `@(...)`. In the Windows PowerShell execution path, the JSON array was surfaced as one array-valued pipeline item. Consequently `$Mounts.Count` was 1 and property access aggregated both destinations, creating a false storage failure. Docker storage isolation itself passed the observed configuration.
+
+**Source correction:** parse the root array through a JSON object envelope (`{"mounts": <array>}`) and then read `$MountEnvelope.mounts`. A two-item synthetic parser contract is checked before O2 starts. The runner continues to require exactly two writable effective tmpfs mounts at the expected destinations and rejects every bind/volume mount. The diagnostic JSON remains in place for future failures.
+
+Hard acceptance is unchanged: exactly two writable tmpfs mounts at `/var/lib/postgresql/data` and `/run/pgcerts`, no bind/volume mount, and independent postflight proof of cleanup. No weakening of the storage isolation contract. PostgreSQL migration/TLS/integrity/concurrency stages have not yet run; rerun the full O2 suite against the new exact branch HEAD.

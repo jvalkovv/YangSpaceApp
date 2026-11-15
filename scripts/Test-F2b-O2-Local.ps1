@@ -100,6 +100,17 @@ function GetDockerValue {
     return ($Output -join '').Trim()
 }
 
+# PowerShell can treat a root JSON array as one pipeline object. Wrapping
+# the array in an object and reading its property preserves individual entries
+# consistently across Windows PowerShell and PowerShell 7.
+$JsonArrayProbe = ConvertFrom-Json -InputObject '{"items":[{"id":1},{"id":2}]}'
+$JsonArrayProbeItems = @($JsonArrayProbe.items)
+Check (
+    $JsonArrayProbeItems.Count -eq 2 -and
+    [int]$JsonArrayProbeItems[0].id -eq 1 -and
+    [int]$JsonArrayProbeItems[1].id -eq 2
+) 'F2B_O2_POWERSHELL_JSON_ARRAY_PRESERVATION'
+
 if ((GitValue -CommandArgs @('rev-parse','HEAD')) -cne $CommitSha) {
     throw 'F2B_O2_EXACT_HEAD_MISMATCH'
 }
@@ -319,9 +330,8 @@ try {
     $Binds = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Binds}}',$Container)
     if ($Binds -notin @('null','[]')) { throw 'F2B_O2_PG_HOST_BIND_MOUNTS_REFUSED' }
     # postgres:17 declares /var/lib/postgresql/data as an image VOLUME.
-    # Use explicit --mount type=tmpfs entries so Docker registers those mount
-    # points before processing image-declared volumes; --tmpfs alone is stored
-    # separately in HostConfig.Tmpfs and does not reliably override image VOLUME.
+    # Explicit --mount type=tmpfs entries are used for both data and TLS paths.
+    # Acceptance is based on Docker's effective .Mounts, not request arguments.
     # Persist non-secret Docker storage diagnostics before evaluating the hard gate.
     # The finally block removes the disposable container, so these values must
     # be captured while the exact test container is still alive.
@@ -332,7 +342,15 @@ try {
     $HostMountsJson = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Mounts}}',$Container)
     $Binds = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Binds}}',$Container)
     $ImageVolumes = $ImageVolumesJson | ConvertFrom-Json
-    $Mounts = @($MountJson | ConvertFrom-Json)
+    if ($MountJson -notmatch '^\s*\[') {
+        throw 'F2B_O2_PG_EFFECTIVE_MOUNTS_JSON_NOT_ARRAY'
+    }
+    # Do not pipe a root JSON array directly into ConvertFrom-Json: on this
+    # Windows PowerShell path it is surfaced as one array-valued pipeline item,
+    # causing @(...).Count to report 1. The envelope exposes each mount as a
+    # normal property-array entry and keeps .Count / foreach semantics correct.
+    $MountEnvelope = ConvertFrom-Json -InputObject ('{"mounts":' + $MountJson + '}')
+    $Mounts = @($MountEnvelope.mounts)
     $ExpectedTmpfsDestinations = @('/var/lib/postgresql/data','/run/pgcerts')
 
     $StorageDiagnostics = [ordered]@{
