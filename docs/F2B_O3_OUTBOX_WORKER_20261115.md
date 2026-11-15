@@ -1,3 +1,15 @@
+## 2026-11-16 — production dispatch authorization remains compile-time held (SOURCE COMMITTED / RE-RUN PENDING)
+
+The O3 remediation also restores the explicit production release boundary:
+- \`IdentityEmailOutboxDispatchPolicy.DispatcherAvailable=false\` remains in production source until O3 acceptance is formally complete.
+- Public Identity startup continues to fail closed if an operator enables PublicAccounts before O3 acceptance.
+- The worker's optional synthetic override is an internal constructor argument only. The RuntimeTests harness supplies it with an in-memory SQLite database and fake transport; no configuration key, endpoint or deployment setting can enable it in production.
+- Both runtime switches are still required even in the synthetic harness. The dispatch-off regression verifies that the hosted loop exits and the batch method returns without processing.
+
+Current branch HEAD after this release-gate correction: \`de7980008c7109e83f9caf396e480c40ae18714d\`. The earlier exact-SHA build at \`f63149e8908d19945ca3dd5d2345798a92d68e2f\` passed restore/build but failed synthetic; the remediated head has not yet been rerun. PostgreSQL worker QA and O4 remain blocked.
+
+---
+
 ## 2026-11-16 — O3 first local run failed; source remediation committed (RE-RUN PENDING / HOLD)
 
 Operator ran exact source \`f63149e8908d19945ca3dd5d2345798a92d68e2f\`:
@@ -25,7 +37,7 @@ Do not proceed to PostgreSQL worker acceptance or O4 Identity HTTP until the rem
 
 # F2b O3 — durable Identity email outbox worker
 
-**Status (2026-11-16):** First exact-SHA Release build PASS at `f63149e8908d19945ca3dd5d2345798a92d68e2f`; synthetic contract FAIL at line 76; remediation committed at `1618f2c4fdc7f19c9571523b9cd7721877a1b245`; remediated rerun and independent Postflight NOT RUN; RELEASE HOLD.
+**Status (2026-11-16):** First exact-SHA Release build PASS at `f63149e8908d19945ca3dd5d2345798a92d68e2f`; synthetic contract FAIL at line 76; initial remediation committed at `1618f2c4fdc7f19c9571523b9cd7721877a1b245`; production compile-time dispatch HOLD restored in current HEAD `de7980008c7109e83f9caf396e480c40ae18714d`; remediated rerun and independent Postflight NOT RUN; RELEASE HOLD.
 
 ## Implementation
 

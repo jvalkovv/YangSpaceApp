@@ -1,3 +1,15 @@
+## 2026-11-16 — production dispatch authorization remains compile-time held (SOURCE COMMITTED / RE-RUN PENDING)
+
+The O3 remediation also restores the explicit production release boundary:
+- \`IdentityEmailOutboxDispatchPolicy.DispatcherAvailable=false\` remains in production source until O3 acceptance is formally complete.
+- Public Identity startup continues to fail closed if an operator enables PublicAccounts before O3 acceptance.
+- The worker's optional synthetic override is an internal constructor argument only. The RuntimeTests harness supplies it with an in-memory SQLite database and fake transport; no configuration key, endpoint or deployment setting can enable it in production.
+- Both runtime switches are still required even in the synthetic harness. The dispatch-off regression verifies that the hosted loop exits and the batch method returns without processing.
+
+Current branch HEAD after this release-gate correction: \`de7980008c7109e83f9caf396e480c40ae18714d\`. The earlier exact-SHA build at \`f63149e8908d19945ca3dd5d2345798a92d68e2f\` passed restore/build but failed synthetic; the remediated head has not yet been rerun. PostgreSQL worker QA and O4 remain blocked.
+
+---
+
 ## 2026-11-16 — O3 first local run failed; source remediation committed (RE-RUN PENDING / HOLD)
 
 Operator ran exact source \`f63149e8908d19945ca3dd5d2345798a92d68e2f\`:
@@ -33,7 +45,7 @@ O3 is now implemented in source on child Draft PR #42:
 - Dispatch-time Identity tokens, current user/email/role/confirmation checks, fake transport, retry/backoff, uncertain-ACK at-least-once behavior, lease recovery, dead-letter, operator replay and retention.
 - Both PublicAccounts and Outbox dispatch remain explicitly OFF.
 
-The historical statements below such as "no worker exists" and "F2B_OUTBOX_WORKER=NOT_IMPLEMENTED" describe their original O1/O2 checkpoints only. The first O3 source SHA was compiled successfully but its synthetic worker contract failed; the current remediation HEAD `1618f2c4fdc7f19c9571523b9cd7721877a1b245` has not yet been rerun or runtime accepted. Do not enable PublicAccounts/dispatch, connect SMTP, deploy or touch CT164/Production DB on the basis of source presence.
+The historical statements below such as "no worker exists" and "F2B_OUTBOX_WORKER=NOT_IMPLEMENTED" describe their original O1/O2 checkpoints only. The first O3 source SHA was compiled successfully but its synthetic worker contract failed; the current remediation HEAD `de7980008c7109e83f9caf396e480c40ae18714d` has not yet been rerun or runtime accepted. Production `DispatcherAvailable` remains compile-time false; only the internal synthetic harness may bypass that gate. Do not enable PublicAccounts/dispatch, connect SMTP, deploy or touch CT164/Production DB on the basis of source presence.
 
 Current O3 source branch: feat/yangspace-f2b-o3-outbox-worker-20261115. Current exact head is recorded in PR #42 and its latest checkpoint comment.
 
