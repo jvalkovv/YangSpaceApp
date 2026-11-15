@@ -19,8 +19,9 @@ internal static class PublicAccountEndpoints
         // until the migration and leased worker pass independent QA.
         if (!IdentityEmailOutboxDispatchPolicy.IsEnabled(configuration))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY");
-        if (!productionAdmin)
-            throw new InvalidOperationException("PUBLIC_ACCOUNT_PLATFORM_ADMIN_REQUIRED");
+        // Public Identity HTTP must not depend on the admin gateway being enabled.
+        // Operator replay is mapped only inside the existing protected admin route group.
+        _ = productionAdmin;
         if (!environment.IsProduction() || preview || merchantQa || reviewerQa ||
             configuration.GetValue<bool>("Preview:AllowRegistration"))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_SCOPE_REFUSED");
