@@ -4,7 +4,7 @@
 
 ## Implementation
 
-O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2. It adds no schema migration.
+O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2. It adds no schema migration. The worker is an ASP.NET Core hosted BackgroundService inside the existing API host; it does not require a separate container, LXC or service process.
 
 - Provider-neutral, revision-guarded compare-and-swap lease claim.
 - Fresh email-confirmation/password-reset Identity tokens generated at dispatch, never at enqueue and never persisted.
@@ -13,7 +13,7 @@ O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2.
 - Injectable transport. Tests use a fake; production uses the existing STARTTLS SMTP adapter.
 - Bounded retry: 30 seconds, 2 minutes, 10 minutes, 30 minutes, then 1 hour; terminal failures go to DeadLetter.
 - Expired intents are suppressed before dispatch; lease ownership and intent expiry are revalidated immediately before transport.
-- Expired leases are reclaimed after process restart. Shutdown cancellation leaves the lease to expire and recover.
+- Expired leases, including incomplete/null lease metadata, are reclaimable after process restart. Shutdown cancellation leaves the lease to expire and recover.
 - SMTP uncertain acknowledgement is **at-least-once**. If SMTP accepted a message but the ACK was lost, a retry can duplicate it. Exactly-once delivery is not claimed.
 - Operator dead-letter listing and replay are inside the existing PlatformAdmin and production gateway-protected route group. Responses do not disclose user IDs, email addresses, tokens or payloads.
 - Sent/Suppressed/DeadLetter rows have 30/30/90-day retention windows.

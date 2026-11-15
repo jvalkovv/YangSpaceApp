@@ -88,7 +88,7 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
         var candidates = await db.IdentityEmailOutbox.AsNoTracking()
             .Where(x => x.ExpiresAtUtc > now && x.AttemptCount < _options.MaxAttempts &&
                 ((x.Status == IdentityEmailOutboxStatus.Pending && x.AvailableAtUtc <= now) ||
-                 (x.Status == IdentityEmailOutboxStatus.Leased && x.LeasedUntilUtc != null && x.LeasedUntilUtc <= now)))
+                 (x.Status == IdentityEmailOutboxStatus.Leased && (x.LeasedUntilUtc == null || x.LeasedUntilUtc <= now))))
             .OrderBy(x => x.AvailableAtUtc).ThenBy(x => x.QueuedAtUtc).ThenBy(x => x.Id)
             .Select(x => new Candidate(x.Id, x.Revision))
             .Take(_options.BatchSize)
@@ -124,7 +124,7 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
         await db.IdentityEmailOutbox.Where(x =>
                 x.ExpiresAtUtc <= now &&
                 (x.Status == IdentityEmailOutboxStatus.Pending ||
-                 (x.Status == IdentityEmailOutboxStatus.Leased && x.LeasedUntilUtc != null && x.LeasedUntilUtc <= now)))
+                 (x.Status == IdentityEmailOutboxStatus.Leased && (x.LeasedUntilUtc == null || x.LeasedUntilUtc <= now))))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.Status, IdentityEmailOutboxStatus.Suppressed)
                 .SetProperty(x => x.ExpiresAtUtc, now)
@@ -136,7 +136,7 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
         await db.IdentityEmailOutbox.Where(x =>
                 x.ExpiresAtUtc > now && x.AttemptCount >= _options.MaxAttempts &&
                 ((x.Status == IdentityEmailOutboxStatus.Pending && x.AvailableAtUtc <= now) ||
-                 (x.Status == IdentityEmailOutboxStatus.Leased && x.LeasedUntilUtc != null && x.LeasedUntilUtc <= now)))
+                 (x.Status == IdentityEmailOutboxStatus.Leased && (x.LeasedUntilUtc == null || x.LeasedUntilUtc <= now))))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.Status, IdentityEmailOutboxStatus.DeadLetter)
                 .SetProperty(x => x.DeadLetterAtUtc, (DateTime?)now)

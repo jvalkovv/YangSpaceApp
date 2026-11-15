@@ -159,12 +159,26 @@ internal static class IdentityEmailOutboxWorkerContract
             fake.BlockNext();
             var first=worker.ProcessBatchOnceAsync();
             await fake.WaitBlockedAsync();
-            var secondCount=await worker.ProcessBatchOnceAsync();
+            var secondCount=await NewWorker(provider,clock,config).ProcessBatchOnceAsync();
             fake.Release();
             await first;
             Check(secondCount==0 && (await Message(db,concurrentId)).Status==IdentityEmailOutboxStatus.Sent &&
                 fake.Deliveries.Count(x=>x.Email==concurrent.Email)==1,
                 "F2B_O3_WORKER_CONCURRENT_CLAIM");
+
+            var orphanLease=await NewUser(users,"orphan-lease@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(orphanLease,orphanLease.Email!,"discarded");
+            var orphanId=await IntentId(db,orphanLease.Id,IdentityEmailPurpose.ConfirmEmail);
+            await db.IdentityEmailOutbox.Where(x=>x.Id==orphanId).ExecuteUpdateAsync(s=>s
+                .SetProperty(x=>x.Status,IdentityEmailOutboxStatus.Leased)
+                .SetProperty(x=>x.LeaseId,(Guid?)null)
+                .SetProperty(x=>x.LeasedUntilUtc,(DateTime?)null)
+                .SetProperty(x=>x.AttemptCount,1)
+                .SetProperty(x=>x.Revision,x=>x.Revision+1));
+            await worker.ProcessBatchOnceAsync();
+            Check((await Message(db,orphanId)).Status==IdentityEmailOutboxStatus.Sent &&
+                (await Message(db,orphanId)).AttemptCount==2,
+                "F2B_O3_WORKER_NULL_LEASE_RECOVERY");
 
             var restart=await NewUser(users,"restart@example.invalid",false);
             await queue.SendConfirmationLinkAsync(restart,restart.Email!,"discarded");
