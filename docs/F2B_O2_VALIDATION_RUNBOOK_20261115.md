@@ -2,7 +2,7 @@
 
 **Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
-**Latest TLS/tmpfs lifecycle correction:** `5fcd567a8356ea423dfeeecd6f5218c9a7f14709` (runner) + `9bd65e7a6e75e7c995e4a4c9b520486d531ae6f7` (independent postflight).  
+**Latest TLS/tmpfs lifecycle correction:** `7157482a6ce7f0b089d1631a23796a79b0be5a21` (runner) + `9bd65e7a6e75e7c995e4a4c9b520486d531ae6f7` (independent postflight).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -131,7 +131,7 @@ Hard acceptance is unchanged: exactly two writable tmpfs mounts at `/var/lib/pos
 
 **Root cause (confirmed from the 2026-11-15 O2 evidence):** the earlier runner copied postgresql.auto.conf and pg_hba.conf into a running container and then invoked docker restart. Both /var/lib/postgresql/data and /run/pgcerts are tmpfs mounts. Stopping/restarting that container discarded the tmpfs contents. The startup log showed a second initdb, and the subsequent postgresql.auto.conf contained only its two default comments; pg_settings therefore reported ssl=off, source=default, and sourcefile=null. This was a runner lifecycle defect, not a certificate-generation or PostgreSQL TLS parsing defect.
 
-**Correction (latest runner commit 5fcd567a8356ea423dfeeecd6f5218c9a7f14709):**
+**Correction (latest runner commit 7157482a6ce7f0b089d1631a23796a79b0be5a21):**
 
 1. Use docker create with the same single PostgreSQL 17 container, internal network, loopback-only port and exactly two tmpfs mounts.
 2. Copy a temporary entrypoint wrapper to /tmp/ and one initdb shell hook into /docker-entrypoint-initdb.d/ while the container is stopped.
@@ -149,6 +149,6 @@ The independent postflight was updated in commit 9bd65e7a6e75e7c995e4a4c9b520486
 
 The next exact-SHA operator run passed certificate generation, chain/SAN checks, key permissions and PostgreSQL config ownership/modes, then stopped before running the TLS provenance SQL at `o2-pg-tls-configured` with `STAGE_UNSAFE_ARGUMENT`. The SQL contained PostgreSQL string-concatenation operator `||`, which is intentionally rejected by `Invoke-YangSpaceStage.ps1` because its temporary CMD launcher must not interpolate shell metacharacters.
 
-**Scoped fix:** runner commit `5fcd567a8356ea423dfeeecd6f5218c9a7f14709` rewrites only the SQL predicate. Instead of concatenating the data directory and filename, it verifies the `sourcefile` prefix with `left(...)` and the remaining filename with `substring(...)`. The SQL argument no longer contains any character rejected by the shared Stage guard. The Stage guard is unchanged; no shell-safety policy was weakened. The predicate still proves that the active `ssl` setting came from `<data_directory>/postgresql.auto.conf` and that no restart is pending.
+**Scoped fix:** runner commit `5fcd567a8356ea423dfeeecd6f5218c9a7f14709` rewrites only the SQL predicate. Instead of concatenating the data directory and filename, it verifies the `sourcefile` prefix with `left(...)`, the exact path separator with `substring(... for 1)`, and the remaining filename with `substring(...)`. The SQL argument no longer contains any character rejected by the shared Stage guard. The Stage guard is unchanged; no shell-safety policy was weakened. The predicate still proves that the active `ssl` setting came from `<data_directory>/postgresql.auto.conf` and that no restart is pending.
 
 This failure occurred before the TLS provenance query reached PostgreSQL. It is not a PostgreSQL/TLS failure and does not supersede the earlier tmpfs lifecycle root cause. Re-run the full suite against the new exact branch HEAD; the previous attempt is HOLD and cannot be used as acceptance evidence.
