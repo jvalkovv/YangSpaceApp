@@ -12,6 +12,7 @@ O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2.
 - Deleted, malformed-email, staff-role, already-confirmed confirmation, and unconfirmed password-reset intents are suppressed.
 - Injectable transport. Tests use a fake; production uses the existing STARTTLS SMTP adapter.
 - Bounded retry: 30 seconds, 2 minutes, 10 minutes, 30 minutes, then 1 hour; terminal failures go to DeadLetter.
+- Expired intents are suppressed before dispatch; lease ownership and intent expiry are revalidated immediately before transport.
 - Expired leases are reclaimed after process restart. Shutdown cancellation leaves the lease to expire and recover.
 - SMTP uncertain acknowledgement is **at-least-once**. If SMTP accepted a message but the ACK was lost, a retry can duplicate it. Exactly-once delivery is not claimed.
 - Operator dead-letter listing and replay are inside the existing PlatformAdmin and production gateway-protected route group. Responses do not disclose user IDs, email addresses, tokens or payloads.
@@ -40,7 +41,7 @@ Then run the independent read-only postflight using the exact evidence path prin
 .\scripts\Verify-F2b-Outbox-Worker-Postflight.ps1 -CommitSha <EXACT_40_CHAR_SHA> -EvidenceDirectory '<EXACT_EVIDENCE_DIR>'
 ~~~
 
-Synthetic coverage includes confirmation/reset token generation, current-recipient and role/confirmation rechecks, retry/backoff, uncertain-ACK duplicate semantics, overlapping worker lease exclusion, cancellation/lease recovery, dead-letter, operator replay, retention purge and no token/recipient fields at rest.
+Synthetic coverage includes confirmation/reset token generation, current-recipient and role/confirmation rechecks, expired-intent suppression, retry/backoff, uncertain-ACK duplicate semantics, overlapping worker lease exclusion, cancellation/lease recovery, dead-letter, operator replay, retention purge and no token/recipient fields at rest.
 
 ## Remaining O3 acceptance
 

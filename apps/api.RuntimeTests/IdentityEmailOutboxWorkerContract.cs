@@ -113,7 +113,15 @@ internal static class IdentityEmailOutboxWorkerContract
             var unconfirmed=await NewUser(users,"unconfirmed-reset@example.invalid",false);
             await queue.SendPasswordResetCodeAsync(unconfirmed,unconfirmed.Email!,"discarded");
             var unconfirmedId=await IntentId(db,unconfirmed.Id,IdentityEmailPurpose.ResetPassword);
+            var expired=await NewUser(users,"expired@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(expired,expired.Email!,"discarded");
+            var expiredId=await IntentId(db,expired.Id,IdentityEmailPurpose.ConfirmEmail);
+            await db.IdentityEmailOutbox.Where(x=>x.Id==expiredId).ExecuteUpdateAsync(s=>s
+                .SetProperty(x=>x.ExpiresAtUtc,clock.GetUtcNow().UtcDateTime.AddSeconds(-1)));
             await worker.ProcessBatchOnceAsync();
+            Check((await Message(db,expiredId)).Status==IdentityEmailOutboxStatus.Suppressed &&
+                (await Message(db,expiredId)).LastFailureCode=="intent_expired",
+                "F2B_O3_WORKER_EXPIRED_INTENT_SUPPRESSION");
             Check(role.Succeeded &&
                 (await Message(db,staffId)).Status==IdentityEmailOutboxStatus.Suppressed &&
                 (await Message(db,confirmedId)).Status==IdentityEmailOutboxStatus.Suppressed &&
