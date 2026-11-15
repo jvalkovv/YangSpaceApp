@@ -174,6 +174,7 @@ New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 $SqliteSql = Join-Path $Evidence 'outbox.sqlite.review.sql'
 $PostgreSqlSql = Join-Path $Evidence 'outbox.postgresql.review.sql'
 $RuntimeDll = Join-Path $Repo 'apps/api.RuntimeTests/bin/Release/net10.0/YangSpace.Api.RuntimeTests.dll'
+$RuntimeDllEvidence = Join-Path $Evidence 'YangSpace.Api.RuntimeTests.dll'
 $SqliteDb = Join-Path $Evidence 'yangspace-f2b-o2-sqlite.db'
 $RootCaPath = Join-Path $Evidence 'pg-root-ca.crt'
 $WrongCaPath = Join-Path $Evidence 'temporary-wrong-ca.crt'
@@ -224,8 +225,6 @@ try {
     if (-not (Test-Path -LiteralPath $RuntimeDll -PathType Leaf)) {
         throw 'F2B_O2_RUNTIME_TEST_DLL_MISSING'
     }
-    Copy-Item -LiteralPath $RuntimeDll -Destination (Join-Path $Evidence 'YangSpace.Api.RuntimeTests.dll') -Force
-
     if (Test-Path -LiteralPath $RuntimeWork) {
         throw 'F2B_O2_RUNTIME_TEMP_DIRECTORY_ALREADY_EXISTS'
     }
@@ -238,6 +237,7 @@ try {
         -not (Test-Path -LiteralPath (Join-Path $RuntimePublishDirectory 'YangSpace.Api.RuntimeTests.dll') -PathType Leaf)) {
         throw 'F2B_O2_LINUX_RUNTIME_PUBLISH_INCOMPLETE'
     }
+    Copy-Item -LiteralPath (Join-Path $RuntimePublishDirectory 'YangSpace.Api.RuntimeTests.dll') -Destination $RuntimeDllEvidence -Force
 
     Stage -Label 'o2-sqlite-model-diff' -Executable $Dotnet -Arguments @(
         'ef','migrations','has-pending-model-changes',
@@ -1017,7 +1017,7 @@ if (-not $Completed) { throw 'F2B_O2_VALIDATION_INCOMPLETE' }
 $SqliteHash = (Get-FileHash -LiteralPath $SqliteSql -Algorithm SHA256).Hash.ToLowerInvariant()
 $PostgreSqlHash = (Get-FileHash -LiteralPath $PostgreSqlSql -Algorithm SHA256).Hash.ToLowerInvariant()
 $RootCaHash = (Get-FileHash -LiteralPath $RootCaPath -Algorithm SHA256).Hash.ToLowerInvariant()
-$RuntimeDllHash = (Get-FileHash -LiteralPath $RuntimeDll -Algorithm SHA256).Hash.ToLowerInvariant()
+$RuntimeDllHash = (Get-FileHash -LiteralPath $RuntimeDllEvidence -Algorithm SHA256).Hash.ToLowerInvariant()
 
 $HashPaths = @(
     'apps/api.RuntimeTests/Program.cs',
