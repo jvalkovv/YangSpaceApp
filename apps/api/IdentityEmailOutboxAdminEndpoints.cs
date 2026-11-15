@@ -73,7 +73,7 @@ internal static class IdentityEmailOutboxAdminEndpoints
 
     private static bool IsUniqueViolation(Exception ex)
     {
-        for (var current=ex; current is not null; current=current.InnerException)
+        for (Exception? current=ex; current is not null; current=current.InnerException)
         {
             if (current is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation &&
                 pg.ConstraintName == "UX_IdentityEmailOutbox_PendingUserPurpose") return true;
