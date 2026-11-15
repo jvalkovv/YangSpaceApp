@@ -1,3 +1,19 @@
+## 2026-11-15 — O3 source implementation supersedes earlier NOT IMPLEMENTED statements (QA PENDING)
+
+O1 intent persistence and O2 dual-provider migrations remain bounded, independently accepted gates. The original O1 evidence and manifest remain historical evidence for the exact O1 source SHA; they are not rewritten or reinterpreted.
+
+O3 is now implemented in source on child Draft PR #42:
+- Hosted ASP.NET Core BackgroundService inside the existing YangSpace API host; no separate container or LXC.
+- Revision-guarded compare-and-swap (CAS) lease claims, rather than PostgreSQL-only SKIP LOCKED. The same conditional UPDATE/revision gate is intended to provide one-claim semantics on SQLite and PostgreSQL without provider-specific SQL. PostgreSQL 17 runtime concurrency evidence is still required.
+- Dispatch-time Identity tokens, current user/email/role/confirmation checks, fake transport, retry/backoff, uncertain-ACK at-least-once behavior, lease recovery, dead-letter, operator replay and retention.
+- Both PublicAccounts and Outbox dispatch remain explicitly OFF.
+
+The historical statements below such as "no worker exists" and "F2B_OUTBOX_WORKER=NOT_IMPLEMENTED" describe their original O1/O2 checkpoints only. The current O3 source is implemented but **not yet compiled or runtime accepted**. Do not enable PublicAccounts/dispatch, connect SMTP, deploy or touch CT164/Production DB on the basis of source presence.
+
+Current O3 source branch: feat/yangspace-f2b-o3-outbox-worker-20261115. Current exact head is recorded in PR #42 and its latest checkpoint comment.
+
+---
+
 ## 2026-11-15 — F2b O2 RUNNER + INITIAL INDEPENDENT POSTFLIGHT PASS
 
 The exact O2 runner and its first independent postflight completed successfully. This supersedes earlier O2 `NOT RUN / HOLD` statements below; those remain historical records of intermediate failed runs.
