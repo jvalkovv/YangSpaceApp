@@ -37,7 +37,7 @@ Use `scripts/Verify-F2b-O2-Postflight-v2.ps1` with the original runner SHA and e
 The v2 verifier:
 - Pins its own HEAD to the fetched remote branch HEAD.
 - Requires the original runner SHA to be an ancestor of the verifier SHA.
-- Allows only this recovery document and the v2 verifier as intervening changes.
+- Allows only this recovery document, the v2 verifier, and the four F2b status documents (SSOT, POC tracker, MVP roadmap and Outbox enqueue contract) as intervening changes.
 - Keeps the original `Verify-F2b-O2-Postflight.ps1` and this run's original runbook unchanged; both are included in the original runner SHA-256 manifest.
 - Uses successful local Docker container/network listings and exact name matching instead of treating a failing `docker inspect` as proof of absence.
 - Treats Docker CLI/list failures as hard failures, so an unavailable daemon cannot be mistaken for successful cleanup.
