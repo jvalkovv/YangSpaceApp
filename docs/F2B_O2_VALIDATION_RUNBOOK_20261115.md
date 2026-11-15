@@ -2,7 +2,7 @@
 
 **Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
-**Latest TLS/tmpfs lifecycle correction:** `7157482a6ce7f0b089d1631a23796a79b0be5a21` (runner) + `9bd65e7a6e75e7c995e4a4c9b520486d531ae6f7` (independent postflight).  
+**Latest O2 runner correction:** `f156b6f265846184c2ac394b23328d1bf0a631bd` (runner) + `d36729563ae29bd1ca13c031f6e1be1bc1aa3d9b` (independent postflight).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -152,3 +152,12 @@ The next exact-SHA operator run passed certificate generation, chain/SAN checks,
 **Scoped fix:** runner commit `5fcd567a8356ea423dfeeecd6f5218c9a7f14709` rewrites only the SQL predicate. Instead of concatenating the data directory and filename, it verifies the `sourcefile` prefix with `left(...)`, the exact path separator with `substring(... for 1)`, and the remaining filename with `substring(...)`. The SQL argument no longer contains any character rejected by the shared Stage guard. The Stage guard is unchanged; no shell-safety policy was weakened. The predicate still proves that the active `ssl` setting came from `<data_directory>/postgresql.auto.conf` and that no restart is pending.
 
 This failure occurred before the TLS provenance query reached PostgreSQL. It is not a PostgreSQL/TLS failure and does not supersede the earlier tmpfs lifecycle root cause. Re-run the full suite against the new exact branch HEAD; the previous attempt is HOLD and cannot be used as acceptance evidence.
+
+
+### PostgreSQL public CA export correction — 2026-11-15
+
+The operator run reached and passed the in-container CA certificate validation, server certificate chain validation, CA/server certificate permission checks, TLS provenance, PostgreSQL configuration checks and `SHOW ssl=on`. The next `docker cp` stage failed to export `/run/pgcerts/ca.crt` with Docker reporting that the source path could not be found. This conflicts with the immediately preceding in-container OpenSSL and file-permission checks, which had already read and listed that exact file. The failure is at the container-to-host export boundary; it is not evidence of failed CA generation or disabled TLS.
+
+**Scoped runner correction:** commit `f156b6f265846184c2ac394b23328d1bf0a631bd` replaces both container-to-host `docker cp` operations with `docker exec openssl base64 -A -in ...`. PowerShell validates the base64 alphabet, decodes the exact bytes, verifies the PEM certificate envelope and writes the public root CA to the evidence directory. The wrong-CA certificate is exported the same way for the negative VerifyFull test. Private keys remain inside tmpfs; no certificate private material is exported. The Stage argument guard and TLS/VerifyFull gates are unchanged.
+
+The independent postflight stage inventory was updated in commit `d36729563ae29bd1ca13c031f6e1be1bc1aa3d9b` to require both new export receipts. Existing evidence from the failed `docker cp` run remains HOLD. Re-run the complete O2 runner against the new exact branch HEAD, then run independent postflight against that new evidence directory. Do not reuse earlier run receipts or proceed to CT164 before both gates pass.
