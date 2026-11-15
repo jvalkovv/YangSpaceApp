@@ -115,6 +115,13 @@ public sealed class DirectoryDb(DbContextOptions<DirectoryDb> options) : Identit
             message.Property(x => x.LastFailureCode).HasMaxLength(64);
             message.HasIndex(x => new { x.Status, x.AvailableAtUtc });
             message.HasIndex(x => new { x.UserId, x.Purpose, x.Status });
+            // At most one queued intent for a user and purpose. The partial
+            // unique index is shared by SQLite and PostgreSQL; Leased/Sent/
+            // DeadLetter rows do not block a later request.
+            message.HasIndex(x => new { x.UserId, x.Purpose },
+                    "UX_IdentityEmailOutbox_PendingUserPurpose")
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Pending'");
         });
 
         builder.Entity<BusinessLocation>().HasIndex(x => x.Slug).IsUnique();

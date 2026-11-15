@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch = 'feat/yangspace-f2b-outbox-reconciled-20261115'
+$Branch = 'fix/yangspace-f2b-o2-race-safe-20261115'
 $Project = 'apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
 $Git = (Get-Command git.exe -ErrorAction Stop).Source
 $Dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
@@ -62,6 +62,11 @@ try {
         'F2B_OUTBOX_EMAIL_INTENT_PERSISTED',
         'F2B_OUTBOX_MINIMAL_PENDING_INTENT',
         'F2B_OUTBOX_PENDING_COALESCED',
+        'F2B_OUTBOX_EXPIRED_PENDING_REUSED',
+        'F2B_OUTBOX_CONCURRENT_ENQUEUE_COALESCED',
+        'F2B_OUTBOX_PENDING_UNIQUE_INDEX',
+        'F2B_OUTBOX_LEASED_HISTORY_DOES_NOT_BLOCK_PENDING',
+        'F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH',
         'F2B_OUTBOX_RESET_INTENT_PERSISTED',
         'F2B_OUTBOX_NO_EMAIL_PAYLOAD_STORED',
         'F2B_OUTBOX_DISPATCH_FAIL_CLOSED',
@@ -79,6 +84,7 @@ try {
         'F2B_OUTBOX_EXACT_SOURCE=PASS',
         'F2B_OUTBOX_RELEASE_BUILD=PASS',
         'F2B_OUTBOX_ENQUEUE_SYNTHETIC_ONLY=PASS',
+        'F2B_OUTBOX_SQLITE_CONCURRENCY=PASS',
         'F2B_OUTBOX_PG_MIGRATIONS=NOT_GENERATED',
         'F2B_OUTBOX_WORKER=NOT_IMPLEMENTED',
         'F2B_IDENTITY_HTTP=NOT_TESTED',
