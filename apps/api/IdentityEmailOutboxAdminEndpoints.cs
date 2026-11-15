@@ -24,12 +24,13 @@ internal static class IdentityEmailOutboxAdminEndpoints
 
         admin.MapPost("/email-outbox/{id:guid}/replay", async (
             DirectoryDb db, Guid id, TimeProvider clock, ClaimsPrincipal principal,
-            ILogger<IdentityEmailOutboxAdminEndpoints> logger, CancellationToken ct) =>
+            ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
             var result = await ReplayDeadLetterAsync(db,id,clock,ct);
             if (result == IdentityEmailOutboxReplayResult.Replayed)
             {
                 var actorId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                var logger = loggerFactory.CreateLogger("YangSpace.IdentityEmailOutboxAdmin");
                 logger.LogInformation(
                     "IDENTITY_EMAIL_OUTBOX_OPERATOR_REPLAYED OutboxId={OutboxId} ActorId={ActorId}",
                     id, actorId);
