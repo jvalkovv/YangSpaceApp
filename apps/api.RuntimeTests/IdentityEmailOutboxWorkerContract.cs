@@ -82,8 +82,9 @@ internal static class IdentityEmailOutboxWorkerContract
             {
                 var disabledCount=await disabledWorker.ProcessBatchOnceAsync();
                 await disabledWorker.StartAsync(CancellationToken.None);
+                var disabledLoopExited=disabledWorker.ExecuteTask?.IsCompleted==true;
                 await disabledWorker.StopAsync(CancellationToken.None);
-                Check(disabledCount==0 &&
+                Check(disabledCount==0 && disabledLoopExited &&
                     (await Message(db,disabledId)).Status==IdentityEmailOutboxStatus.Pending &&
                     !fake.Deliveries.Any(x=>x.Email==disabledProbe.Email),
                     "F2B_O3_WORKER_DISPATCH_DEFAULT_OFF");
