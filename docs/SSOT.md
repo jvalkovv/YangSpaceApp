@@ -1,3 +1,20 @@
+## 2026-11-15 — F2b reconciled evidence archive independently VERIFIED
+
+**Archive:** `YangSpace-F2b-Reconciled-20261115-070631-e24cc3d0.zip`
+**Archive SHA-256:** `8D5F16512503093A2FBB3FEF0452A545968C646A070CA5D4E32095E718102714` — exact match.
+
+Independent ZIP review: ZIP integrity PASS (33 entries); internal SHA256SUMS **32/32 PASS** with no missing/unlisted payload files; all stderr logs empty. Bundle and source manifests identify tested code SHA `8b887dd657323c9e4bae6b7864110f5f61eb04e7`.
+
+Observed source/runtime evidence: .NET 10 Release builds PASS (0 warnings/0 errors); Angular npm ci/typecheck/production build PASS; tenant isolation 19 PASS markers; SQLite historic upgrade + data/Identity preservation PASS; 3 fault injection boundaries and 3 restore-recovery paths PASS; auth-rate partition contract 8 PASS markers. Forged XFF ignored. Proxy forwarding/external abuse remain NOT_TESTED.
+
+**Accepted:** exact tested-code source + isolated synthetic runtime QA only. Current PR #29 head `efa51ea7f9f3d591a05729d234bf6a0328a97caa` is docs-only relative to tested code SHA.
+
+**Still HOLD:** PostgreSQL HTTP account lifecycle (VerifyFull + least-privileged role), SMTP delivery/sink, durable Outbox worker/lease/retry/poison/recovery, trusted proxy/ingress abuse, browser/accessibility, privacy/legal, production deployment and backup/restore. PublicAccounts OFF; CT164 NOT ACCESSED; no production DB, real mail, DB migration apply or GitHub Actions.
+
+**Outbox dependency:** PR #37 remains based on stale `a95d242759fcba774eccc1c258b1c253386082cb`; current parent `efa51ea7f9f3d591a05729d234bf6a0328a97caa` vs PR #37 head `f84da94bb7c5a6334a79c607fb4543227e2be69d` is diverged 3 ahead / 11 behind. Reconcile onto current parent on a new branch (no force-push), preserve both F2a/F2b RuntimeTests selectors, update branch guards, rerun exact-SHA O1 QA, then run offline dual-provider migration scaffold. Keep PR #29/#37 Draft/HOLD; no release.
+
+---
+
 ## 2026-11-15 — F2b reconciled exact-HEAD source + isolated runtime QA (OPERATOR PASS / ARCHIVE REVIEW PENDING)
 
 **Tested commit:** `8b887dd657323c9e4bae6b7864110f5f61eb04e7` — two-parent F2a/F2b reconciliation.
