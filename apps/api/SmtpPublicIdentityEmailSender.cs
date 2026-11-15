@@ -44,8 +44,14 @@ internal sealed class PublicAccountEmailSettings
 }
 
 internal sealed class SmtpPublicIdentityEmailSender(
-    IConfiguration configuration) : IEmailSender<IdentityUser>
+    IConfiguration configuration) : IEmailSender<IdentityUser>, IIdentityEmailOutboxTransport
 {
+    public Task SendConfirmationAsync(IdentityUser user, string email, string confirmationLink, CancellationToken cancellationToken) =>
+        SendConfirmationLinkAsync(user, email, confirmationLink).WaitAsync(cancellationToken);
+
+    public Task SendPasswordResetAsync(IdentityUser user, string email, string resetCode, CancellationToken cancellationToken) =>
+        SendPasswordResetCodeAsync(user, email, resetCode).WaitAsync(cancellationToken);
+
     public Task SendConfirmationLinkAsync(IdentityUser user, string email, string confirmationLink)
     {
         var uri = new Uri(WebUtility.HtmlDecode(confirmationLink), UriKind.Absolute);

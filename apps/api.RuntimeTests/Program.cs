@@ -263,6 +263,13 @@ if (args.Length == 1 &&
     return;
 }
 
+// O3 worker contract: in-memory SQLite, Identity token providers and injected fake transport only.
+if (args.Length == 1 && string.Equals(args[0], "--f2b-outbox-worker-synthetic-only", StringComparison.Ordinal))
+{
+    await IdentityEmailOutboxWorkerContract.RunAsync();
+    return;
+}
+
 // Disposable SQLite-only email intent/rollback unit contract.
 // Does not test PostgreSQL migrations, SMTP, HTTP or any real data.
 if (args.Length == 1 &&

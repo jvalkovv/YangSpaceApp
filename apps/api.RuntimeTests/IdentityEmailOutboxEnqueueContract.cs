@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using YangSpace.Api;
 
 internal static class IdentityEmailOutboxEnqueueContract
@@ -78,7 +79,10 @@ internal static class IdentityEmailOutboxEnqueueContract
             Check(allRows.All(x => x.LastFailureCode is null) &&
                   allRows.All(x => x.UserId != user.Email),
                   "F2B_OUTBOX_NO_EMAIL_PAYLOAD_STORED");
-            Check(!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
+            var defaultConfiguration = new ConfigurationBuilder().AddInMemoryCollection().Build();
+            Check(IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
+                  "F2B_OUTBOX_DISPATCHER_IMPLEMENTED");
+            Check(!IdentityEmailOutboxDispatchPolicy.IsEnabled(defaultConfiguration),
                   "F2B_OUTBOX_DISPATCH_FAIL_CLOSED");
 
             var rolledBack = new IdentityUser
@@ -106,7 +110,7 @@ internal static class IdentityEmailOutboxEnqueueContract
         Console.WriteLine("F2B_OUTBOX_ENQUEUE_SYNTHETIC_ONLY=PASS");
         Console.WriteLine("F2B_OUTBOX_SQLITE_CONCURRENCY=PASS");
         Console.WriteLine("F2B_OUTBOX_PG_MIGRATIONS=NOT_GENERATED");
-        Console.WriteLine("F2B_OUTBOX_WORKER=NOT_IMPLEMENTED");
+        Console.WriteLine("F2B_OUTBOX_WORKER=IMPLEMENTED_SOURCE_ONLY");
         Console.WriteLine("PUBLIC_REGISTRATION_DEFAULT_OFF=PASS");
         Console.WriteLine("CT164_DB=NOT_ACCESSED");
     }

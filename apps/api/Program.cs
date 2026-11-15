@@ -19,6 +19,9 @@ var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
 var claimReviewQa = builder.Configuration.GetValue<bool>("ClaimReview:QaEnabled");
 var claimReviewPostgreSqlQa = builder.Configuration.GetValue<bool>("ClaimReviewPostgreSqlQa:Enabled");
 var publicAccounts = builder.Configuration.GetValue<bool>("PublicAccounts:Enabled");
+var outboxDispatchEnabled = builder.Configuration.GetValue<bool>("PublicAccounts:Outbox:DispatchEnabled");
+if (outboxDispatchEnabled && !publicAccounts)
+    throw new InvalidOperationException("PUBLIC_ACCOUNT_OUTBOX_DISPATCH_REQUIRES_PUBLIC_ACCOUNTS");
 // F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
 // It is impossible to enable accidentally in Development, Preview, or Production.
 if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
@@ -167,6 +170,7 @@ switch (databaseProvider.Trim().ToLowerInvariant())
         throw new InvalidOperationException(
             "Database:Provider must be exactly SQLite or PostgreSQL; implicit provider fallback is forbidden.");
 }
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;
@@ -183,7 +187,10 @@ if (publicAccounts)
 {
     // Queue inside the registration transaction; no synchronous SMTP in HTTP.
     builder.Services.AddScoped<IEmailSender<IdentityUser>, OutboxIdentityEmailSender>();
+    builder.Services.Configure<IdentityEmailOutboxOptions>(builder.Configuration.GetSection("PublicAccounts:Outbox"));
     builder.Services.AddTransient<SmtpPublicIdentityEmailSender>();
+    builder.Services.AddTransient<IIdentityEmailOutboxTransport>(services => services.GetRequiredService<SmtpPublicIdentityEmailSender>());
+    builder.Services.AddHostedService<IdentityEmailOutboxWorker>();
 }
 builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
 builder.Services.AddScoped<ClaimReviewConflictPolicy>();

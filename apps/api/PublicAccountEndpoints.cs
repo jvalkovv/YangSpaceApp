@@ -11,16 +11,16 @@ namespace YangSpace.Api;
 // Enabled only by the explicit production + PostgreSQL + email readiness gate.
 internal static class PublicAccountEndpoints
 {
-    private const string ConfirmPath = "/api/public-account/confirm";
-
     internal static void ValidateConfiguration(IConfiguration configuration, IWebHostEnvironment environment,
         bool preview, bool merchantQa, bool reviewerQa, bool productionAdmin)
     {
         if (!configuration.GetValue<bool>("PublicAccounts:Enabled")) return;
         // Outbox enqueue is not deliverability. Keep public endpoints disabled
         // until the migration and leased worker pass independent QA.
-        if (!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable)
+        if (!IdentityEmailOutboxDispatchPolicy.IsEnabled(configuration))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY");
+        if (!productionAdmin)
+            throw new InvalidOperationException("PUBLIC_ACCOUNT_PLATFORM_ADMIN_REQUIRED");
         if (!environment.IsProduction() || preview || merchantQa || reviewerQa ||
             configuration.GetValue<bool>("Preview:AllowRegistration"))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_SCOPE_REFUSED");
@@ -32,9 +32,7 @@ internal static class PublicAccountEndpoints
         if (hosts.Split(';').Any(x => x.Trim() == "*") ||
             !hosts.Split(';').Any(x => string.Equals(x.Trim(), "yangspace.gndstore.eu", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_HOST_POLICY_REFUSED");
-        // Coexists with the production CMS, but never reuses its protected
-        // /api/auth namespace or gateway secret.
-        _ = productionAdmin;
+        // Operator replay is exposed only inside the separately protected production admin surface.
         PublicAccountEmailSettings.RequireConfigured(configuration);
     }
 
@@ -47,8 +45,7 @@ internal static class PublicAccountEndpoints
             UserManager<IdentityUser> users,
             IPasswordValidator<IdentityUser> passwordValidator,
             IEmailSender<IdentityUser> emails,
-            DirectoryDb db,
-            IConfiguration configuration) =>
+            DirectoryDb db) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null || string.IsNullOrEmpty(request.Password) || request.Password.Length > 256)
@@ -76,21 +73,21 @@ internal static class PublicAccountEndpoints
                 return Results.Accepted();
             }
 
-            await SendConfirmationAsync(user, users, emails, configuration);
+            await SendConfirmationAsync(user, emails);
             await registrationTx.CommitAsync();
             return Results.Accepted();
         });
 
         group.MapPost("/resend-confirmation", async Task<IResult> (
             PublicEmailRequest request, UserManager<IdentityUser> users,
-            IEmailSender<IdentityUser> emails, IConfiguration configuration) =>
+            IEmailSender<IdentityUser> emails) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null) return Results.Accepted();
             var user = await users.FindByEmailAsync(email);
             if (user is not null && !user.EmailConfirmed &&
                 !await IsStaffAsync(users, user))
-                await SendConfirmationAsync(user, users, emails, configuration);
+                await SendConfirmationAsync(user, emails);
             return Results.Accepted();
         });
 
@@ -147,9 +144,8 @@ internal static class PublicAccountEndpoints
                 var user = await users.FindByEmailAsync(email);
                 if (user is not null && user.EmailConfirmed && !await IsStaffAsync(users, user))
                 {
-                    var token = await users.GeneratePasswordResetTokenAsync(user);
-                    var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-                    await emails.SendPasswordResetCodeAsync(user, email, code);
+                    // The outbox persists intent only; the worker generates a fresh token at dispatch.
+                    await emails.SendPasswordResetCodeAsync(user, email, string.Empty);
                 }
             }
             return Results.Accepted();
@@ -196,18 +192,9 @@ internal static class PublicAccountEndpoints
         return group;
     }
 
-    private static async Task SendConfirmationAsync(IdentityUser user,
-        UserManager<IdentityUser> users, IEmailSender<IdentityUser> emails,
-        IConfiguration configuration)
-    {
-        var origin = configuration["PublicAccounts:CanonicalOrigin"]!;
-        var token = await users.GenerateEmailConfirmationTokenAsync(user);
-        var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var link = origin + ConfirmPath +
-            "?userId=" + Uri.EscapeDataString(user.Id) +
-            "&code=" + Uri.EscapeDataString(code);
-        await emails.SendConfirmationLinkAsync(user, user.Email!, link);
-    }
+    private static Task SendConfirmationAsync(IdentityUser user, IEmailSender<IdentityUser> emails) =>
+        // The outbox sender discards this placeholder; the worker creates a fresh token at dispatch.
+        emails.SendConfirmationLinkAsync(user, user.Email!, string.Empty);
 
     private static string? NormalizeEmail(string? raw)
     {
