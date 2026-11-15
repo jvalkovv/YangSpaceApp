@@ -29,7 +29,7 @@ The O2 test runs real EF migrations only against newly created disposable databa
 - Requires an already-present local `postgres:17` image. **No automatic image pull.** If absent, the runner stops before creating a container.
 - Creates one uniquely named local Docker container and one `--internal` network.
 - Publishes exactly one PostgreSQL port on `127.0.0.1`; no external bind.
-- PostgreSQL 17's image declares `/var/lib/postgresql/data` as a Dockerfile `VOLUME`. The runner overrides that exact destination with an explicit `--mount type=tmpfs` (not the separate `--tmpfs` flag), and uses a second explicit tmpfs mount for `/run/pgcerts`. It verifies the effective `.Mounts` array contains exactly those two writable tmpfs mounts and no volume/bind mount. No bind mounts, named volumes or anonymous volumes are accepted.
+- PostgreSQL 17's image declares `/var/lib/postgresql/data` as a Dockerfile `VOLUME`. The runner currently requests explicit `--mount type=tmpfs` for the data and TLS paths. This request alone is not treated as proof of effective isolation: while the exact container is alive, the runner writes `o2-pg-storage-diagnostics.json` with Docker Server version/OS, image and container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and effective `.Mounts`. Acceptance still requires exactly two writable tmpfs mounts at the expected destinations and no volume/bind mount. A failed gate must be diagnosed from that file; do not infer the effective mount layout from image metadata alone.
 - The server certificate is valid for `localhost`; the client uses `SSL Mode=VerifyFull` and the ephemeral CA. Wrong hostname and wrong CA must both fail.
 - The migrator and runtime passwords are random per run and are not written to command logs. Temporary SQL/password files and the wrong CA are removed. Private keys remain inside tmpfs and disappear with the container. Only the public root CA is retained for evidence.
 - Container and network are removed in `finally`. Postflight independently confirms both are absent.
@@ -109,6 +109,10 @@ O2 is PASS only when:
 Until then, the state remains HOLD and CT164 is not touched. After O2 PASS, the next stage is the separately gated CT164 preview/runtime validation. PublicAccounts remains OFF, dispatcher remains fail-closed, and SMTP/production remain out of scope.
 
 
-### PostgreSQL 17 image-volume handling
+### PostgreSQL 17 storage-gate diagnostics
 
-The official `postgres:17` image declares `/var/lib/postgresql/data` in image `Config.Volumes`. The runner must not use `--tmpfs` for this path because Docker stores that flag separately in `HostConfig.Tmpfs`, which can leave the image-declared anonymous volume in the container mount set. Use explicit `--mount type=tmpfs,dst=...` for both data and TLS paths. Acceptance requires the effective `docker inspect .Mounts` array to contain exactly two writable entries of type `tmpfs`, at `/var/lib/postgresql/data` and `/run/pgcerts`; any `volume` or bind entry is a hard HOLD. The image-declared data volume must be explicitly overridden and the postflight manifest must record that fact.
+The official `postgres:17` image declares `/var/lib/postgresql/data` in image `Config.Volumes`. The runner requests explicit `--mount type=tmpfs` entries for the data and TLS paths, but the first rerun with this change still failed the generic effective-mount gate. Therefore the previous assumption that switching from `--tmpfs` to `--mount` alone resolves the image-volume interaction is **not established**.
+
+The runner now records non-secret Docker storage evidence to `o2-pg-storage-diagnostics.json` before evaluating the gate: Docker Server version and OS, image/container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and the effective `.Mounts` array. The gate emits the exact mismatch (count, type, destination, writability, or bind presence) rather than a generic error. Use this captured evidence to determine the actual Docker Engine behavior before changing the storage design.
+
+Hard acceptance remains: exactly two writable tmpfs mounts at `/var/lib/postgresql/data` and `/run/pgcerts`, no bind/volume mount, and independent postflight proof of container/network removal. No weakening of the storage isolation contract.

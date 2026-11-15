@@ -322,24 +322,68 @@ try {
     # Use explicit --mount type=tmpfs entries so Docker registers those mount
     # points before processing image-declared volumes; --tmpfs alone is stored
     # separately in HostConfig.Tmpfs and does not reliably override image VOLUME.
+    # Persist non-secret Docker storage diagnostics before evaluating the hard gate.
+    # The finally block removes the disposable container, so these values must
+    # be captured while the exact test container is still alive.
     $ImageVolumesJson = GetDockerValue -Arguments @('image','inspect','--format','{{json .Config.Volumes}}',$PgImage)
+    $ContainerVolumesJson = GetDockerValue -Arguments @('inspect','--format','{{json .Config.Volumes}}',$Container)
+    $MountJson = GetDockerValue -Arguments @('inspect','--format','{{json .Mounts}}',$Container)
+    $TmpfsConfigJson = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Tmpfs}}',$Container)
+    $HostMountsJson = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Mounts}}',$Container)
+    $Binds = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.Binds}}',$Container)
     $ImageVolumes = $ImageVolumesJson | ConvertFrom-Json
+    $Mounts = @($MountJson | ConvertFrom-Json)
+    $ExpectedTmpfsDestinations = @('/var/lib/postgresql/data','/run/pgcerts')
+
+    $StorageDiagnostics = [ordered]@{
+        commit_sha = $CommitSha
+        docker_server_version = (GetDockerValue -Arguments @('version','--format','{{.Server.Version}}'))
+        docker_server_os = (GetDockerValue -Arguments @('info','--format','{{.OSType}}'))
+        image = $PgImage
+        image_config_volumes_json = $ImageVolumesJson
+        container_config_volumes_json = $ContainerVolumesJson
+        host_config_tmpfs_json = $TmpfsConfigJson
+        host_config_mounts_json = $HostMountsJson
+        host_config_binds_json = $Binds
+        effective_mounts_json = $MountJson
+    }
+    [IO.File]::WriteAllText(
+        (Join-Path $Evidence 'o2-pg-storage-diagnostics.json'),
+        ($StorageDiagnostics | ConvertTo-Json -Depth 8),
+        $Utf8NoBom
+    )
+    Write-Host 'F2B_O2_PG_STORAGE_DIAGNOSTICS=RECORDED'
+
     if (-not ($ImageVolumes.PSObject.Properties.Name -contains '/var/lib/postgresql/data')) {
         throw 'F2B_O2_PG_EXPECTED_IMAGE_DATA_VOLUME_NOT_DECLARED'
     }
 
-    $MountJson = GetDockerValue -Arguments @('inspect','--format','{{json .Mounts}}',$Container)
-    $Mounts = @($MountJson | ConvertFrom-Json)
-    $ExpectedTmpfsDestinations = @('/var/lib/postgresql/data','/run/pgcerts')
-    if ($Mounts.Count -ne 2 -or
-        @($Mounts | Where-Object { $_.Type -cne 'tmpfs' -or $_.RW -ne $true }).Count -ne 0 -or
-        @($Mounts | Where-Object { $_.Destination -notin $ExpectedTmpfsDestinations }).Count -ne 0) {
-        throw 'F2B_O2_PG_NON_TMPFS_MOUNT_DETECTED'
+    $MountErrors = @()
+    if ($Mounts.Count -ne 2) {
+        $MountErrors += ('MOUNT_COUNT=' + $Mounts.Count)
+    }
+    foreach ($Mount in $Mounts) {
+        if ($Mount.Type -cne 'tmpfs') {
+            $MountErrors += ('NON_TMPFS_TYPE=' + [string]$Mount.Type + '@' + [string]$Mount.Destination)
+        }
+        if ($Mount.RW -ne $true) {
+            $MountErrors += ('MOUNT_NOT_WRITABLE=' + [string]$Mount.Destination)
+        }
+        if ($Mount.Destination -notin $ExpectedTmpfsDestinations) {
+            $MountErrors += ('UNEXPECTED_DESTINATION=' + [string]$Mount.Destination)
+        }
     }
     foreach ($Destination in $ExpectedTmpfsDestinations) {
-        if (@($Mounts | Where-Object { $_.Destination -ceq $Destination }).Count -ne 1) {
-            throw ('F2B_O2_PG_TMPFS_DESTINATION_MISSING=' + $Destination)
+        $DestinationCount = @($Mounts | Where-Object { $_.Destination -ceq $Destination }).Count
+        if ($DestinationCount -ne 1) {
+            $MountErrors += ('DESTINATION_COUNT=' + $Destination + ':' + $DestinationCount)
         }
+    }
+    if ($Binds -notin @('null','[]')) {
+        $MountErrors += 'HOST_BIND_MOUNTS_PRESENT'
+    }
+    if ($MountErrors.Count -gt 0) {
+        throw ('F2B_O2_PG_STORAGE_GATE_FAILED=' + ($MountErrors -join ';'))
     }
     Check ($true) 'F2B_O2_PG_IMAGE_DECLARED_VOLUME_OVERRIDDEN_BY_TMPFS'
     $PortJson = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.PortBindings}}',$Container)
