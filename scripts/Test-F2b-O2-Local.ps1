@@ -177,6 +177,7 @@ $PermissionSql = Join-Path $Evidence 'temporary-db-permissions.sql'
 $TlsConfig = Join-Path $Evidence 'temporary-postgresql.auto.conf'
 $HbaConfig = Join-Path $Evidence 'temporary-pg_hba.conf'
 $TlsInitScript = Join-Path $Evidence 'temporary-f2b-o2-postgres-init.sh'
+$TlsEntryScript = Join-Path $Evidence 'temporary-f2b-o2-postgres-entrypoint.sh'
 
 $Network = 'ys-f2b-o2-' + $RunToken.Substring(0,12)
 $Container = 'ys-f2b-o2-pg17-' + $RunToken.Substring(0,12)
@@ -383,6 +384,15 @@ printf '%s\n' \
 '@
     [IO.File]::WriteAllText($TlsInitScript,$TlsInitScriptContent,$Utf8NoBom)
 
+    $TlsEntryScriptContent = @'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+chown postgres:postgres /run/pgcerts
+chmod 700 /run/pgcerts
+exec /usr/local/bin/docker-entrypoint.sh postgres
+'@
+    [IO.File]::WriteAllText($TlsEntryScript,$TlsEntryScriptContent,$Utf8NoBom)
+
     $Listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
     $Listener.Start()
     try { $PgHostPort = [int]$Listener.LocalEndpoint.Port }
@@ -403,7 +413,10 @@ printf '%s\n' \
         '-e','POSTGRES_HOST_AUTH_METHOD=trust',
         '--entrypoint','/bin/bash',
         $PgImage,
-        '-c','chown postgres:postgres /run/pgcerts && chmod 700 /run/pgcerts && exec /usr/local/bin/docker-entrypoint.sh postgres'
+        '/tmp/f2b-o2-postgres-entrypoint.sh'
+    )
+    Stage -Label 'o2-pg-entry-script-copy' -Executable $Docker -Arguments @(
+        'cp',$TlsEntryScript,($Container + ':/tmp/f2b-o2-postgres-entrypoint.sh')
     )
     Stage -Label 'o2-pg-init-script-copy' -Executable $Docker -Arguments @(
         'cp',$TlsInitScript,($Container + ':/docker-entrypoint-initdb.d/99-f2b-o2-tls.sh')
@@ -516,10 +529,12 @@ printf '%s\n' \
     Write-Host 'F2B_O2_PG_TLS_AND_HBA_CONFIGURED_BEFORE_FIRST_SERVER_START=PASS'
 
     Stage -Label 'o2-pg-cert-dir-owner' -Executable $Docker -Arguments @(
-        'exec',$Container,'stat','-c','%U:%G:%a','/run/pgcerts'
+        'exec',$Container,'ls','-ld','/run/pgcerts'
     )
     $CertDir = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-cert-dir-owner.stdout.log')).Trim()
-    if ($CertDir -cne 'postgres:postgres:700') { throw 'F2B_O2_PG_CERT_DIR_OWNER_OR_MODE_INVALID' }
+    if ($CertDir -notmatch '^drwx------\s+\d+\s+postgres\s+postgres\s+') {
+        throw 'F2B_O2_PG_CERT_DIR_OWNER_OR_MODE_INVALID'
+    }
 
     Stage -Label 'o2-pg-cert-ca' -Executable $Docker -Arguments @(
         'exec',$Container,'openssl','x509','-in','/run/pgcerts/ca.crt','-noout','-ext','basicConstraints'
@@ -543,22 +558,22 @@ printf '%s\n' \
     if ($WrongCaText -notmatch 'CA:TRUE') { throw 'F2B_O2_PG_WRONG_CA_CERT_INVALID' }
 
     Stage -Label 'o2-pg-cert-permissions' -Executable $Docker -Arguments @(
-        'exec',$Container,'stat','-c','%a','/run/pgcerts/server.key',
+        'exec',$Container,'ls','-l','/run/pgcerts/server.key',
         '/run/pgcerts/ca.key','/run/pgcerts/wrong-ca.key'
     )
     $PrivateModes = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-cert-permissions.stdout.log')) |
         Where-Object { $_ -match '\S' })
-    if ($PrivateModes.Count -ne 3 -or @($PrivateModes | Where-Object { $_ -cne '600' }).Count -ne 0) {
+    if ($PrivateModes.Count -ne 3 -or @($PrivateModes | Where-Object { $_ -notmatch '^-rw-------\s+\d+\s+postgres\s+postgres\s+' }).Count -ne 0) {
         throw 'F2B_O2_PG_PRIVATE_KEY_MODE_INVALID'
     }
 
     Stage -Label 'o2-pg-cert-public-permissions' -Executable $Docker -Arguments @(
-        'exec',$Container,'stat','-c','%a','/run/pgcerts/ca.crt',
+        'exec',$Container,'ls','-l','/run/pgcerts/ca.crt',
         '/run/pgcerts/server.crt','/run/pgcerts/wrong-ca.crt'
     )
     $PublicModes = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-cert-public-permissions.stdout.log')) |
         Where-Object { $_ -match '\S' })
-    if ($PublicModes.Count -ne 3 -or @($PublicModes | Where-Object { $_ -cne '644' }).Count -ne 0) {
+    if ($PublicModes.Count -ne 3 -or @($PublicModes | Where-Object { $_ -notmatch '^-rw-r--r--\s+\d+\s+postgres\s+postgres\s+' }).Count -ne 0) {
         throw 'F2B_O2_PG_PUBLIC_CERT_MODE_INVALID'
     }
 
@@ -570,24 +585,24 @@ printf '%s\n' \
     if ($SanText -notmatch 'DNS:localhost') { throw 'F2B_O2_PG_SERVER_CERT_SAN_MISMATCH' }
 
     Stage -Label 'o2-pg-config-owner' -Executable $Docker -Arguments @(
-        'exec',$Container,'stat','-c','%U:%G',
+        'exec',$Container,'ls','-l',
         '/var/lib/postgresql/data/postgresql.auto.conf',
         '/var/lib/postgresql/data/pg_hba.conf'
     )
     $ConfigOwners = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-config-owner.stdout.log')) |
         Where-Object { $_ -match '\S' })
-    if ($ConfigOwners.Count -ne 2 -or @($ConfigOwners | Where-Object { $_ -cne 'postgres:postgres' }).Count -ne 0) {
+    if ($ConfigOwners.Count -ne 2 -or @($ConfigOwners | Where-Object { $_ -notmatch '^-rw-------\s+\d+\s+postgres\s+postgres\s+' }).Count -ne 0) {
         throw 'F2B_O2_PG_CONFIG_OWNER_INVALID'
     }
 
     Stage -Label 'o2-pg-config-permissions' -Executable $Docker -Arguments @(
-        'exec',$Container,'stat','-c','%a',
+        'exec',$Container,'ls','-l',
         '/var/lib/postgresql/data/postgresql.auto.conf',
         '/var/lib/postgresql/data/pg_hba.conf'
     )
     $ConfigModes = @([IO.File]::ReadAllLines((Join-Path $Evidence 'o2-pg-config-permissions.stdout.log')) |
         Where-Object { $_ -match '\S' })
-    if ($ConfigModes.Count -ne 2 -or @($ConfigModes | Where-Object { $_ -cne '600' }).Count -ne 0) {
+    if ($ConfigModes.Count -ne 2 -or @($ConfigModes | Where-Object { $_ -notmatch '^-rw-------\s+\d+\s+postgres\s+postgres\s+' }).Count -ne 0) {
         throw 'F2B_O2_PG_CONFIG_MODE_INVALID'
     }
 
@@ -831,7 +846,7 @@ finally {
             }
         }
 
-        foreach ($Path in @($RoleSql,$PermissionSql,$WrongCaPath,$TlsConfig,$HbaConfig,$TlsInitScript)) {
+        foreach ($Path in @($RoleSql,$PermissionSql,$WrongCaPath,$TlsConfig,$HbaConfig,$TlsInitScript,$TlsEntryScript)) {
             if (Test-Path -LiteralPath $Path) {
                 Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
             }
