@@ -382,6 +382,7 @@ printf '%s\n' \
     'F2B_O2_PG_HBA_INITDB_CONFIGURED=PASS' \
     'F2B_O2_PG_TLS_INITDB_CONFIGURED=PASS'
 '@
+    $TlsInitScriptContent = $TlsInitScriptContent.Replace("`r`n","`n").Replace("`r",'')
     [IO.File]::WriteAllText($TlsInitScript,$TlsInitScriptContent,$Utf8NoBom)
 
     $TlsEntryScriptContent = @'
@@ -391,6 +392,7 @@ chown postgres:postgres /run/pgcerts
 chmod 700 /run/pgcerts
 exec /usr/local/bin/docker-entrypoint.sh postgres
 '@
+    $TlsEntryScriptContent = $TlsEntryScriptContent.Replace("`r`n","`n").Replace("`r",'')
     [IO.File]::WriteAllText($TlsEntryScript,$TlsEntryScriptContent,$Utf8NoBom)
 
     $Listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
