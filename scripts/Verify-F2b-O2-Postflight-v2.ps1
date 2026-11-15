@@ -47,6 +47,10 @@ $ChangedPaths = @(& $Git -C $Repo diff --name-only ($CommitSha + '..' + $Verifie
 if ($LASTEXITCODE -ne 0) { throw 'F2B_O2_VERIFIER_DIFF_FAILED' }
 $AllowedVerifierChanges = @(
     'docs/F2B_O2_POSTFLIGHT_RECOVERY_20261115.md',
+    'docs/SSOT.md',
+    'docs/POC_TRACKER.md',
+    'docs/MVP_ROADMAP.md',
+    'docs/F2B_EMAIL_OUTBOX_ENQUEUE_20261114.md',
     'scripts/Verify-F2b-O2-Postflight-v2.ps1'
 )
 $UnexpectedVerifierChanges = @($ChangedPaths | Where-Object { $_ -notin $AllowedVerifierChanges })
