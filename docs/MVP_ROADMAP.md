@@ -1,3 +1,23 @@
+## 2026-11-15 — F2b O2 ACCEPTED (exact-SHA operator + independent postflight)
+
+**Bounded acceptance: PASS.** This supersedes earlier O2 `NOT RUN / HOLD` status statements below; those remain historical records of intermediate failed runs.
+
+- Runner/source SHA: `e1944650f48f1ec9acc3161df0527a57c70defe9`
+- Independent postflight verifier SHA used by the operator: `3e9697961aa2158fd06f40c0579b239879a42069`
+- Evidence: `logs/yangspace/f2b-o2/e1944650f48f-20261115-220828-c3fc043e`
+- Manifest SHA-256: `cdb36392e06cba0ee8b2f42e399d3a75562bc57ead88412e50260b41c06af03f`
+- Final marker: `F2B_O2_POSTFLIGHT=PASS`
+
+Accepted scope: SQLite and PostgreSQL 17 real provider migration apply → rollback → reapply; model-diff and generated SQL review; PostgreSQL TLS VerifyFull with hostname/untrusted-CA negatives; non-superuser migrator and Outbox-DML-only runtime role; FK/index/uniqueness/integrity; concurrency and Pending coalescing; Linux runtime contract; complete SHA-256 manifest; temporary-secret, disposable container and network cleanup.
+
+**Not accepted by O2:** background worker, SMTP delivery, PostgreSQL-backed Identity HTTP lifecycle, trusted ingress/rate-limit abuse, browser/privacy/legal review, CT164 deployment or production migration.
+
+**Safety boundary:** CT164 and production DB NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions; no deployment.
+
+**Next:** F2b Outbox O3 worker/lease/retry/dead-letter/fake-transport implementation under Issue #36. Then Issue #33 Production-equivalent HTTP/PG17/TLS/fake-mail integration. PR #41 remains OPEN/DRAFT pending scoped source review and merge decision. M1c in master Issue #32 remains OPEN.
+
+---
+
 ## 2026-11-15 — O2 storage false-negative root cause confirmed; PowerShell JSON parser corrected (SOURCE COMMITTED / NOT YET RE-RUN / HOLD)
 
 The 2026-11-15 18:00 local diagnostic run at `e35f81bcdd73e58a87f2dc441493bdc8d537ea9e` proved Docker Engine 29.9.1/Linux created the intended storage layout: `HostConfig.Mounts` contains two tmpfs targets; effective `.Mounts` contains exactly two writable tmpfs destinations (`/var/lib/postgresql/data`, `/run/pgcerts`); `HostConfig.Binds=null`. The disposable PostgreSQL container was absent after runner cleanup.
