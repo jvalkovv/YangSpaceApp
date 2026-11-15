@@ -45,7 +45,7 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
     private readonly string _canonicalOrigin;
     private readonly bool _dispatchEnabled;
 
-    internal IdentityEmailOutboxWorker(IServiceScopeFactory scopeFactory,
+    public IdentityEmailOutboxWorker(IServiceScopeFactory scopeFactory,
         ILogger<IdentityEmailOutboxWorker> logger, IOptions<IdentityEmailOutboxOptions> options,
         TimeProvider clock, IConfiguration configuration, bool allowSyntheticDispatch = false)
     {

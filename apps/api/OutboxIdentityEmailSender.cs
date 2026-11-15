@@ -10,8 +10,17 @@ namespace YangSpace.Api;
 /// Store only a minimal email intent; worker generates fresh Identity tokens
 /// and fetches the current recipient at dispatch. No external I/O here.
 /// </summary>
-internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? clock = null) : IEmailSender<IdentityUser>
+internal sealed class OutboxIdentityEmailSender : IEmailSender<IdentityUser>
 {
+    private readonly DirectoryDb _db;
+    private readonly TimeProvider _clock;
+
+    public OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? clock = null)
+    {
+        _db = db;
+        _clock = clock ?? TimeProvider.System;
+    }
+
     private const string PendingUniqueIndex = "UX_IdentityEmailOutbox_PendingUserPurpose";
     private const int MaxCoalescingAttempts = 4;
 
@@ -34,7 +43,7 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? cl
             !string.Equals(user.Email, recipient, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("OUTBOX_IDENTITY_RECIPIENT_MISMATCH");
 
-        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+        var now = _clock.GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(purpose == IdentityEmailPurpose.ResetPassword
             ? TimeSpan.FromHours(2)
             : TimeSpan.FromHours(24));
@@ -44,7 +53,7 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? cl
         // without ever allowing two Pending rows for the same intent.
         for (var attempt = 0; attempt < MaxCoalescingAttempts; attempt++)
         {
-            var pending = await db.IdentityEmailOutbox
+            var pending = await _db.IdentityEmailOutbox
                 .AsNoTracking()
                 .SingleOrDefaultAsync(message =>
                     message.UserId == user.Id &&
@@ -59,7 +68,7 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? cl
                 // Reuse an expired Pending row rather than inserting a second
                 // row. Revision + status predicates prevent overwriting a
                 // concurrent worker lease or another request's refresh.
-                var refreshed = await db.IdentityEmailOutbox
+                var refreshed = await _db.IdentityEmailOutbox
                     .Where(message =>
                         message.Id == pending.Id &&
                         message.Status == IdentityEmailOutboxStatus.Pending &&
@@ -92,12 +101,12 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? cl
                 AvailableAtUtc = now,
                 ExpiresAtUtc = expiresAt
             };
-            db.IdentityEmailOutbox.Add(message);
+            _db.IdentityEmailOutbox.Add(message);
 
             try
             {
                 // Participates in the caller's EF transaction during registration.
-                await db.SaveChangesAsync();
+                await _db.SaveChangesAsync();
                 return;
             }
             catch (DbUpdateException exception)
@@ -105,12 +114,12 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? cl
                 // Never swallow a constraint error inside a caller-owned
                 // transaction: PostgreSQL marks that transaction aborted.
                 // Registration uses an explicit transaction and must roll back.
-                if (db.Database.CurrentTransaction is not null ||
+                if (_db.Database.CurrentTransaction is not null ||
                     System.Transactions.Transaction.Current is not null ||
                     !IsPendingUniqueConflict(exception))
                     throw;
 
-                db.Entry(message).State = EntityState.Detached;
+                _db.Entry(message).State = EntityState.Detached;
                 // Another request won the insert. Re-read and coalesce. If a
                 // worker already leased it, the next pass may enqueue a new
                 // Pending intent because the partial unique predicate no

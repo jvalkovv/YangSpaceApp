@@ -60,6 +60,7 @@ foreach ($Stage in @('o3-restore','o3-build','o3-worker-synthetic')) {
 $Stdout = Get-Content -LiteralPath (Join-Path $Evidence 'o3-worker-synthetic.stdout.log') -Raw
 foreach ($Marker in @(
     'F2B_O3_WORKER_CONFIRMATION_DISPATCH',
+    'F2B_O3_WORKER_DI_ACTIVATION',
     'F2B_O3_WORKER_SHARED_TIME_PROVIDER',
     'F2B_O3_WORKER_DISPATCH_DEFAULT_OFF',
     'F2B_O3_WORKER_RESET_DISPATCH',

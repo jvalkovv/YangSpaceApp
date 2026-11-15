@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using YangSpace.Api;
 
@@ -53,7 +54,11 @@ internal static class IdentityEmailOutboxWorkerContract
                 o.Password.RequireNonAlphanumeric=false;
             }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>().AddDefaultTokenProviders();
             services.AddSingleton<TimeProvider>(clock);
+            services.AddScoped<IEmailSender<IdentityUser>,OutboxIdentityEmailSender>();
+            services.AddTransient<SmtpPublicIdentityEmailSender>();
+            services.AddTransient<IIdentityEmailOutboxTransport>(sp=>sp.GetRequiredService<SmtpPublicIdentityEmailSender>());
             services.AddSingleton<IIdentityEmailOutboxTransport>(fake);
+            services.AddHostedService<IdentityEmailOutboxWorker>();
             services.AddSingleton<IConfiguration>(config);
             services.Configure<IdentityEmailOutboxOptions>(o=>{
                 o.PollIntervalSeconds=1; o.LeaseSeconds=30; o.BatchSize=20; o.MaxAttempts=3;
@@ -67,8 +72,12 @@ internal static class IdentityEmailOutboxWorkerContract
             var users=scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
             var roles=scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             await db.Database.EnsureCreatedAsync();
+            var hostedWorker=provider.GetServices<IHostedService>().Single(x=>x is IdentityEmailOutboxWorker);
+            Check(hostedWorker is IdentityEmailOutboxWorker,
+                "F2B_O3_WORKER_DI_ACTIVATION");
+            _=provider.GetRequiredService<SmtpPublicIdentityEmailSender>();
             var worker=NewWorker(provider,clock,config);
-            var queue=new OutboxIdentityEmailSender(db,clock);
+            var queue=scope.ServiceProvider.GetRequiredService<IEmailSender<IdentityUser>>();
 
             var disabledProbe=await NewUser(users,"dispatch-disabled@example.invalid",false);
             await queue.SendConfirmationLinkAsync(disabledProbe,disabledProbe.Email!,"discarded");

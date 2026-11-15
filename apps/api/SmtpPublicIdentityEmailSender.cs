@@ -43,9 +43,15 @@ internal sealed class PublicAccountEmailSettings
     }
 }
 
-internal sealed class SmtpPublicIdentityEmailSender(
-    IConfiguration configuration) : IEmailSender<IdentityUser>, IIdentityEmailOutboxTransport
+internal sealed class SmtpPublicIdentityEmailSender : IEmailSender<IdentityUser>, IIdentityEmailOutboxTransport
 {
+    private readonly IConfiguration _configuration;
+
+    public SmtpPublicIdentityEmailSender(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
+
     public Task SendConfirmationAsync(IdentityUser user, string email, string confirmationLink, CancellationToken cancellationToken) =>
         SendConfirmationLinkAsync(user, email, confirmationLink).WaitAsync(cancellationToken);
 
@@ -77,7 +83,7 @@ internal sealed class SmtpPublicIdentityEmailSender(
 
     private async Task SendAsync(string to, string subject, string body)
     {
-        var settings = PublicAccountEmailSettings.RequireConfigured(configuration);
+        var settings = PublicAccountEmailSettings.RequireConfigured(_configuration);
         using var message = new MailMessage(
             new MailAddress(settings.From, "YangSpace"), new MailAddress(to))
         {

@@ -48,7 +48,7 @@ O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2.
 - Fresh email-confirmation/password-reset Identity tokens generated at dispatch, never at enqueue and never persisted.
 - Re-read current Identity user, email, email-confirmation state and all assigned roles immediately before dispatch.
 - Deleted, malformed-email, staff-role, already-confirmed confirmation, and unconfirmed password-reset intents are suppressed.
-- Injectable transport. Tests use a fake; production uses the existing STARTTLS SMTP adapter.
+- Injectable transport. Tests use a fake; production uses the existing STARTTLS SMTP adapter. The synthetic contract also resolves the actual DI registrations for the outbox sender, SMTP adapter and hosted worker before running its isolated override.
 - Bounded retry: default maximum 5 total attempts with 30-second, 2-minute, 10-minute and 30-minute delays; if an operator raises MaxAttempts above 5, subsequent retries use a 1-hour delay. Exhausted intents move to DeadLetter.
 - Expired intents are suppressed before dispatch; lease ownership and intent expiry are revalidated immediately before transport.
 - Expired leases, including incomplete/null lease metadata, are reclaimable after process restart. Shutdown cancellation leaves the lease to expire and recover.
