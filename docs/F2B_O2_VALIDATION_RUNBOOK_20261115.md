@@ -2,7 +2,7 @@
 
 **Status: SOURCE PREPARED — O2 NOT RUN — HOLD.**  
 **Branch:** `fix/yangspace-f2b-o2-race-safe-20261115`  
-**Latest O2 runner correction:** `f156b6f265846184c2ac394b23328d1bf0a631bd` (runner) + `d36729563ae29bd1ca13c031f6e1be1bc1aa3d9b` (independent postflight).  
+**Latest O2 runner correction:** `3d21e68003ff1d5acc0224fc64b9e61151e6c98c` (runner) + `d36729563ae29bd1ca13c031f6e1be1bc1aa3d9b` (independent postflight).  
 **Migration artifacts commit:** `b720f930d9cb64f1a6b26a854af37e8293ada3f5`  
 **Execution rule:** run only against the exact current branch HEAD recorded in the handoff and in the resulting evidence manifest. Any source change invalidates the evidence.
 
@@ -161,3 +161,16 @@ The operator run reached and passed the in-container CA certificate validation, 
 **Scoped runner correction:** commit `f156b6f265846184c2ac394b23328d1bf0a631bd` replaces both container-to-host `docker cp` operations with `docker exec openssl base64 -A -in ...`. PowerShell validates the base64 alphabet, decodes the exact bytes, verifies the PEM certificate envelope and writes the public root CA to the evidence directory. The wrong-CA certificate is exported the same way for the negative VerifyFull test. Private keys remain inside tmpfs; no certificate private material is exported. The Stage argument guard and TLS/VerifyFull gates are unchanged.
 
 The independent postflight stage inventory was updated in commit `d36729563ae29bd1ca13c031f6e1be1bc1aa3d9b` to require both new export receipts. Existing evidence from the failed `docker cp` run remains HOLD. Re-run the complete O2 runner against the new exact branch HEAD, then run independent postflight against that new evidence directory. Do not reuse earlier run receipts or proceed to CT164 before both gates pass.
+
+
+### PowerShell runner source repair — 2026-11-15
+
+The exact-SHA invocation at `81f3c62b8b0f299ee23c45b93e41db2cea656ee1` failed during PowerShell parsing, before the runner created a PostgreSQL container or entered any O2 stage. The reported errors around the role SQL at line 702 and later script lines were cascading parse errors, not invalid PostgreSQL role SQL.
+
+**Confirmed source-authoring root cause:** the prior runner update inserted a replacement string containing a PowerShell regex terminator `$'`. JavaScript's string-replacement API interprets `$'` as the suffix of the original source. This caused the CA export block to be truncated and displaced the remaining source to the end of the script, producing an invalid 1,662-line file.
+
+**Repair:** commit `3d21e68003ff1d5acc0224fc64b9e61151e6c98c` restores the intact runner from the last clean source baseline (`ba84435`) and reapplies the CA export change with a replacement callback. Base64 input is now validated by `[Convert]::FromBase64String` and the PEM envelope is checked explicitly; no regex-based Base64 gate is needed. Both public CA exports use `docker exec openssl base64 -A`; private keys remain inside tmpfs. The independent postflight stage requirements remain `o2-pg-root-ca-export` and `o2-pg-wrong-ca-export`.
+
+The repaired source is 1,044 lines (the clean baseline was 1,002 lines); the duplicate tail and old `docker cp` CA-export stages are absent. The runner itself has not yet been executed or parser-validated in Windows PowerShell 5.1. Previous evidence remains HOLD.
+
+**Next exact branch HEAD:** `3d21e68003ff1d5acc0224fc64b9e61151e6c98c`. First run a parser-only check with Windows PowerShell 5.1, then run the full exact-SHA O2 suite only if parsing succeeds. Follow with independent postflight. CT164 and production remain untouched.
