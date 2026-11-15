@@ -509,12 +509,19 @@ try {
         "SELECT row_to_json(x) FROM (SELECT current_setting('config_file') AS config_file, current_setting('data_directory') AS data_directory, current_setting('hba_file') AS hba_file) x;"
     )
     Stage -Label 'o2-pg-config-file-stat' -Executable $Docker -Arguments @(
-        'exec',$Container,'ls','-ln',
-        '/var/lib/postgresql/data/postgresql.auto.conf',
-        '/var/lib/postgresql/data/pg_hba.conf'
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT row_to_json(pg_stat_file('postgresql.auto.conf'));"
     )
     Stage -Label 'o2-pg-auto-conf-content' -Executable $Docker -Arguments @(
-        'exec',$Container,'cat','/var/lib/postgresql/data/postgresql.auto.conf'
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT pg_read_file('postgresql.auto.conf');"
+    )
+    Stage -Label 'o2-pg-hba-content' -Executable $Docker -Arguments @(
+        'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','postgres','-c',
+        "SELECT pg_read_file(current_setting('hba_file'));"
     )
     Stage -Label 'o2-pg-setting-sources' -Executable $Docker -Arguments @(
         'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
