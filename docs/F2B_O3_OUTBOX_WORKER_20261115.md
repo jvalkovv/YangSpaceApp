@@ -1,6 +1,31 @@
+## 2026-11-16 — O3 first local run failed; source remediation committed (RE-RUN PENDING / HOLD)
+
+Operator ran exact source \`f63149e8908d19945ca3dd5d2345798a92d68e2f\`:
+- Git/source identity: PASS.
+- PublicAccounts, Outbox dispatch and PostgreSQL review QA default-off checks: PASS.
+- .NET restore: PASS.
+- Release build: PASS.
+- Worker synthetic contract: FAIL at \`IdentityEmailOutboxWorkerContract.cs:76\`, \`Sequence contains no matching element\` while selecting the expected fake confirmation delivery.
+- Independent Postflight: NOT RUN. O3 is NOT accepted.
+
+Root causes and corrections now committed on the same child branch:
+1. Enqueue used \`DateTime.UtcNow\` while the worker contract used a frozen \`MutableClock\`; the pending intent could be timestamped a few milliseconds after the worker's frozen time. \`OutboxIdentityEmailSender\` now uses the injected \`TimeProvider\`, and the synthetic contract passes the same clock and asserts timestamp consistency.
+2. Candidate selection allowed a leased row with null \`LeasedUntilUtc\`, but the atomic claim predicate did not. Candidate and claim predicates now match, and null-lease recovery remains explicitly tested.
+3. Source review found that the hosted worker did not honor \`PublicAccounts:Outbox:DispatchEnabled\`. Both the hosted loop and batch processor now fail closed, with a regression test proving the worker exits and does not dispatch when the switch is false.
+
+- Remediated exact source HEAD: \`1618f2c4fdc7f19c9571523b9cd7721877a1b245\`.
+- PR #42 remains OPEN/DRAFT; Issue #36 remains OPEN.
+- Next gate: rerun exact-SHA O3 Release build + full SQLite synthetic contract, then independent read-only Postflight.
+- PostgreSQL 17 worker/concurrency QA remains NOT RUN.
+- PublicAccounts and Outbox dispatch remain false in appsettings. Real SMTP NOT CONNECTED. CT164/Production DB NOT ACCESSED. No deployment and no GitHub Actions.
+
+Do not proceed to PostgreSQL worker acceptance or O4 Identity HTTP until the remediated exact-SHA synthetic contract and independent Postflight both pass.
+
+---
+
 # F2b O3 — durable Identity email outbox worker
 
-**Status:** SOURCE IMPLEMENTED / LOCAL WINDOWS BUILD AND SYNTHETIC QA NOT RUN / INDEPENDENT POSTFLIGHT NOT RUN / RELEASE HOLD.
+**Status (2026-11-16):** First exact-SHA Release build PASS at `f63149e8908d19945ca3dd5d2345798a92d68e2f`; synthetic contract FAIL at line 76; remediation committed at `1618f2c4fdc7f19c9571523b9cd7721877a1b245`; remediated rerun and independent Postflight NOT RUN; RELEASE HOLD.
 
 ## Implementation
 

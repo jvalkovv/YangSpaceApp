@@ -1,3 +1,28 @@
+## 2026-11-16 — O3 first local run failed; source remediation committed (RE-RUN PENDING / HOLD)
+
+Operator ran exact source \`f63149e8908d19945ca3dd5d2345798a92d68e2f\`:
+- Git/source identity: PASS.
+- PublicAccounts, Outbox dispatch and PostgreSQL review QA default-off checks: PASS.
+- .NET restore: PASS.
+- Release build: PASS.
+- Worker synthetic contract: FAIL at \`IdentityEmailOutboxWorkerContract.cs:76\`, \`Sequence contains no matching element\` while selecting the expected fake confirmation delivery.
+- Independent Postflight: NOT RUN. O3 is NOT accepted.
+
+Root causes and corrections now committed on the same child branch:
+1. Enqueue used \`DateTime.UtcNow\` while the worker contract used a frozen \`MutableClock\`; the pending intent could be timestamped a few milliseconds after the worker's frozen time. \`OutboxIdentityEmailSender\` now uses the injected \`TimeProvider\`, and the synthetic contract passes the same clock and asserts timestamp consistency.
+2. Candidate selection allowed a leased row with null \`LeasedUntilUtc\`, but the atomic claim predicate did not. Candidate and claim predicates now match, and null-lease recovery remains explicitly tested.
+3. Source review found that the hosted worker did not honor \`PublicAccounts:Outbox:DispatchEnabled\`. Both the hosted loop and batch processor now fail closed, with a regression test proving the worker exits and does not dispatch when the switch is false.
+
+- Remediated exact source HEAD: \`1618f2c4fdc7f19c9571523b9cd7721877a1b245\`.
+- PR #42 remains OPEN/DRAFT; Issue #36 remains OPEN.
+- Next gate: rerun exact-SHA O3 Release build + full SQLite synthetic contract, then independent read-only Postflight.
+- PostgreSQL 17 worker/concurrency QA remains NOT RUN.
+- PublicAccounts and Outbox dispatch remain false in appsettings. Real SMTP NOT CONNECTED. CT164/Production DB NOT ACCESSED. No deployment and no GitHub Actions.
+
+Do not proceed to PostgreSQL worker acceptance or O4 Identity HTTP until the remediated exact-SHA synthetic contract and independent Postflight both pass.
+
+---
+
 ## 2026-11-15 — O3 source implementation supersedes earlier NOT IMPLEMENTED statements (QA PENDING)
 
 O1 intent persistence and O2 dual-provider migrations remain bounded, independently accepted gates. The original O1 evidence and manifest remain historical evidence for the exact O1 source SHA; they are not rewritten or reinterpreted.
@@ -8,7 +33,7 @@ O3 is now implemented in source on child Draft PR #42:
 - Dispatch-time Identity tokens, current user/email/role/confirmation checks, fake transport, retry/backoff, uncertain-ACK at-least-once behavior, lease recovery, dead-letter, operator replay and retention.
 - Both PublicAccounts and Outbox dispatch remain explicitly OFF.
 
-The historical statements below such as "no worker exists" and "F2B_OUTBOX_WORKER=NOT_IMPLEMENTED" describe their original O1/O2 checkpoints only. The current O3 source is implemented but **not yet compiled or runtime accepted**. Do not enable PublicAccounts/dispatch, connect SMTP, deploy or touch CT164/Production DB on the basis of source presence.
+The historical statements below such as "no worker exists" and "F2B_OUTBOX_WORKER=NOT_IMPLEMENTED" describe their original O1/O2 checkpoints only. The first O3 source SHA was compiled successfully but its synthetic worker contract failed; the current remediation HEAD `1618f2c4fdc7f19c9571523b9cd7721877a1b245` has not yet been rerun or runtime accepted. Do not enable PublicAccounts/dispatch, connect SMTP, deploy or touch CT164/Production DB on the basis of source presence.
 
 Current O3 source branch: feat/yangspace-f2b-o3-outbox-worker-20261115. Current exact head is recorded in PR #42 and its latest checkpoint comment.
 
