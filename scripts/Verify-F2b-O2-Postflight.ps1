@@ -236,6 +236,8 @@ Check $true 'POSTFLIGHT_ALL_SHA256_CHECKS_PASS'
 Check ((Get-FileHash -LiteralPath (Join-Path $Evidence 'outbox.sqlite.review.sql') -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $Manifest['SQLITE_SQL_SHA256']) 'POSTFLIGHT_SQLITE_SQL_HASH'
 Check ((Get-FileHash -LiteralPath (Join-Path $Evidence 'outbox.postgresql.review.sql') -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $Manifest['POSTGRES_SQL_SHA256']) 'POSTFLIGHT_POSTGRES_SQL_HASH'
 Check ((Get-FileHash -LiteralPath $RootCa -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $Manifest['POSTGRES_ROOT_CA_SHA256']) 'POSTFLIGHT_ROOT_CA_HASH'
+$RuntimeDllEvidence = Join-Path $Evidence 'YangSpace.Api.RuntimeTests.dll'
+Check ((Get-FileHash -LiteralPath $RuntimeDllEvidence -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $Manifest['RUNTIME_DLL_SHA256']) 'POSTFLIGHT_LINUX_RUNTIME_DLL_HASH'
 
 $DockerHostOverride = [Environment]::GetEnvironmentVariable('DOCKER_HOST','Process')
 if ($DockerHostOverride -and $DockerHostOverride -notlike 'npipe://*') { throw 'F2B_O2_POSTFLIGHT_REMOTE_DOCKER_REFUSED' }
