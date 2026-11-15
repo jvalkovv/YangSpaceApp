@@ -1,3 +1,77 @@
+## 2026-11-15 — F2b PR #29 parent reconciliation (SOURCE COMBINED / QA PENDING)
+
+This branch integrates accepted F2a SQLite baseline and historic-data/restore-only QA from parent PR #17 at `37bca4e008d07c5e4748074e82ff9e9d5bd2fcd7` into F2b Public Identity PR #29 (prior HEAD `a95d242759fcba774eccc1c258b1c253386082cb`) by a non-force two-parent merge commit.
+
+- All F2a-only SQLite EF migration, snapshot, historic-upgrade QA and support scripts are preserved as exact parent Git blobs.
+- Runtime test CLI now keeps **both** F2a historic SQLite upgrade/recovery selector and F2b synthetic auth-rate partition selector.
+- Existing F2b Identity endpoints, Angular account UI, rate limiting and default-OFF security gates remain unchanged.
+- Historical documentation from both branches is retained ahead of their common ancestor, preserving source-specific acceptance and HOLD boundaries.
+- **Acceptance is NOT inherited** from the older F2b build. Next gate: exact-new-HEAD Windows .NET 10 Release and Angular typecheck/build, plus both runtime selectors and independent evidence review.
+- PR #37 remains separate Draft Outbox child. No Outbox migration is generated or applied here, and no CT164, live SMTP, real registration, production DB, PVE deployment or GitHub Actions is authorized.
+
+## 2026-11-15 00:49 Europe/Sofia — F2a-S3 integrated parent evidence review ACCEPTED
+
+Independent review completed for operator archive `YangSpace-F2a-Parent-Integrated-20261115-003349-ece87e11.zip`.
+
+**Archive integrity and identity**
+- ZIP integrity test: PASS; 72 entries; 82,901 bytes uncompressed.
+- Archive SHA-256: `363AEA8BAA7BE3633A26F6D8DB182CFA6C3D12418820EA28E6C77773CC92F9DF`.
+- All 71 entries in `SHA256SUMS.txt` were independently re-hashed: **71/71 PASS**, zero mismatch/missing/malformed.
+- Root manifest identifies exact tested source `511a377a5d8436802fd17cc62c13f831c9b51832`, tree `58741d770eb4d5f3ceaa741e03811d3b8b317f7c`.
+- 22 runner/stdout/stderr triplets are present; all 22 stderr files are empty; no `gate.txt` is present. Eight empty PostgreSQL stdout logs are expected for copy/dump/restore operations or EF SQL redirected to the reviewed SQL file.
+
+**Tenant scope**
+- Exact-SHA tenant manifest PASS; restore/build PASS (Release build 0 warnings/0 errors).
+- All 18 tenant contract markers present, including cross-tenant denial, revoked membership, suspended org, legacy unclaimed location, no implicit PlatformAdmin ownership and stale revision denial.
+- Evidence: `tenant/` in the reviewed archive.
+
+**PostgreSQL 17 disposable migration**
+- Exact-SHA PostgreSQL runner source reviewed: it requires exact HEAD, matching origin tip, clean worktree, local Docker endpoint, no network, no published ports and no bind mounts; PostgreSQL data is on tmpfs.
+- Reviewed generated SQL SHA-256 matches the runner's pinned expected value and PG manifest: `2c6175976c82463eea5d40a3082528b8d72e1505f8803188a3c4473129bb7ee7`.
+- Static SQL inspection: 15 mapped tables + EF history, 17 foreign keys, 24 indexes; no DROP/TRUNCATE/DELETE statements. Approved/Pending partial unique indexes are present.
+- Constraints script from the exact tested commit validates schema counts, competing pending claims, duplicate rejection, single approved claim, FK rejection, reapplication after withdrawal, sequential revision CAS and audit rollback; all required markers appear in stdout.
+- Synthetic backup has PostgreSQL custom-dump `PGDMP` header; SHA-256 matches manifest: `221ffd3fa0afa8a43b74c7badce069b7770c56bf72355e34546c644ae003187f`. Restore verification checks schema, EF history, Identity users, orgs, locations/revision, claim states, audit and unique indexes. Restore marker PASS.
+- PG manifest explicitly retains REAL_BEARER, PARALLEL_WRITERS and APP_ROLE_LEAST_PRIVILEGE as NOT_TESTED.
+
+**Historic SQLite upgrade and recovery**
+- Release build PASS (0 warnings/0 errors); all required historic baseline, Location fields, Offers/Brochures/Jobs, Identity users/roles/dependencies, new F2a relationships, migration history, SQLite integrity/FK and no-Outbox markers present.
+- Three distinct injected migration interruption boundaries PASS; each recovery uses the verified pre-upgrade backup (restore-only, no blind retry). All three recovery markers PASS.
+- SQLite stage command/stdout/stderr triplets and complete runtime output are present. The root bundle manifest binds the integrated run to the exact parent SHA above.
+
+**S3 decision: ACCEPTED.** The evidence package is internally consistent and supports the required disposable-only F2a-S3 acceptance. The operator's root manifest was intentionally written with `RELEASE_GATE=HOLD_PENDING_EVIDENCE_REVIEW`; this review records that evidence gate as accepted without altering the immutable archive.
+
+**Scope boundary remains unchanged:** no production DB/CT164 access, HTTP listener or PVE deployment. This does NOT test PostgreSQL-backed Identity Bearer HTTP, true concurrent application-layer EF writers, runtime app-role least privilege, off-host DR, real claim decision endpoints or real evidence processing. Those remain separate parent/F2b/legal gates. PR #17 remains OPEN / Draft / HOLD.
+
+Issue [#38](https://github.com/jvalkovv/YangSpaceApp/issues/38) — F2a SQLite baseline repair — is complete and may be closed. F2b O2/O3/O4 and PR #29/#37 reconciliation remain follow-on work; no Outbox work is accepted by this review.
+
+## 2026-11-15 00:34 Europe/Sofia — F2a parent integrated runtime regression PASS; evidence review pending
+
+Operator completed the final integrated regression on exact parent source SHA `511a377a5d8436802fd17cc62c13f831c9b51832`, tree `58741d770eb4d5f3ceaa741e03811d3b8b317f7c`.
+
+**Three independent runtime gates PASS:**
+- Tenant scope: restore, Release build and isolated tenant-scope contract PASS. Evidence: `logs/yangspace/f2a-tenant-scope/511a377a5d84-20261115-001115-f235b864`.
+- PostgreSQL 17: EF tool/project restore, Release build, model diff, reviewed initial migration SQL, disposable container migration, constraints, sequential CAS, transaction rollback, synthetic dump/restore and restored-state verification PASS. Evidence: `logs/yangspace/pg-disposable/511a377a5d84-20261115-002151-53c5a86c`. Container cleanup PASS.
+- SQLite: historic baseline, Release build, successful migration, legacy Locations/Offers/Brochures/Jobs and Identity preservation, F2a relationships, integrity/FK checks, no-Outbox assertion, three fault injections and restore-only recovery 3/3 PASS. Evidence: `logs/yangspace/f2a-sqlite-parent-integrated/20261115-003349-ece87e11`.
+
+Combined bundle: `logs/yangspace/f2a-parent-integrated-bundle/20261115-003349-ece87e11`.
+Operator ZIP: `YangSpace-F2a-Parent-Integrated-20261115-003349-ece87e11.zip`. The console transcript supplied only a truncated archive SHA-256; the full digest and archive bytes have not yet been supplied for independent byte-level verification.
+
+**Acceptance boundary:** this is a successful isolated runtime regression, not production/release approval. The operator evidence ZIP must be uploaded and independently checked for archive integrity, manifest identity, SHA256SUMS, runner receipts, stdout/stderr, required markers and absence of failure gates. No CT164/production DB, PVE deployment or HTTP listener was accessed. Real PostgreSQL Bearer HTTP and real application-layer parallel writers remain NOT TESTED. Claim decision mutation and real evidence processing remain gated separately by the existing legal/privacy requirements.
+
+**GitHub state at this checkpoint:** PR #17 remains OPEN / Draft / mergeable-clean at the tested SHA; issue #38 remains OPEN until the independent evidence review completes. Open PR inventory: #17, #29, #37 and #1 (four total). PR #29 is currently mergeable-state DIRTY against its older F2a base; #37 is stacked on #29 and must be reconciled only after parent acceptance. PR #1 remains the V2 foundation Draft.
+
+**Next:** upload the exact operator ZIP for independent verification. Keep PR #17 Draft/HOLD and issue #38 open until the archive review and remaining acceptance boundaries are explicitly resolved. No GitHub Actions.
+
+## 2026-11-14 — F2a-S SQLite baseline merged into F2a parent
+
+- Child [PR #39](https://github.com/jvalkovv/YangSpaceApp/pull/39) is **MERGED/CLOSED** into this F2a feature branch by squash commit `da31427d47bc86994f4e3e800900101383ec81d1`; it was not merged to V2 `main` or deployed.
+- Exact operator-tested source: `6adf829affbfad9eb69786fe5635e71762d356b9`. The merged commit and tested commit have the identical Git tree `e7b7d03d67a9ab0366a1cc5217a3ddeea2b2eaf6`, so the squash introduced no source-tree drift.
+- F2a-S1 offline EF scaffold, SQL/model review, F2a-S2 historic SQLite data-preservation and three fault-injection/backup-restore cases, exact-tree Release build and post-commit evidence review: **PASS**.
+- Independent post-commit evidence archive SHA-256: `a05ef6f21815feec41405582f359d38dd73148e777c089eb8dc0629b8bf1786b`. All 10 checksum entries verified; Release build 0 warnings/errors; 17 runtime acceptance markers PASS.
+- Migration scope: four F2a domain tables, nullable `Locations.OrganizationId`, `Locations.Revision`, expected indexes/FKs; no Outbox. Legacy Locations, Offers, Brochures, Jobs and Identity fixture data preserved. Interrupted migration recovery is restore-from-verified-pre-upgrade-backup only; do not blindly rerun or use `Down()` as a data-preserving rollback.
+- PR #17 was advanced to `da31427d47bc86994f4e3e800900101383ec81d1` by this squash merge. This is a historical merge checkpoint, not a hard-coded current tip; read the live PR #17 branch head before every exact-SHA operator run. **Next gate:** clean exact-HEAD Windows regression on this integrated parent commit: tenant scope, disposable PostgreSQL migration/constraints/backup/restore, and the historic SQLite upgrade/recovery harness. Preserve independent manifests, receipts and cleanup evidence before parent acceptance.
+- M2 claim-decision mutations, real evidence intake and production activation remain separate gates; legal/privacy Issue #24 remains OPEN/BLOCKING for real evidence. No CT164/CT152, live DB, PVE deployment, HTTP listener or GitHub Actions.
+
 ## 2026-11-14 13:55 Europe/Sofia — F2b integrated exact-source/build + operator postflight PASS (SOURCE GATE ACCEPTED)
 
 **Tested integrated source SHA:** `113c05ff0a171cc3b6d456af7d9ca6b3224e3bca` (reconciled F2b public Identity with F2a reviewer/PostgreSQL QA). Operator used clean detached worktree, matched origin branch, and supplied Windows output:

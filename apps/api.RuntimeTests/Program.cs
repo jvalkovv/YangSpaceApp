@@ -229,6 +229,15 @@ static async Task RunRecoveryRehearsalAsync(
     Console.WriteLine("RECOVERY_REHEARSAL=PASS");
 }
 
+// F2a-S2: exact disposable historic SQLite upgrade + restore recovery only.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2a-organization-claim-upgrade-only", StringComparison.Ordinal))
+{
+    await F2aOrganizationClaimUpgrade.RunAsync();
+    Console.WriteLine("F2A_S2_DISPOSABLE_UPGRADE_RECOVERY=PASS");
+    return;
+}
+
 // Synthetic-only auth limiter partition checks. No network or database access.
 if (args.Length == 1 && string.Equals(
         args[0], "--auth-rate-partition-only", StringComparison.Ordinal))
