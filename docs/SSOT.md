@@ -1,3 +1,29 @@
+## 2026-11-15 — F2b reconciled exact-HEAD source + isolated runtime QA (OPERATOR PASS / ARCHIVE REVIEW PENDING)
+
+**Tested commit:** `8b887dd657323c9e4bae6b7864110f5f61eb04e7` — two-parent F2a/F2b reconciliation.
+
+Operator transcript reports:
+- Exact remote SHA and detached clean worktree: PASS.
+- F2b source: .NET restore/Release build, Angular npm ci/typecheck/production build, static security invariants and PublicAccounts default-OFF: PASS.
+- Integrated RuntimeTests restore and Release build: PASS.
+- F2a tenant isolation selector: PASS.
+- F2a historic SQLite organization-claim upgrade/recovery selector: PASS, including successful upgrade, data/identity preservation, no Outbox table and all three fault/restore boundaries.
+- F2b synthetic auth-rate partition selector: PASS.
+- Final source worktree cleanliness: PASS.
+
+Operator evidence:
+- Source evidence directory: `logs/yangspace/f2b-public-identity/8b887dd65732-20261115-070556-82f1a70d`.
+- Source manifest SHA-256: `D5E90D02DC4ACF1E56626F3BEDEC025E5B13A3850F00599E8A8CDD80198DD19B`.
+- Runtime evidence directory: `logs/yangspace/f2b-reconciled-runtime/20261115-070631-e24cc3d0`.
+- Archive: `YangSpace-F2b-Reconciled-20261115-070631-e24cc3d0.zip`.
+- Archive SHA-256 reported by operator: `8D5F16512503093A2FBB3FEF0452A545968C646A070CA5D4E32095E718102714`.
+
+**Evidence classification:** operator-reported PASS from the submitted terminal transcript. ZIP bytes and internal SHA256SUMS have not yet been independently verified in review. The archive must be supplied and checked before independent evidence acceptance.
+
+**Still NOT tested/accepted:** real PostgreSQL HTTP account lifecycle, Production TLS VerifyFull + least-privilege DB role, SMTP delivery, durable Outbox worker/retry/poison behavior, real proxy forwarding/ingress abuse, browser accessibility, privacy/legal review, production restore/deployment.
+
+**Hard boundaries:** PublicAccounts remains OFF; no real registration/email, CT164/production DB, PVE deployment, Outbox migration or worker, or GitHub Actions. PR #29 remains OPEN/DRAFT/HOLD pending archive review and remaining product gates. PR #37 remains separate Draft; its Outbox work is not authorized to merge ahead of the parent acceptance.
+
 ## 2026-11-15 — F2b PR #29 parent reconciliation (SOURCE COMBINED / QA PENDING)
 
 This branch integrates accepted F2a SQLite baseline and historic-data/restore-only QA from parent PR #17 at `37bca4e008d07c5e4748074e82ff9e9d5bd2fcd7` into F2b Public Identity PR #29 (prior HEAD `a95d242759fcba774eccc1c258b1c253386082cb`) by a non-force two-parent merge commit.
