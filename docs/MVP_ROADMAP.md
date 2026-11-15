@@ -1,3 +1,14 @@
+## 2026-11-15 — F2b O3 implementation in progress (SOURCE COMMITTED / QA NOT RUN)
+
+- O2 remains independently accepted: runner e1944650f48f1ec9acc3161df0527a57c70defe9; final verifier 3734a0dc91e9a1c125b47be19ba1a367e43581cc; manifest SHA-256 cdb36392e06cba0ee8b2f42e399d3a75562bc57ead88412e50260b41c06af03f.
+- O3 source is on a child branch stacked on the O2 candidate. It adds the hosted worker, revision-guarded CAS lease claims, dispatch-time Identity tokens, fresh user/email/role/confirmation checks, fake transport seam, bounded retry, dead-letter, lease recovery, operator replay and retention purge.
+- Public registration and dispatch remain independently default-OFF. Real SMTP is not connected; CT164/Production DB are untouched; no GitHub Actions or deployment.
+- O3 exact-SHA Windows runner and independent read-only postflight are being added. Source has not yet been compiled or runtime-tested by the operator.
+- SQLite synthetic worker QA is the first gate. PostgreSQL 17 least-privilege worker/concurrency acceptance remains required before O3 can be accepted; Production-mode HTTP is the subsequent O4 gate. DataProtection key-ring, ingress, observability and DR remain M5.
+- Tracking: Issue #36; child Draft PR #42 stacked on Draft PR #41. Master register #32 remains OPEN; no global completion percentage is claimed.
+
+---
+
 ## 2026-11-15 — F2b O2 RUNNER + INITIAL INDEPENDENT POSTFLIGHT PASS
 
 The exact O2 runner and its first independent postflight completed successfully. This supersedes earlier O2 `NOT RUN / HOLD` statements below; those remain historical records of intermediate failed runs.
