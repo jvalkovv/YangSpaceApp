@@ -68,6 +68,8 @@ $Required = @{
     POSTGRES_RUNTIME_CLIENT='SELF_CONTAINED_LINUX_X64'
     POSTGRES_RUNTIME_CONNECTION='LOCALHOST_5432'
     POSTGRES_HOST_BINDS='none'
+    RUNTIME_BOOTSTRAP_LINE_ENDINGS='LF'
+    RUNTIME_BOOTSTRAP_ENCODING='UTF8_NO_BOM'
     POSTGRES_ANONYMOUS_VOLUMES='none'
     POSTGRES_IMAGE_DECLARED_VOLUME='/var/lib/postgresql/data'
     POSTGRES_IMAGE_VOLUME_OVERRIDE='EXPLICIT_TMPFS'
@@ -219,7 +221,8 @@ foreach ($Line in $ChecksumLines) {
     }
     if ($RelativePath -in @(
         'outbox.sqlite.review.sql','outbox.postgresql.review.sql',
-        'YangSpace.Api.RuntimeTests.dll','pg-root-ca.crt'
+        'YangSpace.Api.RuntimeTests.dll','pg-root-ca.crt',
+        'runtime-bootstrap-validation.txt'
     )) {
         $FullPath = Join-Path $Evidence $RelativePath
     }
@@ -238,6 +241,11 @@ Check ((Get-FileHash -LiteralPath (Join-Path $Evidence 'outbox.postgresql.review
 Check ((Get-FileHash -LiteralPath $RootCa -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $Manifest['POSTGRES_ROOT_CA_SHA256']) 'POSTFLIGHT_ROOT_CA_HASH'
 $RuntimeDllEvidence = Join-Path $Evidence 'YangSpace.Api.RuntimeTests.dll'
 Check ((Get-FileHash -LiteralPath $RuntimeDllEvidence -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $Manifest['RUNTIME_DLL_SHA256']) 'POSTFLIGHT_LINUX_RUNTIME_DLL_HASH'
+$BootstrapEvidencePath = Join-Path $Evidence 'runtime-bootstrap-validation.txt'
+$BootstrapEvidenceExpected = "LINE_ENDINGS=LF`nENCODING=UTF8_NO_BOM`nSHEBANG=PASS`nBASH_OPTIONS=PASS`n"
+Check (([IO.File]::ReadAllText($BootstrapEvidencePath) -ceq $BootstrapEvidenceExpected) -and
+    $Manifest['RUNTIME_BOOTSTRAP_LINE_ENDINGS'] -ceq 'LF' -and
+    $Manifest['RUNTIME_BOOTSTRAP_ENCODING'] -ceq 'UTF8_NO_BOM') 'POSTFLIGHT_RUNTIME_BOOTSTRAP_LF_UTF8_NO_BOM'
 
 $DockerHostOverride = [Environment]::GetEnvironmentVariable('DOCKER_HOST','Process')
 if ($DockerHostOverride -and $DockerHostOverride -notlike 'npipe://*') { throw 'F2B_O2_POSTFLIGHT_REMOTE_DOCKER_REFUSED' }
