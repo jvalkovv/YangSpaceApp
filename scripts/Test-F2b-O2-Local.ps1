@@ -611,7 +611,7 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     Stage -Label 'o2-pg-tls-configured' -Executable $Docker -Arguments @(
         'exec',$Container,'psql','-X','-A','-t','-v','ON_ERROR_STOP=1',
         '-U','postgres','-d','postgres','-c',
-        "SELECT CASE WHEN setting='on' AND left(sourcefile,char_length(current_setting('data_directory')))=current_setting('data_directory') AND substring(sourcefile from char_length(current_setting('data_directory')) + 2)='postgresql.auto.conf' AND NOT pending_restart THEN 'PASS' ELSE 'FAIL' END FROM pg_settings WHERE name='ssl';"
+        "SELECT CASE WHEN setting='on' AND left(sourcefile,char_length(current_setting('data_directory')))=current_setting('data_directory') AND substring(sourcefile from char_length(current_setting('data_directory')) + 1 for 1)='/' AND substring(sourcefile from char_length(current_setting('data_directory')) + 2)='postgresql.auto.conf' AND NOT pending_restart THEN 'PASS' ELSE 'FAIL' END FROM pg_settings WHERE name='ssl';"
     )
     $TlsConfigured = [IO.File]::ReadAllText((Join-Path $Evidence 'o2-pg-tls-configured.stdout.log')).Trim()
     if ($TlsConfigured -cne 'PASS') { throw 'F2B_O2_PG_TLS_INITDB_SETTING_NOT_ACTIVE' }
