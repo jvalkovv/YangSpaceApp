@@ -129,6 +129,7 @@ if ($LASTEXITCODE -ne 0 -or $Dirty.Count -ne 0) {
 foreach ($Path in @(
     $RuntimeProject, $SqliteProject, $PostgreSqlProject,
     'apps/api.RuntimeTests/Program.cs',
+    'apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj',
     'apps/api.RuntimeTests/F2bOutboxO2MigrationContract.cs',
     'apps/api/Migrations/20261115101409_F2bIdentityEmailOutbox.cs',
     'apps/api.Migrations.PostgreSql/Migrations/20261115101421_F2bIdentityEmailOutbox.cs',
@@ -162,6 +163,10 @@ $RunToken = NewHexSecret
 $RunId = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + $RunToken.Substring(0,8)
 $EvidenceRoot = Join-Path $Repo 'logs/yangspace/f2b-o2'
 $Evidence = Join-Path $EvidenceRoot ($CommitSha.Substring(0,12) + '-' + $RunId)
+$RuntimeWork = Join-Path ([IO.Path]::GetTempPath()) ('yangspace-f2b-o2-runtime-' + $RunToken.Substring(0,12))
+$RuntimePublishDirectory = Join-Path $RuntimeWork 'publish'
+$RuntimeScriptPath = Join-Path $RuntimeWork 'run-contract.sh'
+$RuntimeAppHost = Join-Path $RuntimePublishDirectory 'YangSpace.Api.RuntimeTests'
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
@@ -186,7 +191,6 @@ $ContainerAttempted = $false
 $Completed = $false
 $CleanupOk = $true
 $PgVersionNum = ''
-$PgHostPort = 0
 $MigratorPassword = NewHexSecret
 $RuntimePassword = NewHexSecret
 $ScopeToken = NewHexSecret
@@ -219,6 +223,20 @@ try {
     Stage -Label 'o2-runtime-build' -Executable $Dotnet -Arguments @('build',$RuntimeProject,'-c','Release','--no-restore','-warnaserror')
     if (-not (Test-Path -LiteralPath $RuntimeDll -PathType Leaf)) {
         throw 'F2B_O2_RUNTIME_TEST_DLL_MISSING'
+    }
+    Copy-Item -LiteralPath $RuntimeDll -Destination (Join-Path $Evidence 'YangSpace.Api.RuntimeTests.dll') -Force
+
+    if (Test-Path -LiteralPath $RuntimeWork) {
+        throw 'F2B_O2_RUNTIME_TEMP_DIRECTORY_ALREADY_EXISTS'
+    }
+    New-Item -ItemType Directory -Path $RuntimeWork | Out-Null
+    Stage -Label 'o2-runtime-linux-publish' -Executable $Dotnet -Arguments @(
+        'publish',$RuntimeProject,'-c','Release','-r','linux-x64',
+        '--self-contained','true','-warnaserror','--output',$RuntimePublishDirectory
+    )
+    if (-not (Test-Path -LiteralPath $RuntimeAppHost -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $RuntimePublishDirectory 'YangSpace.Api.RuntimeTests.dll') -PathType Leaf)) {
+        throw 'F2B_O2_LINUX_RUNTIME_PUBLISH_INCOMPLETE'
     }
 
     Stage -Label 'o2-sqlite-model-diff' -Executable $Dotnet -Arguments @(
@@ -395,11 +413,6 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     $TlsEntryScriptContent = $TlsEntryScriptContent.Replace("`r`n","`n").Replace("`r",'')
     [IO.File]::WriteAllText($TlsEntryScript,$TlsEntryScriptContent,$Utf8NoBom)
 
-    $Listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback,0)
-    $Listener.Start()
-    try { $PgHostPort = [int]$Listener.LocalEndpoint.Port }
-    finally { $Listener.Stop() }
-
     $NetworkCreated = $true
     Stage -Label 'o2-pg-network-create' -Executable $Docker -Arguments @('network','create','--internal',$Network)
     $NetworkInternal = GetDockerValue -Arguments @('network','inspect','--format','{{.Internal}}',$Network)
@@ -408,9 +421,8 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     $ContainerAttempted = $true
     Stage -Label 'o2-pg-container-create' -Executable $Docker -Arguments @(
         'create','--network',$Network,'--network-alias','pg',
-        '--publish',("127.0.0.1:{0}:5432" -f $PgHostPort),
         '--mount','type=tmpfs,dst=/var/lib/postgresql/data,tmpfs-size=536870912,tmpfs-mode=0700',
-        '--mount','type=tmpfs,dst=/run/pgcerts,tmpfs-size=8388608,tmpfs-mode=0700',
+        '--mount','type=tmpfs,dst=/run/pgcerts,tmpfs-size=134217728,tmpfs-mode=0700',
         '--name',$Container,
         '-e','POSTGRES_HOST_AUTH_METHOD=trust',
         '--entrypoint','/bin/bash',
@@ -505,14 +517,33 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
         throw ('F2B_O2_PG_STORAGE_GATE_FAILED=' + ($MountErrors -join ';'))
     }
     Check ($true) 'F2B_O2_PG_IMAGE_DECLARED_VOLUME_OVERRIDDEN_BY_TMPFS'
+    # The database remains on an internal-only bridge. Do not request a host
+    # port: Docker Engine does not publish ports for containers attached only
+    # to internal networks. The .NET client runs inside this same container.
     $PortJson = GetDockerValue -Arguments @('inspect','--format','{{json .HostConfig.PortBindings}}',$Container)
+    $EffectivePortsJson = GetDockerValue -Arguments @('inspect','--format','{{json .NetworkSettings.Ports}}',$Container)
     $PortObject = $PortJson | ConvertFrom-Json
-    $PortBinding = @($PortObject.'5432/tcp')
-    if ($PortBinding.Count -ne 1 -or
-        $PortBinding[0].HostIp -cne '127.0.0.1' -or
-        [int]$PortBinding[0].HostPort -ne $PgHostPort) {
-        throw 'F2B_O2_PG_PORT_NOT_LOOPBACK_ONLY'
+    $EffectivePortsObject = $EffectivePortsJson | ConvertFrom-Json
+    $RequestedBindings = @()
+    $EffectiveBindings = @()
+    if ($null -ne $PortObject) {
+        foreach ($Property in $PortObject.PSObject.Properties) {
+            if ($null -ne $Property.Value -and @($Property.Value).Count -gt 0) {
+                $RequestedBindings += $Property.Name
+            }
+        }
     }
+    if ($null -ne $EffectivePortsObject) {
+        foreach ($Property in $EffectivePortsObject.PSObject.Properties) {
+            if ($null -ne $Property.Value -and @($Property.Value).Count -gt 0) {
+                $EffectiveBindings += $Property.Name
+            }
+        }
+    }
+    if ($RequestedBindings.Count -ne 0 -or $EffectiveBindings.Count -ne 0) {
+        throw 'F2B_O2_PG_HOST_PORT_PUBLISHING_NOT_DISABLED'
+    }
+    Write-Host 'F2B_O2_PG_NO_HOST_PORT_PUBLISHING=PASS'
     Write-Host 'F2B_O2_PG_CONTAINER_ISOLATION=PASS'
 
     Stage -Label 'o2-pg-init-script-receipts' -Executable $Docker -Arguments @(
@@ -779,32 +810,75 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     Remove-Item -LiteralPath $PermissionSql -Force
 
     $MigratorConnection = (
-        "Host=localhost;Port=$PgHostPort;Database=$Database;" +
+        "Host=localhost;Port=5432;Database=$Database;" +
         "Username=$MigratorRole;Password=$MigratorPassword;" +
-        "SSL Mode=VerifyFull;Root Certificate=$RootCaPath;" +
+        "SSL Mode=VerifyFull;Root Certificate=/run/pgcerts/ca.crt;" +
         "Pooling=false;Timeout=10;" +
         "Command Timeout=30;Include Error Detail=false"
     )
     $RuntimeConnection = (
-        "Host=localhost;Port=$PgHostPort;Database=$Database;" +
+        "Host=localhost;Port=5432;Database=$Database;" +
         "Username=$RuntimeRole;Password=$RuntimePassword;" +
-        "SSL Mode=VerifyFull;Root Certificate=$RootCaPath;" +
+        "SSL Mode=VerifyFull;Root Certificate=/run/pgcerts/ca.crt;" +
         "Pooling=false;Timeout=10;" +
         "Command Timeout=30;Include Error Detail=false"
     )
 
-    [Environment]::SetEnvironmentVariable('YANGSPACE_F2B_O2_PG_ONLY','CONFIRMED_DISPOSABLE_ONLY','Process')
-    [Environment]::SetEnvironmentVariable('YANGSPACE_F2B_O2_PG_MIGRATOR_CONNECTION',$MigratorConnection,'Process')
-    [Environment]::SetEnvironmentVariable('YANGSPACE_F2B_O2_PG_RUNTIME_CONNECTION',$RuntimeConnection,'Process')
-    [Environment]::SetEnvironmentVariable('YANGSPACE_F2B_O2_PG_SCOPE_TOKEN',$ScopeToken,'Process')
-    [Environment]::SetEnvironmentVariable('YANGSPACE_F2B_O2_PG_WRONG_CA_PATH',$WrongCaPath,'Process')
+    $OnlyBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('CONFIRMED_DISPOSABLE_ONLY'))
+    $MigratorBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($MigratorConnection))
+    $RuntimeBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($RuntimeConnection))
+    $ScopeBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($ScopeToken))
+    $WrongCaBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('/run/pgcerts/wrong-ca.crt'))
+    $RuntimeScriptContent = @'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+export YANGSPACE_F2B_O2_PG_ONLY="$(printf '%s' '__ONLY__' | base64 -d)"
+export YANGSPACE_F2B_O2_PG_MIGRATOR_CONNECTION="$(printf '%s' '__MIGRATOR__' | base64 -d)"
+export YANGSPACE_F2B_O2_PG_RUNTIME_CONNECTION="$(printf '%s' '__RUNTIME__' | base64 -d)"
+export YANGSPACE_F2B_O2_PG_SCOPE_TOKEN="$(printf '%s' '__SCOPE__' | base64 -d)"
+export YANGSPACE_F2B_O2_PG_WRONG_CA_PATH="$(printf '%s' '__WRONG_CA__' | base64 -d)"
+echo 'F2B_O2_PG_CLIENT_INTERNAL_NETWORK=PASS'
+cd /run/pgcerts/runtime
+exec ./YangSpace.Api.RuntimeTests --f2b-o2-postgresql-only
+'@
+    $RuntimeScriptContent = $RuntimeScriptContent.Replace('__ONLY__',$OnlyBase64)
+    $RuntimeScriptContent = $RuntimeScriptContent.Replace('__MIGRATOR__',$MigratorBase64)
+    $RuntimeScriptContent = $RuntimeScriptContent.Replace('__RUNTIME__',$RuntimeBase64)
+    $RuntimeScriptContent = $RuntimeScriptContent.Replace('__SCOPE__',$ScopeBase64)
+    $RuntimeScriptContent = $RuntimeScriptContent.Replace('__WRONG_CA__',$WrongCaBase64)
+    [IO.File]::WriteAllText($RuntimeScriptPath,$RuntimeScriptContent,$Utf8NoBom)
 
-    Stage -Label 'o2-pg-runtime-contract' -Executable $Dotnet -Arguments @(
-        'run','--project',$RuntimeProject,'-c','Release','--no-build','--',
-        '--f2b-o2-postgresql-only'
+    Stage -Label 'o2-pg-runtime-copy' -Executable $Docker -Arguments @(
+        'cp',$RuntimePublishDirectory,($Container + ':/run/pgcerts/runtime')
+    )
+    Stage -Label 'o2-pg-runtime-script-copy' -Executable $Docker -Arguments @(
+        'cp',$RuntimeScriptPath,($Container + ':/run/pgcerts/run-contract.sh')
+    )
+    Stage -Label 'o2-pg-runtime-permissions' -Executable $Docker -Arguments @(
+        'exec',$Container,'chown','-R','postgres:postgres',
+        '/run/pgcerts/runtime','/run/pgcerts/run-contract.sh'
+    )
+    Stage -Label 'o2-pg-runtime-executable' -Executable $Docker -Arguments @(
+        'exec',$Container,'chmod','700',
+        '/run/pgcerts/runtime/YangSpace.Api.RuntimeTests',
+        '/run/pgcerts/run-contract.sh'
+    )
+    Stage -Label 'o2-pg-runtime-dependencies' -Executable $Docker -Arguments @(
+        'exec',$Container,'ldd','/run/pgcerts/runtime/YangSpace.Api.RuntimeTests'
+    )
+    $RuntimeDependencies = [IO.File]::ReadAllText(
+        (Join-Path $Evidence 'o2-pg-runtime-dependencies.stdout.log')
+    )
+    if ($RuntimeDependencies -match 'not found') {
+        throw 'F2B_O2_LINUX_RUNTIME_NATIVE_DEPENDENCY_MISSING'
+    }
+
+    Stage -Label 'o2-pg-runtime-contract' -Executable $Docker -Arguments @(
+        'exec','--user','postgres',$Container,'/bin/bash','/run/pgcerts/run-contract.sh'
     )
 
     foreach ($Marker in @(
+        'F2B_O2_PG_CLIENT_INTERNAL_NETWORK=PASS',
         'F2B_O2_PG_MIGRATOR_VERIFYFULL_CONNECTION_POLICY=PASS',
         'F2B_O2_PG_RUNTIME_VERIFYFULL_CONNECTION_POLICY=PASS',
         'F2B_O2_PG_MIGRATOR_TLS_ACTIVE=PASS',
@@ -845,6 +919,11 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
         'F2B_O2_PG_DISPOSABLE_ONLY=PASS',
         'F2B_O2_DISPATCHER_FAIL_CLOSED=PASS'
     )) { RequireMarker 'o2-pg-runtime-contract' $Marker }
+
+    Stage -Label 'o2-pg-runtime-cleanup' -Executable $Docker -Arguments @(
+        'exec',$Container,'rm','-rf',
+        '/run/pgcerts/runtime','/run/pgcerts/run-contract.sh'
+    )
 
     $Completed = $true
 }
@@ -900,6 +979,14 @@ finally {
             }
         }
 
+        if (Test-Path -LiteralPath $RuntimeWork) {
+            Remove-Item -LiteralPath $RuntimeWork -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path -LiteralPath $RuntimeWork) {
+            $CleanupOk = $false
+            Write-Warning 'F2B_O2_RUNTIME_TEMP_DIRECTORY_REMAINS'
+        }
+
         foreach ($Suffix in @('','-wal','-shm')) {
             if (Test-Path -LiteralPath ($SqliteDb + $Suffix)) {
                 $CleanupOk = $false
@@ -930,6 +1017,7 @@ $RuntimeDllHash = (Get-FileHash -LiteralPath $RuntimeDll -Algorithm SHA256).Hash
 
 $HashPaths = @(
     'apps/api.RuntimeTests/Program.cs',
+    'apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj',
     'apps/api.RuntimeTests/F2bOutboxO2MigrationContract.cs',
     'apps/api/Migrations/20261115101409_F2bIdentityEmailOutbox.cs',
     'apps/api/Migrations/20261115101409_F2bIdentityEmailOutbox.Designer.cs',
@@ -974,11 +1062,13 @@ $Manifest = @(
     "DOCKER_SERVER_VERSION=$DockerVersion",
     "POSTGRES_IMAGE_ID=$PgImageId",
     "POSTGRES_SERVER_VERSION_NUM=$PgVersionNum",
-    "POSTGRES_HOST_PORT=$PgHostPort",
     "POSTGRES_CONTAINER=$Container",
     "POSTGRES_NETWORK=$Network",
     'POSTGRES_NETWORK_INTERNAL=PASS',
-    'POSTGRES_HOST_BIND=127.0.0.1',
+    'POSTGRES_HOST_PORT_PUBLISHED=none',
+    'POSTGRES_RUNTIME_EXECUTION=IN_DISPOSABLE_CONTAINER',
+    'POSTGRES_RUNTIME_CLIENT=SELF_CONTAINED_LINUX_X64',
+    'POSTGRES_RUNTIME_CONNECTION=LOCALHOST_5432',
     'POSTGRES_HOST_BINDS=none',
     'POSTGRES_ANONYMOUS_VOLUMES=none',
     'POSTGRES_IMAGE_DECLARED_VOLUME=/var/lib/postgresql/data',
