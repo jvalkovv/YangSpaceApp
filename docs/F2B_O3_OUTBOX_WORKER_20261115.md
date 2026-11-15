@@ -46,7 +46,7 @@ O3 consumes the intent rows from O1 and the dual-provider schema accepted by O2.
 
 ## Fail-closed configuration
 
-Both switches remain false in appsettings. The hosted loop and the batch processor each independently refuse to process when either switch is false; the synthetic contract verifies this gate with `F2B_O3_WORKER_DISPATCH_DEFAULT_OFF=PASS`:
+Both switches remain false in appsettings. In addition, the production compile-time dispatch authorization remains held (`DispatcherAvailable=false`) until O3 is formally accepted. The hosted loop and batch processor each independently refuse to process when either runtime switch is false. The synthetic contract uses an internal constructor-only override plus fake transport; there is no configuration key or HTTP path to bypass the production hold. It verifies `F2B_O3_WORKER_DISPATCH_DEFAULT_OFF=PASS`:
 
 - PublicAccounts.Enabled = false
 - PublicAccounts.Outbox.DispatchEnabled = false

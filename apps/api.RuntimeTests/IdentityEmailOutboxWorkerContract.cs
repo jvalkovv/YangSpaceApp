@@ -286,7 +286,8 @@ internal static class IdentityEmailOutboxWorkerContract
     private static IdentityEmailOutboxWorker NewWorker(IServiceProvider provider,TimeProvider clock,IConfiguration config) =>
         new(provider.GetRequiredService<IServiceScopeFactory>(),
             provider.GetRequiredService<ILogger<IdentityEmailOutboxWorker>>(),
-            provider.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config);
+            provider.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,
+            allowSyntheticDispatch: true);
 
     private static async Task<IdentityUser> NewUser(UserManager<IdentityUser> users,string email,bool confirmed)
     {

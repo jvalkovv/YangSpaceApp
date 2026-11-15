@@ -145,10 +145,13 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? cl
 // Both PublicAccounts and Outbox.DispatchEnabled remain default-OFF.
 internal static class IdentityEmailOutboxDispatchPolicy
 {
-    internal static bool DispatcherAvailable => true;
+    // Production remains compile-time held until O3 acceptance is complete.
+    internal static bool DispatcherAvailable => false;
 
-    internal static bool IsEnabled(IConfiguration configuration) =>
-        DispatcherAvailable &&
+    internal static bool AreSwitchesEnabled(IConfiguration configuration) =>
         configuration.GetValue<bool>("PublicAccounts:Enabled") &&
         configuration.GetValue<bool>("PublicAccounts:Outbox:DispatchEnabled");
+
+    internal static bool IsEnabled(IConfiguration configuration) =>
+        DispatcherAvailable && AreSwitchesEnabled(configuration);
 }

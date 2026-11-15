@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using YangSpace.Api;
 
 internal static class IdentityEmailOutboxEnqueueContract
@@ -79,10 +78,7 @@ internal static class IdentityEmailOutboxEnqueueContract
             Check(allRows.All(x => x.LastFailureCode is null) &&
                   allRows.All(x => x.UserId != user.Email),
                   "F2B_OUTBOX_NO_EMAIL_PAYLOAD_STORED");
-            var defaultConfiguration = new ConfigurationBuilder().AddInMemoryCollection().Build();
-            Check(IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
-                  "F2B_OUTBOX_DISPATCHER_IMPLEMENTED");
-            Check(!IdentityEmailOutboxDispatchPolicy.IsEnabled(defaultConfiguration),
+            Check(!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
                   "F2B_OUTBOX_DISPATCH_FAIL_CLOSED");
 
             var rolledBack = new IdentityUser

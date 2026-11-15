@@ -47,7 +47,7 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
 
     internal IdentityEmailOutboxWorker(IServiceScopeFactory scopeFactory,
         ILogger<IdentityEmailOutboxWorker> logger, IOptions<IdentityEmailOutboxOptions> options,
-        TimeProvider clock, IConfiguration configuration)
+        TimeProvider clock, IConfiguration configuration, bool allowSyntheticDispatch = false)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
@@ -55,7 +55,8 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
         _options.Validate();
         _clock = clock;
         _canonicalOrigin = configuration["PublicAccounts:CanonicalOrigin"] ?? "";
-        _dispatchEnabled = IdentityEmailOutboxDispatchPolicy.IsEnabled(configuration);
+        _dispatchEnabled = IdentityEmailOutboxDispatchPolicy.AreSwitchesEnabled(configuration) &&
+            (allowSyntheticDispatch || IdentityEmailOutboxDispatchPolicy.DispatcherAvailable);
         if (_canonicalOrigin != "https://yangspace.gndstore.eu")
             throw new InvalidOperationException("PUBLIC_ACCOUNT_CANONICAL_ORIGIN_REFUSED");
     }
