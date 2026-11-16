@@ -271,6 +271,7 @@ internal static class F2bH02ProductionIdentityHttpContract
               Environment.GetEnvironmentVariable("Database__Provider") == "PostgreSQL" &&
               Environment.GetEnvironmentVariable("PublicAccounts__Enabled") == "true" &&
               Environment.GetEnvironmentVariable("PublicAccounts__Outbox__DispatchEnabled") == "true" &&
+              Environment.GetEnvironmentVariable("PublicAccounts__AbuseProtection__HmacKey") == TestAbuseHmacKey &&
               Environment.GetEnvironmentVariable("PublicAccounts__ReleaseAuthorization__Payload") ==
                   startupConfiguration["PublicAccounts:ReleaseAuthorization:Payload"],
             "F2B_H02_EARLY_STARTUP_CONFIGURATION");
