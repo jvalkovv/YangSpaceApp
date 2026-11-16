@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -328,6 +329,33 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H02_OLD_PASSWORD_REVOKED");
         _ = await LoginAsync(client, email, "ReplacementPassword!2026");
 
+        var expiredConfirmationEmail = "h02-expired-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var expiredConfirmationUser = await CreatePublicUserAsync(
+            factory.Services, expiredConfirmationEmail, password, emailConfirmed: false);
+        var expiredConfirmationToken = await GenerateExpiredIdentityTokenAsync(
+            factory.Services, expiredConfirmationUser.Id, passwordReset: false);
+        var expiredConfirmationCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(expiredConfirmationToken));
+        using var expiredConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString(expiredConfirmationUser.Id) +
+            "&code=" + Uri.EscapeDataString(expiredConfirmationCode));
+        Check(expiredConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              expiredConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true &&
+              !await ReadEmailConfirmedAsync(identityConnection, expiredConfirmationUser.Id),
+            "F2B_H02_EXPIRED_CONFIRMATION_TOKEN_REJECTED");
+
+        var expiredResetEmail = "h02-expired-reset-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var expiredResetUser = await CreatePublicUserAsync(
+            factory.Services, expiredResetEmail, password, emailConfirmed: true);
+        var expiredResetToken = await GenerateExpiredIdentityTokenAsync(
+            factory.Services, expiredResetUser.Id, passwordReset: true);
+        var expiredResetCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(expiredResetToken));
+        using var expiredReset = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email = expiredResetEmail, resetCode = expiredResetCode, newPassword = "ExpiredReplacement!2026" });
+        Check(expiredReset.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H02_EXPIRED_RESET_TOKEN_REJECTED");
+        _ = await LoginAsync(client, expiredResetEmail, password);
+        Check(true, "F2B_H02_EXPIRED_RESET_PRESERVES_PASSWORD");
+
         var rollbackEmail = "h02-rollback-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         await SetOutboxInsertPermissionAsync(migrator, enabled: false);
         try
@@ -484,6 +512,65 @@ internal static class F2bH02ProductionIdentityHttpContract
             ? """GRANT INSERT ON TABLE public."AspNetRoles", public."AspNetUserRoles" TO ys_h02_identity;"""
             : """REVOKE INSERT ON TABLE public."AspNetRoles", public."AspNetUserRoles" FROM ys_h02_identity;""";
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<IdentityUser> CreatePublicUserAsync(
+        IServiceProvider services, string email, string password, bool emailConfirmed)
+    {
+        using var scope = services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var user = new IdentityUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = emailConfirmed
+        };
+        var created = await users.CreateAsync(user, password);
+        if (!created.Succeeded)
+            throw new InvalidOperationException("F2B_H02_PUBLIC_TOKEN_FIXTURE_CREATE_FAILED");
+        return user;
+    }
+
+    private static async Task<string> GenerateExpiredIdentityTokenAsync(
+        IServiceProvider services, string userId, bool passwordReset)
+    {
+        using var scope = services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await users.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException("F2B_H02_EXPIRED_TOKEN_USER_MISSING");
+        var token = passwordReset
+            ? await users.GeneratePasswordResetTokenAsync(user)
+            : await users.GenerateEmailConfirmationTokenAsync(user);
+
+        var dataProtection = scope.ServiceProvider.GetRequiredService<IDataProtectionProvider>();
+        var options = scope.ServiceProvider.GetRequiredService<IOptions<DataProtectionTokenProviderOptions>>().Value;
+        var protector = dataProtection.CreateProtector(options.Name ?? "DataProtectorTokenProvider");
+        var unprotected = protector.Unprotect(Convert.FromBase64String(token));
+
+        string tokenUserId;
+        string purpose;
+        string stamp;
+        using (var input = new BinaryReader(
+            new MemoryStream(unprotected), new UTF8Encoding(false, true), leaveOpen: false))
+        {
+            _ = input.ReadInt64();
+            tokenUserId = input.ReadString();
+            purpose = input.ReadString();
+            stamp = input.ReadString();
+            if (input.BaseStream.Position != input.BaseStream.Length)
+                throw new InvalidOperationException("F2B_H02_TOKEN_PAYLOAD_SHAPE_UNEXPECTED");
+        }
+
+        using var payload = new MemoryStream();
+        using (var output = new BinaryWriter(payload, new UTF8Encoding(false, true), leaveOpen: true))
+        {
+            output.Write((DateTimeOffset.UtcNow - options.TokenLifespan - TimeSpan.FromMinutes(1)).UtcTicks);
+            output.Write(tokenUserId);
+            output.Write(purpose);
+            output.Write(stamp);
+        }
+
+        return Convert.ToBase64String(protector.Protect(payload.ToArray()));
     }
 
     private static async Task<IdentityUser> CreateStaffUserAsync(
