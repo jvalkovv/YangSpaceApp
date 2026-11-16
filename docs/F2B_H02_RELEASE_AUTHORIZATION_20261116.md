@@ -1,6 +1,6 @@
 # F2b H02 — signed public Identity release authorization
 
-Status: H02 source candidate committed at `9403397f572cf2f17676b3b92861d2764bafb94b`; exact-SHA runtime acceptance is pending. This document is not a production approval and contains no signing key or live authorization.
+Status: H02 source candidate committed on the implementation branch; the exact SHA is recorded in Draft PR #46. Runtime acceptance is pending. This document is not a production approval and contains no signing key or live authorization.
 
 ## Trust model
 
