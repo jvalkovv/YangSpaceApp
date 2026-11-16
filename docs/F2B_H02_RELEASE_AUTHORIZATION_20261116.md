@@ -1,6 +1,6 @@
 # F2b H02 — signed public Identity release authorization
 
-Status: H02 runtime acceptance previously passed at `b48129df712800a5f9d3bdb46ac2f918d88b8212`. The scoped review required a stricter one-hour authorization ceiling and real Production startup-negative tests for invalid signature, expiry and wrong deployment SHA. This follow-up is being implemented on the same Draft PR #46 branch. The follow-up commit is NOT runtime-accepted until its exact-SHA runner and independent Postflight pass.
+Status: H02 runtime acceptance previously passed at `b48129df712800a5f9d3bdb46ac2f918d88b8212`. The scoped review required a stricter one-hour authorization ceiling and real Production startup-negative tests for invalid signature, expiry and wrong deployment SHA. This follow-up is committed on the same Draft PR #46 branch. The current branch HEAD is NOT runtime-accepted until its exact-SHA runner and independent Postflight pass.
 
 ## Trust model
 
