@@ -201,6 +201,9 @@ foreach ($M in @(
     'F2B_H02_DUPLICATE_REGISTRATION_GENERIC',
     'F2B_H02_LOGIN_HTTP','F2B_H02_LOGIN_NO_SET_COOKIE','F2B_H02_LOGIN_BEARER_ONLY',
     'F2B_H02_SESSION_REQUIRES_BEARER','F2B_H02_SESSION_BEARER_OK',
+    'F2B_H02_STAFF_ROLE_FIXTURES_CREATED','F2B_H02_STAFF_CONFIRMATION_DENIED',
+    'F2B_H02_STAFF_RESEND_NO_OUTBOX','F2B_H02_STAFF_LOGIN_DENIED',
+    'F2B_H02_STAFF_FORGOT_NO_OUTBOX','F2B_H02_STAFF_RESET_DENIED',
     'F2B_H02_FORGOT_PASSWORD_ACCEPTED','F2B_H02_FORGOT_PASSWORD_UNKNOWN_GENERIC',
     'F2B_H02_PASSWORD_RESET_HTTP',
     'F2B_H02_REGISTER_ENQUEUE_FAILURE_HTTP_500','F2B_H02_REGISTER_ENQUEUE_FAILURE_ROLLBACK',
@@ -236,7 +239,7 @@ foreach ($HashLine in $HashLines) {
     if ($Relative.StartsWith('apps/') -or $Relative.StartsWith('scripts/') -or $Relative.StartsWith('docs/')) {
         $Full=Join-Path $Repo $Relative
     } elseif ($Relative -in @(
-        'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log',
+        'pg-root-ca.crt','o3-sqlite-regression.stdout.log','h02-enqueue-synthetic.stdout.log','o3-pg-worker.stdout.log',
         'h02-release-auth-contract.stdout.log','o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
         'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
     )) {

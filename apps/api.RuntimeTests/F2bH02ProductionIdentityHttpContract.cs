@@ -250,6 +250,64 @@ internal static class F2bH02ProductionIdentityHttpContract
             Check(session.StatusCode == HttpStatusCode.OK, "F2B_H02_SESSION_BEARER_OK");
         }
 
+        var staffUnconfirmedEmail = "h02-staff-unconfirmed-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var staffConfirmedEmail = "h02-staff-confirmed-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        IdentityUser staffUnconfirmed;
+        IdentityUser staffConfirmed;
+        await SetStaffRoleWritePermissionAsync(migrator, enabled: true);
+        try
+        {
+            staffUnconfirmed = await CreateStaffUserAsync(
+                factory.Services, staffUnconfirmedEmail, password, emailConfirmed: false);
+            staffConfirmed = await CreateStaffUserAsync(
+                factory.Services, staffConfirmedEmail, password, emailConfirmed: true);
+        }
+        finally
+        {
+            await SetStaffRoleWritePermissionAsync(migrator, enabled: false);
+        }
+        Check(true, "F2B_H02_STAFF_ROLE_FIXTURES_CREATED");
+
+        var staffConfirmationToken = await GenerateIdentityTokenAsync(
+            factory.Services, staffUnconfirmed.Id, passwordReset: false);
+        var staffConfirmationCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(staffConfirmationToken));
+        using var staffConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString(staffUnconfirmed.Id) +
+            "&code=" + Uri.EscapeDataString(staffConfirmationCode));
+        Check(staffConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              staffConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true &&
+              !await ReadEmailConfirmedAsync(identityConnection, staffUnconfirmed.Id),
+            "F2B_H02_STAFF_CONFIRMATION_DENIED");
+
+        using var staffResend = await client.PostAsJsonAsync(
+            "/api/public-account/resend-confirmation", new { email = staffUnconfirmedEmail });
+        Check(staffResend.StatusCode == HttpStatusCode.Accepted &&
+              await ReadOutboxCountAsync(identityConnection, staffUnconfirmed.Id) == 0 &&
+              !fake.Deliveries.Any(x => x.Email == staffUnconfirmedEmail),
+            "F2B_H02_STAFF_RESEND_NO_OUTBOX");
+
+        using var staffLogin = await client.PostAsJsonAsync(
+            "/api/public-account/login", new { email = staffConfirmedEmail, password });
+        Check(staffLogin.StatusCode == HttpStatusCode.Unauthorized &&
+              !staffLogin.Headers.Contains("Set-Cookie"),
+            "F2B_H02_STAFF_LOGIN_DENIED");
+
+        using var staffForgot = await client.PostAsJsonAsync(
+            "/api/public-account/forgot-password", new { email = staffConfirmedEmail });
+        Check(staffForgot.StatusCode == HttpStatusCode.Accepted &&
+              await ReadOutboxCountAsync(identityConnection, staffConfirmed.Id) == 0 &&
+              !fake.Deliveries.Any(x => x.Email == staffConfirmedEmail),
+            "F2B_H02_STAFF_FORGOT_NO_OUTBOX");
+
+        var staffResetToken = await GenerateIdentityTokenAsync(
+            factory.Services, staffConfirmed.Id, passwordReset: true);
+        var staffResetCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(staffResetToken));
+        using var staffReset = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email = staffConfirmedEmail, resetCode = staffResetCode, newPassword = "StaffReplacement!2026" });
+        Check(staffReset.StatusCode == HttpStatusCode.BadRequest &&
+              await ReadOutboxCountAsync(identityConnection, staffConfirmed.Id) == 0,
+            "F2B_H02_STAFF_RESET_DENIED");
+
         using var forgot = await client.PostAsJsonAsync("/api/public-account/forgot-password", new { email });
         Check(forgot.StatusCode == HttpStatusCode.Accepted, "F2B_H02_FORGOT_PASSWORD_ACCEPTED");
         var unknownForgotEmail = "missing-" + Guid.NewGuid().ToString("N") + "@example.invalid";
@@ -415,6 +473,78 @@ internal static class F2bH02ProductionIdentityHttpContract
             await Task.Delay(100);
         }
         throw new TimeoutException("F2B_H02_USER_ROW_NOT_FOUND");
+    }
+
+    private static async Task SetStaffRoleWritePermissionAsync(string migrator, bool enabled)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = enabled
+            ? """GRANT INSERT ON TABLE public."AspNetRoles", public."AspNetUserRoles" TO ys_h02_identity;"""
+            : """REVOKE INSERT ON TABLE public."AspNetRoles", public."AspNetUserRoles" FROM ys_h02_identity;""";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<IdentityUser> CreateStaffUserAsync(
+        IServiceProvider services, string email, string password, bool emailConfirmed)
+    {
+        using var scope = services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        const string roleName = "H02Staff";
+        if (!await roles.RoleExistsAsync(roleName))
+        {
+            var role = await roles.CreateAsync(new IdentityRole(roleName));
+            if (!role.Succeeded)
+                throw new InvalidOperationException("F2B_H02_STAFF_ROLE_CREATE_FAILED");
+        }
+
+        var user = new IdentityUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = emailConfirmed
+        };
+        var created = await users.CreateAsync(user, password);
+        if (!created.Succeeded)
+            throw new InvalidOperationException("F2B_H02_STAFF_USER_CREATE_FAILED");
+        var assigned = await users.AddToRoleAsync(user, roleName);
+        if (!assigned.Succeeded)
+            throw new InvalidOperationException("F2B_H02_STAFF_ROLE_ASSIGN_FAILED");
+        return user;
+    }
+
+    private static async Task<string> GenerateIdentityTokenAsync(
+        IServiceProvider services, string userId, bool passwordReset)
+    {
+        using var scope = services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await users.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException("F2B_H02_STAFF_TOKEN_USER_MISSING");
+        return passwordReset
+            ? await users.GeneratePasswordResetTokenAsync(user)
+            : await users.GenerateEmailConfirmationTokenAsync(user);
+    }
+
+    private static async Task<bool> ReadEmailConfirmedAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT "EmailConfirmed" FROM public."AspNetUsers" WHERE "Id"=@id""";
+        cmd.Parameters.AddWithValue("id", userId);
+        return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<int> ReadOutboxCountAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT count(*) FROM public."IdentityEmailOutbox" WHERE "UserId"=@id""";
+        cmd.Parameters.AddWithValue("id", userId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task SetOutboxInsertPermissionAsync(string migrator, bool enabled)

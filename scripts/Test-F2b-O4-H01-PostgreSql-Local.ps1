@@ -354,6 +354,9 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_H02_LOGIN_BEARER_ONLY',
         'F2B_H02_SESSION_REQUIRES_BEARER',
         'F2B_H02_SESSION_BEARER_OK',
+        'F2B_H02_STAFF_ROLE_FIXTURES_CREATED','F2B_H02_STAFF_CONFIRMATION_DENIED',
+        'F2B_H02_STAFF_RESEND_NO_OUTBOX','F2B_H02_STAFF_LOGIN_DENIED',
+        'F2B_H02_STAFF_FORGOT_NO_OUTBOX','F2B_H02_STAFF_RESET_DENIED',
         'F2B_H02_FORGOT_PASSWORD_ACCEPTED','F2B_H02_FORGOT_PASSWORD_UNKNOWN_GENERIC',
         'F2B_H02_PASSWORD_RESET_HTTP',
         'F2B_H02_REGISTER_ENQUEUE_FAILURE_HTTP_500','F2B_H02_REGISTER_ENQUEUE_FAILURE_ROLLBACK',
@@ -409,6 +412,9 @@ Check ($SecretsRemain.Count -eq 0 -and -not (Test-Path -LiteralPath $Temp)) 'F2B
 $HashPaths=@(
     'apps/api/IdentityEmailOutboxWorker.cs',
     'apps/api/OutboxIdentityEmailSender.cs',
+    'apps/api/Program.cs',
+    'apps/api/ProductionPostgreSqlPolicy.cs',
+    'apps/api/ProductionSchemaGate.cs',
     'apps/api/PublicAccountEndpoints.cs',
     'apps/api/PublicAccountReleaseAuthorization.cs',
     'apps/api/SmtpPublicIdentityEmailSender.cs',
@@ -434,7 +440,7 @@ foreach ($P in $HashPaths) {
     $Checksums+=((Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
 }
 foreach ($P in @(
-    'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log',
+    'pg-root-ca.crt','o3-sqlite-regression.stdout.log','h02-enqueue-synthetic.stdout.log','o3-pg-worker.stdout.log',
     'h02-release-auth-contract.stdout.log','o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
     'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
 )) {
