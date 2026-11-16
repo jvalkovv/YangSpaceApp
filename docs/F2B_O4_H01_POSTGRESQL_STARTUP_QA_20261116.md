@@ -1,3 +1,13 @@
+## Follow-up remediation — launcher destination (2026-11-16)
+
+Operator rerun at source `8661b973c03a8dbc42b0b41818e11bd81d1173f8` passed the three content-root stages and launcher copy, then failed at `o4-h01-runner-mode`: `chmod: cannot access '/run/pgcerts/o4-h01-run.sh'`. The launcher destination assumed `/run/pgcerts` existed; the stage copy receipt alone did not prove the target file existed.
+
+**Fix:** copy the generated H01 launcher into the container's already-used `/tmp` location as `/tmp/o4-h01-run.sh`; chmod 0600 and execute that exact path; remove that same path during cleanup. Do not create a new directory or relax the stage guard. Postflight still requires all stage receipts and no temporary launcher. This remains disposable-container-only.
+
+**Status:** previous attempt = HOLD; new source = NOT RUN until exact-SHA full O3 regression + H01 TestServer + independent Postflight pass. Keep PR #43 Draft; no CT164/production DB/SMTP/GitHub Actions.
+
+---
+
 ## O4/H01 stage-argument remediation — source candidate / NOT RUN
 
 Observed operator run on `d947804f1733d922f15145d9ad2c98b7e61b844f`: O3 PostgreSQL Worker markers continued to PASS, but H01 stopped **before TestServer startup** at `STAGE_UNSAFE_ARGUMENT=o4-h01-content-root`. Root cause: H01 used `bash -c` with `&&`, shell quoting and redirection in command arguments, which `Invoke-YangSpaceStage.ps1` correctly rejects. The shared stage security boundary is **not** a defect and must not be weakened.

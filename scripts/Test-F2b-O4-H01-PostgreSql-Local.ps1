@@ -269,10 +269,10 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
     $H01Run=$Run.Replace('cd /tmp/o3-runtime','cd /qa').Replace(
         '--f2b-o3-postgresql-worker-only','--f2b-o4-h01-postgresql-http-only')
     [IO.File]::WriteAllText($H01RunnerPath,([regex]::Replace($H01Run,"\r\n?",[string][char]10)),$Utf8)
-    Stage 'o4-h01-runner-copy' $Docker @('cp',$H01RunnerPath,($Container+':/run/pgcerts/o4-h01-run.sh'))
-    Stage 'o4-h01-runner-mode' $Docker @('exec',$Container,'chmod','0600','/run/pgcerts/o4-h01-run.sh')
+    Stage 'o4-h01-runner-copy' $Docker @('cp',$H01RunnerPath,($Container+':/tmp/o4-h01-run.sh'))
+    Stage 'o4-h01-runner-mode' $Docker @('exec',$Container,'chmod','0600','/tmp/o4-h01-run.sh')
     Remove-Item -LiteralPath $H01RunnerPath -Force
-    Stage 'o4-h01-testserver' $Docker @('exec',$Container,'bash','/run/pgcerts/o4-h01-run.sh') 2400
+    Stage 'o4-h01-testserver' $Docker @('exec',$Container,'bash','/tmp/o4-h01-run.sh') 2400
     foreach ($M in @(
         'F2B_O4_H01_RUNTIME_TLS_SCOPE_NON_ELEVATED',
         'F2B_O4_H01_RUNTIME_METADATA_READ_ONLY',
@@ -295,7 +295,7 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
     $H01Log=[IO.File]::ReadAllText((Join-Path $Evidence 'o4-h01-testserver.stdout.log'))
     Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_RELEASE_POLICY\s*$') 'F2B_O4_H01_PUBLIC_RELEASE_POLICY_HELD'
     Check ($H01Log -match '(?m)^F2B_O4_H01_SMTP=NOT_CONNECTED\s*$') 'F2B_O4_H01_SMTP_DISCONNECTED'
-    Stage 'o3-runtime-clean' $Docker @('exec',$Container,'rm','-rf','/tmp/o3-runtime','/qa','/tmp/o3-run.sh','/run/pgcerts/o4-h01-run.sh','/run/pgcerts/o3-keys')
+    Stage 'o3-runtime-clean' $Docker @('exec',$Container,'rm','-rf','/tmp/o3-runtime','/qa','/tmp/o3-run.sh','/tmp/o4-h01-run.sh','/run/pgcerts/o3-keys')
     $Complete=$true
 }
 finally {

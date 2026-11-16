@@ -1,3 +1,9 @@
+## H01 launcher destination correction — source fix / runtime pending
+
+The 2026-11-16 operator rerun passed content-root mkdir/copy/verify and launcher-copy, but `chmod` failed because `/run/pgcerts` was not an existing destination directory. The H01 runner now uses `/tmp/o4-h01-run.sh`, the same existing container path family as the O3 launcher: copy, chmod 0600, execute and cleanup all target the exact same path. This is a QA harness correction only; shared stage validation and production gates remain unchanged. New source SHA is required for full rerun; do not accept H01 on source-only evidence.
+
+---
+
 ## O4/H01 stage-argument remediation — source candidate / NOT RUN
 
 Observed operator run on `d947804f1733d922f15145d9ad2c98b7e61b844f`: O3 PostgreSQL Worker markers continued to PASS, but H01 stopped **before TestServer startup** at `STAGE_UNSAFE_ARGUMENT=o4-h01-content-root`. Root cause: H01 used `bash -c` with `&&`, shell quoting and redirection in command arguments, which `Invoke-YangSpaceStage.ps1` correctly rejects. The shared stage security boundary is **not** a defect and must not be weakened.
