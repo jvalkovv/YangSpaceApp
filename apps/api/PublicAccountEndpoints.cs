@@ -15,9 +15,10 @@ internal static class PublicAccountEndpoints
         bool preview, bool merchantQa, bool reviewerQa, bool productionAdmin)
     {
         if (!configuration.GetValue<bool>("PublicAccounts:Enabled")) return;
-        // Outbox enqueue is not deliverability. Keep public endpoints disabled
-        // until the migration and leased worker pass independent QA.
-        if (!IdentityEmailOutboxDispatchPolicy.IsEnabled(configuration))
+        // O3 implementation is available, but both explicit runtime switches
+        // remain default-OFF and a signed release authorization is mandatory.
+        if (!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable ||
+            !IdentityEmailOutboxDispatchPolicy.AreSwitchesEnabled(configuration))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY");
         // Public Identity HTTP must not depend on the admin gateway being enabled.
         // Operator replay is mapped only inside the existing protected admin route group.
@@ -25,6 +26,8 @@ internal static class PublicAccountEndpoints
         if (!environment.IsProduction() || preview || merchantQa || reviewerQa ||
             configuration.GetValue<bool>("Preview:AllowRegistration"))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_SCOPE_REFUSED");
+        IdentityEmailOutboxDispatchPolicy.RequireAuthorization(
+            configuration, environment, TimeProvider.System);
         if (!string.Equals(configuration["Database:Provider"], "PostgreSQL", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_POSTGRESQL_REQUIRED");
         if (configuration["PublicAccounts:CanonicalOrigin"] != "https://yangspace.gndstore.eu")
