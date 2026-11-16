@@ -106,7 +106,12 @@ internal static class PublicAccountEndpoints
                 userId.Length <= 256 && code.Length <= 4096)
             {
                 var user = await users.FindByIdAsync(userId);
-                if (user is not null && !await IsStaffAsync(users, user))
+                // ConfirmEmailAsync validates the token but does not make a
+                // successful confirmation single-use by itself. Refuse an
+                // already-confirmed account before invoking Identity again;
+                // the Identity store's ConcurrencyStamp remains the arbiter
+                // when two first-time confirmations race.
+                if (user is not null && !user.EmailConfirmed && !await IsStaffAsync(users, user))
                 {
                     try
                     {
