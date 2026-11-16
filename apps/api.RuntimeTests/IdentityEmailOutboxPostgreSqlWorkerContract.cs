@@ -45,14 +45,16 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             Check(await DeniedOperations(runtimeCs),"F2B_O3_PG_RUNTIME_DENIED_OPERATIONS");
 
             var clock=new MutableClock(DateTimeOffset.UtcNow);
+            using var releaseAuthorization=new TestReleaseAuthorizationScope(
+                clock.GetUtcNow(),Required("YANGSPACE_RELEASE_COMMIT_SHA"));
             var fake=new FakeTransport();
-            var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
-                ["PublicAccounts:CanonicalOrigin"]="https://yangspace.gndstore.eu",
-                ["PublicAccounts:Enabled"]="true",
-                ["PublicAccounts:Outbox:DispatchEnabled"]="true"
-            }).Build();
+            var config=releaseAuthorization.Configuration;
+            Check(IdentityEmailOutboxDispatchPolicy.IsEnabled(
+                config,releaseAuthorization.HostEnvironment,clock),
+                "F2B_O3_PG_SIGNED_RELEASE_AUTHORIZATION");
             var runtimeServices=CreateIdentityServices(runtimeCs,keys);
             runtimeServices.AddSingleton<TimeProvider>(clock);
+            runtimeServices.AddSingleton<IHostEnvironment>(releaseAuthorization.HostEnvironment);
             runtimeServices.AddSingleton<IConfiguration>(config);
             runtimeServices.AddScoped<IEmailSender<IdentityUser>,OutboxIdentityEmailSender>();
             runtimeServices.AddSingleton<IIdentityEmailOutboxTransport>(fake);
@@ -343,7 +345,8 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
 
     private static IdentityEmailOutboxWorker NewWorker(IServiceProvider p,TimeProvider clock,IConfiguration config)=>
         new(p.GetRequiredService<IServiceScopeFactory>(),p.GetRequiredService<ILogger<IdentityEmailOutboxWorker>>(),
-            p.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,allowSyntheticDispatch:true);
+            p.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,
+            p.GetRequiredService<IHostEnvironment>());
 
     private static async Task<IdentityUser> NewUser(UserManager<IdentityUser> users,string email,bool confirmed)
     {

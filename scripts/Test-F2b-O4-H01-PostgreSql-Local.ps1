@@ -112,6 +112,7 @@ try {
         'F2B_O3_WORKER_CONCURRENT_CLAIM','F2B_O3_WORKER_NULL_LEASE_RECOVERY',
         'F2B_O3_WORKER_LEASE_EXPIRY_RECOVERY','F2B_O3_WORKER_DEADLETTER',
         'F2B_O3_WORKER_OPERATOR_REPLAY','F2B_O3_WORKER_RETENTION_PURGE',
+        'F2B_O3_WORKER_SIGNED_RELEASE_AUTHORIZATION',
         'F2B_O3_WORKER_SQLITE_SYNTHETIC_ONLY'
     )) { Marker 'o3-sqlite-regression' $M }
     Stage 'h02-enqueue-synthetic' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--outbox-enqueue-synthetic-only')
@@ -274,6 +275,7 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O3_PG_RUNTIME_LEAST_PRIVILEGE','F2B_O3_PG_RUNTIME_DENIED_OPERATIONS',
         'F2B_O3_PG_RUNTIME_TLS_SCOPE','F2B_O3_PG_DISPATCH_IMPLEMENTATION_AVAILABLE',
         'F2B_O3_PG_DI_ACTIVATION','F2B_O3_PG_FAKE_TRANSPORT_ONLY',
+        'F2B_O3_PG_SIGNED_RELEASE_AUTHORIZATION',
         'F2B_O3_PG_CONFIRMATION_DISPATCH','F2B_O3_PG_RETRY_BACKOFF',
         'F2B_O3_PG_RETRY_RECOVERY','F2B_O3_PG_CONCURRENT_CLAIM',
         'F2B_O3_PG_LEASE_EXPIRY_RECOVERY','F2B_O3_PG_PASSWORD_RESET',
@@ -423,6 +425,7 @@ $HashPaths=@(
     'apps/api/SmtpPublicIdentityEmailSender.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxWorkerContract.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxPostgreSqlWorkerContract.cs',
+    'apps/api.RuntimeTests/TestReleaseAuthorizationScope.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxEnqueueContract.cs',
     'apps/api.RuntimeTests/Program.cs',
     'apps/api.RuntimeTests/F2bO4H01PostgreSqlStartupContract.cs',
