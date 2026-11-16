@@ -301,6 +301,31 @@ internal static class F2bH02ProductionIdentityHttpContract
               replay.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
             "F2B_H02_CONFIRMATION_REPLAY_REJECTED");
 
+        var raceEmail = "h02-confirm-race-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var raceUser = await CreatePublicUserAsync(factory.Services, raceEmail, password, emailConfirmed: false);
+        var raceToken = await GenerateIdentityTokenAsync(factory.Services, raceUser.Id, passwordReset: false);
+        var raceCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(raceToken));
+        var raceUrl = QueryHelpers.AddQueryString(
+            QueryHelpers.AddQueryString("/api/public-account/confirm", "userId", raceUser.Id),
+            "code", raceCode);
+        var raceResponses = await Task.WhenAll(client.GetAsync(raceUrl), client.GetAsync(raceUrl));
+        try
+        {
+            var winners = raceResponses.Count(response =>
+                response.StatusCode == HttpStatusCode.Redirect &&
+                response.Headers.Location?.OriginalString.Contains("confirmed=1", StringComparison.Ordinal) == true);
+            var losers = raceResponses.Count(response =>
+                response.StatusCode == HttpStatusCode.Redirect &&
+                response.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true);
+            Check(winners == 1 && losers == 1 &&
+                  await ReadEmailConfirmedAsync(identityConnection, raceUser.Id),
+                "F2B_H02_CONCURRENT_CONFIRMATION_SINGLE_WINNER");
+        }
+        finally
+        {
+            foreach (var response in raceResponses) response.Dispose();
+        }
+
         using var duplicate = await client.PostAsJsonAsync("/api/public-account/register",
             new { email, password });
         Check(duplicate.StatusCode == HttpStatusCode.Accepted,
