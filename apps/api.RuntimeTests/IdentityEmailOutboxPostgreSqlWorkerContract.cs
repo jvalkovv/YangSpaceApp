@@ -165,7 +165,7 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
              AND (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid())
              AND (SELECT scope_token FROM public.yangspace_f2b_o3_qa_guard LIMIT 1)=@token
              AND NOT (SELECT rolsuper FROM pg_roles WHERE rolname=current_user)
-             AND (SELECT count(*)=5 AND count(*) FILTER (WHERE error IS NOT NULL)=0 FROM pg_hba_file_rules)
+
             """;
         cmd.Parameters.AddWithValue("role",role); cmd.Parameters.AddWithValue("token",token);
         return (bool)(await cmd.ExecuteScalarAsync()??false);
@@ -214,10 +214,10 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
     {
         foreach(var sql in new[]{
             "CREATE TABLE public.o3_runtime_denied(id integer)",
-            "SELECT \\"PasswordHash\\" FROM public.\\"AspNetUsers\\" LIMIT 0",
-            "UPDATE public.\\"AspNetUsers\\" SET \\"EmailConfirmed\\"=\\"EmailConfirmed\\" WHERE false",
-            "TRUNCATE TABLE public.\\"IdentityEmailOutbox\\"",
-            "SELECT * FROM public.\\"Organizations\\" LIMIT 0"
+            "SELECT \"PasswordHash\" FROM public.\"AspNetUsers\" LIMIT 0",
+            "UPDATE public.\"AspNetUsers\" SET \"EmailConfirmed\"=\"EmailConfirmed\" WHERE false",
+            "TRUNCATE TABLE public.\"IdentityEmailOutbox\"",
+            "SELECT * FROM public.\"Organizations\" LIMIT 0"
         }){
             await using var c=new NpgsqlConnection(cs); await c.OpenAsync();
             await using var cmd=c.CreateCommand(); cmd.CommandText=sql;

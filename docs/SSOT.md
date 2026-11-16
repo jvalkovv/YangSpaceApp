@@ -1,3 +1,29 @@
+## 2026-11-16 — O3 PostgreSQL 17 worker QA source candidate (RUNTIME HOLD)
+
+This iteration adds `scripts/Test-F2b-Outbox-Worker-PostgreSql-Local.ps1` (exact-SHA disposable QA) and `scripts/Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1` (independent evidence verification).
+
+- The PostgreSQL worker contract runs via the real Npgsql/EF Core provider, with a dedicated non-superuser migrator and limited runtime role.
+- The runtime role has outbox DML and column-restricted Identity read; negative privilege probes reject credential reads and administrative writes.
+- Tests cover confirmation token dispatch, retry/backoff, concurrent claims, expired lease recovery, and the full previously accepted SQLite synthetic regression.
+- Disposable PostgreSQL 17 runs on local Docker only: internal network, no published ports, tmpfs-only storage, ephemeral TLS VerifyFull, no image pulls and no CT164/production access.
+- The runner captures command receipts, source and log hashes, manifest and public ephemeral CA; secrets, container and network must be removed.
+- The independent verifier checks exact local/remote SHA, evidence scope and hashes, required markers and resource absence.
+
+**No new exact-SHA build, SQLite run, PostgreSQL run or independent Postflight has been executed in this source iteration.** Status is `HOLD`; this is not accepted evidence. Production dispatch and public registration remain default OFF. No real SMTP, no production DB, no deployment, no GitHub Actions. PR #42 remains Draft.
+
+Operator from an exact clean branch checkout (or detached worktree after the runner supports it):
+
+```powershell
+$Sha = (git rev-parse HEAD).Trim()
+& .\scripts\Test-F2b-Outbox-Worker-PostgreSql-Local.ps1 -CommitSha $Sha
+# Take EVIDENCE_DIR emitted by the runner, then run independently:
+& .\scripts\Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1 -CommitSha $Sha -EvidenceDirectory '<EVIDENCE_DIR>'
+```
+
+Provider QA is a prerequisite for O3 approval; O4 and CT164 deployment remain blocked.
+
+---
+
 ## 2026-11-16 — O3 SQLite synthetic + independent Postflight PASS; PostgreSQL worker QA next
 
 Operator executed exact-SHA O3 worker synthetic at \`750f58ab8ce089161004bec1015cc1a25c760031\`:
