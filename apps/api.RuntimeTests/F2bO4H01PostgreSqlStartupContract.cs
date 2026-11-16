@@ -16,6 +16,53 @@ internal static class F2bO4H01PostgreSqlStartupContract
 {
     private const string DbName = "yangspace_f2b_o3_worker_disposable";
 
+    private sealed class StartupEnvironmentScope : IDisposable
+    {
+        private readonly Dictionary<string,string?> previous = new(StringComparer.Ordinal);
+        private static readonly string[] Names =
+        [
+            "ConnectionStrings__Main", "Database__Provider", "AllowedHosts",
+            "Preview__Enabled", "Preview__AllowRegistration", "Admin__Enabled",
+            "MerchantRead__Enabled", "ClaimReview__QaEnabled",
+            "ClaimReviewPostgreSqlQa__Enabled", "PublicAccounts__Enabled",
+            "PublicAccounts__Outbox__DispatchEnabled",
+            "ASPNETCORE_ENVIRONMENT", "DOTNET_ENVIRONMENT"
+        ];
+
+        internal StartupEnvironmentScope()
+        {
+            foreach (var name in Names)
+                previous[name] = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process);
+        }
+
+        internal void SetStartup(string connection, bool publicAccounts=false,
+            bool dispatch=false, bool production=true)
+        {
+            static void Set(string name,string value) =>
+                Environment.SetEnvironmentVariable(name,value,EnvironmentVariableTarget.Process);
+
+            Set("ConnectionStrings__Main",connection);
+            Set("Database__Provider","PostgreSQL");
+            Set("AllowedHosts","yangspace.gndstore.eu");
+            Set("Preview__Enabled","false");
+            Set("Preview__AllowRegistration","false");
+            Set("Admin__Enabled","false");
+            Set("MerchantRead__Enabled","false");
+            Set("ClaimReview__QaEnabled","false");
+            Set("ClaimReviewPostgreSqlQa__Enabled","false");
+            Set("PublicAccounts__Enabled",publicAccounts ? "true" : "false");
+            Set("PublicAccounts__Outbox__DispatchEnabled",dispatch ? "true" : "false");
+            Set("ASPNETCORE_ENVIRONMENT",production ? "Production" : "Development");
+            Set("DOTNET_ENVIRONMENT",production ? "Production" : "Development");
+        }
+
+        public void Dispose()
+        {
+            foreach (var (name,value) in previous)
+                Environment.SetEnvironmentVariable(name,value,EnvironmentVariableTarget.Process);
+        }
+    }
+
     private sealed class Factory : WebApplicationFactory<ApiAssemblyMarker>
     {
         internal required string Connection { get; init; }
@@ -143,6 +190,7 @@ internal static class F2bO4H01PostgreSqlStartupContract
         var runtime = Required("YANGSPACE_F2B_O3_PG_RUNTIME_CONNECTION");
         var scopeToken = Required("YANGSPACE_F2B_O3_PG_SCOPE_TOKEN");
 
+        using var startupEnvironment = new StartupEnvironmentScope();
         Scoped(migrator, "ys_o3_migrator");
         Scoped(runtime, "ys_o3_runtime");
         await VerifyRuntimeScope(runtime,scopeToken);
@@ -166,6 +214,7 @@ internal static class F2bO4H01PostgreSqlStartupContract
         ProductionPostgreSqlPolicy.RequirePreparedConnection(runtime);
         Check(true, "F2B_O4_H01_PRODUCTION_PG_POLICY");
 
+        startupEnvironment.SetStartup(runtime);
         using (var factory = new Factory { Connection = runtime })
         {
             using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -193,11 +242,11 @@ internal static class F2bO4H01PostgreSqlStartupContract
                 "F2B_O4_H01_DISABLED_LEGACY_REGISTER_404");
         }
 
-        using (var invalidTls = new Factory {
-            Connection = new NpgsqlConnectionStringBuilder(runtime) {
-                SslMode = SslMode.Disable
-            }.ConnectionString
-        })
+        var invalidTlsConnection = new NpgsqlConnectionStringBuilder(runtime) {
+            SslMode = SslMode.Disable
+        }.ConnectionString;
+        startupEnvironment.SetStartup(invalidTlsConnection);
+        using (var invalidTls = new Factory { Connection = invalidTlsConnection })
             await RejectStartup(invalidTls, "SslMode=VerifyFull",
                 "F2B_O4_H01_REJECTS_DISABLED_TLS");
 
@@ -215,20 +264,24 @@ internal static class F2bO4H01PostgreSqlStartupContract
         { wrongHostRefused = true; }
         Check(wrongHostRefused,"F2B_O4_H01_REJECTS_TLS_HOSTNAME_MISMATCH");
 
+        startupEnvironment.SetStartup(migrator);
         using (var elevated = new Factory { Connection = migrator })
             await RejectStartup(elevated,
                 "PostgreSQL runtime role must be non-elevated",
                 "F2B_O4_H01_REJECTS_MIGRATOR_AS_RUNTIME");
 
         // The production feature is intentionally compile-time disabled pending O4/O5.
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
         using (var enabled = new Factory { Connection = runtime, PublicAccounts = true, Dispatch = true })
             await RejectStartup(enabled, "PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY",
                 "F2B_O4_H01_REJECTS_PREMATURE_PUBLIC_ENABLE");
 
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:false);
         using (var noDispatch = new Factory { Connection = runtime, PublicAccounts = true })
             await RejectStartup(noDispatch, "PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY",
                 "F2B_O4_H01_REJECTS_PUBLIC_WITH_DISPATCH_OFF");
 
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true,production:false);
         using (var notProduction = new Factory {
             Connection = runtime, PublicAccounts = true, Dispatch = true, Production = false
         })
