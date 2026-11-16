@@ -150,17 +150,43 @@ internal sealed class OutboxIdentityEmailSender : IEmailSender<IdentityUser>
     }
 }
 
-// Implementation availability is separate from the explicit runtime switches.
-// Both PublicAccounts and Outbox.DispatchEnabled remain default-OFF.
+// Implementation availability is distinct from release authorization.
+// O3 is accepted; activation still requires both default-OFF switches and a
+// short-lived signed authorization bound to the exact Production release.
 internal static class IdentityEmailOutboxDispatchPolicy
 {
-    // Production remains compile-time held until O3 acceptance is complete.
-    internal static bool DispatcherAvailable => false;
+    internal static bool DispatcherAvailable => true;
 
     internal static bool AreSwitchesEnabled(IConfiguration configuration) =>
         configuration.GetValue<bool>("PublicAccounts:Enabled") &&
         configuration.GetValue<bool>("PublicAccounts:Outbox:DispatchEnabled");
 
-    internal static bool IsEnabled(IConfiguration configuration) =>
-        DispatcherAvailable && AreSwitchesEnabled(configuration);
+    internal static bool IsEnabled(
+        IConfiguration configuration,
+        IHostEnvironment? environment,
+        TimeProvider? clock = null)
+    {
+        if (!DispatcherAvailable || !AreSwitchesEnabled(configuration) ||
+            environment is null || !string.Equals(environment.EnvironmentName, Environments.Production, StringComparison.Ordinal))
+            return false;
+
+        return PublicAccountReleaseAuthorization.IsAuthorized(
+            configuration,
+            environment.EnvironmentName,
+            Environment.GetEnvironmentVariable("YANGSPACE_RELEASE_COMMIT_SHA"),
+            (clock ?? TimeProvider.System).GetUtcNow());
+    }
+
+    internal static void RequireAuthorization(
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        TimeProvider clock)
+    {
+        if (!PublicAccountReleaseAuthorization.IsAuthorized(
+            configuration,
+            environment.EnvironmentName,
+            Environment.GetEnvironmentVariable("YANGSPACE_RELEASE_COMMIT_SHA"),
+            clock.GetUtcNow()))
+            throw new InvalidOperationException("PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED");
+    }
 }
