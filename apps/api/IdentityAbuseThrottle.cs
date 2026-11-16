@@ -42,7 +42,7 @@ internal sealed class IdentityAbuseThrottle : IIdentityAbuseThrottle
     private readonly TimeProvider _clock;
     private readonly ILogger<IdentityAbuseThrottle> _logger;
 
-    internal IdentityAbuseThrottle(
+    public IdentityAbuseThrottle(
         DirectoryDb db,
         ILookupNormalizer normalizer,
         IConfiguration configuration,

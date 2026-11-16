@@ -853,7 +853,8 @@ internal static class F2bH02ProductionIdentityHttpContract
         {
             UserName = email,
             Email = email,
-            EmailConfirmed = emailConfirmed
+            EmailConfirmed = emailConfirmed,
+            LockoutEnabled = true
         };
         var created = await users.CreateAsync(user, password);
         if (!created.Succeeded)
