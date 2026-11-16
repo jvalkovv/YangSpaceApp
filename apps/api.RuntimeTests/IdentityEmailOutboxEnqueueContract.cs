@@ -78,8 +78,8 @@ internal static class IdentityEmailOutboxEnqueueContract
             Check(allRows.All(x => x.LastFailureCode is null) &&
                   allRows.All(x => x.UserId != user.Email),
                   "F2B_OUTBOX_NO_EMAIL_PAYLOAD_STORED");
-            Check(!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
-                  "F2B_OUTBOX_DISPATCH_FAIL_CLOSED");
+            Check(IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
+                  "F2B_OUTBOX_DISPATCH_IMPLEMENTATION_AVAILABLE");
 
             var rolledBack = new IdentityUser
             {
