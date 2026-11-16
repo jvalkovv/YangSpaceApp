@@ -201,7 +201,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             });
             builder.ConfigureTestServices(services =>
             {
-                services.AddSingleton<IStartupFilter, TestPeerAddressStartupFilter>();
+                services.AddSingleton<IStartupFilter>(new TestPeerAddressStartupFilter());
                 services.RemoveAll<IIdentityEmailOutboxTransport>();
                 services.AddSingleton<IIdentityEmailOutboxTransport>(Fake);
                 services.Configure<IdentityEmailOutboxOptions>(options =>
