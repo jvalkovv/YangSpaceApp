@@ -320,4 +320,4 @@ Write-Host 'F2B_H03_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant())
-Write-Host 'RELEASE_GATE=HOLD_H02_REVIEW_AND_H03_H06'
+Write-Host 'RELEASE_GATE=HOLD_H03_REVIEW_AND_H04_H06'
