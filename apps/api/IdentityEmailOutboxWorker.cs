@@ -184,8 +184,26 @@ internal sealed class IdentityEmailOutboxWorker : BackgroundService
                 return;
             }
 
-            var user = await users.FindByIdAsync(item.UserId);
-            if (user is null) { await SuppressAsync(db,id,leaseId,"user_missing",ct); return; }
+            // Read only the Identity fields required for dispatch and token generation.
+            // The worker must not select PasswordHash or unrelated credential columns.
+            var identity = await db.Users.AsNoTracking()
+                .Where(candidate => candidate.Id == item.UserId)
+                .Select(candidate => new
+                {
+                    candidate.Id,
+                    candidate.Email,
+                    candidate.EmailConfirmed,
+                    candidate.SecurityStamp
+                })
+                .SingleOrDefaultAsync(ct);
+            if (identity is null) { await SuppressAsync(db,id,leaseId,"user_missing",ct); return; }
+            var user = new IdentityUser
+            {
+                Id = identity.Id,
+                Email = identity.Email,
+                EmailConfirmed = identity.EmailConfirmed,
+                SecurityStamp = identity.SecurityStamp
+            };
 
             var email = user.Email?.Trim();
             if (string.IsNullOrWhiteSpace(email) || email.Length > 254 ||

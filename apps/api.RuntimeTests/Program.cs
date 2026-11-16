@@ -270,6 +270,15 @@ if (args.Length == 1 && string.Equals(args[0], "--f2b-outbox-worker-synthetic-on
     return;
 }
 
+// Disposable PostgreSQL 17 O3 worker/provider contract. Real Npgsql + TLS VerifyFull,
+// dedicated migrator/runtime roles and fake transport only.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o3-postgresql-worker-only", StringComparison.Ordinal))
+{
+    await IdentityEmailOutboxPostgreSqlWorkerContract.RunAsync();
+    return;
+}
+
 // Disposable SQLite-only email intent/rollback unit contract.
 // Does not test PostgreSQL migrations, SMTP, HTTP or any real data.
 if (args.Length == 1 &&
