@@ -287,6 +287,14 @@ if (args.Length == 1 &&
     return;
 }
 
+// H02 Production HTTP lifecycle with a signed ephemeral test authorization and fake transport.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h02-production-identity-http-only", StringComparison.Ordinal))
+{
+    await F2bH02ProductionIdentityHttpContract.RunAsync();
+    return;
+}
+
 // Disposable PostgreSQL 17 O3 worker/provider contract. Real Npgsql + TLS VerifyFull,
 // dedicated migrator/runtime roles and fake transport only.
 if (args.Length == 1 &&
