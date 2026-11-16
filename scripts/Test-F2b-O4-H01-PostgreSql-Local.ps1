@@ -339,6 +339,7 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
     foreach ($M in @(
         'F2B_H02_QA_SCOPE_BOUND',
         'F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE',
+        'F2B_H02_EARLY_STARTUP_CONFIGURATION',
         'F2B_H02_REAL_PRODUCTION_ENVIRONMENT',
         'F2B_H02_FAKE_TRANSPORT_ONLY',
         'F2B_H02_RELEASE_AUTHORIZATION_VALID',

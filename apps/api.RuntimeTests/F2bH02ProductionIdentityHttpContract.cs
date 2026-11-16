@@ -48,6 +48,39 @@ internal static class F2bH02ProductionIdentityHttpContract
             Environment.SetEnvironmentVariable("YANGSPACE_RELEASE_COMMIT_SHA", _previous);
     }
 
+    private sealed class StartupEnvironmentScope : IDisposable
+    {
+        private readonly Dictionary<string, string?> _previous = new(StringComparer.Ordinal);
+
+        internal StartupEnvironmentScope(
+            IReadOnlyDictionary<string, string?> configuration, string environment)
+        {
+            var values = configuration
+                .Where(pair => pair.Value is not null)
+                .ToDictionary(
+                    pair => pair.Key.Replace(":", "__", StringComparison.Ordinal),
+                    pair => pair.Value!,
+                    StringComparer.Ordinal);
+            values["ASPNETCORE_ENVIRONMENT"] = environment;
+            values["DOTNET_ENVIRONMENT"] = environment;
+
+            foreach (var (name, value) in values)
+            {
+                _previous[name] = Environment.GetEnvironmentVariable(
+                    name, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable(
+                    name, value, EnvironmentVariableTarget.Process);
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (var (name, value) in _previous)
+                Environment.SetEnvironmentVariable(
+                    name, value, EnvironmentVariableTarget.Process);
+        }
+    }
+
     private sealed record Delivery(IdentityEmailPurpose Purpose, string Email, string Payload);
 
     private sealed class FakeTransport : IIdentityEmailOutboxTransport
@@ -166,8 +199,38 @@ internal static class F2bH02ProductionIdentityHttpContract
         using var environment = new CommitEnvironmentScope(commit);
         using var signer = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var authorization = CreateAuthorization(signer, commit);
+        var startupConfiguration = authorization.ToDictionary(
+            pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        startupConfiguration["ConnectionStrings:Main"] = identityConnection;
+        startupConfiguration["Database:Provider"] = "PostgreSQL";
+        startupConfiguration["AllowedHosts"] = "yangspace.gndstore.eu";
+        startupConfiguration["Preview:Enabled"] = "false";
+        startupConfiguration["Preview:AllowRegistration"] = "false";
+        startupConfiguration["Admin:Enabled"] = "false";
+        startupConfiguration["MerchantRead:Enabled"] = "false";
+        startupConfiguration["ClaimReview:QaEnabled"] = "false";
+        startupConfiguration["ClaimReviewPostgreSqlQa:Enabled"] = "false";
+        startupConfiguration["PublicAccounts:Email:SmtpHost"] = "127.0.0.1";
+        startupConfiguration["PublicAccounts:Email:Port"] = "587";
+        startupConfiguration["PublicAccounts:Email:Username"] = "synthetic";
+        startupConfiguration["PublicAccounts:Email:Password"] = "synthetic-never-used";
+        startupConfiguration["PublicAccounts:Email:From"] = "no-reply@yangspace.gndstore.eu";
+
+        // WebApplicationFactory.ConfigureWebHost runs after minimal-host Program
+        // has already created its builder and evaluated fail-closed startup guards.
+        // Seed the same disposable values into process environment before CreateClient.
+        using var startupEnvironment = new StartupEnvironmentScope(
+            startupConfiguration, Environments.Production);
+        Check(Environment.GetEnvironmentVariable("ConnectionStrings__Main") == identityConnection &&
+              Environment.GetEnvironmentVariable("Database__Provider") == "PostgreSQL" &&
+              Environment.GetEnvironmentVariable("PublicAccounts__Enabled") == "true" &&
+              Environment.GetEnvironmentVariable("PublicAccounts__Outbox__DispatchEnabled") == "true" &&
+              Environment.GetEnvironmentVariable("PublicAccounts__ReleaseAuthorization__Payload") ==
+                  startupConfiguration["PublicAccounts:ReleaseAuthorization:Payload"],
+            "F2B_H02_EARLY_STARTUP_CONFIGURATION");
+
         var fake = new FakeTransport();
-        using var factory = new Factory(identityConnection, authorization, fake);
+        using var factory = new Factory(identityConnection, startupConfiguration, fake);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
