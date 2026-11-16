@@ -237,6 +237,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(await VerifyQaScopeAsync(migrator, scopeToken),
             "F2B_H02_QA_SCOPE_BOUND");
         await GrantIdentityRoleAsync(migrator);
+        await VerifyAbuseStoragePrivilegeGateAsync(migrator, identityConnection);
         Check(await VerifyIdentityRoleAsync(identityConnection),
             "F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE");
 
@@ -694,6 +695,49 @@ internal static class F2bH02ProductionIdentityHttpContract
             cs.RootCertificate != "/run/pgcerts/ca.crt" ||
             cs.Pooling || cs.IncludeErrorDetail)
             throw new InvalidOperationException("F2B_H02_CONNECTION_SCOPE_REFUSED");
+    }
+
+    private static async Task VerifyAbuseStoragePrivilegeGateAsync(
+        string migrator, string identityConnection)
+    {
+        await using (var connection = new NpgsqlConnection(migrator))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """REVOKE DELETE ON TABLE public."IdentityAbuseCounters" FROM ys_h02_identity;""";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var options = new DbContextOptionsBuilder<DirectoryDb>()
+            .UseNpgsql(identityConnection, postgres =>
+                postgres.MigrationsAssembly("YangSpace.PostgreSql.Migrations"))
+            .Options;
+        var rejected = false;
+        try
+        {
+            await using var db = new DirectoryDb(options);
+            await ProductionSchemaGate.ValidatePublicAccountAbuseStorageAsync(db);
+        }
+        catch (InvalidOperationException exception)
+            when (exception.Message == "PUBLIC_ACCOUNT_ABUSE_STORAGE_PRIVILEGE_REQUIRED")
+        {
+            rejected = true;
+        }
+        finally
+        {
+            await using var connection = new NpgsqlConnection(migrator);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """GRANT DELETE ON TABLE public."IdentityAbuseCounters" TO ys_h02_identity;""";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        Check(rejected, "F2B_H03_ABUSE_STORAGE_PRIVILEGE_FAIL_CLOSED");
+        await using (var db = new DirectoryDb(options))
+            await ProductionSchemaGate.ValidatePublicAccountAbuseStorageAsync(db);
+        Check(true, "F2B_H03_ABUSE_STORAGE_PRIVILEGES_RESTORED");
     }
 
     private static async Task GrantIdentityRoleAsync(string migrator)

@@ -262,6 +262,13 @@ if (app.Environment.IsProduction())
     }
 }
 
+if (publicAccounts)
+{
+    using var scope = app.Services.CreateScope();
+    await ProductionSchemaGate.ValidatePublicAccountAbuseStorageAsync(
+        scope.ServiceProvider.GetRequiredService<DirectoryDb>());
+}
+
 if (preview || productionAdmin || merchantRead || claimReviewQa || claimReviewPostgreSqlQa)
 {
     var auth = app.MapGroup("/api/auth").RequireRateLimiting("auth");

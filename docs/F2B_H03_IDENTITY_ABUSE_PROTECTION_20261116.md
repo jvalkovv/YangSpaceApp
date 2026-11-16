@@ -29,7 +29,7 @@ The HMAC key must be supplied through protected runtime configuration, Base64-en
 - Counter increments are single-statement atomic UPSERTs with `RETURNING Count`; concurrent app instances share the same database budget.
 - Fixed windows are aligned to UTC epoch boundaries.
 - Old windows are opportunistically purged after two days, at most once per process every six hours.
-- The runtime database role requires SELECT/INSERT/UPDATE/DELETE only on `IdentityAbuseCounters`; no schema ownership or migration rights.
+- The runtime database role requires SELECT/INSERT/UPDATE/DELETE only on `IdentityAbuseCounters`; no schema ownership or migration rights. Production startup checks these four privileges and fails closed if any are missing.
 
 ## Boundaries and honest claims
 
