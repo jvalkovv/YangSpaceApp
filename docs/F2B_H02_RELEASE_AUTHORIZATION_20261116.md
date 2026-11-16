@@ -55,6 +55,7 @@ The current candidate is the HEAD of implementation branch `feat/yangspace-f2b-h
 - API startup and hosted worker activation use the same signed authorization verifier.
 - The previous `allowSyntheticDispatch` worker-constructor bypass has been removed. O3 SQLite and PostgreSQL worker contracts now use ephemeral signed P-256 authorizations through the same Production verifier; private keys remain in memory.
 - H02 Production TestServer uses the real application `Program`, Production environment, disposable PostgreSQL 17/TLS VerifyFull, a non-elevated Identity role and an in-memory fake transport registered through normal DI.
+- The disposable QA scope guard is verified through the migrator principal only. The Identity runtime principal is deliberately denied access to this QA-only table; its least-privilege contract verifies that denial rather than widening runtime grants.
 - HTTP coverage includes registration/outbox transaction rollback, confirmation/replay/expiry, resend retry release, bearer login/session, forgot/reset/expiry, staff-role denial and generic unknown-email responses.
 - The exact-SHA runner includes O3 regression, enqueue regression, H01/H02 Production TestServer, evidence hashing, cleanup and Independent Postflight.
 

@@ -157,8 +157,10 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         ValidateConnection(migrator, "ys_o3_migrator");
         ValidateConnection(identityConnection, IdentityRole);
+        Check(await VerifyQaScopeAsync(migrator, scopeToken),
+            "F2B_H02_QA_SCOPE_BOUND");
         await GrantIdentityRoleAsync(migrator);
-        Check(await VerifyIdentityRoleAsync(identityConnection, scopeToken),
+        Check(await VerifyIdentityRoleAsync(identityConnection),
             "F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE");
 
         using var environment = new CommitEnvironmentScope(commit);
@@ -439,7 +441,6 @@ internal static class F2bH02ProductionIdentityHttpContract
         await using var command = connection.CreateCommand();
         command.CommandText = """
             GRANT SELECT ON TABLE public."__EFMigrationsHistory" TO ys_h02_identity;
-            GRANT SELECT ON TABLE public.yangspace_f2b_o3_qa_guard TO ys_h02_identity;
             GRANT SELECT, INSERT, UPDATE ON TABLE public."AspNetUsers" TO ys_h02_identity;
             GRANT SELECT ON TABLE public."AspNetUserRoles" TO ys_h02_identity;
             GRANT SELECT ON TABLE public."AspNetRoles" TO ys_h02_identity;
@@ -450,7 +451,26 @@ internal static class F2bH02ProductionIdentityHttpContract
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<bool> VerifyIdentityRoleAsync(string connection, string token)
+    private static async Task<bool> VerifyQaScopeAsync(string connection, string token)
+    {
+        // The disposable-database guard belongs to the QA/migrator boundary.
+        // Never grant this test-only table to the Identity runtime principal.
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT current_database()=@db
+              AND current_user='ys_o3_migrator'
+              AND (SELECT scope_token FROM public.yangspace_f2b_o3_qa_guard LIMIT 1)=@token
+              AND (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid())
+              AND current_setting('server_version_num')::integer BETWEEN 170000 AND 179999
+            """;
+        cmd.Parameters.AddWithValue("db", DatabaseName);
+        cmd.Parameters.AddWithValue("token", token);
+        return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<bool> VerifyIdentityRoleAsync(string connection)
     {
         await using var c = new NpgsqlConnection(connection);
         await c.OpenAsync();
@@ -458,7 +478,6 @@ internal static class F2bH02ProductionIdentityHttpContract
         cmd.CommandText = """
             SELECT current_database()=@db
               AND current_user='ys_h02_identity'
-              AND (SELECT scope_token FROM public.yangspace_f2b_o3_qa_guard LIMIT 1)=@token
               AND (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid())
               AND current_setting('server_version_num')::integer BETWEEN 170000 AND 179999
               AND NOT (SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls
@@ -478,11 +497,11 @@ internal static class F2bH02ProductionIdentityHttpContract
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','INSERT')
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','UPDATE')
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','DELETE')
+              AND NOT has_table_privilege(current_user,'public.yangspace_f2b_o3_qa_guard','SELECT')
               AND NOT has_table_privilege(current_user,'public."Organizations"','SELECT')
               AND NOT has_table_privilege(current_user,'public."Locations"','SELECT')
             """;
         cmd.Parameters.AddWithValue("db", DatabaseName);
-        cmd.Parameters.AddWithValue("token", token);
         return (bool)(await cmd.ExecuteScalarAsync() ?? false);
     }
 
