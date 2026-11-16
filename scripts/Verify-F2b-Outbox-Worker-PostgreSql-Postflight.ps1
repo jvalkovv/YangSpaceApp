@@ -32,7 +32,8 @@ Set-Location $Repo
 if ($LASTEXITCODE -ne 0) { throw 'F2B_O3_POSTFLIGHT_FETCH_FAILED' }
 Check ((GitValue @('rev-parse','HEAD')) -ceq $CommitSha) 'POSTFLIGHT_EXACT_SHA'
 Check ((GitValue @('rev-parse','--verify',('refs/remotes/origin/'+$Branch))) -ceq $CommitSha) 'POSTFLIGHT_REMOTE_SHA'
-Check ((GitValue @('branch','--show-current')) -ceq $Branch) 'POSTFLIGHT_BRANCH'
+$ActiveBranch=GitValue @('branch','--show-current')
+Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'POSTFLIGHT_BRANCH_OR_DETACHED_WORKTREE'
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_CLEAN_SOURCE'
 $Evidence=(Resolve-Path -LiteralPath $EvidenceDirectory).Path
@@ -52,6 +53,9 @@ foreach ($Value in @(
     'POSTGRES_RUNTIME_LEAST_PRIVILEGE=PASS',
     'POSTGRES_WORKER_CONFIRMATION=PASS','POSTGRES_WORKER_RETRY=PASS',
     'POSTGRES_WORKER_CONCURRENT_CLAIM=PASS','POSTGRES_WORKER_LEASE_RECOVERY=PASS',
+    'POSTGRES_WORKER_PASSWORD_RESET=PASS','POSTGRES_WORKER_UNCERTAIN_ACK=PASS',
+    'POSTGRES_WORKER_CRASH_RECOVERY=PASS','POSTGRES_WORKER_DEADLETTER_REPLAY=PASS',
+    'POSTGRES_WORKER_RETENTION=PASS','POSTGRES_WORKER_NO_SENSITIVE_OUTBOX_FIELDS=PASS',
     'SQLITE_REGRESSION=PASS','FAKE_TRANSPORT=PASS',
     'NO_HOST_PORTS=PASS','NO_HOST_BINDS=PASS','TMPFS_ONLY=PASS',
     'CONTAINER_REMOVED=PASS','NETWORK_REMOVED=PASS',
@@ -108,7 +112,12 @@ foreach ($M in @(
     'F2B_O3_PG_DI_ACTIVATION','F2B_O3_PG_FAKE_TRANSPORT_ONLY',
     'F2B_O3_PG_CONFIRMATION_DISPATCH','F2B_O3_PG_RETRY_BACKOFF',
     'F2B_O3_PG_RETRY_RECOVERY','F2B_O3_PG_CONCURRENT_CLAIM',
-    'F2B_O3_PG_LEASE_EXPIRY_RECOVERY',
+    'F2B_O3_PG_LEASE_EXPIRY_RECOVERY','F2B_O3_PG_PASSWORD_RESET',
+    'F2B_O3_PG_CONFIRMED_USER_SUPPRESSION','F2B_O3_PG_UNCERTAIN_ACK_PENDING_RETRY',
+    'F2B_O3_PG_UNCERTAIN_ACK_AT_LEAST_ONCE','F2B_O3_PG_CRASH_LEASE_PRESERVED',
+    'F2B_O3_PG_CRASH_RESTART_RECOVERY','F2B_O3_PG_DEADLETTER',
+    'F2B_O3_PG_OPERATOR_REPLAY','F2B_O3_PG_RETENTION_PURGE',
+    'F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST',
     'F2B_O3_WORKER_NPGSQL_PROVIDER','F2B_O3_WORKER_POSTGRESQL_17',
     'F2B_O3_WORKER_TLS_VERIFYFULL','F2B_O3_WORKER_RUNTIME_LEAST_PRIVILEGE',
     'F2B_O3_WORKER_FAKE_TRANSPORT_ONLY','F2B_O3_WORKER_DISPOSABLE_ONLY'
@@ -119,7 +128,20 @@ foreach ($Temp in @('temporary-init.sh','temporary-entry.sh','temporary-roles.sq
 Check (@(Get-ChildItem -LiteralPath $Evidence -File | Where-Object { $_.Extension -in @('.key','.p12','.pfx') }).Count -eq 0) 'POSTFLIGHT_NO_PRIVATE_KEYS'
 
 $HashLines=[IO.File]::ReadAllLines($ChecksumsPath)
-Check ($HashLines.Count -ge 10) 'POSTFLIGHT_CHECKSUMS_COUNT'
+Check ($HashLines.Count -ge 13) 'POSTFLIGHT_CHECKSUMS_COUNT'
+foreach ($Binary in @('YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll')) {
+    if ($Binary -eq 'YangSpace.Api.RuntimeTests.linux-x64') {
+        $Prefix='APPHOST_SHA256='
+    } else {
+        $Prefix='DLL_SHA256='
+    }
+    $Artifact=Join-Path $Evidence $Binary
+    Check (Test-Path -LiteralPath $Artifact -PathType Leaf) ('POSTFLIGHT_BINARY_'+$Binary)
+    $ManifestHash=@($Lines | Where-Object { $_.StartsWith($Prefix,[StringComparison]::Ordinal) })
+    Check ($ManifestHash.Count -eq 1) ('POSTFLIGHT_BINARY_MANIFEST_'+$Binary)
+    Check ((Get-FileHash -LiteralPath $Artifact -Algorithm SHA256).Hash.ToLowerInvariant() -ceq
+        $ManifestHash[0].Substring($Prefix.Length)) ('POSTFLIGHT_BINARY_HASH_'+$Binary)
+}
 foreach ($HashLine in $HashLines) {
     if ($HashLine -cnotmatch '^([0-9a-f]{64})  ([a-zA-Z0-9._/-]+)$') { throw 'F2B_O3_BAD_CHECKSUM_LINE' }
     $ExpectedHash=$Matches[1]
@@ -127,7 +149,10 @@ foreach ($HashLine in $HashLines) {
     if ($Relative.Contains('..')) { throw 'F2B_O3_BAD_CHECKSUM_PATH' }
     if ($Relative.StartsWith('apps/') -or $Relative.StartsWith('scripts/')) {
         $Full=Join-Path $Repo $Relative
-    } elseif ($Relative -in @('pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log')) {
+    } elseif ($Relative -in @(
+        'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log',
+        'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
+    )) {
         $Full=Join-Path $Evidence $Relative
     } else { throw ('F2B_O3_UNKNOWN_CHECKSUM_TARGET='+$Relative) }
     Check (Test-Path -LiteralPath $Full -PathType Leaf) ('HASH_FILE_'+($Relative -replace '[^a-zA-Z0-9]','_'))

@@ -82,6 +82,24 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             var tokenValue=Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
             var confirmed=await users.ConfirmEmailAsync(user,tokenValue);
             Check(row.Status==IdentityEmailOutboxStatus.Sent && confirmed.Succeeded,"F2B_O3_PG_CONFIRMATION_DISPATCH");
+            await queue.SendPasswordResetCodeAsync(user,user.Email!,"discarded");
+            var resetId=await db.IdentityEmailOutbox.AsNoTracking()
+                .Where(x=>x.UserId==user.Id && x.Purpose==IdentityEmailPurpose.ResetPassword &&
+                    x.Status==IdentityEmailOutboxStatus.Pending).Select(x=>x.Id).SingleAsync();
+            await worker.ProcessBatchOnceAsync();
+            var resetDelivery=fake.Deliveries.Last(x=>x.Email==user.Email);
+            var resetToken=Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(resetDelivery.Payload));
+            var reset=await users.ResetPasswordAsync(user,resetToken,"ReplacementPassword123");
+            Check(reset.Succeeded && (await Message(db,resetId)).Status==IdentityEmailOutboxStatus.Sent,
+                "F2B_O3_PG_PASSWORD_RESET");
+
+            var suppressed=await NewUser(users,"pg-worker-suppressed@example.invalid",true);
+            await queue.SendConfirmationLinkAsync(suppressed,suppressed.Email!,"discarded");
+            var suppressedId=await IntentId(db,suppressed.Id);
+            await worker.ProcessBatchOnceAsync();
+            Check((await Message(db,suppressedId)).Status==IdentityEmailOutboxStatus.Suppressed &&
+                !fake.Deliveries.Any(x=>x.Email==suppressed.Email),
+                "F2B_O3_PG_CONFIRMED_USER_SUPPRESSION");
 
             var retry=await NewUser(users,"pg-worker-retry@example.invalid",false);
             await queue.SendConfirmationLinkAsync(retry,retry.Email!,"discarded");
@@ -94,6 +112,19 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             clock.Advance(TimeSpan.FromSeconds(31));
             await worker.ProcessBatchOnceAsync();
             Check((await Message(db,retryId)).Status==IdentityEmailOutboxStatus.Sent,"F2B_O3_PG_RETRY_RECOVERY");
+
+            var uncertain=await NewUser(users,"pg-worker-uncertain@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(uncertain,uncertain.Email!,"discarded");
+            var uncertainId=await IntentId(db,uncertain.Id);
+            fake.FailAfterOnce();
+            await worker.ProcessBatchOnceAsync();
+            Check((await Message(db,uncertainId)).Status==IdentityEmailOutboxStatus.Pending,
+                "F2B_O3_PG_UNCERTAIN_ACK_PENDING_RETRY");
+            clock.Advance(TimeSpan.FromSeconds(31));
+            await worker.ProcessBatchOnceAsync();
+            Check((await Message(db,uncertainId)).Status==IdentityEmailOutboxStatus.Sent &&
+                fake.Deliveries.Count(x=>x.Email==uncertain.Email)==2,
+                "F2B_O3_PG_UNCERTAIN_ACK_AT_LEAST_ONCE");
 
             var concurrent=await NewUser(users,"pg-worker-race@example.invalid",false);
             await queue.SendConfirmationLinkAsync(concurrent,concurrent.Email!,"discarded");
@@ -119,6 +150,83 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             await worker.ProcessBatchOnceAsync();
             Check((await Message(db,leaseId)).Status==IdentityEmailOutboxStatus.Sent &&
                 (await Message(db,leaseId)).AttemptCount==2,"F2B_O3_PG_LEASE_EXPIRY_RECOVERY");
+
+            var crashed=await NewUser(users,"pg-worker-crash@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(crashed,crashed.Email!,"discarded");
+            var crashedId=await IntentId(db,crashed.Id);
+            fake.BlockNext();
+            using(var canceled=new CancellationTokenSource())
+            {
+                var dispatch=worker.ProcessBatchOnceAsync(canceled.Token);
+                await fake.WaitBlockedAsync();
+                canceled.Cancel();
+                var observed=false;
+                try { await dispatch; } catch(OperationCanceledException) { observed=true; }
+                Check(observed && (await Message(db,crashedId)).Status==IdentityEmailOutboxStatus.Leased,
+                    "F2B_O3_PG_CRASH_LEASE_PRESERVED");
+            }
+            fake.Release();
+            clock.Advance(TimeSpan.FromSeconds(31));
+            await NewWorker(runtimeProvider,clock,config).ProcessBatchOnceAsync();
+            Check((await Message(db,crashedId)).Status==IdentityEmailOutboxStatus.Sent &&
+                (await Message(db,crashedId)).AttemptCount==2 &&
+                fake.Deliveries.Count(x=>x.Email==crashed.Email)==1,
+                "F2B_O3_PG_CRASH_RESTART_RECOVERY");
+
+            var poison=await NewUser(users,"pg-worker-poison@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(poison,poison.Email!,"discarded");
+            var poisonId=await IntentId(db,poison.Id);
+            fake.FailAlways=true;
+            await worker.ProcessBatchOnceAsync();
+            clock.Advance(TimeSpan.FromSeconds(31));
+            await worker.ProcessBatchOnceAsync();
+            clock.Advance(TimeSpan.FromMinutes(2).Add(TimeSpan.FromSeconds(1)));
+            await worker.ProcessBatchOnceAsync();
+            fake.FailAlways=false;
+            Check((await Message(db,poisonId)).Status==IdentityEmailOutboxStatus.DeadLetter &&
+                (await Message(db,poisonId)).AttemptCount==3,"F2B_O3_PG_DEADLETTER");
+            var replay=await IdentityEmailOutboxAdminEndpoints.ReplayDeadLetterAsync(
+                db,poisonId,clock,CancellationToken.None);
+            await worker.ProcessBatchOnceAsync();
+            Check(replay==IdentityEmailOutboxReplayResult.Replayed &&
+                (await Message(db,poisonId)).Status==IdentityEmailOutboxStatus.Sent,
+                "F2B_O3_PG_OPERATOR_REPLAY");
+
+            var now=clock.GetUtcNow().UtcDateTime;
+            var obsolete=new[]{
+                new IdentityEmailOutboxMessage {
+                    UserId=user.Id,Purpose=IdentityEmailPurpose.ConfirmEmail,
+                    Status=IdentityEmailOutboxStatus.Sent,QueuedAtUtc=now.AddDays(-40),
+                    AvailableAtUtc=now.AddDays(-40),ExpiresAtUtc=now.AddDays(-39),
+                    SentAtUtc=now.AddDays(-31)
+                },
+                new IdentityEmailOutboxMessage {
+                    UserId=user.Id,Purpose=IdentityEmailPurpose.ResetPassword,
+                    Status=IdentityEmailOutboxStatus.Suppressed,QueuedAtUtc=now.AddDays(-40),
+                    AvailableAtUtc=now.AddDays(-40),ExpiresAtUtc=now.AddDays(-31)
+                },
+                new IdentityEmailOutboxMessage {
+                    UserId=user.Id,Purpose=IdentityEmailPurpose.ConfirmEmail,
+                    Status=IdentityEmailOutboxStatus.DeadLetter,QueuedAtUtc=now.AddDays(-100),
+                    AvailableAtUtc=now.AddDays(-100),ExpiresAtUtc=now.AddDays(-99),
+                    DeadLetterAtUtc=now.AddDays(-91)
+                }
+            };
+            db.IdentityEmailOutbox.AddRange(obsolete);
+            await db.SaveChangesAsync();
+            var obsoleteIds=obsolete.Select(x=>x.Id).ToArray();
+            await worker.ProcessBatchOnceAsync();
+            Check(!await db.IdentityEmailOutbox.AnyAsync(x=>obsoleteIds.Contains(x.Id)),
+                "F2B_O3_PG_RETENTION_PURGE");
+
+            var forbidden=typeof(IdentityEmailOutboxMessage).GetProperties().Select(x=>x.Name)
+                .Any(x=>x.Contains("Token",StringComparison.OrdinalIgnoreCase) ||
+                        x.Contains("Email",StringComparison.OrdinalIgnoreCase) ||
+                        x.Contains("Recipient",StringComparison.OrdinalIgnoreCase) ||
+                        x.Contains("Body",StringComparison.OrdinalIgnoreCase) ||
+                        x.Contains("Secret",StringComparison.OrdinalIgnoreCase));
+            Check(!forbidden && (await db.IdentityEmailOutbox.AsNoTracking().ToArrayAsync())
+                .All(x=>x.UserId!=user.Email),"F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST");
 
             Console.WriteLine("F2B_O3_WORKER_NPGSQL_PROVIDER=PASS");
             Console.WriteLine("F2B_O3_WORKER_POSTGRESQL_17=PASS");
@@ -149,7 +257,13 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
         services.AddLogging();
         services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keys)).SetApplicationName("YangSpace-F2b-O3-PG");
         services.AddDbContext<DirectoryDb>(o=>o.UseNpgsql(cs,n=>n.MigrationsAssembly("YangSpace.PostgreSql.Migrations")));
-        services.AddIdentityCore<IdentityUser>(o=>o.User.RequireUniqueEmail=true)
+        services.AddIdentityCore<IdentityUser>(o=>{
+            o.User.RequireUniqueEmail=true;
+            o.Password.RequiredLength=8;
+            o.Password.RequireDigit=false;
+            o.Password.RequireUppercase=false;
+            o.Password.RequireNonAlphanumeric=false;
+        })
             .AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>().AddDefaultTokenProviders();
         return services;
     }
@@ -254,10 +368,15 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
     private sealed class FakeTransport:IIdentityEmailOutboxTransport
     {
         private readonly ConcurrentQueue<Delivery> _items=new();
-        private int _failBefore,_block;
+        private int _failBefore,_failAfter,_block,_failAlways;
         private TaskCompletionSource<bool> _blocked=Signal(),_release=Signal();
         internal IReadOnlyCollection<Delivery> Deliveries=>_items.ToArray();
         internal void FailBeforeOnce()=>Interlocked.Exchange(ref _failBefore,1);
+        internal void FailAfterOnce()=>Interlocked.Exchange(ref _failAfter,1);
+        internal bool FailAlways {
+            get=>Volatile.Read(ref _failAlways)==1;
+            set=>Volatile.Write(ref _failAlways,value?1:0);
+        }
         internal void BlockNext(){_blocked=Signal();_release=Signal();Interlocked.Exchange(ref _block,1);}
         internal Task WaitBlockedAsync()=>_blocked.Task.WaitAsync(TimeSpan.FromSeconds(10));
         internal void Release()=>_release.TrySetResult(true);
@@ -266,8 +385,11 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
         private async Task Send(string email,string payload,CancellationToken ct)
         {
             if(Interlocked.Exchange(ref _block,0)==1){_blocked.TrySetResult(true);await _release.Task.WaitAsync(ct);}
-            if(Interlocked.Exchange(ref _failBefore,0)==1)throw new IOException("synthetic failure");
+            if(FailAlways || Interlocked.Exchange(ref _failBefore,0)==1)
+                throw new IOException("synthetic failure");
             _items.Enqueue(new Delivery(email,payload));
+            if(Interlocked.Exchange(ref _failAfter,0)==1)
+                throw new IOException("synthetic uncertain acknowledgement");
         }
         private static TaskCompletionSource<bool> Signal()=>new(TaskCreationOptions.RunContinuationsAsynchronously);
     }

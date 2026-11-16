@@ -12,7 +12,7 @@ $Image='postgres:17'
 $Git=(Get-Command git.exe -ErrorAction Stop).Source
 $Dotnet=(Get-Command dotnet.exe -ErrorAction Stop).Source
 $Docker=(Get-Command docker.exe -ErrorAction Stop).Source
-$Utf8=New-Object System.Text.UTF8Encoding($false)
+$Utf8=[System.Text.UTF8Encoding]::new($false)
 function Check([bool]$Ok,[string]$Marker) {
     if (-not $Ok) { throw ('F2B_O3_POSTGRES_FAIL=' + $Marker) }
     Write-Host ($Marker + '=PASS')
@@ -60,7 +60,8 @@ Set-Location $Repo
 if ($LASTEXITCODE -ne 0) { throw 'F2B_O3_FETCH_FAILED' }
 Check ((GitValue @('rev-parse','HEAD')) -ceq $CommitSha) 'F2B_O3_EXACT_SHA'
 Check ((GitValue @('rev-parse','--verify',('refs/remotes/origin/'+$Branch))) -ceq $CommitSha) 'F2B_O3_REMOTE_SHA'
-Check ((GitValue @('branch','--show-current')) -ceq $Branch) 'F2B_O3_BRANCH'
+$ActiveBranch=GitValue @('branch','--show-current')
+Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'F2B_O3_BRANCH_OR_DETACHED_WORKTREE'
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'F2B_O3_SOURCE_CLEAN'
 $Settings=Get-Content -LiteralPath (Join-Path $Repo 'apps/api/appsettings.json') -Raw | ConvertFrom-Json
@@ -116,6 +117,8 @@ try {
     Check ((Test-Path -LiteralPath $AppHost -PathType Leaf) -and (Test-Path -LiteralPath $Dll -PathType Leaf)) 'F2B_O3_PUBLISH_OUTPUT'
     $AppHash=(Get-FileHash -LiteralPath $AppHost -Algorithm SHA256).Hash.ToLowerInvariant()
     $DllHash=(Get-FileHash -LiteralPath $Dll -Algorithm SHA256).Hash.ToLowerInvariant()
+    Copy-Item -LiteralPath $AppHost -Destination (Join-Path $Evidence 'YangSpace.Api.RuntimeTests.linux-x64') -Force
+    Copy-Item -LiteralPath $Dll -Destination (Join-Path $Evidence 'YangSpace.Api.RuntimeTests.dll') -Force
     $Init=@'
 #!/bin/bash
 set -Eeuo pipefail
@@ -241,7 +244,12 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O3_PG_DI_ACTIVATION','F2B_O3_PG_FAKE_TRANSPORT_ONLY',
         'F2B_O3_PG_CONFIRMATION_DISPATCH','F2B_O3_PG_RETRY_BACKOFF',
         'F2B_O3_PG_RETRY_RECOVERY','F2B_O3_PG_CONCURRENT_CLAIM',
-        'F2B_O3_PG_LEASE_EXPIRY_RECOVERY',
+        'F2B_O3_PG_LEASE_EXPIRY_RECOVERY','F2B_O3_PG_PASSWORD_RESET',
+        'F2B_O3_PG_CONFIRMED_USER_SUPPRESSION','F2B_O3_PG_UNCERTAIN_ACK_PENDING_RETRY',
+        'F2B_O3_PG_UNCERTAIN_ACK_AT_LEAST_ONCE','F2B_O3_PG_CRASH_LEASE_PRESERVED',
+        'F2B_O3_PG_CRASH_RESTART_RECOVERY','F2B_O3_PG_DEADLETTER',
+        'F2B_O3_PG_OPERATOR_REPLAY','F2B_O3_PG_RETENTION_PURGE',
+        'F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST',
         'F2B_O3_WORKER_NPGSQL_PROVIDER','F2B_O3_WORKER_POSTGRESQL_17',
         'F2B_O3_WORKER_TLS_VERIFYFULL','F2B_O3_WORKER_RUNTIME_LEAST_PRIVILEGE',
         'F2B_O3_WORKER_FAKE_TRANSPORT_ONLY','F2B_O3_WORKER_DISPOSABLE_ONLY'
@@ -277,12 +285,17 @@ finally {
             if (Test-Path -LiteralPath $P) { Remove-Item -LiteralPath $P -Force -ErrorAction SilentlyContinue }
         }
         if (Test-Path -LiteralPath $Temp) { Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction SilentlyContinue }
+        if (-not $Complete -or -not $Cleanup) {
+            [IO.File]::WriteAllText((Join-Path $Evidence 'gate.txt'),'F2B_O3_PG=HOLD',$Utf8)
+        }
     }
 }
 if (-not $Complete -or -not $Cleanup) {
     [IO.File]::WriteAllText((Join-Path $Evidence 'gate.txt'),'F2B_O3_PG=HOLD',$Utf8)
     throw 'F2B_O3_POSTGRES_RUN_OR_CLEANUP_FAILED'
 }
+$SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath) | Where-Object { Test-Path -LiteralPath $_ })
+Check ($SecretsRemain.Count -eq 0 -and -not (Test-Path -LiteralPath $Temp)) 'F2B_O3_TEMPORARY_SECRET_CLEANUP'
 $HashPaths=@(
     'apps/api/IdentityEmailOutboxWorker.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxWorkerContract.cs',
@@ -298,7 +311,10 @@ foreach ($P in $HashPaths) {
     Check (Test-Path -LiteralPath $File -PathType Leaf) ('SOURCE_'+($P -replace '[^a-zA-Z0-9]','_'))
     $Checksums+=((Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
 }
-foreach ($P in @('pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log')) {
+foreach ($P in @(
+    'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log',
+    'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
+)) {
     $Checksums+=((Get-FileHash -LiteralPath (Join-Path $Evidence $P) -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
 }
 [IO.File]::WriteAllLines((Join-Path $Evidence 'SHA256SUMS.txt'),[string[]]$Checksums,$Utf8)
@@ -314,6 +330,9 @@ $Manifest=@(
     'POSTGRES_RUNTIME_LEAST_PRIVILEGE=PASS',
     'POSTGRES_WORKER_CONFIRMATION=PASS','POSTGRES_WORKER_RETRY=PASS',
     'POSTGRES_WORKER_CONCURRENT_CLAIM=PASS','POSTGRES_WORKER_LEASE_RECOVERY=PASS',
+    'POSTGRES_WORKER_PASSWORD_RESET=PASS','POSTGRES_WORKER_UNCERTAIN_ACK=PASS',
+    'POSTGRES_WORKER_CRASH_RECOVERY=PASS','POSTGRES_WORKER_DEADLETTER_REPLAY=PASS',
+    'POSTGRES_WORKER_RETENTION=PASS','POSTGRES_WORKER_NO_SENSITIVE_OUTBOX_FIELDS=PASS',
     'SQLITE_REGRESSION=PASS','FAKE_TRANSPORT=PASS',
     'NO_HOST_PORTS=PASS','NO_HOST_BINDS=PASS','TMPFS_ONLY=PASS',
     'CONTAINER_REMOVED=PASS','NETWORK_REMOVED=PASS',
@@ -323,6 +342,8 @@ $Manifest=@(
     'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_PENDING_PROVIDER_REVIEW'
 )
 [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]$Manifest,$Utf8)
+& (Join-Path $PSScriptRoot 'Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1') -CommitSha $CommitSha -EvidenceDirectory $Evidence
+if (-not $?) { throw 'F2B_O3_INDEPENDENT_POSTFLIGHT_FAILED' }
 Write-Host 'F2B_O3_POSTGRESQL_WORKER_QA=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
