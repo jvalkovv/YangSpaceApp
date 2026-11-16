@@ -24,6 +24,10 @@ internal static class F2bH02ProductionIdentityHttpContract
 {
     private const string DatabaseName = "yangspace_f2b_o3_worker_disposable";
     private const string IdentityRole = "ys_h02_identity";
+    private static readonly byte[] TestAbuseHmacKeyBytes =
+        Enumerable.Range(1, 32).Select(value => (byte)value).ToArray();
+    private static readonly string TestAbuseHmacKey =
+        Convert.ToBase64String(TestAbuseHmacKeyBytes);
 
     private static void Check(bool ok, string marker)
     {
@@ -190,6 +194,7 @@ internal static class F2bH02ProductionIdentityHttpContract
                 values["ClaimReview:QaEnabled"] = "false";
                 values["ClaimReviewPostgreSqlQa:Enabled"] = "false";
                 values["PublicAccounts:Enabled"] = "true";
+                values["PublicAccounts:AbuseProtection:HmacKey"] = TestAbuseHmacKey;
                 values["PublicAccounts:Outbox:DispatchEnabled"] = "true";
                 values["PublicAccounts:CanonicalOrigin"] = PublicAccountReleaseAuthorization.RequiredAudience;
                 values["PublicAccounts:Email:SmtpHost"] = "127.0.0.1";
@@ -249,6 +254,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         startupConfiguration["MerchantRead:Enabled"] = "false";
         startupConfiguration["ClaimReview:QaEnabled"] = "false";
         startupConfiguration["ClaimReviewPostgreSqlQa:Enabled"] = "false";
+        startupConfiguration["PublicAccounts:AbuseProtection:HmacKey"] = TestAbuseHmacKey;
         startupConfiguration["PublicAccounts:Email:SmtpHost"] = "127.0.0.1";
         startupConfiguration["PublicAccounts:Email:Port"] = "587";
         startupConfiguration["PublicAccounts:Email:Username"] = "synthetic";
@@ -513,6 +519,101 @@ internal static class F2bH02ProductionIdentityHttpContract
             await SetOutboxInsertPermissionAsync(migrator, enabled: true);
         }
 
+        // H03 account-keyed abuse budgets are tested through the real Production Program
+        // and disposable PostgreSQL. Responses remain generic when the account is unknown
+        // or the account-keyed budget has been exhausted.
+        SetTestPeer(client, "192.0.2.30");
+        var abuseRegisterEmail = "h03-register-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var registerBodies = new List<string>();
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/register", new { email = abuseRegisterEmail, password });
+            Check(response.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H03_REGISTER_THROTTLE_GENERIC_ACCEPTED");
+            registerBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(registerBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.Register, abuseRegisterEmail) == 4,
+            "F2B_H03_REGISTER_ACCOUNT_BUDGET");
+
+        SetTestPeer(client, "192.0.2.31");
+        var abuseResendEmail = "h03-resend-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var resendBodies = new List<string>();
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/resend-confirmation", new { email = abuseResendEmail });
+            Check(response.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H03_RESEND_THROTTLE_GENERIC_ACCEPTED");
+            resendBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(resendBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ResendConfirmation, abuseResendEmail) == 4,
+            "F2B_H03_RESEND_ACCOUNT_BUDGET");
+
+        SetTestPeer(client, "192.0.2.32");
+        var abuseForgotEmail = "h03-forgot-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var forgotBodies = new List<string>();
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/forgot-password", new { email = abuseForgotEmail });
+            Check(response.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H03_FORGOT_THROTTLE_GENERIC_ACCEPTED");
+            forgotBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(forgotBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ForgotPassword, abuseForgotEmail) == 4,
+            "F2B_H03_FORGOT_ACCOUNT_BUDGET");
+
+        SetTestPeer(client, "192.0.2.33");
+        var abuseResetEmail = "h03-reset-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var resetBodies = new List<string>();
+        var invalidResetCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes("synthetic-invalid-reset-token"));
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/reset-password",
+                new { email = abuseResetEmail, resetCode = invalidResetCode, newPassword = "ReplacementPassword!2026" });
+            Check(response.StatusCode == HttpStatusCode.BadRequest,
+                "F2B_H03_RESET_THROTTLE_GENERIC_BAD_REQUEST");
+            resetBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(resetBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ResetPassword, abuseResetEmail) == 6,
+            "F2B_H03_RESET_ACCOUNT_BUDGET");
+
+        // Identity's persistent lockout is account-scoped and cannot be bypassed
+        // by changing the synthetic source peer.
+        SetTestPeer(client, "192.0.2.34");
+        var lockoutEmail = "h03-lockout-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var lockoutUser = await CreatePublicUserAsync(
+            factory.Services, lockoutEmail, password, emailConfirmed: true);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var failed = await client.PostAsJsonAsync(
+                "/api/public-account/login", new { email = lockoutEmail, password = "WrongPassword!2026" });
+            Check(failed.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H03_IDENTITY_FAILED_LOGIN_GENERIC");
+        }
+        Check(await IsUserLockedOutAsync(identityConnection, lockoutUser.Id),
+            "F2B_H03_IDENTITY_FIVE_FAILURE_LOCKOUT");
+
+        SetTestPeer(client, "192.0.2.35");
+        using (var bypassAttempt = await client.PostAsJsonAsync(
+                   "/api/public-account/login", new { email = lockoutEmail, password }))
+            Check(bypassAttempt.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H03_IDENTITY_LOCKOUT_NOT_BYPASSED_BY_PEER");
+
+        await ExpireUserLockoutAsync(identityConnection, lockoutUser.Id);
+        _ = await LoginAsync(client, lockoutEmail, password);
+        Check(true, "F2B_H03_IDENTITY_LOCKOUT_EXPIRY_RECOVERY");
+
         Check(fake.Deliveries.Count(x => x.Email == email) == 2,
             "F2B_H02_FAKE_CONFIRMATION_AND_RESET_ONLY");
         Check(!client.DefaultRequestHeaders.Contains("Cookie"),
@@ -586,8 +687,9 @@ internal static class F2bH02ProductionIdentityHttpContract
             GRANT SELECT ON TABLE public."AspNetUserClaims" TO ys_h02_identity;
             GRANT SELECT ON TABLE public."AspNetRoleClaims" TO ys_h02_identity;
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."IdentityEmailOutbox" TO ys_h02_identity;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."IdentityAbuseCounters" TO ys_h02_identity;
             """;
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQuery();
     }
 
     private static async Task<bool> VerifyQaScopeAsync(string connection, string token)
@@ -636,6 +738,10 @@ internal static class F2bH02ProductionIdentityHttpContract
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','INSERT')
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','UPDATE')
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','DELETE')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','SELECT')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','INSERT')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','UPDATE')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','DELETE')
               AND NOT has_table_privilege(current_user,'public.yangspace_f2b_o3_qa_guard','SELECT')
               AND NOT has_table_privilege(current_user,'public."Organizations"','SELECT')
               AND NOT has_table_privilege(current_user,'public."Locations"','SELECT')
@@ -780,6 +886,55 @@ internal static class F2bH02ProductionIdentityHttpContract
         cmd.CommandText = """SELECT "EmailConfirmed" FROM public."AspNetUsers" WHERE "Id"=@id""";
         cmd.Parameters.AddWithValue("id", userId);
         return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<int> ReadAbuseCounterCountAsync(
+        string connection, IdentityAbuseOperation operation, string email)
+    {
+        var normalized = email.Trim().ToUpperInvariant();
+        var digest = Convert.ToHexString(HMACSHA256.HashData(
+            TestAbuseHmacKeyBytes, Encoding.UTF8.GetBytes(normalized))).ToLowerInvariant();
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT "Count" FROM public."IdentityAbuseCounters"
+            WHERE "Operation"=@operation AND "KeyHash"=@keyHash
+            ORDER BY "WindowStartUtc" DESC LIMIT 1
+            """;
+        cmd.Parameters.AddWithValue("operation", operation.ToString());
+        cmd.Parameters.AddWithValue("keyHash", digest);
+        var value = await cmd.ExecuteScalarAsync();
+        return value is null ? 0 : Convert.ToInt32(
+            value, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<bool> IsUserLockedOutAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT "LockoutEnd" IS NOT NULL AND "LockoutEnd" > now()
+            FROM public."AspNetUsers" WHERE "Id"=@id
+            """;
+        cmd.Parameters.AddWithValue("id", userId);
+        return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task ExpireUserLockoutAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            UPDATE public."AspNetUsers"
+            SET "LockoutEnd"=now() - interval '1 minute', "AccessFailedCount"=0
+            WHERE "Id"=@id
+            """;
+        cmd.Parameters.AddWithValue("id", userId);
+        if (await cmd.ExecuteNonQueryAsync() != 1)
+            throw new InvalidOperationException("F2B_H03_LOCKOUT_EXPIRY_FIXTURE_FAILED");
     }
 
     private static async Task<int> ReadOutboxCountAsync(string connection, string userId)

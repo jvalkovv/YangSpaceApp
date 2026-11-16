@@ -279,6 +279,22 @@ if (args.Length == 1 &&
     return;
 }
 
+// H03: real ASP.NET RateLimiter middleware over TestServer with synthetic transport peers.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h03-auth-rate-http-only", StringComparison.Ordinal))
+{
+    await AuthRateLimitHttpContract.RunAsync();
+    return;
+}
+
+// H03: durable account-keyed abuse throttling, SQLite migrations, atomic concurrency and retention.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h03-identity-abuse-sqlite-only", StringComparison.Ordinal))
+{
+    await IdentityAbuseThrottleContract.RunAsync();
+    return;
+}
+
 // H02: signed public-account release authorization; no production-policy bypass.
 if (args.Length == 1 &&
     string.Equals(args[0], "--f2b-h02-release-authorization-only", StringComparison.Ordinal))

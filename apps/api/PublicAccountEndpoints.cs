@@ -159,7 +159,9 @@ internal static class PublicAccountEndpoints
 
         group.MapPost("/forgot-password", async Task<IResult> (
             PublicEmailRequest request, UserManager<IdentityUser> users,
-            IEmailSender<IdentityUser> emails) =>
+            IEmailSender<IdentityUser> emails,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is not null &&
