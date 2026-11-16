@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-o4-h01-pg-http-startup-20261116'
+$Branch='feat/yangspace-f2b-h02-release-auth-http-20261116'
 $Git=(Get-Command git.exe -ErrorAction Stop).Source
 $Docker=(Get-Command docker.exe -ErrorAction Stop).Source
 function Check([bool]$Ok,[string]$Marker) {
@@ -37,7 +37,7 @@ Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'POSTFLIGHT_BRANCH_O
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_CLEAN_SOURCE'
 $Evidence=(Resolve-Path -LiteralPath $EvidenceDirectory).Path
-$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h01-postgres'))
+$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h02-identity'))
 Check ($Evidence.StartsWith($Root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) 'POSTFLIGHT_EVIDENCE_SCOPE'
 Check ((Split-Path $Evidence -Leaf) -match ('^'+$CommitSha.Substring(0,12)+'-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$')) 'POSTFLIGHT_EVIDENCE_IDENTITY'
 $ManifestPath=Join-Path $Evidence 'manifest.txt'
@@ -62,13 +62,22 @@ foreach ($Value in @(
     'H01_TLS_HOSTNAME_NEGATIVE=PASS',
     'H01_LEAST_PRIVILEGE_NEGATIVE=PASS',
     'H01_PUBLIC_STARTUP_FAIL_CLOSED=PASS',
-    'H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_COMPILE_TIME_RELEASE_POLICY',
+    'H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION',
+    'H02_RELEASE_AUTHORIZATION=EPHEMERAL_TEST_ONLY',
+    'H02_IDENTITY_RUNTIME_ROLE=ys_h02_identity',
+    'H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE=PASS',
+    'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
+    'H02_FAKE_TRANSPORT=PASS',
+    'H02_NO_REAL_SMTP=PASS',
+    'H02_NO_CT164=PASS',
+    'H02_NO_PRODUCTION_DB=PASS',
+    'H02_SOURCE_DEFAULTS_OFF=PASS',
     'NO_HOST_PORTS=PASS','NO_HOST_BINDS=PASS','TMPFS_ONLY=PASS',
     'CONTAINER_REMOVED=PASS','NETWORK_REMOVED=PASS',
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_O4_H01_REVIEW_AND_H02_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H02_REVIEW_AND_H03_H06'
 )) { ManifestLine $Lines $Value }
 $PgVersionEntry=@($Lines | Where-Object { $_ -like 'POSTGRES_VERSION=*' })
 Check ($PgVersionEntry.Count -eq 1) 'POSTFLIGHT_PG_VERSION_RECORDED'
@@ -99,7 +108,8 @@ foreach ($Label in @(
     'o3-roles-apply','o3-db-create','o3-grants-apply',
     'o3-runtime-copy','o3-runtime-chmod','o3-pg-worker',
     'o4-h01-root-mkdir','o4-h01-root-copy','o4-h01-root-verify',
-    'o4-h01-runner-copy','o4-h01-runner-mode','o4-h01-testserver','o3-runtime-clean'
+    'o4-h01-runner-copy','o4-h01-runner-mode','o4-h01-testserver',
+    'h02-release-auth-contract','h02-identity-runner-copy','h02-identity-runner-mode','h02-production-http','o3-runtime-clean'
 )) {
     foreach ($Suffix in @('.runner.cmd','.stdout.log','.stderr.log')) {
         Check (Test-Path -LiteralPath (Join-Path $Evidence ($Label+$Suffix)) -PathType Leaf) ('STAGE_'+($Label+$Suffix -replace '[^a-zA-Z0-9]','_'))
@@ -131,6 +141,17 @@ foreach ($M in @(
     'F2B_O3_WORKER_FAKE_TRANSPORT_ONLY','F2B_O3_WORKER_DISPOSABLE_ONLY'
 )) { Marker 'o3-pg-worker' $M }
 foreach ($M in @(
+    'F2B_H02_AUTH_VALID_SIGNATURE','F2B_H02_AUTH_MISSING_REFUSED',
+    'F2B_H02_AUTH_BAD_SIGNATURE_REFUSED','F2B_H02_AUTH_EXPIRED_REFUSED',
+    'F2B_H02_AUTH_FUTURE_ISSUED_REFUSED','F2B_H02_AUTH_LONG_LIFETIME_REFUSED',
+    'F2B_H02_AUTH_WRONG_AUDIENCE_REFUSED','F2B_H02_AUTH_WRONG_SCOPE_REFUSED',
+    'F2B_H02_AUTH_WRONG_ENVIRONMENT_REFUSED','F2B_H02_AUTH_WRONG_COMMIT_REFUSED',
+    'F2B_H02_AUTH_WRONG_KEY_ID_REFUSED','F2B_H02_AUTH_BAD_PUBLIC_KEY_REFUSED',
+    'F2B_H02_AUTH_DEPLOYMENT_SHA_BINDING','F2B_H02_AUTH_PRODUCTION_ONLY',
+    'F2B_H02_AUTH_DEFAULT_SWITCHES_OFF','F2B_H02_AUTH_IMPLEMENTATION_AVAILABLE_AFTER_O3',
+    'F2B_H02_SIGNED_RELEASE_AUTHORIZATION_CONTRACT'
+)) { Marker 'h02-release-auth-contract' $M }
+foreach ($M in @(
         'F2B_O4_H01_RUNTIME_TLS_SCOPE_NON_ELEVATED',
         'F2B_O4_H01_RUNTIME_METADATA_READ_ONLY',
         'F2B_O4_H01_PRODUCTION_PG_POLICY',
@@ -151,14 +172,36 @@ foreach ($M in @(
 )) { Marker 'o4-h01-testserver' $M }
 $H01Log=[IO.File]::ReadAllText((Join-Path $Evidence 'o4-h01-testserver.stdout.log'))
 Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_RELEASE_POLICY\s*$') 'POSTFLIGHT_H01_PUBLIC_RELEASE_HELD'
+Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION\s*$') 'POSTFLIGHT_H01_PUBLIC_RELEASE_HELD'
 Check ($H01Log -match '(?m)^F2B_O4_H01_SMTP=NOT_CONNECTED\s*$') 'POSTFLIGHT_H01_SMTP_DISCONNECTED'
-foreach ($Temp in @('temporary-init.sh','temporary-entry.sh','temporary-roles.sql','temporary-grants.sql','temporary-run.sh','temporary-o4-h01-run.sh')) {
+foreach ($M in @(
+    'F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE',
+    'F2B_H02_REAL_PRODUCTION_ENVIRONMENT',
+    'F2B_H02_FAKE_TRANSPORT_ONLY',
+    'F2B_H02_RELEASE_AUTHORIZATION_VALID',
+    'F2B_H02_PRODUCTION_LIVE_READY',
+    'F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE',
+    'F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC',
+    'F2B_H02_RETRY_RELEASED',
+    'F2B_H02_CONFIRMATION_LINK_CANONICAL_HTTPS',
+    'F2B_H02_CONFIRMATION_TOKEN_DELIVERED',
+    'F2B_H02_EMAIL_CONFIRMATION_HTTP',
+    'F2B_H02_CONFIRMATION_REPLAY_REJECTED',
+    'F2B_H02_DUPLICATE_REGISTRATION_GENERIC',
+    'F2B_H02_LOGIN_HTTP','F2B_H02_LOGIN_NO_SET_COOKIE','F2B_H02_LOGIN_BEARER_ONLY',
+    'F2B_H02_SESSION_REQUIRES_BEARER','F2B_H02_SESSION_BEARER_OK',
+    'F2B_H02_FORGOT_PASSWORD_ACCEPTED','F2B_H02_PASSWORD_RESET_HTTP',
+    'F2B_H02_OLD_PASSWORD_REVOKED','F2B_H02_FAKE_CONFIRMATION_AND_RESET_ONLY',
+    'F2B_H02_NO_COOKIE_CLIENT_FALLBACK','F2B_H02_NO_REAL_SMTP',
+    'F2B_H02_NO_CT164_OR_PRODUCTION_DB','F2B_H02_IDENTITY_HTTP_FAKE_TRANSPORT'
+)) { Marker 'h02-production-http' $M }
+foreach ($Temp in @('temporary-init.sh','temporary-entry.sh','temporary-roles.sql','temporary-grants.sql','temporary-run.sh','temporary-o4-h01-run.sh','temporary-h02-identity-run.sh')) {
     Check (-not (Test-Path -LiteralPath (Join-Path $Evidence $Temp))) ('POSTFLIGHT_NO_'+($Temp -replace '[^a-zA-Z0-9]','_'))
 }
 Check (@(Get-ChildItem -LiteralPath $Evidence -File | Where-Object { $_.Extension -in @('.key','.p12','.pfx') }).Count -eq 0) 'POSTFLIGHT_NO_PRIVATE_KEYS'
 
 $HashLines=[IO.File]::ReadAllLines($ChecksumsPath)
-Check ($HashLines.Count -ge 13) 'POSTFLIGHT_CHECKSUMS_COUNT'
+Check ($HashLines.Count -ge 20) 'POSTFLIGHT_CHECKSUMS_COUNT'
 foreach ($Binary in @('YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll')) {
     if ($Binary -eq 'YangSpace.Api.RuntimeTests.linux-x64') {
         $Prefix='APPHOST_SHA256='
@@ -177,10 +220,11 @@ foreach ($HashLine in $HashLines) {
     $ExpectedHash=$Matches[1]
     $Relative=$Matches[2]
     if ($Relative.Contains('..')) { throw 'F2B_O3_BAD_CHECKSUM_PATH' }
-    if ($Relative.StartsWith('apps/') -or $Relative.StartsWith('scripts/')) {
+    if ($Relative.StartsWith('apps/') -or $Relative.StartsWith('scripts/') -or $Relative.StartsWith('docs/')) {
         $Full=Join-Path $Repo $Relative
     } elseif ($Relative -in @(
-        'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log','o4-h01-testserver.stdout.log',
+        'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log',
+        'h02-release-auth-contract.stdout.log','o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
         'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
     )) {
         $Full=Join-Path $Evidence $Relative
@@ -194,7 +238,8 @@ Check ($Settings.PublicAccounts.Outbox.DispatchEnabled -eq $false) 'POSTFLIGHT_D
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_FINAL_CLEAN_SOURCE'
 Write-Host 'F2B_O4_H01_INDEPENDENT_POSTFLIGHT=PASS'
+Write-Host 'F2B_H02_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant())
-Write-Host 'RELEASE_GATE=HOLD_O4_H01_REVIEW_AND_H02_H06'
+Write-Host 'RELEASE_GATE=HOLD_H02_REVIEW_AND_H03_H06'
