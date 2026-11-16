@@ -87,16 +87,29 @@ internal static class IdentityEmailOutboxWorkerContract
                 ["PublicAccounts:Enabled"]="true",
                 ["PublicAccounts:Outbox:DispatchEnabled"]="false"
             }).Build();
+            Check(!IdentityEmailOutboxDispatchPolicy.AreSwitchesEnabled(disabledConfig),
+                "F2B_O3_WORKER_RUNTIME_SWITCH_GATE");
+
             using (var disabledWorker=NewWorker(provider,clock,disabledConfig))
             {
                 var disabledCount=await disabledWorker.ProcessBatchOnceAsync();
+                Check(disabledCount==0,
+                    "F2B_O3_WORKER_BATCH_BLOCKED_WHEN_DISABLED");
+
                 await disabledWorker.StartAsync(CancellationToken.None);
-                var disabledLoopExited=disabledWorker.ExecuteTask?.IsCompleted==true;
+                var disabledTask=disabledWorker.ExecuteTask;
+                Check(disabledTask is not null,
+                    "F2B_O3_WORKER_HOSTED_TASK_CREATED_WHEN_DISABLED");
+                await disabledTask!.WaitAsync(TimeSpan.FromSeconds(2));
+                Check(disabledTask.IsCompletedSuccessfully,
+                    "F2B_O3_WORKER_HOSTED_LOOP_EXITS_WHEN_DISABLED");
                 await disabledWorker.StopAsync(CancellationToken.None);
-                Check(disabledCount==0 && disabledLoopExited &&
-                    (await Message(db,disabledId)).Status==IdentityEmailOutboxStatus.Pending &&
-                    !fake.Deliveries.Any(x=>x.Email==disabledProbe.Email),
-                    "F2B_O3_WORKER_DISPATCH_DEFAULT_OFF");
+
+                Check((await Message(db,disabledId)).Status==IdentityEmailOutboxStatus.Pending,
+                    "F2B_O3_WORKER_PENDING_PRESERVED_WHEN_DISABLED");
+                Check(!fake.Deliveries.Any(x=>x.Email==disabledProbe.Email),
+                    "F2B_O3_WORKER_NO_DELIVERY_WHEN_DISABLED");
+                Check(true,"F2B_O3_WORKER_DISPATCH_DEFAULT_OFF");
             }
 
             var user=await NewUser(users,"confirm@example.invalid",false);

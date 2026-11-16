@@ -1,3 +1,23 @@
+## 2026-11-16 — O3 dispatch-off assertion isolated (SOURCE COMMITTED / RE-RUN PENDING)
+
+Operator reran exact branch HEAD \`933adb6510ff82bcc6ea21b4d64cd9b85b8b24dc\`:
+- PostgreSQL review QA default-off: PASS.
+- Restore: PASS.
+- Release build: PASS.
+- DI activation: PASS.
+- Synthetic failed at the combined \`F2B_O3_WORKER_DISPATCH_DEFAULT_OFF\` assertion (line 96).
+
+The previous assertion combined four independent conditions, so the failing condition was not identifiable. The test now reports each independently:
+1. Runtime config switches evaluate disabled.
+2. \`ProcessBatchOnceAsync\` claims zero.
+3. Hosted task is created and exits successfully within a bounded timeout.
+4. Outbox row remains Pending.
+5. Fake transport receives no delivery.
+
+This is diagnostic test hardening, not an assertion that the worker already passes. Current source HEAD will be recorded after commit. O3 remains HOLD; do not proceed to PostgreSQL or O4 until exact-SHA synthetic and independent Postflight pass.
+
+---
+
 ## 2026-11-16 — O3 production DI activation covered by synthetic contract (SOURCE COMMITTED / RE-RUN PENDING)
 
 The worker contract now mirrors the actual production DI registrations and resolves:
