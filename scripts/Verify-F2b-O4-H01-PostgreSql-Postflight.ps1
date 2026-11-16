@@ -97,7 +97,9 @@ foreach ($Label in @(
     'o3-network-create','o3-container-create','o3-container-start',
     'o3-pg-version','o3-pg-ssl','o3-pg-hba','o3-ca-export',
     'o3-roles-apply','o3-db-create','o3-grants-apply',
-    'o3-runtime-copy','o3-runtime-chmod','o3-pg-worker','o4-h01-content-root','o4-h01-testserver','o3-runtime-clean'
+    'o3-runtime-copy','o3-runtime-chmod','o3-pg-worker',
+    'o4-h01-root-mkdir','o4-h01-root-copy','o4-h01-root-verify',
+    'o4-h01-runner-copy','o4-h01-runner-mode','o4-h01-testserver','o3-runtime-clean'
 )) {
     foreach ($Suffix in @('.runner.cmd','.stdout.log','.stderr.log')) {
         Check (Test-Path -LiteralPath (Join-Path $Evidence ($Label+$Suffix)) -PathType Leaf) ('STAGE_'+($Label+$Suffix -replace '[^a-zA-Z0-9]','_'))
@@ -150,7 +152,7 @@ foreach ($M in @(
 $H01Log=[IO.File]::ReadAllText((Join-Path $Evidence 'o4-h01-testserver.stdout.log'))
 Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_RELEASE_POLICY\s*$') 'POSTFLIGHT_H01_PUBLIC_RELEASE_HELD'
 Check ($H01Log -match '(?m)^F2B_O4_H01_SMTP=NOT_CONNECTED\s*$') 'POSTFLIGHT_H01_SMTP_DISCONNECTED'
-foreach ($Temp in @('temporary-init.sh','temporary-entry.sh','temporary-roles.sql','temporary-grants.sql','temporary-run.sh')) {
+foreach ($Temp in @('temporary-init.sh','temporary-entry.sh','temporary-roles.sql','temporary-grants.sql','temporary-run.sh','temporary-o4-h01-run.sh')) {
     Check (-not (Test-Path -LiteralPath (Join-Path $Evidence $Temp))) ('POSTFLIGHT_NO_'+($Temp -replace '[^a-zA-Z0-9]','_'))
 }
 Check (@(Get-ChildItem -LiteralPath $Evidence -File | Where-Object { $_.Extension -in @('.key','.p12','.pfx') }).Count -eq 0) 'POSTFLIGHT_NO_PRIVATE_KEYS'

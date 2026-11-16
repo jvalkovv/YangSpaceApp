@@ -87,6 +87,7 @@ $EntryPath=Join-Path $Evidence 'temporary-entry.sh'
 $RolesPath=Join-Path $Evidence 'temporary-roles.sql'
 $GrantsPath=Join-Path $Evidence 'temporary-grants.sql'
 $RunnerPath=Join-Path $Evidence 'temporary-run.sh'
+$H01RunnerPath=Join-Path $Evidence 'temporary-o4-h01-run.sh'
 $CaPath=Join-Path $Evidence 'pg-root-ca.crt'
 $MigratorPw=RandomHex
 $RuntimePw=RandomHex
@@ -254,11 +255,24 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O3_WORKER_TLS_VERIFYFULL','F2B_O3_WORKER_RUNTIME_LEAST_PRIVILEGE',
         'F2B_O3_WORKER_FAKE_TRANSPORT_ONLY','F2B_O3_WORKER_DISPOSABLE_ONLY'
     )) { Marker 'o3-pg-worker' $M }
-    # Reuse disposable PG17+TLS in a new process running the actual Production Program/TestServer.
-    # The executable launcher (with ephemeral credentials) remains inside the container.
-    Stage 'o4-h01-content-root' $Docker @('exec',$Container,'bash','-c','mkdir -p /qa && cp -a /tmp/o3-runtime/. /qa/ && test -f /qa/appsettings.json')
-    $H01Command='sed -e "s/--f2b-o3-postgresql-worker-only/--f2b-o4-h01-postgresql-http-only/" -e "s#cd /tmp/o3-runtime#cd /qa#" /tmp/o3-run.sh > /tmp/o4-h01-run.sh && chmod 0700 /tmp/o4-h01-run.sh && bash /tmp/o4-h01-run.sh'
-    Stage 'o4-h01-testserver' $Docker @('exec',$Container,'bash','-c',$H01Command) 2400
+    # Preserve Invoke-YangSpaceStage's shell-operator rejection.
+    # Keep every Docker command as argv, never bash -c/redirection.
+    Stage 'o4-h01-root-mkdir' $Docker @('exec',$Container,'mkdir','-p','/qa')
+    Stage 'o4-h01-root-copy' $Docker @('exec',$Container,'cp','-a','/tmp/o3-runtime/.','/qa/')
+    Stage 'o4-h01-root-verify' $Docker @('exec',$Container,'test','-f','/qa/appsettings.json')
+    if (-not $Run.Contains('cd /tmp/o3-runtime') -or
+        -not $Run.Contains('--f2b-o3-postgresql-worker-only')) {
+        throw 'F2B_O4_H01_BASE_LAUNCHER_CONTRACT_CHANGED'
+    }
+    # Build the new launcher in PowerShell, then copy via Docker to ephemeral tmpfs.
+    # No credentials or unsafe shell syntax in stage arguments/command receipts.
+    $H01Run=$Run.Replace('cd /tmp/o3-runtime','cd /qa').Replace(
+        '--f2b-o3-postgresql-worker-only','--f2b-o4-h01-postgresql-http-only')
+    [IO.File]::WriteAllText($H01RunnerPath,([regex]::Replace($H01Run,"\r\n?",[string][char]10)),$Utf8)
+    Stage 'o4-h01-runner-copy' $Docker @('cp',$H01RunnerPath,($Container+':/run/pgcerts/o4-h01-run.sh'))
+    Stage 'o4-h01-runner-mode' $Docker @('exec',$Container,'chmod','0600','/run/pgcerts/o4-h01-run.sh')
+    Remove-Item -LiteralPath $H01RunnerPath -Force
+    Stage 'o4-h01-testserver' $Docker @('exec',$Container,'bash','/run/pgcerts/o4-h01-run.sh') 2400
     foreach ($M in @(
         'F2B_O4_H01_RUNTIME_TLS_SCOPE_NON_ELEVATED',
         'F2B_O4_H01_RUNTIME_METADATA_READ_ONLY',
@@ -281,7 +295,7 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
     $H01Log=[IO.File]::ReadAllText((Join-Path $Evidence 'o4-h01-testserver.stdout.log'))
     Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_RELEASE_POLICY\s*$') 'F2B_O4_H01_PUBLIC_RELEASE_POLICY_HELD'
     Check ($H01Log -match '(?m)^F2B_O4_H01_SMTP=NOT_CONNECTED\s*$') 'F2B_O4_H01_SMTP_DISCONNECTED'
-    Stage 'o3-runtime-clean' $Docker @('exec',$Container,'rm','-rf','/tmp/o3-runtime','/qa','/tmp/o3-run.sh','/tmp/o4-h01-run.sh','/run/pgcerts/o3-keys')
+    Stage 'o3-runtime-clean' $Docker @('exec',$Container,'rm','-rf','/tmp/o3-runtime','/qa','/tmp/o3-run.sh','/run/pgcerts/o4-h01-run.sh','/run/pgcerts/o3-keys')
     $Complete=$true
 }
 finally {
@@ -308,7 +322,7 @@ finally {
         }
     } finally {
         $ErrorActionPreference=$Saved
-        foreach ($P in @($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath)) {
+        foreach ($P in @($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath)) {
             if (Test-Path -LiteralPath $P) { Remove-Item -LiteralPath $P -Force -ErrorAction SilentlyContinue }
         }
         if (Test-Path -LiteralPath $Temp) { Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction SilentlyContinue }
@@ -321,7 +335,7 @@ if (-not $Complete -or -not $Cleanup) {
     [IO.File]::WriteAllText((Join-Path $Evidence 'gate.txt'),'F2B_O3_PG=HOLD',$Utf8)
     throw 'F2B_O3_POSTGRES_RUN_OR_CLEANUP_FAILED'
 }
-$SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath) | Where-Object { Test-Path -LiteralPath $_ })
+$SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath) | Where-Object { Test-Path -LiteralPath $_ })
 Check ($SecretsRemain.Count -eq 0 -and -not (Test-Path -LiteralPath $Temp)) 'F2B_O3_TEMPORARY_SECRET_CLEANUP'
 $HashPaths=@(
     'apps/api/IdentityEmailOutboxWorker.cs',
