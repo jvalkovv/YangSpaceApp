@@ -312,6 +312,7 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O4_H01_PRODUCTION_GATES_FAIL_CLOSED'
     )) { Marker 'o4-h01-testserver' $M }
     $H01Log=[IO.File]::ReadAllText((Join-Path $Evidence 'o4-h01-testserver.stdout.log'))
+    Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION\s*$') 'F2B_O4_H01_PUBLIC_RELEASE_POLICY_HELD'
     Check ($H01Log -match '(?m)^F2B_O4_H01_SMTP=NOT_CONNECTED\s*$') 'F2B_O4_H01_SMTP_DISCONNECTED'
 
     $H02Run=$Run.Replace('cd /tmp/o3-runtime','cd /qa').Replace(
@@ -376,7 +377,7 @@ finally {
         }
     } finally {
         $ErrorActionPreference=$Saved
-        foreach ($P in @($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath)) {
+        foreach ($P in @($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath,$H02RunnerPath)) {
             if (Test-Path -LiteralPath $P) { Remove-Item -LiteralPath $P -Force -ErrorAction SilentlyContinue }
         }
         if (Test-Path -LiteralPath $Temp) { Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction SilentlyContinue }
@@ -389,14 +390,23 @@ if (-not $Complete -or -not $Cleanup) {
     [IO.File]::WriteAllText((Join-Path $Evidence 'gate.txt'),'F2B_O3_PG=HOLD',$Utf8)
     throw 'F2B_O3_POSTGRES_RUN_OR_CLEANUP_FAILED'
 }
-$SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath) | Where-Object { Test-Path -LiteralPath $_ })
+$SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath,$H02RunnerPath) | Where-Object { Test-Path -LiteralPath $_ })
 Check ($SecretsRemain.Count -eq 0 -and -not (Test-Path -LiteralPath $Temp)) 'F2B_O3_TEMPORARY_SECRET_CLEANUP'
 $HashPaths=@(
     'apps/api/IdentityEmailOutboxWorker.cs',
+    'apps/api/OutboxIdentityEmailSender.cs',
+    'apps/api/PublicAccountEndpoints.cs',
+    'apps/api/PublicAccountReleaseAuthorization.cs',
+    'apps/api/SmtpPublicIdentityEmailSender.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxWorkerContract.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxPostgreSqlWorkerContract.cs',
+    'apps/api.RuntimeTests/IdentityEmailOutboxEnqueueContract.cs',
     'apps/api.RuntimeTests/Program.cs',
-    'apps/api.RuntimeTests/F2bO4H01PostgreSqlStartupContract.cs','apps/api/appsettings.json',
+    'apps/api.RuntimeTests/F2bO4H01PostgreSqlStartupContract.cs',
+    'apps/api.RuntimeTests/F2bH02ReleaseAuthorizationContract.cs',
+    'apps/api.RuntimeTests/F2bH02ProductionIdentityHttpContract.cs',
+    'apps/api/appsettings.json',
+    'docs/F2B_H02_RELEASE_AUTHORIZATION_20261116.md',
     'scripts/Invoke-YangSpaceStage.ps1',
     'scripts/Test-F2b-Outbox-Worker-PostgreSql-Local.ps1',
     'scripts/Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1',
@@ -410,7 +420,8 @@ foreach ($P in $HashPaths) {
     $Checksums+=((Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
 }
 foreach ($P in @(
-    'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log','o4-h01-testserver.stdout.log',
+    'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log',
+    'h02-release-auth-contract.stdout.log','o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
     'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
 )) {
     $Checksums+=((Get-FileHash -LiteralPath (Join-Path $Evidence $P) -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
@@ -437,19 +448,29 @@ $Manifest=@(
     'H01_TLS_HOSTNAME_NEGATIVE=PASS',
     'H01_LEAST_PRIVILEGE_NEGATIVE=PASS',
     'H01_PUBLIC_STARTUP_FAIL_CLOSED=PASS',
-    'H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_COMPILE_TIME_RELEASE_POLICY',
+    'H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION',
+    'H02_RELEASE_AUTHORIZATION=EPHEMERAL_TEST_ONLY',
+    'H02_IDENTITY_RUNTIME_ROLE=ys_h02_identity',
+    'H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE=PASS',
+    'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
+    'H02_FAKE_TRANSPORT=PASS',
+    'H02_NO_REAL_SMTP=PASS',
+    'H02_NO_CT164=PASS',
+    'H02_NO_PRODUCTION_DB=PASS',
+    'H02_SOURCE_DEFAULTS_OFF=PASS',
     'NO_HOST_PORTS=PASS','NO_HOST_BINDS=PASS','TMPFS_ONLY=PASS',
     'CONTAINER_REMOVED=PASS','NETWORK_REMOVED=PASS',
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_O4_H01_REVIEW_AND_H02_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H02_REVIEW_AND_H03_H06'
 )
 [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]$Manifest,$Utf8)
 & (Join-Path $PSScriptRoot 'Verify-F2b-O4-H01-PostgreSql-Postflight.ps1') -CommitSha $CommitSha -EvidenceDirectory $Evidence
 if (-not $?) { throw 'F2B_O4_H01_INDEPENDENT_POSTFLIGHT_FAILED' }
 Write-Host 'F2B_O4_H01_PRODUCTION_STARTUP_QA=PASS'
+Write-Host 'F2B_H02_PRODUCTION_IDENTITY_HTTP_QA=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath (Join-Path $Evidence 'manifest.txt') -Algorithm SHA256).Hash.ToLowerInvariant())
-Write-Host 'RELEASE_GATE=HOLD_O4_H01_REVIEW_AND_H02_H06'
+Write-Host 'RELEASE_GATE=HOLD_H02_REVIEW_AND_H03_H06'
