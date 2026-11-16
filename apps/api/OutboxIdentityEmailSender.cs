@@ -44,11 +44,6 @@ internal sealed class OutboxIdentityEmailSender : IEmailSender<IdentityUser>
             !string.Equals(user.Email, recipient, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("OUTBOX_IDENTITY_RECIPIENT_MISMATCH");
 
-        var now = _clock.GetUtcNow().UtcDateTime;
-        var expiresAt = now.Add(purpose == IdentityEmailPurpose.ResetPassword
-            ? TimeSpan.FromHours(2)
-            : TimeSpan.FromHours(24));
-
         // The partial unique index is the final concurrency authority. This
         // loop handles the winner/loser race and retries a lease transition
         // without ever allowing two Pending rows for the same intent.
@@ -60,6 +55,16 @@ internal sealed class OutboxIdentityEmailSender : IEmailSender<IdentityUser>
                     message.UserId == user.Id &&
                     message.Purpose == purpose &&
                     message.Status == IdentityEmailOutboxStatus.Pending);
+
+            // Capture time after the read. A concurrent request may refresh an
+            // expired row while this request is waiting for its SELECT. If we
+            // reuse a timestamp captured before the read, the refreshed
+            // AvailableAtUtc can appear to be in the future and cause a false
+            // resend-expedite (and an unnecessary Revision increment).
+            var now = _clock.GetUtcNow().UtcDateTime;
+            var expiresAt = now.Add(purpose == IdentityEmailPurpose.ResetPassword
+                ? TimeSpan.FromHours(2)
+                : TimeSpan.FromHours(24));
 
             if (pending is not null)
             {

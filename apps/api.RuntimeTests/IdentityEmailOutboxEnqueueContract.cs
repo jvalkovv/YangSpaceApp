@@ -160,6 +160,7 @@ internal static class IdentityEmailOutboxEnqueueContract
             await RunConcurrentBatchAsync(connectionString, userId, email, 16);
 
             Guid pendingId;
+            long revisionBeforeExpiredRefresh;
             await using (var verifyConnection = new SqliteConnection(connectionString))
             {
                 await verifyConnection.OpenAsync();
@@ -230,6 +231,7 @@ internal static class IdentityEmailOutboxEnqueueContract
                 pending.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1);
                 pending.AttemptCount = 4;
                 pending.LastFailureCode = "synthetic-retry";
+                revisionBeforeExpiredRefresh = pending.Revision;
                 await db.SaveChangesAsync();
             }
 
@@ -245,12 +247,24 @@ internal static class IdentityEmailOutboxEnqueueContract
                     .SingleAsync(x => x.UserId == userId &&
                                       x.Purpose == IdentityEmailPurpose.ConfirmEmail &&
                                       x.Status == IdentityEmailOutboxStatus.Pending);
-                Check(pending.Id == pendingId &&
-                      pending.ExpiresAtUtc > DateTime.UtcNow &&
-                      pending.AttemptCount == 0 &&
-                      pending.LastFailureCode is null &&
-                      pending.Revision == 1,
-                      "F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH");
+                var expiredRefreshPassed = pending.Id == pendingId &&
+                    pending.ExpiresAtUtc > DateTime.UtcNow &&
+                    pending.AttemptCount == 0 &&
+                    pending.LastFailureCode is null &&
+                    pending.Revision == revisionBeforeExpiredRefresh + 1;
+
+                if (!expiredRefreshPassed)
+                {
+                    Console.Error.WriteLine(
+                        $"F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH_OBSERVED id={pending.Id:D} " +
+                        $"expectedId={pendingId:D} expiryUtc={pending.ExpiresAtUtc:O} " +
+                        $"nowUtc={DateTime.UtcNow:O} attemptCount={pending.AttemptCount} " +
+                        $"lastFailureCode={pending.LastFailureCode ?? "<null>"} " +
+                        $"revision={pending.Revision} " +
+                        $"expectedRevision={revisionBeforeExpiredRefresh + 1}");
+                }
+
+                Check(expiredRefreshPassed, "F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH");
             }
         }
         finally
