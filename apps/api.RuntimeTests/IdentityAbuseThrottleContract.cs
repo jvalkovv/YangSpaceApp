@@ -77,8 +77,12 @@ internal static class IdentityAbuseThrottleContract
         await using var anchor = new SqliteConnection(connectionString);
         await anchor.OpenAsync();
         await using (var migrationDb = new DirectoryDb(options))
+        {
             await migrationDb.Database.MigrateAsync();
+            await ProductionSchemaGate.ValidateSchemaAsync(migrationDb);
+        }
         Check(true, "F2B_H03_ABUSE_SQLITE_MIGRATIONS_APPLIED");
+        Check(true, "F2B_H03_ABUSE_SQLITE_SCHEMA_GATE");
 
         var clock = new ManualTimeProvider(
             new DateTimeOffset(2026, 11, 16, 20, 0, 0, TimeSpan.Zero));
