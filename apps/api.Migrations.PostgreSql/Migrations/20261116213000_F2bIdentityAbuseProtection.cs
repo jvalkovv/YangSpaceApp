@@ -1,13 +1,10 @@
 using System;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace YangSpace.PostgreSql.Migrations;
 
-[DbContext(typeof(DirectoryDb))]
-[Migration("20261116213000_F2bIdentityAbuseProtection")]
 public partial class F2bIdentityAbuseProtection : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

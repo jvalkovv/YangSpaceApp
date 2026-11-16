@@ -21,7 +21,7 @@
 
 The account key is normalized through ASP.NET Identity's `ILookupNormalizer`, then transformed with HMAC-SHA256 using `PublicAccounts:AbuseProtection:HmacKey`. Only the 64-character digest is persisted. Raw email addresses, tokens and request payloads are never stored in the counter table or emitted in throttle logs.
 
-The HMAC key must be supplied through protected runtime configuration, Base64-encoded and at least 32 bytes. It is required only when `PublicAccounts:Enabled=true`. Rotating the key intentionally resets account throttle history; treat rotation as a security operation.
+The HMAC key must be supplied through protected runtime configuration, Base64-encoded and at least 32 bytes. Every API instance sharing the same database must use the same key. It is required only when `PublicAccounts:Enabled=true`. Rotating the key intentionally resets account throttle history; treat rotation as a security operation.
 
 ## Persistence and concurrency
 

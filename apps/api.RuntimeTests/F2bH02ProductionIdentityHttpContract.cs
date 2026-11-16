@@ -554,6 +554,27 @@ internal static class F2bH02ProductionIdentityHttpContract
                   identityConnection, IdentityAbuseOperation.ResendConfirmation, abuseResendEmail) == 4,
             "F2B_H03_RESEND_ACCOUNT_BUDGET");
 
+        // Distinct transport peers race on one account key. The PostgreSQL
+        // UPSERT must preserve every increment and enforce one shared budget.
+        var concurrentAbuseEmail = "h03-pg-concurrent-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var concurrentRequests = Enumerable.Range(1, 16).Select(async index =>
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, "/api/public-account/resend-confirmation")
+            {
+                Content = JsonContent.Create(new { email = concurrentAbuseEmail })
+            };
+            request.Headers.Add(
+                TestPeerAddressStartupFilter.RequestHeader, $"198.51.100.{index}");
+            using var response = await client.SendAsync(request);
+            return response.StatusCode;
+        }).ToArray();
+        var concurrentResponses = await Task.WhenAll(concurrentRequests);
+        Check(concurrentResponses.All(status => status == HttpStatusCode.Accepted) &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ResendConfirmation, concurrentAbuseEmail) == 16,
+            "F2B_H03_POSTGRES_ATOMIC_CROSS_PEER_COUNTER");
+
         SetTestPeer(client, "192.0.2.32");
         var abuseForgotEmail = "h03-forgot-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         var forgotBodies = new List<string>();
