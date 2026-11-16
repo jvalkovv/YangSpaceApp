@@ -38,6 +38,7 @@ internal static class PublicAccountEndpoints
             throw new InvalidOperationException("PUBLIC_ACCOUNT_HOST_POLICY_REFUSED");
         // Operator replay is exposed only inside the separately protected production admin surface.
         PublicAccountEmailSettings.RequireConfigured(configuration);
+        IdentityAbuseThrottle.ValidateConfiguration(configuration);
     }
 
     internal static RouteGroupBuilder MapPublicAccounts(this WebApplication app)
@@ -49,7 +50,9 @@ internal static class PublicAccountEndpoints
             UserManager<IdentityUser> users,
             IPasswordValidator<IdentityUser> passwordValidator,
             IEmailSender<IdentityUser> emails,
-            DirectoryDb db) =>
+            DirectoryDb db,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null || string.IsNullOrEmpty(request.Password) || request.Password.Length > 256)
@@ -61,6 +64,12 @@ internal static class PublicAccountEndpoints
             var validPassword = await passwordValidator.ValidateAsync(users, user, request.Password);
             if (!validPassword.Succeeded)
                 return Results.BadRequest(new { error = "Password does not meet the account security policy." });
+
+            // Account-keyed throttling is independent of the transport/IP budget.
+            // Denials remain indistinguishable from duplicate registrations.
+            if (!await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.Register, email, cancellationToken))
+                return Results.Accepted();
 
             // Duplicate and already-existing account outcomes must not
             // identify whether an email belongs to an existing user.
@@ -84,10 +93,15 @@ internal static class PublicAccountEndpoints
 
         group.MapPost("/resend-confirmation", async Task<IResult> (
             PublicEmailRequest request, UserManager<IdentityUser> users,
-            IEmailSender<IdentityUser> emails) =>
+            IEmailSender<IdentityUser> emails,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null) return Results.Accepted();
+            if (!await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.ResendConfirmation, email, cancellationToken))
+                return Results.Accepted();
             var user = await users.FindByEmailAsync(email);
             if (user is not null && !user.EmailConfirmed &&
                 !await IsStaffAsync(users, user))
@@ -148,7 +162,9 @@ internal static class PublicAccountEndpoints
             IEmailSender<IdentityUser> emails) =>
         {
             var email = NormalizeEmail(request.Email);
-            if (email is not null)
+            if (email is not null &&
+                await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.ForgotPassword, email, cancellationToken))
             {
                 var user = await users.FindByEmailAsync(email);
                 if (user is not null && user.EmailConfirmed && !await IsStaffAsync(users, user))
@@ -161,13 +177,19 @@ internal static class PublicAccountEndpoints
         });
 
         group.MapPost("/reset-password", async Task<IResult> (
-            PublicResetRequest request, UserManager<IdentityUser> users) =>
+            PublicResetRequest request, UserManager<IdentityUser> users,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null || string.IsNullOrWhiteSpace(request.ResetCode) ||
                 request.ResetCode.Length > 4096 ||
                 string.IsNullOrEmpty(request.NewPassword) || request.NewPassword.Length > 256)
                 return Results.BadRequest(new { error = "Invalid reset details." });
+
+            if (!await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.ResetPassword, email, cancellationToken))
+                return Results.BadRequest(new { error = "Invalid or expired reset details." });
 
             var user = await users.FindByEmailAsync(email);
             if (user is null || !user.EmailConfirmed || await IsStaffAsync(users, user))

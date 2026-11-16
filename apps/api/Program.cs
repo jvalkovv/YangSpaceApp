@@ -187,6 +187,7 @@ if (publicAccounts)
 {
     // Queue inside the registration transaction; no synchronous SMTP in HTTP.
     builder.Services.AddScoped<IEmailSender<IdentityUser>, OutboxIdentityEmailSender>();
+    builder.Services.AddScoped<IIdentityAbuseThrottle, IdentityAbuseThrottle>();
     builder.Services.Configure<IdentityEmailOutboxOptions>(builder.Configuration.GetSection("PublicAccounts:Outbox"));
     builder.Services.AddTransient<SmtpPublicIdentityEmailSender>();
     builder.Services.AddTransient<IIdentityEmailOutboxTransport>(services => services.GetRequiredService<SmtpPublicIdentityEmailSender>());

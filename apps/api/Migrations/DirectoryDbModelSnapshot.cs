@@ -408,6 +408,34 @@ namespace YangSpace.Api.Migrations
                     b.ToTable("ContentAuditEvents");
                 });
 
+            modelBuilder.Entity("YangSpace.Api.IdentityAbuseCounter", b =>
+                {
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("WindowStartUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Operation", "KeyHash", "WindowStartUtc");
+
+                    b.HasIndex("WindowStartUtc");
+
+                    b.ToTable("IdentityAbuseCounters");
+                });
+
             modelBuilder.Entity("YangSpace.Api.IdentityEmailOutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")

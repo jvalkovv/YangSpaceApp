@@ -417,6 +417,34 @@ namespace YangSpace.PostgreSql.Migrations
                     b.ToTable("ContentAuditEvents");
                 });
 
+            modelBuilder.Entity("YangSpace.Api.IdentityAbuseCounter", b =>
+                {
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("WindowStartUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Operation", "KeyHash", "WindowStartUtc");
+
+                    b.HasIndex("WindowStartUtc");
+
+                    b.ToTable("IdentityAbuseCounters");
+                });
+
             modelBuilder.Entity("YangSpace.Api.IdentityEmailOutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
