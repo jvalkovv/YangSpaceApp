@@ -50,7 +50,7 @@ Both public feature switches remain false in source-controlled defaults. This im
 
 ## Source implementation candidate
 
-The current candidate is `9403397f572cf2f17676b3b92861d2764bafb94b`, tracked by Draft PR #46 and stacked on the accepted H01 source.
+The current candidate is the HEAD of implementation branch `feat/yangspace-f2b-h02-release-auth-http-20261116`, tracked by Draft PR #46 and stacked on the accepted H01 source. PR #46 is the source of truth for the exact commit SHA.
 
 - API startup and hosted worker activation use the same signed authorization verifier.
 - The previous `allowSyntheticDispatch` worker-constructor bypass has been removed. O3 SQLite and PostgreSQL worker contracts now use ephemeral signed P-256 authorizations through the same Production verifier; private keys remain in memory.
