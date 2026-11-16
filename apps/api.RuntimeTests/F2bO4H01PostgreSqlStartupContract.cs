@@ -298,7 +298,7 @@ internal static class F2bO4H01PostgreSqlStartupContract
         Console.WriteLine("F2B_O4_H01_DISPOSABLE_PG_TLS_VERIFYFULL=PASS");
         Console.WriteLine("F2B_O4_H01_PRODUCTION_GATES_FAIL_CLOSED=PASS");
         Console.WriteLine("F2B_O4_H01_SMTP=NOT_CONNECTED");
-        Console.WriteLine("F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_RELEASE_POLICY");
+        Console.WriteLine("F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION");
         Console.WriteLine("F2B_O4_H01_CT164=NOT_ACCESSED");
     }
 }
