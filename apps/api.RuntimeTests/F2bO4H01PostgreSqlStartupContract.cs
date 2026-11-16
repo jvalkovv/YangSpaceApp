@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Text.Json;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -25,7 +28,12 @@ internal static class F2bO4H01PostgreSqlStartupContract
             "Preview__Enabled", "Preview__AllowRegistration", "Admin__Enabled",
             "MerchantRead__Enabled", "ClaimReview__QaEnabled",
             "ClaimReviewPostgreSqlQa__Enabled", "PublicAccounts__Enabled",
-            "PublicAccounts__Outbox__DispatchEnabled",
+            "PublicAccounts__Outbox__DispatchEnabled", "PublicAccounts__CanonicalOrigin",
+            "PublicAccounts__ReleaseAuthorization__Payload",
+            "PublicAccounts__ReleaseAuthorization__Signature",
+            "PublicAccounts__ReleaseAuthorization__TrustedKeyId",
+            "PublicAccounts__ReleaseAuthorization__TrustedPublicKeyPem",
+            "YANGSPACE_RELEASE_COMMIT_SHA",
             "ASPNETCORE_ENVIRONMENT", "DOTNET_ENVIRONMENT"
         ];
 
@@ -35,25 +43,38 @@ internal static class F2bO4H01PostgreSqlStartupContract
                 previous[name] = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process);
         }
 
+        private static void SetProcess(string name, string? value) =>
+            Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
+
         internal void SetStartup(string connection, bool publicAccounts=false,
             bool dispatch=false, bool production=true)
         {
-            static void Set(string name,string value) =>
-                Environment.SetEnvironmentVariable(name,value,EnvironmentVariableTarget.Process);
+            SetProcess("ConnectionStrings__Main",connection);
+            SetProcess("Database__Provider","PostgreSQL");
+            SetProcess("AllowedHosts","yangspace.gndstore.eu");
+            SetProcess("Preview__Enabled","false");
+            SetProcess("Preview__AllowRegistration","false");
+            SetProcess("Admin__Enabled","false");
+            SetProcess("MerchantRead__Enabled","false");
+            SetProcess("ClaimReview__QaEnabled","false");
+            SetProcess("ClaimReviewPostgreSqlQa__Enabled","false");
+            SetProcess("PublicAccounts__Enabled",publicAccounts ? "true" : "false");
+            SetProcess("PublicAccounts__Outbox__DispatchEnabled",dispatch ? "true" : "false");
+            SetProcess("PublicAccounts__CanonicalOrigin",PublicAccountReleaseAuthorization.RequiredAudience);
+            SetProcess("PublicAccounts__ReleaseAuthorization__Payload",null);
+            SetProcess("PublicAccounts__ReleaseAuthorization__Signature",null);
+            SetProcess("PublicAccounts__ReleaseAuthorization__TrustedKeyId",null);
+            SetProcess("PublicAccounts__ReleaseAuthorization__TrustedPublicKeyPem",null);
+            SetProcess("ASPNETCORE_ENVIRONMENT",production ? "Production" : "Development");
+            SetProcess("DOTNET_ENVIRONMENT",production ? "Production" : "Development");
+        }
 
-            Set("ConnectionStrings__Main",connection);
-            Set("Database__Provider","PostgreSQL");
-            Set("AllowedHosts","yangspace.gndstore.eu");
-            Set("Preview__Enabled","false");
-            Set("Preview__AllowRegistration","false");
-            Set("Admin__Enabled","false");
-            Set("MerchantRead__Enabled","false");
-            Set("ClaimReview__QaEnabled","false");
-            Set("ClaimReviewPostgreSqlQa__Enabled","false");
-            Set("PublicAccounts__Enabled",publicAccounts ? "true" : "false");
-            Set("PublicAccounts__Outbox__DispatchEnabled",dispatch ? "true" : "false");
-            Set("ASPNETCORE_ENVIRONMENT",production ? "Production" : "Development");
-            Set("DOTNET_ENVIRONMENT",production ? "Production" : "Development");
+        internal void SetReleaseAuthorization(
+            IReadOnlyDictionary<string,string?> values, string expectedCommit)
+        {
+            foreach (var (name,value) in values)
+                SetProcess(name.Replace(":", "__", StringComparison.Ordinal), value);
+            SetProcess("YANGSPACE_RELEASE_COMMIT_SHA", expectedCommit);
         }
 
         public void Dispose()
@@ -100,6 +121,33 @@ internal static class F2bO4H01PostgreSqlStartupContract
                     ["PublicAccounts:Outbox:DispatchEnabled"] = Dispatch ? "true" : "false"
                 }));
         }
+    }
+
+    private static Dictionary<string,string?> CreateAuthorization(
+        ECDsa signer, string sourceCommit, DateTimeOffset issuedAtUtc,
+        DateTimeOffset expiresAtUtc, bool corruptSignature = false)
+    {
+        var payload = new PublicAccountReleaseAuthorization.Payload(
+            1, "h01-ephemeral-test-key", PublicAccountReleaseAuthorization.RequiredScope,
+            Environments.Production, PublicAccountReleaseAuthorization.RequiredAudience,
+            sourceCommit, "issue-44", issuedAtUtc, expiresAtUtc);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(payload, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+        var signature = signer.SignData(bytes, HashAlgorithmName.SHA256,
+            DSASignatureFormat.Rfc3279DerSequence);
+        if (corruptSignature)
+            signature[0] ^= 0x01;
+
+        return new Dictionary<string,string?>
+        {
+            ["PublicAccounts:CanonicalOrigin"] = PublicAccountReleaseAuthorization.RequiredAudience,
+            ["PublicAccounts:ReleaseAuthorization:TrustedKeyId"] = "h01-ephemeral-test-key",
+            ["PublicAccounts:ReleaseAuthorization:TrustedPublicKeyPem"] = signer.ExportSubjectPublicKeyInfoPem(),
+            ["PublicAccounts:ReleaseAuthorization:Payload"] = WebEncoders.Base64UrlEncode(bytes),
+            ["PublicAccounts:ReleaseAuthorization:Signature"] = WebEncoders.Base64UrlEncode(signature)
+        };
     }
 
     private static void Check(bool ok, string marker)
@@ -186,6 +234,7 @@ internal static class F2bO4H01PostgreSqlStartupContract
 
     internal static async Task RunAsync()
     {
+        var releaseCommit = Required("YANGSPACE_RELEASE_COMMIT_SHA");
         var migrator = Required("YANGSPACE_F2B_O3_PG_MIGRATOR_CONNECTION");
         var runtime = Required("YANGSPACE_F2B_O3_PG_RUNTIME_CONNECTION");
         var scopeToken = Required("YANGSPACE_F2B_O3_PG_SCOPE_TOKEN");
@@ -278,6 +327,50 @@ internal static class F2bO4H01PostgreSqlStartupContract
         })
             await RejectStartup(missingAuthorization, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
                 "F2B_O4_H01_REJECTS_MISSING_RELEASE_AUTHORIZATION");
+
+        // A well-formed payload with a corrupted signature must fail during
+        // the real Production Program startup, before SMTP or worker activation.
+        using var signer = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signatureNow = DateTimeOffset.UtcNow;
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
+        startupEnvironment.SetReleaseAuthorization(
+            CreateAuthorization(signer, releaseCommit,
+                signatureNow.AddMinutes(-1), signatureNow.AddMinutes(59),
+                corruptSignature:true),
+            releaseCommit);
+        using (var badSignature = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(badSignature, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_BAD_RELEASE_SIGNATURE");
+
+        // Expired, correctly signed authorizations are refused by the same
+        // verifier used for valid Production activation.
+        var expiredNow = DateTimeOffset.UtcNow;
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
+        startupEnvironment.SetReleaseAuthorization(
+            CreateAuthorization(signer, releaseCommit,
+                expiredNow.AddHours(-2), expiredNow.AddHours(-1)),
+            releaseCommit);
+        using (var expiredAuthorization = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(expiredAuthorization, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_EXPIRED_RELEASE_AUTHORIZATION");
+
+        // A valid signature bound to a different source commit must not
+        // authorize this process's deployed SHA.
+        var commitNow = DateTimeOffset.UtcNow;
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
+        startupEnvironment.SetReleaseAuthorization(
+            CreateAuthorization(signer, releaseCommit,
+                commitNow.AddMinutes(-1), commitNow.AddMinutes(59)),
+            new string('0', 40));
+        using (var wrongCommit = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(wrongCommit, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_WRONG_RELEASE_COMMIT");
 
         // Dispatch switch is checked independently of the signed authorization.
         startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:false);

@@ -17,6 +17,7 @@ internal static class PublicAccountReleaseAuthorization
 {
     internal const string RequiredScope = "public-identity-email-v1";
     internal const string RequiredAudience = "https://yangspace.gndstore.eu";
+    internal static readonly TimeSpan MaxAuthorizationLifetime = TimeSpan.FromHours(1);
     private static readonly Regex ShaPattern = new("^[a-f0-9]{40}$", RegexOptions.CultureInvariant);
     private static readonly Regex KeyIdPattern = new("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", RegexOptions.CultureInvariant);
     private static readonly Regex ApprovalPattern = new("^[A-Za-z0-9][A-Za-z0-9._:/#-]{2,127}$", RegexOptions.CultureInvariant);
@@ -107,7 +108,7 @@ internal static class PublicAccountReleaseAuthorization
             payload.IssuedAtUtc > now.AddMinutes(5) ||
             payload.IssuedAtUtc < now.AddHours(-24) ||
             payload.ExpiresAtUtc <= now ||
-            payload.ExpiresAtUtc > payload.IssuedAtUtc.AddHours(24))
+            payload.ExpiresAtUtc > payload.IssuedAtUtc.Add(MaxAuthorizationLifetime))
             return new(false, "time_window");
 
         if (!publicKeyPem.StartsWith("-----BEGIN PUBLIC KEY-----", StringComparison.Ordinal) ||

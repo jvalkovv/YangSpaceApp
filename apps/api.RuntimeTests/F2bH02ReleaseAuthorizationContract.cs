@@ -23,7 +23,7 @@ internal static class F2bH02ReleaseAuthorizationContract
         var payload = new PublicAccountReleaseAuthorization.Payload(
             1, "yangspace-release-2026", PublicAccountReleaseAuthorization.RequiredScope,
             Environments.Production, PublicAccountReleaseAuthorization.RequiredAudience,
-            SourceSha, "issue-44", now.AddMinutes(-1), now.AddHours(1));
+            SourceSha, "issue-44", now.AddMinutes(-1), now.AddMinutes(59));
 
         var configuration = BuildConfiguration(signer, publicKey, payload);
         Check(Valid(configuration, now), "F2B_H02_AUTH_VALID_SIGNATURE");
@@ -38,9 +38,16 @@ internal static class F2bH02ReleaseAuthorizationContract
         Check(!Valid(BuildConfiguration(signer, publicKey,
             payload with { IssuedAtUtc = now.AddMinutes(10) }), now),
             "F2B_H02_AUTH_FUTURE_ISSUED_REFUSED");
+        Check(Valid(BuildConfiguration(signer, publicKey, payload), now),
+            "F2B_H02_AUTH_ONE_HOUR_BOUNDARY_ACCEPTED");
         Check(!Valid(BuildConfiguration(signer, publicKey,
-            payload with { ExpiresAtUtc = now.AddHours(25) }), now),
-            "F2B_H02_AUTH_LONG_LIFETIME_REFUSED");
+            payload with
+            {
+                ExpiresAtUtc = payload.IssuedAtUtc
+                    .Add(PublicAccountReleaseAuthorization.MaxAuthorizationLifetime)
+                    .AddTicks(1)
+            }), now),
+            "F2B_H02_AUTH_OVER_ONE_HOUR_REFUSED");
         Check(!Valid(BuildConfiguration(signer, publicKey,
             payload with { Audience = "https://evil.example" }), now),
             "F2B_H02_AUTH_WRONG_AUDIENCE_REFUSED");

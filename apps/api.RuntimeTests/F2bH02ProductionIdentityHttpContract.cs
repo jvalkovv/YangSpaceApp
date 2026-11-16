@@ -528,7 +528,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         var payload = new PublicAccountReleaseAuthorization.Payload(
             1, "h02-ephemeral-test-key", PublicAccountReleaseAuthorization.RequiredScope,
             Environments.Production, PublicAccountReleaseAuthorization.RequiredAudience,
-            commit, "issue-44", now.AddMinutes(-1), now.AddHours(1));
+            commit, "issue-44", now.AddMinutes(-1), now.AddMinutes(59));
         var bytes = JsonSerializer.SerializeToUtf8Bytes(payload, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase

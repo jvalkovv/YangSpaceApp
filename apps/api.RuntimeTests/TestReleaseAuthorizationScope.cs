@@ -33,7 +33,7 @@ internal sealed class TestReleaseAuthorizationScope : IDisposable
             sourceCommit,
             "issue-44-worker-contract",
             now.AddMinutes(-1),
-            now.AddHours(1));
+            now.AddMinutes(59));
         var payloadBytes = JsonSerializer.SerializeToUtf8Bytes(payload, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
