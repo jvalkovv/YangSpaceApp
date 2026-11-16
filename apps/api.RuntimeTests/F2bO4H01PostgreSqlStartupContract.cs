@@ -270,22 +270,28 @@ internal static class F2bO4H01PostgreSqlStartupContract
                 "PostgreSQL runtime role must be non-elevated",
                 "F2B_O4_H01_REJECTS_MIGRATOR_AS_RUNTIME");
 
-        // The production feature is intentionally compile-time disabled pending O4/O5.
+        // With switches on, missing signed authorization must be the reason
+        // Production startup refuses public activation.
         startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
-        using (var enabled = new Factory { Connection = runtime, PublicAccounts = true, Dispatch = true })
-            await RejectStartup(enabled, "PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY",
-                "F2B_O4_H01_REJECTS_PREMATURE_PUBLIC_ENABLE");
+        using (var missingAuthorization = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(missingAuthorization, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_MISSING_RELEASE_AUTHORIZATION");
 
+        // Dispatch switch is checked independently of the signed authorization.
         startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:false);
         using (var noDispatch = new Factory { Connection = runtime, PublicAccounts = true })
             await RejectStartup(noDispatch, "PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY",
                 "F2B_O4_H01_REJECTS_PUBLIC_WITH_DISPATCH_OFF");
 
+        // Environment scope is checked before authorization; this must not be
+        // a false-positive caused by the missing signature.
         startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true,production:false);
         using (var notProduction = new Factory {
             Connection = runtime, PublicAccounts = true, Dispatch = true, Production = false
         })
-            await RejectStartup(notProduction, "PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY",
+            await RejectStartup(notProduction, "PUBLIC_ACCOUNT_SCOPE_REFUSED",
                 "F2B_O4_H01_REJECTS_NONPRODUCTION_PUBLIC_ENABLE");
 
         Console.WriteLine("F2B_O4_H01_REAL_TESTSERVER_DEFAULT_OFF=PASS");
