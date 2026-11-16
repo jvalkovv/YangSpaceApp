@@ -5,7 +5,7 @@ param([Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$Co
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-o4-h01-pg-http-startup-20261116'
+$Branch='feat/yangspace-f2b-h02-release-auth-http-20261116'
 $Project='apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
 $Db='yangspace_f2b_o3_worker_disposable'
 $Image='postgres:17'
@@ -75,10 +75,10 @@ $DockerVersion=DockerValue @('info','--format','{{.ServerVersion}}')
 $ImageId=DockerValue @('image','inspect','--format','{{.Id}}',$Image)
 Check ($ImageId -match '^sha256:[0-9a-f]{64}$') 'F2B_O3_PG_IMAGE_PREEXISTS'
 $Nonce=RandomHex
-$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h01-postgres') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
+$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h02-identity') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
-$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-o3-'+$Nonce.Substring(0,12))
+$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-h02-'+$Nonce.Substring(0,12))
 $Publish=Join-Path $Temp 'publish'
 $Network='ys-f2b-o3-'+$Nonce.Substring(0,12)
 $Container='ys-f2b-o3-pg17-'+$Nonce.Substring(0,12)
@@ -88,9 +88,11 @@ $RolesPath=Join-Path $Evidence 'temporary-roles.sql'
 $GrantsPath=Join-Path $Evidence 'temporary-grants.sql'
 $RunnerPath=Join-Path $Evidence 'temporary-run.sh'
 $H01RunnerPath=Join-Path $Evidence 'temporary-o4-h01-run.sh'
+$H02RunnerPath=Join-Path $Evidence 'temporary-h02-identity-run.sh'
 $CaPath=Join-Path $Evidence 'pg-root-ca.crt'
 $MigratorPw=RandomHex
 $RuntimePw=RandomHex
+$IdentityPw=RandomHex
 $Scope=RandomHex
 $NetworkAttempted=$false
 $ContainerAttempted=$false
@@ -192,7 +194,8 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
 
     [IO.File]::WriteAllText($RolesPath,(
         "CREATE ROLE ys_o3_migrator LOGIN PASSWORD '$MigratorPw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;" + [Environment]::NewLine +
-        "CREATE ROLE ys_o3_runtime LOGIN PASSWORD '$RuntimePw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT;" + [Environment]::NewLine
+        "CREATE ROLE ys_o3_runtime LOGIN PASSWORD '$RuntimePw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT;" + [Environment]::NewLine +
+        "CREATE ROLE ys_h02_identity LOGIN PASSWORD '$IdentityPw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT;" + [Environment]::NewLine
     ),$Utf8)
     Stage 'o3-roles-copy' $Docker @('cp',$RolesPath,($Container+':/tmp/o3-roles.sql'))
     Stage 'o3-roles-apply' $Docker @('exec',$Container,'psql','-X','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-f','/tmp/o3-roles.sql')
@@ -201,10 +204,10 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     Stage 'o3-db-create' $Docker @('exec',$Container,'createdb','-U','postgres','--owner=postgres',$Db)
     [IO.File]::WriteAllText($GrantsPath,(
         "REVOKE ALL ON DATABASE $Db FROM PUBLIC;" + [Environment]::NewLine +
-        "GRANT CONNECT ON DATABASE $Db TO ys_o3_migrator,ys_o3_runtime;" + [Environment]::NewLine +
+        "GRANT CONNECT ON DATABASE $Db TO ys_o3_migrator,ys_o3_runtime,ys_h02_identity;" + [Environment]::NewLine +
         "REVOKE ALL ON SCHEMA public FROM PUBLIC;" + [Environment]::NewLine +
         "GRANT USAGE,CREATE ON SCHEMA public TO ys_o3_migrator;" + [Environment]::NewLine +
-        "GRANT USAGE ON SCHEMA public TO ys_o3_runtime;" + [Environment]::NewLine +
+        "GRANT USAGE ON SCHEMA public TO ys_o3_runtime,ys_h02_identity;" + [Environment]::NewLine +
         "CREATE TABLE public.yangspace_f2b_o3_qa_guard(scope_token text PRIMARY KEY);" + [Environment]::NewLine +
         "INSERT INTO public.yangspace_f2b_o3_qa_guard(scope_token) VALUES ('$Scope');" + [Environment]::NewLine +
         "GRANT SELECT ON public.yangspace_f2b_o3_qa_guard TO ys_o3_migrator,ys_o3_runtime;" + [Environment]::NewLine
@@ -216,8 +219,10 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     $BaseCs="Host=localhost;Port=5432;Database=$Db;SSL Mode=VerifyFull;Root Certificate=/run/pgcerts/ca.crt;Pooling=false;Timeout=10;Command Timeout=30;Include Error Detail=false"
     $MigratorCs="$BaseCs;Username=ys_o3_migrator;Password=$MigratorPw"
     $RuntimeCs="$BaseCs;Username=ys_o3_runtime;Password=$RuntimePw"
+    $IdentityCs="$BaseCs;Username=ys_h02_identity;Password=$IdentityPw"
     $MigratorB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($MigratorCs))
     $RuntimeB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($RuntimeCs))
+    $IdentityB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($IdentityCs))
     $ScopeB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Scope))
     $Run=@'
 #!/bin/bash
@@ -226,11 +231,13 @@ umask 077
 export YANGSPACE_F2B_O3_PG_MIGRATOR_CONNECTION="$(printf '%s' '__MIGRATOR__' | base64 -d)"
 export YANGSPACE_F2B_O3_PG_RUNTIME_CONNECTION="$(printf '%s' '__RUNTIME__' | base64 -d)"
 export YANGSPACE_F2B_O3_PG_SCOPE_TOKEN="$(printf '%s' '__SCOPE__' | base64 -d)"
+export YANGSPACE_F2B_H02_PG_IDENTITY_CONNECTION="$(printf '%s' '__IDENTITY__' | base64 -d)"
+export YANGSPACE_RELEASE_COMMIT_SHA='__COMMIT_SHA__'
 export YANGSPACE_F2B_O3_PG_KEY_DIR=/run/pgcerts/o3-keys
 cd /tmp/o3-runtime
 exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
 '@
-    $Run=$Run.Replace('__MIGRATOR__',$MigratorB64).Replace('__RUNTIME__',$RuntimeB64).Replace('__SCOPE__',$ScopeB64)
+    $Run=$Run.Replace('__MIGRATOR__',$MigratorB64).Replace('__RUNTIME__',$RuntimeB64).Replace('__SCOPE__',$ScopeB64).Replace('__IDENTITY__',$IdentityB64).Replace('__COMMIT_SHA__',$CommitSha)
     [IO.File]::WriteAllText($RunnerPath,([regex]::Replace($Run,"\r\n?",[string][char]10)),$Utf8)
     Stage 'o3-runtime-mkdir' $Docker @('exec',$Container,'mkdir','-p','/tmp/o3-runtime')
     Stage 'o3-runtime-copy' $Docker @('cp',($Publish+'\.'),($Container+':/tmp/o3-runtime/'))
