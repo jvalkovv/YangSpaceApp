@@ -1,6 +1,6 @@
 # F2b H02 — signed public Identity release authorization
 
-Status: source implementation in progress. This document is not a production approval and contains no signing key or live authorization.
+Status: H02 source candidate committed at `9403397f572cf2f17676b3b92861d2764bafb94b`; exact-SHA runtime acceptance is pending. This document is not a production approval and contains no signing key or live authorization.
 
 ## Trust model
 
@@ -46,10 +46,20 @@ The verifier allows at most five minutes of future clock skew, requires issue ti
 
 The same verifier is used at API startup and hosted outbox-worker activation. Missing/malformed payloads, invalid key IDs/public keys/signatures, wrong scope/audience/environment/commit and invalid time windows are refused. Only stable non-secret failure markers are emitted; payloads, signatures, keys and tokens are never logged.
 
-Both public feature switches remain false in source-controlled defaults. This implementation does not generate any authorization and is not a production approval. No live SMTP, CT164, Production DB or public release is authorized.
+Both public feature switches remain false in source-controlled defaults. This implementation does not generate any production authorization and is not a production approval. No live SMTP, CT164, Production DB or public release is authorized.
 
-## QA
+## Source implementation candidate
 
-The pure runtime contract generates an ephemeral P-256 keypair and tests valid signature, signature tampering, expiry, future issuance, excessive lifetime, wrong scope, audience, environment, deployment SHA, key ID and invalid public key. This is verifier QA only, not production authorization.
+The current candidate is `9403397f572cf2f17676b3b92861d2764bafb94b`, tracked by Draft PR #46 and stacked on the accepted H01 source.
 
-The next H02 runtime stage must use the same verifier in a real Production WebApplicationFactory against disposable PostgreSQL 17/TLS VerifyFull and a fake transport registered through normal DI. It must use a separate non-elevated Identity runtime role; the O3 worker-only role must not be broadened to grant credential reads.
+- API startup and hosted worker activation use the same signed authorization verifier.
+- The previous `allowSyntheticDispatch` worker-constructor bypass has been removed. O3 SQLite and PostgreSQL worker contracts now use ephemeral signed P-256 authorizations through the same Production verifier; private keys remain in memory.
+- H02 Production TestServer uses the real application `Program`, Production environment, disposable PostgreSQL 17/TLS VerifyFull, a non-elevated Identity role and an in-memory fake transport registered through normal DI.
+- HTTP coverage includes registration/outbox transaction rollback, confirmation/replay/expiry, resend retry release, bearer login/session, forgot/reset/expiry, staff-role denial and generic unknown-email responses.
+- The exact-SHA runner includes O3 regression, enqueue regression, H01/H02 Production TestServer, evidence hashing, cleanup and Independent Postflight.
+
+## QA status
+
+**Runtime acceptance is NOT complete.** The Windows exact-SHA runner and Independent Postflight have not yet been executed at the current candidate SHA. No runtime PASS is claimed. PR #46 remains Draft and H02 remains HOLD until every stage and the independent verifier pass on one exact commit.
+
+The operator run must use the exact SHA from PR #46 and produce a fresh evidence directory and manifest. Evidence from earlier commits is not reusable.
