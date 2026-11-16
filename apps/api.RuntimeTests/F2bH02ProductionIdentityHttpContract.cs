@@ -201,7 +201,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         await ExpeditePendingAsync(identityConnection, outboxId);
         var confirmation = await WaitForDeliveryAsync(fake, IdentityEmailPurpose.ConfirmEmail,
             email, TimeSpan.FromSeconds(20));
-        await WaitForStatusAsync(identityConnection, outboxId, 3, TimeSpan.FromSeconds(10));
+        await WaitForStatusAsync(identityConnection, outboxId, IdentityEmailOutboxStatus.Sent, TimeSpan.FromSeconds(10));
         Check(confirmation.Payload.StartsWith(
             PublicAccountReleaseAuthorization.RequiredAudience + "/api/public-account/confirm?",
             StringComparison.Ordinal), "F2B_H02_CONFIRMATION_LINK_CANONICAL_HTTPS");
@@ -392,10 +392,12 @@ internal static class F2bH02ProductionIdentityHttpContract
             await using var cmd = c.CreateCommand();
             cmd.CommandText = """
                 SELECT "Id" FROM public."IdentityEmailOutbox"
-                WHERE "UserId"=@user AND "Purpose"=1 AND "Status"=1 AND "AttemptCount"=1
+                WHERE "UserId"=@user AND "Purpose"=@purpose AND "Status"=@pending AND "AttemptCount"=1
                 ORDER BY "QueuedAtUtc" DESC LIMIT 1
                 """;
             cmd.Parameters.AddWithValue("user", userId);
+            cmd.Parameters.AddWithValue("purpose", (int)IdentityEmailPurpose.ConfirmEmail);
+            cmd.Parameters.AddWithValue("pending", (int)IdentityEmailOutboxStatus.Pending);
             var value = await cmd.ExecuteScalarAsync();
             if (value is Guid id) return id;
             await Task.Delay(100);
@@ -411,14 +413,15 @@ internal static class F2bH02ProductionIdentityHttpContract
         cmd.CommandText = """
             UPDATE public."IdentityEmailOutbox"
             SET "AvailableAtUtc"=CURRENT_TIMESTAMP
-            WHERE "Id"=@id AND "Status"=1
+            WHERE "Id"=@id AND "Status"=@pending
             """;
         cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("pending", (int)IdentityEmailOutboxStatus.Pending);
         Check(await cmd.ExecuteNonQueryAsync() == 1, "F2B_H02_RETRY_RELEASED");
     }
 
     private static async Task WaitForStatusAsync(
-        string connection, Guid id, int status, TimeSpan timeout)
+        string connection, Guid id, IdentityEmailOutboxStatus status, TimeSpan timeout)
     {
         var until = DateTimeOffset.UtcNow + timeout;
         while (DateTimeOffset.UtcNow < until)
@@ -429,7 +432,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             cmd.CommandText = """SELECT "Status" FROM public."IdentityEmailOutbox" WHERE "Id"=@id""";
             cmd.Parameters.AddWithValue("id", id);
             var value = await cmd.ExecuteScalarAsync();
-            if (value is not null && Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture) == status)
+            if (value is not null && Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture) == (int)status)
                 return;
             await Task.Delay(100);
         }
