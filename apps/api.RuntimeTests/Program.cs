@@ -270,6 +270,15 @@ if (args.Length == 1 && string.Equals(args[0], "--f2b-outbox-worker-synthetic-on
     return;
 }
 
+// H01: actual Production Program startup against disposable PostgreSQL 17
+// with public registration/dispatch OFF and fail-closed negative gates.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o4-h01-postgresql-http-only", StringComparison.Ordinal))
+{
+    await F2bO4H01PostgreSqlStartupContract.RunAsync();
+    return;
+}
+
 // Disposable PostgreSQL 17 O3 worker/provider contract. Real Npgsql + TLS VerifyFull,
 // dedicated migrator/runtime roles and fake transport only.
 if (args.Length == 1 &&
