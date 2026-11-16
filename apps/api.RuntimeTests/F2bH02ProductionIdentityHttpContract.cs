@@ -125,27 +125,6 @@ internal static class F2bH02ProductionIdentityHttpContract
                 values["PublicAccounts:Email:Username"] = "synthetic";
                 values["PublicAccounts:Email:Password"] = "synthetic-never-used";
                 values["PublicAccounts:Email:From"] = "no-reply@yangspace.gndstore.eu";
-                var overrides = new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:Main"] = _connection,
-                    ["Database:Provider"] = "PostgreSQL",
-                    ["AllowedHosts"] = "yangspace.gndstore.eu",
-                    ["Preview:Enabled"] = "false",
-                    ["Preview:AllowRegistration"] = "false",
-                    ["Admin:Enabled"] = "false",
-                    ["MerchantRead:Enabled"] = "false",
-                    ["ClaimReview:QaEnabled"] = "false",
-                    ["ClaimReviewPostgreSqlQa:Enabled"] = "false",
-                    ["PublicAccounts:Enabled"] = "true",
-                    ["PublicAccounts:Outbox:DispatchEnabled"] = "true",
-                    ["PublicAccounts:CanonicalOrigin"] = PublicAccountReleaseAuthorization.RequiredAudience,
-                    ["PublicAccounts:Email:SmtpHost"] = "127.0.0.1",
-                    ["PublicAccounts:Email:Port"] = "587",
-                    ["PublicAccounts:Email:Username"] = "synthetic",
-                    ["PublicAccounts:Email:Password"] = "synthetic-never-used",
-                    ["PublicAccounts:Email:From"] = "no-reply@yangspace.gndstore.eu"
-                };
-                foreach (var pair in overrides) values[pair.Key] = pair.Value;
                 configuration.AddInMemoryCollection(values);
             });
             builder.ConfigureTestServices(services =>
