@@ -67,7 +67,7 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             var queue=runtimeScope.ServiceProvider.GetRequiredService<IEmailSender<IdentityUser>>();
             var users=migratorScope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
             Check(await VerifyScope(runtimeCs,scopeToken,"ys_o3_runtime"),"F2B_O3_PG_RUNTIME_TLS_SCOPE");
-            Check(!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,"F2B_O3_PG_PRODUCTION_DISPATCHER_FALSE");
+            Check(IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,"F2B_O3_PG_DISPATCH_IMPLEMENTATION_AVAILABLE");
             Check(runtimeProvider.GetServices<IHostedService>().Any(x=>x is IdentityEmailOutboxWorker),"F2B_O3_PG_DI_ACTIVATION");
             Check(ReferenceEquals(runtimeScope.ServiceProvider.GetRequiredService<IIdentityEmailOutboxTransport>(),fake),"F2B_O3_PG_FAKE_TRANSPORT_ONLY");
 
