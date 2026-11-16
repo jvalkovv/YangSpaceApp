@@ -114,6 +114,18 @@ try {
         'F2B_O3_WORKER_OPERATOR_REPLAY','F2B_O3_WORKER_RETENTION_PURGE',
         'F2B_O3_WORKER_SQLITE_SYNTHETIC_ONLY'
     )) { Marker 'o3-sqlite-regression' $M }
+    Stage 'h02-release-auth-contract' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--f2b-h02-release-authorization-only')
+    foreach ($M in @(
+        'F2B_H02_AUTH_VALID_SIGNATURE','F2B_H02_AUTH_MISSING_REFUSED',
+        'F2B_H02_AUTH_BAD_SIGNATURE_REFUSED','F2B_H02_AUTH_EXPIRED_REFUSED',
+        'F2B_H02_AUTH_FUTURE_ISSUED_REFUSED','F2B_H02_AUTH_LONG_LIFETIME_REFUSED',
+        'F2B_H02_AUTH_WRONG_AUDIENCE_REFUSED','F2B_H02_AUTH_WRONG_SCOPE_REFUSED',
+        'F2B_H02_AUTH_WRONG_ENVIRONMENT_REFUSED','F2B_H02_AUTH_WRONG_COMMIT_REFUSED',
+        'F2B_H02_AUTH_WRONG_KEY_ID_REFUSED','F2B_H02_AUTH_BAD_PUBLIC_KEY_REFUSED',
+        'F2B_H02_AUTH_DEPLOYMENT_SHA_BINDING','F2B_H02_AUTH_PRODUCTION_ONLY',
+        'F2B_H02_AUTH_DEFAULT_SWITCHES_OFF','F2B_H02_AUTH_IMPLEMENTATION_AVAILABLE_AFTER_O3',
+        'F2B_H02_SIGNED_RELEASE_AUTHORIZATION_CONTRACT'
+    )) { Marker 'h02-release-auth-contract' $M }
     Stage 'o3-publish-linux' $Dotnet @('publish',$Project,'-c','Release','-r','linux-x64','--self-contained','true','-warnaserror','-o',$Publish)
     $AppHost=Join-Path $Publish 'YangSpace.Api.RuntimeTests'
     $Dll=Join-Path $Publish 'YangSpace.Api.RuntimeTests.dll'
