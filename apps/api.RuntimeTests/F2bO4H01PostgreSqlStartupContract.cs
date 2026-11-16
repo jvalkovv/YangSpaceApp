@@ -14,7 +14,7 @@ using Npgsql;
 using YangSpace.Api;
 
 // H01 executes the real Program Production startup and ProductionSchemaGate via TestServer.
-// PublicAccounts and production dispatch remain off; no fake production activation bypass.
+// Positive route checks remain default-OFF; invalid authorization probes only verify fail-closed startup.
 internal static class F2bO4H01PostgreSqlStartupContract
 {
     private const string DbName = "yangspace_f2b_o3_worker_disposable";
