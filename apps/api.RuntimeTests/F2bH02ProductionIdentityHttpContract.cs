@@ -279,6 +279,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         var confirmation = await WaitForDeliveryAsync(fake, IdentityEmailPurpose.ConfirmEmail,
             email, TimeSpan.FromSeconds(20));
         await WaitForStatusAsync(identityConnection, outboxId, IdentityEmailOutboxStatus.Sent, TimeSpan.FromSeconds(10));
+        Check(true, "F2B_H02_POSTGRES_ENUM_TEXT_MAPPING");
         Check(await ReadAttemptCountAsync(identityConnection, outboxId) >= 2,
             "F2B_H02_RESEND_CONFIRMATION_RELEASES_RETRY");
         Check(confirmation.Payload.StartsWith(
@@ -761,8 +762,14 @@ internal static class F2bH02ProductionIdentityHttpContract
                 ORDER BY "QueuedAtUtc" DESC LIMIT 1
                 """;
             cmd.Parameters.AddWithValue("user", userId);
-            cmd.Parameters.AddWithValue("purpose", (int)IdentityEmailPurpose.ConfirmEmail);
-            cmd.Parameters.AddWithValue("pending", (int)IdentityEmailOutboxStatus.Pending);
+            cmd.Parameters.Add(new NpgsqlParameter("purpose", NpgsqlTypes.NpgsqlDbType.Varchar)
+            {
+                Value = IdentityEmailPurpose.ConfirmEmail.ToString()
+            });
+            cmd.Parameters.Add(new NpgsqlParameter("pending", NpgsqlTypes.NpgsqlDbType.Varchar)
+            {
+                Value = IdentityEmailOutboxStatus.Pending.ToString()
+            });
             var value = await cmd.ExecuteScalarAsync();
             if (value is Guid id) return id;
             await Task.Delay(100);
@@ -782,7 +789,8 @@ internal static class F2bH02ProductionIdentityHttpContract
             cmd.CommandText = """SELECT "Status" FROM public."IdentityEmailOutbox" WHERE "Id"=@id""";
             cmd.Parameters.AddWithValue("id", id);
             var value = await cmd.ExecuteScalarAsync();
-            if (value is not null && Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture) == (int)status)
+            if (value is string persistedStatus &&
+                string.Equals(persistedStatus, status.ToString(), StringComparison.Ordinal))
                 return;
             await Task.Delay(100);
         }

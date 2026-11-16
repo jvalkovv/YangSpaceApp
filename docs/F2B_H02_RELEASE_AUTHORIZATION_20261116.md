@@ -56,12 +56,13 @@ The current candidate is the HEAD of implementation branch `feat/yangspace-f2b-h
 - The previous `allowSyntheticDispatch` worker-constructor bypass has been removed. O3 SQLite and PostgreSQL worker contracts now use ephemeral signed P-256 authorizations through the same Production verifier; private keys remain in memory.
 - H02 Production TestServer uses the real application `Program`, Production environment, disposable PostgreSQL 17/TLS VerifyFull, a non-elevated Identity role and an in-memory fake transport registered through normal DI.
 - Before `WebApplicationFactory.CreateClient`, the harness seeds the disposable connection, PostgreSQL provider, Production switches, SMTP sentinel values and ephemeral signed authorization into process environment. This is required because minimal-host `Program` evaluates fail-closed configuration guards before `ConfigureWebHost` applies its in-memory overrides; the scope restores every prior process value on disposal.
+- PostgreSQL persists `IdentityEmailPurpose` and `IdentityEmailOutboxStatus` as `character varying(32)` through EF string converters. The H02 raw SQL QA helpers must therefore bind enum names as VARCHAR and compare returned status names as strings, never as integer enum ordinals.
 - The disposable QA scope guard is verified through the migrator principal only. The Identity runtime principal is deliberately denied access to this QA-only table; its least-privilege contract verifies that denial rather than widening runtime grants.
 - HTTP coverage includes registration/outbox transaction rollback, confirmation/replay/expiry, resend retry release, bearer login/session, forgot/reset/expiry, staff-role denial and generic unknown-email responses.
 - The exact-SHA runner includes O3 regression, enqueue regression, H01/H02 Production TestServer, evidence hashing, cleanup and Independent Postflight.
 
 ## QA status
 
-**Runtime acceptance is NOT complete.** The Windows exact-SHA runner and Independent Postflight have not yet been executed at the current candidate SHA. No runtime PASS is claimed. PR #46 remains Draft and H02 remains HOLD until every stage and the independent verifier pass on one exact commit.
+**Runtime acceptance is NOT complete.** The latest run at `5c4afc10f7099250a787f364c80c698b45762952` passed O3, H01, H02 startup and the registration/outbox atomic write, then exposed a raw-SQL QA helper mismatch: the PostgreSQL schema stores outbox purpose/status as VARCHAR via EF string conversion, while the helper bound integer enum ordinals and parsed persisted status as an integer. The correction is committed in the next exact source SHA; the full runner and Independent Postflight must be rerun at that SHA. No H02 HTTP acceptance is claimed.
 
 The operator run must use the exact SHA from PR #46 and produce a fresh evidence directory and manifest. Evidence from earlier commits is not reusable.
