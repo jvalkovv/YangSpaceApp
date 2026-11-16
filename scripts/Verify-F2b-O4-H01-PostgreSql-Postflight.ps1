@@ -316,6 +316,7 @@ $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_FINAL_CLEAN_SOURCE'
 Write-Host 'F2B_O4_H01_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H02_INDEPENDENT_POSTFLIGHT=PASS'
+Write-Host 'F2B_H03_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant())

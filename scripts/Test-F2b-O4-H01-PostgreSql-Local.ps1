@@ -411,7 +411,15 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_H02_NO_COOKIE_CLIENT_FALLBACK',
         'F2B_H02_NO_REAL_SMTP',
         'F2B_H02_NO_CT164_OR_PRODUCTION_DB',
-        'F2B_H02_IDENTITY_HTTP_FAKE_TRANSPORT'
+        'F2B_H02_IDENTITY_HTTP_FAKE_TRANSPORT',
+        'F2B_H03_REGISTER_ACCOUNT_BUDGET',
+        'F2B_H03_RESEND_ACCOUNT_BUDGET',
+        'F2B_H03_POSTGRES_ATOMIC_CROSS_PEER_COUNTER',
+        'F2B_H03_FORGOT_ACCOUNT_BUDGET',
+        'F2B_H03_RESET_ACCOUNT_BUDGET',
+        'F2B_H03_IDENTITY_FIVE_FAILURE_LOCKOUT',
+        'F2B_H03_IDENTITY_LOCKOUT_NOT_BYPASSED_BY_PEER',
+        'F2B_H03_IDENTITY_LOCKOUT_EXPIRY_RECOVERY'
     )) { Marker 'h02-production-http' $M }
     Stage 'o3-runtime-clean' $Docker @('exec',$Container,'rm','-rf','/tmp/o3-runtime','/qa','/tmp/o3-run.sh','/tmp/o4-h01-run.sh','/tmp/h02-identity-run.sh','/run/pgcerts/o3-keys')
     $Complete=$true
@@ -485,6 +493,7 @@ $HashPaths=@(
     'apps/api.RuntimeTests/F2bH02ProductionIdentityHttpContract.cs',
     'apps/api/appsettings.json',
     'docs/F2B_H02_RELEASE_AUTHORIZATION_20261116.md',
+    'docs/F2B_H03_IDENTITY_ABUSE_PROTECTION_20261116.md',
     'scripts/Invoke-YangSpaceStage.ps1',
     'scripts/Test-F2b-Outbox-Worker-PostgreSql-Local.ps1',
     'scripts/Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1',
@@ -554,6 +563,7 @@ $Manifest=@(
 if (-not $?) { throw 'F2B_O4_H01_INDEPENDENT_POSTFLIGHT_FAILED' }
 Write-Host 'F2B_O4_H01_PRODUCTION_STARTUP_QA=PASS'
 Write-Host 'F2B_H02_PRODUCTION_IDENTITY_HTTP_QA=PASS'
+Write-Host 'F2B_H03_APPLICATION_ABUSE_PROTECTION_QA=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath (Join-Path $Evidence 'manifest.txt') -Algorithm SHA256).Hash.ToLowerInvariant())
