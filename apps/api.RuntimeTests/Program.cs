@@ -279,6 +279,14 @@ if (args.Length == 1 &&
     return;
 }
 
+// H02: signed public-account release authorization; no production-policy bypass.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h02-release-authorization-only", StringComparison.Ordinal))
+{
+    F2bH02ReleaseAuthorizationContract.Run();
+    return;
+}
+
 // Disposable PostgreSQL 17 O3 worker/provider contract. Real Npgsql + TLS VerifyFull,
 // dedicated migrator/runtime roles and fake transport only.
 if (args.Length == 1 &&
