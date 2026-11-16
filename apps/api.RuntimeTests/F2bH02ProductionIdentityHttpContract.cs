@@ -106,7 +106,26 @@ internal static class F2bH02ProductionIdentityHttpContract
             builder.UseEnvironment(Environments.Production);
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
-                var values = new Dictionary<string, string?>(_configuration, StringComparer.Ordinal)
+                var values = _configuration.ToDictionary(
+                    pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+                values["ConnectionStrings:Main"] = _connection;
+                values["Database:Provider"] = "PostgreSQL";
+                values["AllowedHosts"] = "yangspace.gndstore.eu";
+                values["Preview:Enabled"] = "false";
+                values["Preview:AllowRegistration"] = "false";
+                values["Admin:Enabled"] = "false";
+                values["MerchantRead:Enabled"] = "false";
+                values["ClaimReview:QaEnabled"] = "false";
+                values["ClaimReviewPostgreSqlQa:Enabled"] = "false";
+                values["PublicAccounts:Enabled"] = "true";
+                values["PublicAccounts:Outbox:DispatchEnabled"] = "true";
+                values["PublicAccounts:CanonicalOrigin"] = PublicAccountReleaseAuthorization.RequiredAudience;
+                values["PublicAccounts:Email:SmtpHost"] = "127.0.0.1";
+                values["PublicAccounts:Email:Port"] = "587";
+                values["PublicAccounts:Email:Username"] = "synthetic";
+                values["PublicAccounts:Email:Password"] = "synthetic-never-used";
+                values["PublicAccounts:Email:From"] = "no-reply@yangspace.gndstore.eu";
+                var overrides = new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:Main"] = _connection,
                     ["Database:Provider"] = "PostgreSQL",
@@ -126,6 +145,7 @@ internal static class F2bH02ProductionIdentityHttpContract
                     ["PublicAccounts:Email:Password"] = "synthetic-never-used",
                     ["PublicAccounts:Email:From"] = "no-reply@yangspace.gndstore.eu"
                 };
+                foreach (var pair in overrides) values[pair.Key] = pair.Value;
                 configuration.AddInMemoryCollection(values);
             });
             builder.ConfigureTestServices(services =>
@@ -274,6 +294,9 @@ internal static class F2bH02ProductionIdentityHttpContract
         });
         return new Dictionary<string, string?>
         {
+            ["PublicAccounts:CanonicalOrigin"] = PublicAccountReleaseAuthorization.RequiredAudience,
+            ["PublicAccounts:Enabled"] = "true",
+            ["PublicAccounts:Outbox:DispatchEnabled"] = "true",
             ["PublicAccounts:ReleaseAuthorization:Payload"] = WebEncoders.Base64UrlEncode(bytes),
             ["PublicAccounts:ReleaseAuthorization:Signature"] = WebEncoders.Base64UrlEncode(
                 signer.SignData(bytes, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence)),
