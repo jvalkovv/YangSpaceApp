@@ -5,7 +5,7 @@ param([Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$Co
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h02-release-auth-http-20261116'
+$Branch='feat/yangspace-f2b-h03-identity-abuse-controls-20261116'
 $Project='apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
 $Db='yangspace_f2b_o3_worker_disposable'
 $Image='postgres:17'
@@ -75,10 +75,10 @@ $DockerVersion=DockerValue @('info','--format','{{.ServerVersion}}')
 $ImageId=DockerValue @('image','inspect','--format','{{.Id}}',$Image)
 Check ($ImageId -match '^sha256:[0-9a-f]{64}$') 'F2B_O3_PG_IMAGE_PREEXISTS'
 $Nonce=RandomHex
-$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h02-identity') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
+$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h03-identity-abuse') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
-$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-h02-'+$Nonce.Substring(0,12))
+$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-h03-'+$Nonce.Substring(0,12))
 $Publish=Join-Path $Temp 'publish'
 $Network='ys-f2b-o3-'+$Nonce.Substring(0,12)
 $Container='ys-f2b-o3-pg17-'+$Nonce.Substring(0,12)
@@ -140,6 +140,38 @@ try {
         'F2B_H02_AUTH_DEFAULT_SWITCHES_OFF','F2B_H02_AUTH_IMPLEMENTATION_AVAILABLE_AFTER_O3',
         'F2B_H02_SIGNED_RELEASE_AUTHORIZATION_CONTRACT'
     )) { Marker 'h02-release-auth-contract' $M }
+    Stage 'h03-abuse-sqlite' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--f2b-h03-identity-abuse-sqlite-only')
+    foreach ($M in @(
+        'F2B_H03_ABUSE_HMAC_KEY_VALIDATED',
+        'F2B_H03_ABUSE_MISSING_HMAC_KEY_FAILS_CLOSED',
+        'F2B_H03_ABUSE_SHORT_HMAC_KEY_FAILS_CLOSED',
+        'F2B_H03_ABUSE_SQLITE_MIGRATIONS_APPLIED',
+        'F2B_H03_ABUSE_RESEND_FIRST_ALLOWED',
+        'F2B_H03_ABUSE_NORMALIZED_EMAIL_SHARED_BUCKET',
+        'F2B_H03_ABUSE_THIRD_ALLOWED',
+        'F2B_H03_ABUSE_RESEND_LIMIT_ENFORCED',
+        'F2B_H03_ABUSE_OPERATION_BUCKET_ISOLATION',
+        'F2B_H03_ABUSE_ACCOUNT_BUCKET_ISOLATION',
+        'F2B_H03_ABUSE_COUNTER_PERSISTED',
+        'F2B_H03_ABUSE_NO_RAW_EMAIL_AT_REST',
+        'F2B_H03_ABUSE_WINDOW_EXPIRY_RECOVERY',
+        'F2B_H03_ABUSE_ATOMIC_CONCURRENT_BUDGET',
+        'F2B_H03_ABUSE_RETENTION_NEW_WINDOW_ALLOWED',
+        'F2B_H03_ABUSE_EXPIRED_COUNTERS_PURGED',
+        'F2B_H03_ABUSE_SQLITE_RUNTIME',
+        'F2B_H03_ABUSE_CROSS_INSTANCE_ATOMIC_UPSERT',
+        'F2B_H03_ABUSE_RETENTION'
+    )) { Marker 'h03-abuse-sqlite' $M }
+    Stage 'h03-auth-rate-http' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--f2b-h03-auth-rate-http-only')
+    foreach ($M in @(
+        'F2B_H03_AUTH_RATE_HTTP_429_AFTER_TWELVE',
+        'F2B_H03_AUTH_RATE_CLIENT_B_INDEPENDENT_BUDGET',
+        'F2B_H03_AUTH_RATE_MAPPED_IPV4_SAME_BUCKET',
+        'F2B_H03_AUTH_RATE_UNKNOWN_PEER_LIMITED',
+        'F2B_H03_AUTH_RATE_REAL_MIDDLEWARE',
+        'F2B_H03_AUTH_RATE_FORWARDED_HEADER_NOT_TRUSTED',
+        'F2B_H03_AUTH_RATE_TESTSERVER_ONLY'
+    )) { Marker 'h03-auth-rate-http' $M }
     Stage 'o3-publish-linux' $Dotnet @('publish',$Project,'-c','Release','-r','linux-x64','--self-contained','true','-warnaserror','-o',$Publish)
     $AppHost=Join-Path $Publish 'YangSpace.Api.RuntimeTests'
     $Dll=Join-Path $Publish 'YangSpace.Api.RuntimeTests.dll'
@@ -430,6 +462,17 @@ $HashPaths=@(
     'apps/api/ProductionPostgreSqlPolicy.cs',
     'apps/api/ProductionSchemaGate.cs',
     'apps/api/PublicAccountEndpoints.cs',
+    'apps/api/IdentityAbuseThrottle.cs',
+    'apps/persistence/IdentityAbuseCounter.cs',
+    'apps/persistence/Models.cs',
+    'apps/api/Migrations/20261116213000_F2bIdentityAbuseProtection.cs',
+    'apps/api/Migrations/20261116213000_F2bIdentityAbuseProtection.Designer.cs',
+    'apps/api/Migrations/DirectoryDbModelSnapshot.cs',
+    'apps/api.Migrations.PostgreSql/Migrations/20261116213000_F2bIdentityAbuseProtection.cs',
+    'apps/api.Migrations.PostgreSql/Migrations/20261116213000_F2bIdentityAbuseProtection.Designer.cs',
+    'apps/api.Migrations.PostgreSql/Migrations/DirectoryDbModelSnapshot.cs',
+    'apps/api.RuntimeTests/AuthRateLimitHttpContract.cs',
+    'apps/api.RuntimeTests/IdentityAbuseThrottleContract.cs',
     'apps/api/PublicAccountReleaseAuthorization.cs',
     'apps/api/SmtpPublicIdentityEmailSender.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxWorkerContract.cs',
@@ -456,7 +499,8 @@ foreach ($P in $HashPaths) {
 }
 foreach ($P in @(
     'pg-root-ca.crt','o3-sqlite-regression.stdout.log','h02-enqueue-synthetic.stdout.log','o3-pg-worker.stdout.log',
-    'h02-release-auth-contract.stdout.log','o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
+    'h02-release-auth-contract.stdout.log','h03-abuse-sqlite.stdout.log','h03-auth-rate-http.stdout.log',
+    'o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
     'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
 )) {
     $Checksums+=((Get-FileHash -LiteralPath (Join-Path $Evidence $P) -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
@@ -489,6 +533,9 @@ $Manifest=@(
     'H02_AUTHORIZATION_STARTUP_NEGATIVE_MATRIX=PASS',
     'H02_IDENTITY_RUNTIME_ROLE=ys_h02_identity',
     'H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE=PASS',
+    'H03_APPLICATION_ABUSE_PROTECTION=PASS_TESTSERVER_AND_DISPOSABLE_SQLITE_POSTGRES',
+    'H03_ACCOUNT_KEY=HMAC_SHA256_ONLY',
+    'H03_RAW_EMAIL_COUNTER_STORAGE=PROHIBITED',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -500,7 +547,7 @@ $Manifest=@(
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H02_REVIEW_AND_H03_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H03_REVIEW_AND_H04_H06'
 )
 [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]$Manifest,$Utf8)
 & (Join-Path $PSScriptRoot 'Verify-F2b-O4-H01-PostgreSql-Postflight.ps1') -CommitSha $CommitSha -EvidenceDirectory $Evidence

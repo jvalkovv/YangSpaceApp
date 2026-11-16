@@ -556,6 +556,7 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         // Distinct transport peers race on one account key. The PostgreSQL
         // UPSERT must preserve every increment and enforce one shared budget.
+        client.DefaultRequestHeaders.Remove(TestPeerAddressStartupFilter.RequestHeader);
         var concurrentAbuseEmail = "h03-pg-concurrent-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         var concurrentRequests = Enumerable.Range(1, 16).Select(async index =>
         {

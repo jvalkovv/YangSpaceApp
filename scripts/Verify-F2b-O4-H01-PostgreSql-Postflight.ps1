@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h02-release-auth-http-20261116'
+$Branch='feat/yangspace-f2b-h03-identity-abuse-controls-20261116'
 $Git=(Get-Command git.exe -ErrorAction Stop).Source
 $Docker=(Get-Command docker.exe -ErrorAction Stop).Source
 function Check([bool]$Ok,[string]$Marker) {
@@ -37,7 +37,7 @@ Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'POSTFLIGHT_BRANCH_O
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_CLEAN_SOURCE'
 $Evidence=(Resolve-Path -LiteralPath $EvidenceDirectory).Path
-$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h02-identity'))
+$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h03-identity-abuse'))
 Check ($Evidence.StartsWith($Root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) 'POSTFLIGHT_EVIDENCE_SCOPE'
 Check ((Split-Path $Evidence -Leaf) -match ('^'+$CommitSha.Substring(0,12)+'-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$')) 'POSTFLIGHT_EVIDENCE_IDENTITY'
 $ManifestPath=Join-Path $Evidence 'manifest.txt'
@@ -68,6 +68,9 @@ foreach ($Value in @(
     'H02_AUTHORIZATION_STARTUP_NEGATIVE_MATRIX=PASS',
     'H02_IDENTITY_RUNTIME_ROLE=ys_h02_identity',
     'H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE=PASS',
+    'H03_APPLICATION_ABUSE_PROTECTION=PASS_TESTSERVER_AND_DISPOSABLE_SQLITE_POSTGRES',
+    'H03_ACCOUNT_KEY=HMAC_SHA256_ONLY',
+    'H03_RAW_EMAIL_COUNTER_STORAGE=PROHIBITED',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -79,7 +82,7 @@ foreach ($Value in @(
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H02_REVIEW_AND_H03_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H03_REVIEW_AND_H04_H06'
 )) { ManifestLine $Lines $Value }
 $PgVersionEntry=@($Lines | Where-Object { $_ -like 'POSTGRES_VERSION=*' })
 Check ($PgVersionEntry.Count -eq 1) 'POSTFLIGHT_PG_VERSION_RECORDED'
@@ -111,7 +114,8 @@ foreach ($Label in @(
     'o3-runtime-copy','o3-runtime-chmod','o3-pg-worker',
     'o4-h01-root-mkdir','o4-h01-root-copy','o4-h01-root-verify',
     'o4-h01-runner-copy','o4-h01-runner-mode','o4-h01-testserver',
-    'h02-release-auth-contract','h02-identity-runner-copy','h02-identity-runner-mode','h02-production-http','o3-runtime-clean'
+    'h02-release-auth-contract','h03-abuse-sqlite','h03-auth-rate-http',
+    'h02-identity-runner-copy','h02-identity-runner-mode','h02-production-http','o3-runtime-clean'
 )) {
     foreach ($Suffix in @('.runner.cmd','.stdout.log','.stderr.log')) {
         Check (Test-Path -LiteralPath (Join-Path $Evidence ($Label+$Suffix)) -PathType Leaf) ('STAGE_'+($Label+$Suffix -replace '[^a-zA-Z0-9]','_'))
@@ -136,6 +140,36 @@ foreach ($M in @(
     'F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH','F2B_OUTBOX_ENQUEUE_SYNTHETIC_ONLY',
     'F2B_OUTBOX_SQLITE_CONCURRENCY'
 )) { Marker 'h02-enqueue-synthetic' $M }
+foreach ($M in @(
+    'F2B_H03_ABUSE_HMAC_KEY_VALIDATED',
+    'F2B_H03_ABUSE_MISSING_HMAC_KEY_FAILS_CLOSED',
+    'F2B_H03_ABUSE_SHORT_HMAC_KEY_FAILS_CLOSED',
+    'F2B_H03_ABUSE_SQLITE_MIGRATIONS_APPLIED',
+    'F2B_H03_ABUSE_RESEND_FIRST_ALLOWED',
+    'F2B_H03_ABUSE_NORMALIZED_EMAIL_SHARED_BUCKET',
+    'F2B_H03_ABUSE_THIRD_ALLOWED',
+    'F2B_H03_ABUSE_RESEND_LIMIT_ENFORCED',
+    'F2B_H03_ABUSE_OPERATION_BUCKET_ISOLATION',
+    'F2B_H03_ABUSE_ACCOUNT_BUCKET_ISOLATION',
+    'F2B_H03_ABUSE_COUNTER_PERSISTED',
+    'F2B_H03_ABUSE_NO_RAW_EMAIL_AT_REST',
+    'F2B_H03_ABUSE_WINDOW_EXPIRY_RECOVERY',
+    'F2B_H03_ABUSE_ATOMIC_CONCURRENT_BUDGET',
+    'F2B_H03_ABUSE_RETENTION_NEW_WINDOW_ALLOWED',
+    'F2B_H03_ABUSE_EXPIRED_COUNTERS_PURGED',
+    'F2B_H03_ABUSE_SQLITE_RUNTIME',
+    'F2B_H03_ABUSE_CROSS_INSTANCE_ATOMIC_UPSERT',
+    'F2B_H03_ABUSE_RETENTION'
+)) { Marker 'h03-abuse-sqlite' $M }
+foreach ($M in @(
+    'F2B_H03_AUTH_RATE_HTTP_429_AFTER_TWELVE',
+    'F2B_H03_AUTH_RATE_CLIENT_B_INDEPENDENT_BUDGET',
+    'F2B_H03_AUTH_RATE_MAPPED_IPV4_SAME_BUCKET',
+    'F2B_H03_AUTH_RATE_UNKNOWN_PEER_LIMITED',
+    'F2B_H03_AUTH_RATE_REAL_MIDDLEWARE',
+    'F2B_H03_AUTH_RATE_FORWARDED_HEADER_NOT_TRUSTED',
+    'F2B_H03_AUTH_RATE_TESTSERVER_ONLY'
+)) { Marker 'h03-auth-rate-http' $M }
 foreach ($M in @(
     'F2B_O3_PG_MIGRATIONS_APPLIED','F2B_O3_PG_MIGRATOR_TLS_SCOPE',
     'F2B_O3_PG_RUNTIME_LEAST_PRIVILEGE','F2B_O3_PG_RUNTIME_DENIED_OPERATIONS',
@@ -192,6 +226,16 @@ foreach ($M in @(
 $H01Log=[IO.File]::ReadAllText((Join-Path $Evidence 'o4-h01-testserver.stdout.log'))
 Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION\s*$') 'POSTFLIGHT_H01_PUBLIC_RELEASE_HELD'
 Check ($H01Log -match '(?m)^F2B_O4_H01_SMTP=NOT_CONNECTED\s*$') 'POSTFLIGHT_H01_SMTP_DISCONNECTED'
+foreach ($M in @(
+    'F2B_H03_REGISTER_ACCOUNT_BUDGET',
+    'F2B_H03_RESEND_ACCOUNT_BUDGET',
+    'F2B_H03_POSTGRES_ATOMIC_CROSS_PEER_COUNTER',
+    'F2B_H03_FORGOT_ACCOUNT_BUDGET',
+    'F2B_H03_RESET_ACCOUNT_BUDGET',
+    'F2B_H03_IDENTITY_FIVE_FAILURE_LOCKOUT',
+    'F2B_H03_IDENTITY_LOCKOUT_NOT_BYPASSED_BY_PEER',
+    'F2B_H03_IDENTITY_LOCKOUT_EXPIRY_RECOVERY'
+)) { Marker 'h02-production-http' $M }
 foreach ($M in @(
     'F2B_H02_QA_SCOPE_BOUND',
     'F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE',
@@ -256,7 +300,8 @@ foreach ($HashLine in $HashLines) {
         $Full=Join-Path $Repo $Relative
     } elseif ($Relative -in @(
         'pg-root-ca.crt','o3-sqlite-regression.stdout.log','h02-enqueue-synthetic.stdout.log','o3-pg-worker.stdout.log',
-        'h02-release-auth-contract.stdout.log','o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
+        'h02-release-auth-contract.stdout.log','h03-abuse-sqlite.stdout.log','h03-auth-rate-http.stdout.log',
+        'o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
         'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
     )) {
         $Full=Join-Path $Evidence $Relative

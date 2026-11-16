@@ -212,7 +212,10 @@ static async Task RunRecoveryRehearsalAsync(
         applied.SequenceEqual(new[]
         {
             "20261110043149_InitialDirectorySchema",
-            "20261111125709_PublicationFreshnessTimestamps"
+            "20261111125709_PublicationFreshnessTimestamps",
+            "20261114183515_F2aOrganizationClaimFoundation",
+            "20261115101409_F2bIdentityEmailOutbox",
+            "20261116213000_F2bIdentityAbuseProtection"
         }),
         "RECOVERED_MIGRATION_HISTORY");
 
