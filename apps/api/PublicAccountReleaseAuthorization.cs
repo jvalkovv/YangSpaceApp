@@ -86,6 +86,9 @@ internal static class PublicAccountReleaseAuthorization
         }
 
         if (payload is null || payload.Version != 1 ||
+            payload.KeyId is null || payload.Scope is null ||
+            payload.Environment is null || payload.Audience is null ||
+            payload.SourceCommit is null || payload.ApprovalId is null ||
             !string.Equals(payload.KeyId, configuredKeyId, StringComparison.Ordinal) ||
             !string.Equals(payload.Scope, RequiredScope, StringComparison.Ordinal) ||
             !string.Equals(payload.Environment, Environments.Production, StringComparison.Ordinal) ||

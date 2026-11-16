@@ -54,6 +54,12 @@ internal static class F2bH02ReleaseAuthorizationContract
             payload with { SourceCommit = new string('a', 40) }), now),
             "F2B_H02_AUTH_WRONG_COMMIT_REFUSED");
         Check(!Valid(BuildConfiguration(signer, publicKey,
+            payload with { SourceCommit = null! }), now),
+            "F2B_H02_AUTH_NULL_SOURCE_COMMIT_REFUSED");
+        Check(!Valid(BuildConfiguration(signer, publicKey,
+            payload with { ApprovalId = null! }), now),
+            "F2B_H02_AUTH_NULL_APPROVAL_ID_REFUSED");
+        Check(!Valid(BuildConfiguration(signer, publicKey,
             payload with { KeyId = "untrusted-key" }), now),
             "F2B_H02_AUTH_WRONG_KEY_ID_REFUSED");
         Check(!Valid(BuildConfiguration(signer, "not-a-public-key", payload), now),

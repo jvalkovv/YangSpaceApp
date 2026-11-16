@@ -164,7 +164,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         using var signer = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var authorization = CreateAuthorization(signer, commit);
         var fake = new FakeTransport();
-        var factory = new Factory(identityConnection, authorization, fake);
+        using var factory = new Factory(identityConnection, authorization, fake);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
@@ -198,10 +198,23 @@ internal static class F2bH02ProductionIdentityHttpContract
         var outboxId = await WaitForRetryAsync(identityConnection, userId, TimeSpan.FromSeconds(15));
         Check(outboxId != Guid.Empty, "F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC");
 
-        await ExpeditePendingAsync(identityConnection, outboxId);
+        var unknownResendEmail = "missing-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        using var unknownResend = await client.PostAsJsonAsync(
+            "/api/public-account/resend-confirmation", new { email = unknownResendEmail });
+        using var resend = await client.PostAsJsonAsync(
+            "/api/public-account/resend-confirmation", new { email });
+        Check(unknownResend.StatusCode == HttpStatusCode.Accepted &&
+              resend.StatusCode == HttpStatusCode.Accepted &&
+              await unknownResend.Content.ReadAsStringAsync() == await resend.Content.ReadAsStringAsync(),
+            "F2B_H02_RESEND_UNKNOWN_GENERIC");
+        Check(resend.StatusCode == HttpStatusCode.Accepted,
+            "F2B_H02_RESEND_CONFIRMATION_ACCEPTED");
+
         var confirmation = await WaitForDeliveryAsync(fake, IdentityEmailPurpose.ConfirmEmail,
             email, TimeSpan.FromSeconds(20));
         await WaitForStatusAsync(identityConnection, outboxId, IdentityEmailOutboxStatus.Sent, TimeSpan.FromSeconds(10));
+        Check(await ReadAttemptCountAsync(identityConnection, outboxId) >= 2,
+            "F2B_H02_RESEND_CONFIRMATION_RELEASES_RETRY");
         Check(confirmation.Payload.StartsWith(
             PublicAccountReleaseAuthorization.RequiredAudience + "/api/public-account/confirm?",
             StringComparison.Ordinal), "F2B_H02_CONFIRMATION_LINK_CANONICAL_HTTPS");
@@ -239,6 +252,12 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         using var forgot = await client.PostAsJsonAsync("/api/public-account/forgot-password", new { email });
         Check(forgot.StatusCode == HttpStatusCode.Accepted, "F2B_H02_FORGOT_PASSWORD_ACCEPTED");
+        var unknownForgotEmail = "missing-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        using var unknownForgot = await client.PostAsJsonAsync(
+            "/api/public-account/forgot-password", new { email = unknownForgotEmail });
+        Check(unknownForgot.StatusCode == HttpStatusCode.Accepted &&
+              await unknownForgot.Content.ReadAsStringAsync() == await forgot.Content.ReadAsStringAsync(),
+            "F2B_H02_FORGOT_PASSWORD_UNKNOWN_GENERIC");
         var resetDelivery = await WaitForDeliveryAsync(fake, IdentityEmailPurpose.ResetPassword,
             email, TimeSpan.FromSeconds(20));
         using var reset = await client.PostAsJsonAsync("/api/public-account/reset-password",
@@ -250,6 +269,22 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(oldPassword.StatusCode == HttpStatusCode.Unauthorized,
             "F2B_H02_OLD_PASSWORD_REVOKED");
         _ = await LoginAsync(client, email, "ReplacementPassword!2026");
+
+        var rollbackEmail = "h02-rollback-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        await SetOutboxInsertPermissionAsync(migrator, enabled: false);
+        try
+        {
+            using var rollbackRegistration = await client.PostAsJsonAsync(
+                "/api/public-account/register", new { email = rollbackEmail, password });
+            Check(rollbackRegistration.StatusCode == HttpStatusCode.InternalServerError,
+                "F2B_H02_REGISTER_ENQUEUE_FAILURE_HTTP_500");
+            Check(!await UserExistsAsync(identityConnection, rollbackEmail),
+                "F2B_H02_REGISTER_ENQUEUE_FAILURE_ROLLBACK");
+        }
+        finally
+        {
+            await SetOutboxInsertPermissionAsync(migrator, enabled: true);
+        }
 
         Check(fake.Deliveries.Count(x => x.Email == email) == 2,
             "F2B_H02_FAKE_CONFIRMATION_AND_RESET_ONLY");
@@ -382,6 +417,37 @@ internal static class F2bH02ProductionIdentityHttpContract
         throw new TimeoutException("F2B_H02_USER_ROW_NOT_FOUND");
     }
 
+    private static async Task SetOutboxInsertPermissionAsync(string migrator, bool enabled)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = enabled
+            ? """GRANT INSERT ON TABLE public."IdentityEmailOutbox" TO ys_h02_identity;"""
+            : """REVOKE INSERT ON TABLE public."IdentityEmailOutbox" FROM ys_h02_identity;""";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<bool> UserExistsAsync(string connection, string email)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT EXISTS(SELECT 1 FROM public."AspNetUsers" WHERE "Email"=@email)""";
+        cmd.Parameters.AddWithValue("email", email);
+        return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<int> ReadAttemptCountAsync(string connection, Guid id)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT "AttemptCount" FROM public."IdentityEmailOutbox" WHERE "Id"=@id""";
+        cmd.Parameters.AddWithValue("id", id);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static async Task<Guid> WaitForRetryAsync(string connection, string userId, TimeSpan timeout)
     {
         var until = DateTimeOffset.UtcNow + timeout;
@@ -403,21 +469,6 @@ internal static class F2bH02ProductionIdentityHttpContract
             await Task.Delay(100);
         }
         throw new TimeoutException("F2B_H02_OUTBOX_RETRY_NOT_OBSERVED");
-    }
-
-    private static async Task ExpeditePendingAsync(string connection, Guid id)
-    {
-        await using var c = new NpgsqlConnection(connection);
-        await c.OpenAsync();
-        await using var cmd = c.CreateCommand();
-        cmd.CommandText = """
-            UPDATE public."IdentityEmailOutbox"
-            SET "AvailableAtUtc"=CURRENT_TIMESTAMP
-            WHERE "Id"=@id AND "Status"=@pending
-            """;
-        cmd.Parameters.AddWithValue("id", id);
-        cmd.Parameters.AddWithValue("pending", (int)IdentityEmailOutboxStatus.Pending);
-        Check(await cmd.ExecuteNonQueryAsync() == 1, "F2B_H02_RETRY_RELEASED");
     }
 
     private static async Task WaitForStatusAsync(

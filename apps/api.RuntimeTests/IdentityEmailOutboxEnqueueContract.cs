@@ -48,6 +48,21 @@ internal static class IdentityEmailOutboxEnqueueContract
                   intent.ExpiresAtUtc == originalExpiry,
                   "F2B_OUTBOX_PENDING_COALESCED");
 
+            // An explicit resend releases a valid Pending retry from backoff
+            // without creating a second intent or resetting its attempt count.
+            intent.AvailableAtUtc = DateTime.UtcNow.AddMinutes(5);
+            intent.LastFailureCode = "synthetic-retry";
+            await db.SaveChangesAsync();
+            var retryRevision = intent.Revision;
+            await queue.SendConfirmationLinkAsync(
+                user, user.Email!, "https://yangspace.gndstore.eu/confirm?token=resend_secret");
+            await db.Entry(intent).ReloadAsync();
+            Check(intent.AvailableAtUtc <= DateTime.UtcNow.AddSeconds(1) &&
+                  intent.LastFailureCode is null &&
+                  intent.Revision == retryRevision + 1 &&
+                  await db.IdentityEmailOutbox.CountAsync() == 1,
+                  "F2B_OUTBOX_PENDING_RETRY_EXPEDITED");
+
             // An expired Pending intent is refreshed in place, not duplicated.
             intent.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1);
             intent.AttemptCount = 5;

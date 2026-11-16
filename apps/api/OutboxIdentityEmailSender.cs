@@ -64,7 +64,31 @@ internal sealed class OutboxIdentityEmailSender : IEmailSender<IdentityUser>
             if (pending is not null)
             {
                 if (pending.ExpiresAtUtc > now)
-                    return;
+                {
+                    // A resend request must release an already-pending retry.
+                    // Coalesce with the existing intent, but do not leave a
+                    // valid request waiting behind its previous backoff.
+                    if (pending.AvailableAtUtc <= now)
+                        return;
+
+                    var expedited = await _db.IdentityEmailOutbox
+                        .Where(message =>
+                            message.Id == pending.Id &&
+                            message.Status == IdentityEmailOutboxStatus.Pending &&
+                            message.Revision == pending.Revision &&
+                            message.ExpiresAtUtc > now &&
+                            message.AvailableAtUtc > now)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(message => message.AvailableAtUtc, now)
+                            .SetProperty(message => message.LastFailureCode, (string?)null)
+                            .SetProperty(message => message.Revision, message => message.Revision + 1));
+
+                    if (expedited == 1)
+                        return;
+
+                    // A worker or another request changed the row after our read.
+                    continue;
+                }
 
                 // Reuse an expired Pending row rather than inserting a second
                 // row. Revision + status predicates prevent overwriting a
