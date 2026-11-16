@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -110,6 +111,43 @@ internal static class F2bH02ProductionIdentityHttpContract
         }
     }
 
+    // H02 exercises many auth endpoints in one TestServer process. TestServer
+    // normally gives every request the same loopback peer, which exhausts the
+    // real 12/minute production limiter before the lifecycle contract finishes.
+    // This filter is registered only by this test factory and simulates distinct
+    // transport peers; it does not trust forwarding headers or change production.
+    private sealed class TestPeerAddressStartupFilter : IStartupFilter
+    {
+        internal const string RequestHeader = "X-YangSpace-Test-Peer";
+        internal const string AppliedHeader = "X-YangSpace-Test-Peer-Applied";
+
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) =>
+            app =>
+            {
+                app.Use(async (context, nextMiddleware) =>
+                {
+                    if (!context.Request.Headers.TryGetValue(RequestHeader, out var raw) ||
+                        !IPAddress.TryParse(raw.ToString(), out var address))
+                        throw new InvalidOperationException("F2B_H02_TEST_PEER_INVALID");
+
+                    context.Connection.RemoteIpAddress = address;
+                    context.Response.OnStarting(() =>
+                    {
+                        context.Response.Headers[AppliedHeader] = address.ToString();
+                        return Task.CompletedTask;
+                    });
+                    await nextMiddleware();
+                });
+                next(app);
+            };
+    }
+
+    private static void SetTestPeer(HttpClient client, string address)
+    {
+        client.DefaultRequestHeaders.Remove(TestPeerAddressStartupFilter.RequestHeader);
+        client.DefaultRequestHeaders.Add(TestPeerAddressStartupFilter.RequestHeader, address);
+    }
+
     private sealed class Factory : WebApplicationFactory<ApiAssemblyMarker>
     {
         private readonly string _connection;
@@ -163,6 +201,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             });
             builder.ConfigureTestServices(services =>
             {
+                services.AddSingleton<IStartupFilter, TestPeerAddressStartupFilter>();
                 services.RemoveAll<IIdentityEmailOutboxTransport>();
                 services.AddSingleton<IIdentityEmailOutboxTransport>(Fake);
                 services.Configure<IdentityEmailOutboxOptions>(options =>
@@ -236,6 +275,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
             AllowAutoRedirect = false
         });
+        SetTestPeer(client, "192.0.2.10");
 
         Check(factory.Services.GetRequiredService<IWebHostEnvironment>().IsProduction(),
             "F2B_H02_REAL_PRODUCTION_ENVIRONMENT");
@@ -250,6 +290,9 @@ internal static class F2bH02ProductionIdentityHttpContract
         using var ready = await client.GetAsync("/health/ready");
         Check(live.StatusCode == HttpStatusCode.OK && ready.StatusCode == HttpStatusCode.OK,
             "F2B_H02_PRODUCTION_LIVE_READY");
+        Check(live.Headers.TryGetValues(TestPeerAddressStartupFilter.AppliedHeader, out var appliedPeer) &&
+              appliedPeer.SingleOrDefault() == "192.0.2.10",
+            "F2B_H02_TEST_PEER_PARTITIONING");
 
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         const string password = "StrongPassword!2026";
@@ -360,6 +403,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         }
         Check(true, "F2B_H02_STAFF_ROLE_FIXTURES_CREATED");
 
+        SetTestPeer(client, "192.0.2.11");
         var staffConfirmationToken = await GenerateIdentityTokenAsync(
             factory.Services, staffUnconfirmed.Id, passwordReset: false);
         var staffConfirmationCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(staffConfirmationToken));
@@ -373,9 +417,14 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         using var staffResend = await client.PostAsJsonAsync(
             "/api/public-account/resend-confirmation", new { email = staffUnconfirmedEmail });
+        var staffResendOutboxCount = await ReadOutboxCountAsync(identityConnection, staffUnconfirmed.Id);
+        var staffResendDelivered = fake.Deliveries.Any(x => x.Email == staffUnconfirmedEmail);
+        Console.WriteLine($"F2B_H02_STAFF_RESEND_STATUS={(int)staffResend.StatusCode}");
+        Console.WriteLine($"F2B_H02_STAFF_RESEND_OUTBOX_COUNT={staffResendOutboxCount}");
+        Console.WriteLine($"F2B_H02_STAFF_RESEND_DELIVERY_PRESENT={staffResendDelivered}");
         Check(staffResend.StatusCode == HttpStatusCode.Accepted &&
-              await ReadOutboxCountAsync(identityConnection, staffUnconfirmed.Id) == 0 &&
-              !fake.Deliveries.Any(x => x.Email == staffUnconfirmedEmail),
+              staffResendOutboxCount == 0 &&
+              !staffResendDelivered,
             "F2B_H02_STAFF_RESEND_NO_OUTBOX");
 
         using var staffLogin = await client.PostAsJsonAsync(
@@ -400,6 +449,7 @@ internal static class F2bH02ProductionIdentityHttpContract
               await ReadOutboxCountAsync(identityConnection, staffConfirmed.Id) == 0,
             "F2B_H02_STAFF_RESET_DENIED");
 
+        SetTestPeer(client, "192.0.2.12");
         using var forgot = await client.PostAsJsonAsync("/api/public-account/forgot-password", new { email });
         Check(forgot.StatusCode == HttpStatusCode.Accepted, "F2B_H02_FORGOT_PASSWORD_ACCEPTED");
         var unknownForgotEmail = "missing-" + Guid.NewGuid().ToString("N") + "@example.invalid";
