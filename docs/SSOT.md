@@ -1,3 +1,34 @@
+# Current application execution focus — 2026-11-17
+
+**Owner direction:** develop YangSpace as a complete product: UX/UI, Angular workflows, .NET business logic, persistence, authorization and real user journeys. The existing reachable application environment is `https://yangspace.gndstore.eu`.
+
+**Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
+
+## Current application source audit
+
+Baseline: H03 exact tested source `441c3a7742d7387b3d900d7f2bbee48cdd39001f`.
+
+- Angular currently provides public directory/search/category filters, location detail, offers/brochures/jobs highlights, Identity screens and a PlatformAdmin preview CMS.
+- `/admin` is not a business-owner workspace. Merchant API currently has only a QA-gated read endpoint.
+- Organization, OrganizationMember, BusinessClaim and ContentAuditEvent persistence foundations exist, but there is no production owner-scoped profile/content mutation API or complete owner-facing CMS.
+- Claim/reviewer HTTP remains QA-only. Legal/privacy Issue #24 blocks real evidence intake, live claim decisions and Owner grants.
+- Public pages still carry demo-state messaging; the profile experience lacks full owner-managed content, opening-hour exceptions, rich media workflow, directions/map actions and privacy-reviewed public action reporting.
+- Payments, checkout, bookings, POS, ATS/CV storage and native apps remain outside the approved MVP.
+
+## Active sequence
+
+1. **H04 — Identity HTTP edge cases:** negative/replay/role matrix on the real Production TestServer, disposable PostgreSQL 17/TLS VerifyFull, fake transport only. [Issue #48](https://github.com/jvalkovv/YangSpaceApp/issues/48).
+2. **H05 — application recovery:** DataProtection key continuity, outbox retry/re-drive, deterministic failure recovery and readiness behavior. No ingress work.
+3. **H06 — Angular/browser/mobile/privacy:** account journeys, responsive navigation/forms, accessible loading/error/empty states, privacy notices and browser acceptance.
+4. **M2 — ownership/claim:** synthetic-only workflow until legal/privacy #24; reviewer-only decision and atomic Claim + Organization + Location + Owner membership + audit.
+5. **M3 — Merchant Workspace/CMS:** owner/editor dashboard, scoped profile editing, offers/brochures/jobs lifecycle, revision conflicts, audit history, preview/publish and tenant isolation.
+6. **M4 — resident discovery:** verified geo, neighborhood filters, useful profile actions, map/list only with verified coordinates, favorites, canonical SEO pages and performance.
+7. **M5/M6 — application release and Varna pilot:** privacy, data quality, recovery and product acceptance; Phase A 20–30 verified businesses, Phase B 100 only after Phase A passes.
+
+H03 application-level abuse protection is accepted at `441c3a7742d7387b3d900d7f2bbee48cdd39001f`; evidence and manifest are recorded in Master Issue #32 and child Issue #34. H03 ingress work is excluded from this application roadmap.
+
+---
+
 ## H01 launcher destination correction — source fix / runtime pending
 
 The 2026-11-16 operator rerun passed content-root mkdir/copy/verify and launcher-copy, but `chmod` failed because `/run/pgcerts` was not an existing destination directory. The H01 runner now uses `/tmp/o4-h01-run.sh`, the same existing container path family as the O3 launcher: copy, chmod 0600, execute and cleanup all target the exact same path. This is a QA harness correction only; shared stage validation and production gates remain unchanged. New source SHA is required for full rerun; do not accept H01 on source-only evidence.
