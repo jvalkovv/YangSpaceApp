@@ -1,3 +1,260 @@
+## H01 launcher destination correction — source fix / runtime pending
+
+The 2026-11-16 operator rerun passed content-root mkdir/copy/verify and launcher-copy, but `chmod` failed because `/run/pgcerts` was not an existing destination directory. The H01 runner now uses `/tmp/o4-h01-run.sh`, the same existing container path family as the O3 launcher: copy, chmod 0600, execute and cleanup all target the exact same path. This is a QA harness correction only; shared stage validation and production gates remain unchanged. New source SHA is required for full rerun; do not accept H01 on source-only evidence.
+
+---
+
+## O4/H01 stage-argument remediation — source candidate / NOT RUN
+
+Observed operator run on `d947804f1733d922f15145d9ad2c98b7e61b844f`: O3 PostgreSQL Worker markers continued to PASS, but H01 stopped **before TestServer startup** at `STAGE_UNSAFE_ARGUMENT=o4-h01-content-root`. Root cause: H01 used `bash -c` with `&&`, shell quoting and redirection in command arguments, which `Invoke-YangSpaceStage.ps1` correctly rejects. The shared stage security boundary is **not** a defect and must not be weakened.
+
+Remediation in the next H01 source commit:
+- Replace the compound content-root command with separate safe-argv Docker stages: `o4-h01-root-mkdir`, `o4-h01-root-copy`, `o4-h01-root-verify`.
+- Generate the H01 launcher directly from the already-scoped O3 launcher within PowerShell; copy it as a temporary file into the existing disposable container, set restrictive mode, invoke by file path. No shell operators, credentials or script source in the stage's `.runner.cmd` arguments.
+- Update independent Postflight receipts for the new stages and require the temporary H01 launcher to be deleted. The existing Docker cleanup/production gate remains unchanged.
+- Preserve `DispatcherAvailable=false`, PublicAccounts/Outbox defaults OFF, fake transport only, no CT164, production database, live SMTP or GitHub Actions.
+
+**Observed result:** previous H01 run = HOLD (not H01 PASS). **Remediated SHA: NOT TESTED** until the operator reruns the full runner from a clean exact SHA; this includes O3 regression + disposable PostgreSQL + H01 TestServer + independent Postflight. Do not merge/close PR #43 or H01 without new runtime evidence. Historical O3 acceptance at `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` is unaffected.
+
+---
+
+## 2026-11-16 — F2b O4/H01 disposable Production TestServer source candidate (NOT RUN)
+
+O3 exact-SHA worker/provider acceptance remains anchored to `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` (source SHA and evidence unchanged). Work proceeds on the **separate** `feat/yangspace-f2b-o4-h01-pg-http-startup-20261116` branch. This H01 source adds a real `Production` Program TestServer with PostgreSQL17/TLS VerifyFull, verified disposable sentinel/least privilege, `ProductionSchemaGate`, health endpoints, default-off registration 404 and negative startup/security gates. Existing O3 regression runs first on every H01 execution. A separate independent H01 Postflight checks receipts/hashes/cleanup.
+
+**NOT RUN** on the H01 source; H01 remains unchecked and Issue #33 OPEN. The compile-time `DispatcherAvailable=false` is intentionally preserved. Enabled public Identity HTTP is **not testable** until a separately reviewed production release-authorization contract exists; no QA override of the production gate was introduced. The H01 result can validate production startup *with public accounts off*, never live deliverability. H02–H06 and O5/O6 remain OPEN. CT164/production DB/public SMTP untouched. No GitHub Actions.
+
+Runbook: `docs/F2B_O4_H01_POSTGRESQL_STARTUP_QA_20261116.md`.
+
+---
+
+## 2026-11-16 — Expanded O3 PostgreSQL provider QA gates, source only (HOLD)
+
+O3 PostgreSQL worker contract now adds password reset, already-confirmed suppression, uncertain SMTP-style acknowledgement simulation, crash/lease restart recovery, dead-letter and operator replay, retention purge, and absence of tokens/recipients at rest. Its fixture Password policy is explicitly configured, and reset tokens are Base64Url-decoded before verification. Dedicated non-superuser runtime role and narrow Identity reads remain mandatory.
+
+The disposable PostgreSQL runner now performs its **independent Postflight automatically** (same exact source SHA), persists public-CA and Linux binary evidence, validates source/log hashes, and checks cleanup. It supports clean detached worktrees. Runbook: `docs/F2B_O3_POSTGRES_WORKER_QA_20261116.md`.
+
+**No build or actual PostgreSQL execution of these new changes has occurred.** Source is not runtime PASS; O3 / PR #42 are HOLD/Draft. No CT164, live DB, SMTP, public HTTP or GitHub Actions. Next operator action is the single Windows PowerShell runbook block; capture the first failing marker or accepted evidence before progressing.
+
+---
+
+## 2026-11-16 — O3 PostgreSQL 17 worker QA source candidate (RUNTIME HOLD)
+
+This iteration adds `scripts/Test-F2b-Outbox-Worker-PostgreSql-Local.ps1` (exact-SHA disposable QA) and `scripts/Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1` (independent evidence verification).
+
+- The PostgreSQL worker contract runs via the real Npgsql/EF Core provider, with a dedicated non-superuser migrator and limited runtime role.
+- The runtime role has outbox DML and column-restricted Identity read; negative privilege probes reject credential reads and administrative writes.
+- Tests cover confirmation token dispatch, retry/backoff, concurrent claims, expired lease recovery, and the full previously accepted SQLite synthetic regression.
+- Disposable PostgreSQL 17 runs on local Docker only: internal network, no published ports, tmpfs-only storage, ephemeral TLS VerifyFull, no image pulls and no CT164/production access.
+- The runner captures command receipts, source and log hashes, manifest and public ephemeral CA; secrets, container and network must be removed.
+- The independent verifier checks exact local/remote SHA, evidence scope and hashes, required markers and resource absence.
+
+**No new exact-SHA build, SQLite run, PostgreSQL run or independent Postflight has been executed in this source iteration.** Status is `HOLD`; this is not accepted evidence. Production dispatch and public registration remain default OFF. No real SMTP, no production DB, no deployment, no GitHub Actions. PR #42 remains Draft.
+
+Operator from an exact clean branch checkout (or detached worktree after the runner supports it):
+
+```powershell
+$Sha = (git rev-parse HEAD).Trim()
+& .\scripts\Test-F2b-Outbox-Worker-PostgreSql-Local.ps1 -CommitSha $Sha
+# Take EVIDENCE_DIR emitted by the runner, then run independently:
+& .\scripts\Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1 -CommitSha $Sha -EvidenceDirectory '<EVIDENCE_DIR>'
+```
+
+Provider QA is a prerequisite for O3 approval; O4 and CT164 deployment remain blocked.
+
+---
+
+## 2026-11-16 — O3 SQLite synthetic + independent Postflight PASS; PostgreSQL worker QA next
+
+Operator executed exact-SHA O3 worker synthetic at \`750f58ab8ce089161004bec1015cc1a25c760031\`:
+- Exact source and all default-OFF guards: PASS.
+- Restore and Release build: PASS.
+- Complete SQLite synthetic worker contract: PASS.
+- DI activation, confirmation/reset dispatch, dispatch-off, current email/confirmation/staff rechecks, expired-intent suppression, retry/backoff, uncertain ACK, concurrent claims, null/expired lease recovery, crash/restart recovery, dead-letter, operator replay, retention purge, no token/recipient at rest: PASS.
+- Fake transport only, SQLite shared in-memory only, all stage receipts and clean worktree: PASS.
+
+Evidence directory: \`logs/yangspace/f2b-o3-worker/750f58ab8ce0-20261116-064142-4ce016c0\`
+Manifest SHA-256: \`9f59ee1d14a13aaa6f244d831fb94b25a3064b8d01fd98e32e53c8bcc5a90f45\`
+
+The operator then executed \`Verify-F2b-Outbox-Worker-Postflight.ps1\` at the same exact SHA. **Independent Postflight: PASS**, including source/remote identity, clean worktree, evidence scope, manifest, all receipts and worker markers, and default-OFF guards.
+
+**Next gate: disposable PostgreSQL 17 worker/provider QA.** Must exercise the actual Npgsql/EF Core provider path using an isolated PostgreSQL 17 instance, dedicated least-privilege runtime role, fake email transport, real database transactions/atomic claims, concurrent worker claims, lease expiry/recovery and failure/retry behavior. No production DB, CT164, real SMTP, public HTTP, deployment or GitHub Actions. The current O2 disposable PostgreSQL runner is migration-focused and must not be treated as proof of O3 worker/provider behavior.
+
+After PostgreSQL QA: independent PostgreSQL evidence Postflight, provider-specific code review, then O3 acceptance decision. O4 remains gated. PR #42 remains Draft; Issue #36 and MVP remain OPEN.
+
+---
+
+## 2026-11-16 — dispatch-off failure isolated into independent assertions (SOURCE COMMITTED / RE-RUN PENDING)
+
+Operator reran branch HEAD \`933adb6510ff82bcc6ea21b4d64cd9b85b8b24dc\`:
+- PostgreSQL review QA default-off: PASS.
+- Restore: PASS.
+- Release build: PASS.
+- DI activation: PASS.
+- Synthetic failed at the combined \`F2B_O3_WORKER_DISPATCH_DEFAULT_OFF\` assertion (line 96).
+
+The old compound assertion did not reveal which of its four conditions failed. Source now emits separate markers for runtime switch evaluation, batch blocking, hosted task creation, hosted-loop exit, Pending-state preservation and no fake delivery. The hosted task is awaited with a bounded two-second timeout rather than sampled immediately. This is diagnostic hardening, not a passing result.
+
+Current source-code commit: \`4961d6fe3d53261ec916198b5a3fa2a4c254ebe1\`. Exact-SHA Release build, full synthetic contract and independent Postflight have not yet been rerun at this commit. O3 remains HOLD; PostgreSQL worker QA and O4 remain blocked. Production \`DispatcherAvailable=false\`; both appsettings switches remain false; no SMTP, CT164 DB, deployment or GitHub Actions.
+
+---
+
+## 2026-11-16 — O3 dispatch-off assertion isolated (SOURCE COMMITTED / RE-RUN PENDING)
+
+Operator reran exact branch HEAD \`933adb6510ff82bcc6ea21b4d64cd9b85b8b24dc\`:
+- PostgreSQL review QA default-off: PASS.
+- Restore: PASS.
+- Release build: PASS.
+- DI activation: PASS.
+- Synthetic failed at the combined \`F2B_O3_WORKER_DISPATCH_DEFAULT_OFF\` assertion (line 96).
+
+The previous assertion combined four independent conditions, so the failing condition was not identifiable. The test now reports each independently:
+1. Runtime config switches evaluate disabled.
+2. \`ProcessBatchOnceAsync\` claims zero.
+3. Hosted task is created and exits successfully within a bounded timeout.
+4. Outbox row remains Pending.
+5. Fake transport receives no delivery.
+
+This is diagnostic test hardening, not an assertion that the worker already passes. Current source HEAD will be recorded after commit. O3 remains HOLD; do not proceed to PostgreSQL or O4 until exact-SHA synthetic and independent Postflight pass.
+
+---
+
+## 2026-11-16 — O3 production DI activation covered by synthetic contract (SOURCE COMMITTED / RE-RUN PENDING)
+
+The worker contract now mirrors the actual production DI registrations and resolves:
+- \`IEmailSender<IdentityUser> -> OutboxIdentityEmailSender\`
+- \`SmtpPublicIdentityEmailSender\` without opening an SMTP connection
+- \`IHostedService -> IdentityEmailOutboxWorker\`
+
+The synthetic contract uses \`ValidateOnBuild=true\` and resolves the hosted worker and SMTP adapter, so non-public constructor/DI activation failures are caught before PostgreSQL QA. The worker, SMTP adapter and outbox sender now expose DI-discoverable public constructors (their containing types remain internal). New acceptance marker: \`F2B_O3_WORKER_DI_ACTIVATION=PASS\`.
+
+Production dispatch authorization remains compile-time false until O3 acceptance; only the internal synthetic harness supplies the test-only constructor override with fake transport and in-memory switches.
+
+Current branch HEAD: \`7681057020f11d23d9ce16be5aa36e84c12af613\` (latest source-code change: \`28ec89d29c4863dcc77016061eeb15e834d87b07\`; subsequent commit is documentation-only). No rerun has been executed at this HEAD; do not infer acceptance from source changes. PostgreSQL worker/concurrency, Postflight and O4 remain blocked.
+
+---
+
+## 2026-11-16 — production dispatch authorization remains compile-time held (SOURCE COMMITTED / RE-RUN PENDING)
+
+The O3 remediation also restores the explicit production release boundary:
+- \`IdentityEmailOutboxDispatchPolicy.DispatcherAvailable=false\` remains in production source until O3 acceptance is formally complete.
+- Public Identity startup continues to fail closed if an operator enables PublicAccounts before O3 acceptance.
+- The worker's optional synthetic override is an internal constructor argument only. The RuntimeTests harness supplies it with an in-memory SQLite database and fake transport; no configuration key, endpoint or deployment setting can enable it in production.
+- Both runtime switches are still required even in the synthetic harness. The dispatch-off regression verifies that the hosted loop exits and the batch method returns without processing.
+
+Current branch HEAD after this release-gate correction: \`de7980008c7109e83f9caf396e480c40ae18714d\`. The earlier exact-SHA build at \`f63149e8908d19945ca3dd5d2345798a92d68e2f\` passed restore/build but failed synthetic; the remediated head has not yet been rerun. PostgreSQL worker QA and O4 remain blocked.
+
+---
+
+## 2026-11-16 — O3 first local run failed; source remediation committed (RE-RUN PENDING / HOLD)
+
+Operator ran exact source \`f63149e8908d19945ca3dd5d2345798a92d68e2f\`:
+- Git/source identity: PASS.
+- PublicAccounts, Outbox dispatch and PostgreSQL review QA default-off checks: PASS.
+- .NET restore: PASS.
+- Release build: PASS.
+- Worker synthetic contract: FAIL at \`IdentityEmailOutboxWorkerContract.cs:76\`, \`Sequence contains no matching element\` while selecting the expected fake confirmation delivery.
+- Independent Postflight: NOT RUN. O3 is NOT accepted.
+
+Root causes and corrections now committed on the same child branch:
+1. Enqueue used \`DateTime.UtcNow\` while the worker contract used a frozen \`MutableClock\`; the pending intent could be timestamped a few milliseconds after the worker's frozen time. \`OutboxIdentityEmailSender\` now uses the injected \`TimeProvider\`, and the synthetic contract passes the same clock and asserts timestamp consistency.
+2. Candidate selection allowed a leased row with null \`LeasedUntilUtc\`, but the atomic claim predicate did not. Candidate and claim predicates now match, and null-lease recovery remains explicitly tested.
+3. Source review found that the hosted worker did not honor \`PublicAccounts:Outbox:DispatchEnabled\`. Both the hosted loop and batch processor now fail closed, with a regression test proving the worker exits and does not dispatch when the switch is false.
+
+- Remediated exact source HEAD: \`1618f2c4fdc7f19c9571523b9cd7721877a1b245\`.
+- PR #42 remains OPEN/DRAFT; Issue #36 remains OPEN.
+- Next gate: rerun exact-SHA O3 Release build + full SQLite synthetic contract, then independent read-only Postflight.
+- PostgreSQL 17 worker/concurrency QA remains NOT RUN.
+- PublicAccounts and Outbox dispatch remain false in appsettings. Real SMTP NOT CONNECTED. CT164/Production DB NOT ACCESSED. No deployment and no GitHub Actions.
+
+Do not proceed to PostgreSQL worker acceptance or O4 Identity HTTP until the remediated exact-SHA synthetic contract and independent Postflight both pass.
+
+---
+
+## 2026-11-15 — F2b O2 RUNNER + INITIAL INDEPENDENT POSTFLIGHT PASS
+
+The exact O2 runner and its first independent postflight completed successfully. This supersedes earlier O2 `NOT RUN / HOLD` statements below; those remain historical records of intermediate failed runs.
+
+- Runner/source SHA: `e1944650f48f1ec9acc3161df0527a57c70defe9`
+- Initial independent verifier SHA: `3e9697961aa2158fd06f40c0579b239879a42069`
+- Evidence: `logs/yangspace/f2b-o2/e1944650f48f-20261115-220828-c3fc043e`
+- Manifest SHA-256: `cdb36392e06cba0ee8b2f42e399d3a75562bc57ead88412e50260b41c06af03f`
+- Operator result: `F2B_O2_POSTFLIGHT=PASS`
+
+Accepted runner scope: SQLite and PostgreSQL 17 migration apply → rollback → reapply; model-diff and generated SQL review; TLS VerifyFull with hostname/untrusted-CA negatives; non-superuser migrator and Outbox-DML-only runtime role; FK/index/uniqueness/integrity; concurrency/Pending coalescing; Linux runtime contract; evidence hashes; disposable container/network and temporary-secret cleanup.
+
+**Follow-up note:** after the successful postflight above, the current F2b SSOT/roadmap documents were updated to supersede stale NOT RUN/HOLD text. The v2 verifier now explicitly permits only those four status-document changes plus its own verifier and the recovery handoff. A final read-only postflight against the current branch HEAD is pending to verify that approved documentation-only diff. **Do not rerun the O2 migration suite.** The runner SHA, DB evidence and manifest remain unchanged.
+
+Not accepted by O2: worker, SMTP delivery, PostgreSQL-backed Identity HTTP lifecycle, ingress/rate-limit abuse, browser/privacy/legal, CT164 deployment or production migration.
+
+Safety: CT164 and production DB NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions; no deployment.
+
+Next implementation after final read-only postflight: Outbox O3 worker/lease/retry/dead-letter/fake transport in Issue #36; then Issue #33 HTTP integration QA. PR #41 remains OPEN/DRAFT pending source review and merge decision. Master M1c remains OPEN.
+
+---
+
+## 2026-11-15 — O2 storage false-negative root cause confirmed; PowerShell JSON parser corrected (SOURCE COMMITTED / NOT YET RE-RUN / HOLD)
+
+The 2026-11-15 18:00 local diagnostic run at `e35f81bcdd73e58a87f2dc441493bdc8d537ea9e` proved Docker Engine 29.9.1/Linux created the intended storage layout: `HostConfig.Mounts` contains two tmpfs targets; effective `.Mounts` contains exactly two writable tmpfs destinations (`/var/lib/postgresql/data`, `/run/pgcerts`); `HostConfig.Binds=null`. The disposable PostgreSQL container was absent after runner cleanup.
+
+**Confirmed root cause:** PowerShell surfaced the root JSON array from `ConvertFrom-Json` as one array-valued pipeline item. The runner then wrapped that item with `@(...)`, so `$Mounts.Count` became 1 and the two destinations were aggregated in property access. This was a validator false-negative, not a Docker storage-isolation failure.
+
+**Correction:** parse the JSON array inside an object envelope and access its array property; add a two-element synthetic parser contract. Keep all effective tmpfs and no-bind/no-volume hard gates. Diagnostics remain enabled.
+
+Earlier successful gates remain: RuntimeTests restore/build, both provider model diffs, both SQL reviews, SQLite apply → rollback → reapply/cleanup, internal Docker network and PostgreSQL 17 startup. PostgreSQL migrations, TLS VerifyFull, least-privilege migrator, integrity, concurrency and postflight are still pending.
+
+**Next action:** run the full O2 runner against the exact current branch HEAD and then independent postflight. Prior evidence is not acceptance for the new SHA. CT164/production remain untouched; SMTP disconnected; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions.
+## 2026-11-15 — O2 PostgreSQL storage gate: second failure; diagnostics added (SOURCE COMMITTED / NOT RUN / HOLD)
+
+**Runner implementation commit:** `c58716df32c6d0107be36e72feba8852de87c7ea`. At execution time, fetch the branch and pass its exact current HEAD as `-CommitSha`; documentation-only commits may advance the branch without changing the runner implementation.
+
+The rerun at `65d219e561972ee5aa9b496200be111c0717f986` again passed restore/build, SQLite + PostgreSQL model-diff, both SQL review gates, SQLite apply → rollback → reapply, SQLite cleanup, internal network creation and PostgreSQL 17 startup. It then failed at the effective PostgreSQL mount gate. The runner's `finally` cleanup ran; no PostgreSQL migration, TLS, integrity or concurrency test was reached.
+
+**Correction to the prior diagnosis:** switching from Docker `--tmpfs` to `--mount type=tmpfs` did not resolve the observed failure. The earlier assertion that the image-declared `VOLUME` was the confirmed root cause was premature. Docker documents both flags as supported tmpfs mount methods; the effective mount output must decide the cause, not an assumption based on image metadata.
+
+**New diagnostic source:** commit `c58716df32c6d0107be36e72feba8852de87c7ea` writes non-secret `o2-pg-storage-diagnostics.json` while the exact disposable container is alive. It records Docker Server version/OS, image and container `Config.Volumes`, `HostConfig.Tmpfs`, `HostConfig.Mounts`, `HostConfig.Binds`, and effective `.Mounts`. The failure now includes exact mount count/type/destination/writability/bind mismatches. The container is still removed in `finally`.
+
+**Next action:** run the diagnostic-instrumented source once, then inspect the resulting JSON before making another storage-design change. Keep the hard requirement: exactly two writable tmpfs mounts at the PostgreSQL data and TLS paths, no bind/volume mounts. Do not weaken the gate or create additional QA containers/worktrees.
+
+**Acceptance remains NOT RUN / HOLD.** CT164 and production DB remain NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions. Prior evidence is tied to prior SHAs and is not O2 acceptance for this commit.
+
+---
+
+## 2026-11-15 — O2 PostgreSQL storage isolation correction committed (SOURCE COMMITTED / NOT RUN / HOLD)
+
+**Current exact source SHA:** `4836c330794efc45e5afcc270d0096532d8f4dcd` on `fix/yangspace-f2b-o2-race-safe-20261115`.
+
+The first local O2 run reached and passed RuntimeTests restore/build, both provider model-diff checks, both generated-SQL review gates, and the full SQLite apply → rollback → reapply contract. PostgreSQL 17 started, but the runner correctly stopped at the effective mount inspection gate before creating roles or applying PostgreSQL migrations.
+
+**Root cause:** the official `postgres:17` image declares `/var/lib/postgresql/data` in image `Config.Volumes`. The previous runner used the separate Docker `--tmpfs` option and then detected an effective mount set that was not exactly two tmpfs mounts. The container and internal network were removed by the runner's `finally`; the follow-up read-only inspection confirmed both resources were already absent.
+
+**Correction committed:** replace both `--tmpfs` options with explicit `--mount type=tmpfs` entries. The runner now verifies the effective `docker inspect .Mounts` array contains exactly two writable tmpfs mounts at `/var/lib/postgresql/data` and `/run/pgcerts`, checks that the image-declared data volume is overridden, and rejects any volume/bind mount. The independent postflight also requires the corresponding manifest fields. The runbook records the image-volume behavior and acceptance rule.
+
+**Acceptance remains NOT RUN / HOLD.** The correction is source-committed but has not yet been executed on the local Docker Engine. The earlier SQLite PASS remains valid for SHA `b31f7375fdcd35378526357c362a599aa060e2c6`, not for the new exact SHA. Re-run the complete O2 runner against `4836c330794efc45e5afcc270d0096532d8f4dcd`; do not reuse prior evidence as proof for the new commit.
+
+CT164 and production DB remain NOT ACCESSED; SMTP NOT CONNECTED; PublicAccounts OFF; dispatcher fail-closed; no GitHub Actions. CT164 remains gated on a full new-SHA O2 PASS and independent postflight PASS.
+
+---
+
+## 2026-11-15 — F2b O2 dual-provider runtime harness committed (SOURCE COMMITTED / NOT RUN / HOLD)
+
+The six provider migration artifacts were committed and pushed on `fix/yangspace-f2b-o2-race-safe-20261115` at migration commit `b720f930d9cb64f1a6b26a854af37e8293ada3f5`. **This commit adds** opt-in RuntimeTests selectors for the real SQLite and PostgreSQL 17 migration paths, plus an exact-SHA Windows runner and independent postflight.
+
+**O2 scope encoded in source:**
+- SQLite and PostgreSQL: pinned baseline → Outbox migration → rollback → reapply.
+- Exact schema, FK cascade, ordinary indexes, unique partial Pending index, duplicate/orphan rejection and data integrity.
+- Concurrent enqueue, Pending coalescing, expired Pending refresh and revision CAS.
+- PostgreSQL TLS VerifyFull with hostname/CA negative tests; migrator is non-superuser; runtime role is DML-only on Outbox.
+- SHA256 manifest and cleanup checks.
+
+**Storage boundary:** reuse the existing worktree; no additional clone/worktree. The runner requires an already-present local `postgres:17` image and never pulls one. It creates one disposable container on an internal network, loopback-only port, tmpfs data/cert mounts, and rejects all bind/volume mounts. It removes the container/network and temporary secrets. No Docker prune.
+
+**Current acceptance state: NOT RUN.** The new O2 harness has not yet been compiled or executed. The source is not evidence of a passing test. The exact source SHA is pinned in the PR/commit and must match both local HEAD and origin before running [the O2 validation runbook](F2B_O2_VALIDATION_RUNBOOK_20261115.md).
+
+**Hard boundary:** PublicAccounts OFF; dispatcher fail-closed; SMTP NOT CONNECTED; CT164 and production DB NOT ACCESSED; no deployment, no GitHub Actions. CT164 starts only after O2 PASS and independent postflight PASS.
+
+---
+
 ## 2026-11-15 — Outbox parent reconciliation created; exact-SHA QA PENDING
 
 Evidence archive for F2b parent was independently accepted: `YangSpace-F2b-Reconciled-20261115-070631-e24cc3d0.zip`, SHA-256 `8D5F16512503093A2FBB3FEF0452A545968C646A070CA5D4E32095E718102714`; ZIP integrity PASS and 32/32 internal checksums PASS. Parent tested code SHA `8b887dd657323c9e4bae6b7864110f5f61eb04e7`; parent branch docs-only head before this Outbox slice was `1ef4a4fb5645b345f3dfe0dd855bba901598434e`.

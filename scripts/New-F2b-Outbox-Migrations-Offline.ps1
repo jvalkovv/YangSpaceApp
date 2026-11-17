@@ -4,8 +4,10 @@ param([Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{40}$')][string]$Co
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-outbox-reconciled-20261115'
+$Branch='fix/yangspace-f2b-o2-race-safe-20261115'
 $Migration='F2bIdentityEmailOutbox'
+$SQLiteBaseline='20261114183515_F2aOrganizationClaimFoundation'
+$PostgreSqlBaseline='20261111203833_InitialPostgreSqlSchema'
 $SQLite='apps/api/YangSpace.Api.csproj'
 $Pg='apps/api.Migrations.PostgreSql/YangSpace.PostgreSql.Migrations.csproj'
 $Dirs=@('apps/api/Migrations','apps/api.Migrations.PostgreSql/Migrations')
@@ -21,7 +23,7 @@ if ((GitValue @('rev-parse','--verify',('refs/remotes/origin/'+$Branch))) -cne $
 $Active=GitValue @('branch','--show-current')
 if ($Active -and $Active -cne $Branch) { throw 'O2_BRANCH_MISMATCH' }
 if ((GitValue @('status','--porcelain','--untracked-files=all')).Length -ne 0) { throw 'O2_DIRTY_WORKTREE' }
-foreach($Path in @('.config/dotnet-tools.json','apps/api/Migrations/20261111125709_PublicationFreshnessTimestamps.cs','apps/api/Migrations/DirectoryDbModelSnapshot.cs','apps/api.Migrations.PostgreSql/Migrations/20261111203833_InitialPostgreSqlSchema.cs','apps/api.Migrations.PostgreSql/Migrations/DirectoryDbModelSnapshot.cs')) {
+foreach($Path in @('.config/dotnet-tools.json','apps/api/Migrations/20261114183515_F2aOrganizationClaimFoundation.cs','apps/api/Migrations/20261114183515_F2aOrganizationClaimFoundation.Designer.cs','apps/api/Migrations/DirectoryDbModelSnapshot.cs','apps/api.Migrations.PostgreSql/Migrations/20261111203833_InitialPostgreSqlSchema.cs','apps/api.Migrations.PostgreSql/Migrations/DirectoryDbModelSnapshot.cs')) {
     if (-not (Test-Path -LiteralPath (Join-Path $Repo $Path) -PathType Leaf)) { throw "O2_BASELINE_MISSING=$Path" }
 }
 foreach($Dir in $Dirs) {
@@ -67,14 +69,17 @@ try {
     Stage 'pg-model-diff' @('ef','migrations','has-pending-model-changes','--project',$Pg,'--startup-project',$Pg,'--context','DirectoryDb','--configuration','Release','--no-build')
     $SQLiteFile=Join-Path $Evidence 'outbox.sqlite.review.sql'
     $PgFile=Join-Path $Evidence 'outbox.pg.review.sql'
-    Stage 'sqlite-sql' @('ef','migrations','script','20261111125709_PublicationFreshnessTimestamps','--project',$SQLite,'--startup-project',$SQLite,'--context','DirectoryDb','--configuration','Release','--no-build','--output',$SQLiteFile)
-    Stage 'pg-sql' @('ef','migrations','script','20261111203833_InitialPostgreSqlSchema','--project',$Pg,'--startup-project',$Pg,'--context','DirectoryDb','--configuration','Release','--no-build','--output',$PgFile)
+    Stage 'sqlite-sql' @('ef','migrations','script',$SQLiteBaseline,'--project',$SQLite,'--startup-project',$SQLite,'--context','DirectoryDb','--configuration','Release','--no-build','--output',$SQLiteFile)
+    Stage 'pg-sql' @('ef','migrations','script',$PostgreSqlBaseline,'--project',$Pg,'--startup-project',$Pg,'--context','DirectoryDb','--configuration','Release','--no-build','--output',$PgFile)
     foreach($Path in @($SQLiteFile,$PgFile)) {
         if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "O2_SQL_MISSING=$Path" }
         $Sql=[IO.File]::ReadAllText($Path)
         $Tables=@([regex]::Matches($Sql,'(?i)\bCREATE\s+TABLE\s+"([^"]+)"'))
         if ($Tables.Count -ne 1 -or $Tables[0].Groups[1].Value -cne 'IdentityEmailOutbox') { throw "O2_UNEXPECTED_CREATE_TABLE=$Path" }
         if ($Sql -match '(?im)^\s*(DROP|ALTER|TRUNCATE|DELETE|UPDATE)\b') { throw "O2_UNEXPECTED_SQL_MUTATION=$Path" }
+        if ($Sql -notmatch '(?is)CREATE\s+UNIQUE\s+INDEX\s+"UX_IdentityEmailOutbox_PendingUserPurpose"\s+ON\s+"IdentityEmailOutbox"\s*\("UserId",\s*"Purpose"\)\s+WHERE\s+"Status"\s*=\s*''Pending''') {
+            throw "O2_PENDING_UNIQUE_INDEX_MISSING=$Path"
+        }
     }
     $ChangedPaths=@($Changes | ForEach-Object { $_.Substring(3) } | Sort-Object)
     $Checksums=@($ChangedPaths | ForEach-Object { (Get-FileHash -LiteralPath (Join-Path $Repo $_) -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$_ })
@@ -82,8 +87,9 @@ try {
     [IO.File]::WriteAllLines((Join-Path $Evidence 'SHA256SUMS.txt'),[string[]]$Checksums)
     [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]@(
         "SOURCE_SHA=$CommitSha",'EF_TOOL_VERSION=10.0.0',
-        'O2_SQLITE_SCAFFOLD=PASS','O2_POSTGRESQL_SCAFFOLD=PASS','O2_SNAPSHOT_DIFF=NONE',
-        'O2_MIGRATIONS=UNCOMMITTED','SQL_REVIEW=PENDING','DB_APPLY=NOT_RUN',
+        'O2_SQLITE_SCAFFOLD=PASS','O2_POSTGRESQL_SCAFFOLD=PASS','O2_PENDING_UNIQUE_INDEX=PASS','O2_SNAPSHOT_DIFF=NONE',
+        'O2_MIGRATIONS=UNCOMMITTED',('SQLITE_BASELINE=' + $SQLiteBaseline),('POSTGRESQL_BASELINE=' + $PostgreSqlBaseline),
+        'SQL_REVIEW=PENDING','DB_APPLY=NOT_RUN',
         'OUTBOX_WORKER=NOT_IMPLEMENTED','PUBLIC_REGISTRATION=OFF',
         'CT164_DB=NOT_ACCESSED','RELEASE_GATE=HOLD'
     ))

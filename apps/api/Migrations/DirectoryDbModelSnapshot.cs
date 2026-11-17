@@ -408,6 +408,99 @@ namespace YangSpace.Api.Migrations
                     b.ToTable("ContentAuditEvents");
                 });
 
+            modelBuilder.Entity("YangSpace.Api.IdentityAbuseCounter", b =>
+                {
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("WindowStartUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Operation", "KeyHash", "WindowStartUtc");
+
+                    b.HasIndex("WindowStartUtc");
+
+                    b.ToTable("IdentityAbuseCounters");
+                });
+
+            modelBuilder.Entity("YangSpace.Api.IdentityEmailOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("AvailableAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeadLetterAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastFailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("LeaseId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LeasedUntilUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("QueuedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "AvailableAtUtc");
+
+                    b.HasIndex("UserId", "Purpose", "Status");
+
+                    b.HasIndex(new[] { "UserId", "Purpose" }, "UX_IdentityEmailOutbox_PendingUserPurpose")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Pending'");
+
+                    b.ToTable("IdentityEmailOutbox");
+                });
+
             modelBuilder.Entity("YangSpace.Api.LocalBrochure", b =>
                 {
                     b.Property<Guid>("Id")
@@ -702,6 +795,15 @@ namespace YangSpace.Api.Migrations
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("YangSpace.Api.IdentityEmailOutboxMessage", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("YangSpace.Api.LocalBrochure", b =>
