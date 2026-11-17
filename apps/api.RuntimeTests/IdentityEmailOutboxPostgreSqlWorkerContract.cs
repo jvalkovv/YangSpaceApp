@@ -230,6 +230,33 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             Check(!forbidden && (await db.IdentityEmailOutbox.AsNoTracking().ToArrayAsync())
                 .All(x=>x.UserId!=user.Email),"F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST");
 
+            // H05c: verify the actual operational projection against persisted PG17.
+            // Expose only count and UTC time fields (no identity/user/message data).
+            var summary = await IdentityEmailOutboxAdminEndpoints.ReadSummaryAsync(
+                db, clock, CancellationToken.None);
+            var expectedSent = await db.IdentityEmailOutbox.AsNoTracking()
+                .LongCountAsync(x => x.Status == IdentityEmailOutboxStatus.Sent);
+            var expectedPending = await db.IdentityEmailOutbox.AsNoTracking()
+                .LongCountAsync(x => x.Status == IdentityEmailOutboxStatus.Pending);
+            var expectedDeadLetter = await db.IdentityEmailOutbox.AsNoTracking()
+                .LongCountAsync(x => x.Status == IdentityEmailOutboxStatus.DeadLetter);
+            Check(summary.Sent == expectedSent &&
+                summary.Pending == expectedPending &&
+                summary.DeadLetter == expectedDeadLetter &&
+                summary.Due <= summary.Pending &&
+                summary.RetryPending <= summary.Pending &&
+                summary.ObservedAtUtc == clock.GetUtcNow().UtcDateTime,
+                "F2B_H05C_OUTBOX_SUMMARY_PERSISTED_COUNTS");
+
+            var summaryJson = System.Text.Json.JsonSerializer.Serialize(summary);
+            Check(!summaryJson.Contains("@", StringComparison.Ordinal) &&
+                !summaryJson.Contains("UserId", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Email", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Token", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Payload", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Secret", StringComparison.OrdinalIgnoreCase),
+                "F2B_H05C_OUTBOX_SUMMARY_NO_PII");
+
             Console.WriteLine("F2B_O3_WORKER_NPGSQL_PROVIDER=PASS");
             Console.WriteLine("F2B_O3_WORKER_POSTGRESQL_17=PASS");
             Console.WriteLine("F2B_O3_WORKER_TLS_VERIFYFULL=PASS");
