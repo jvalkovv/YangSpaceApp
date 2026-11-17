@@ -70,6 +70,9 @@ internal static class IdentityEmailOutboxWorkerContract
             using var provider=services.BuildServiceProvider(new ServiceProviderOptions {
                 ValidateScopes=true, ValidateOnBuild=true
             });
+            var telemetry=provider.GetRequiredService<IdentityEmailOutboxWorkerTelemetry>();
+            Check(telemetry.Snapshot().TotalCycles==0,
+                "F2B_H05E_TELEMETRY_DI_ACTIVATION");
             await using var scope=provider.CreateAsyncScope();
             var db=scope.ServiceProvider.GetRequiredService<DirectoryDb>();
             var users=scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
