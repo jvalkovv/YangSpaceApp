@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.Metrics;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -48,11 +49,36 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             using var releaseAuthorization=new TestReleaseAuthorizationScope(
                 clock.GetUtcNow(),Required("YANGSPACE_RELEASE_COMMIT_SHA"));
             var fake=new FakeTransport();
+            var logCapture = new CapturingLoggerProvider();
+            var metricNames = new ConcurrentBag<string>();
+            var metricTagKeys = new ConcurrentBag<string>();
+            using var metricListener = new MeterListener();
+            metricListener.InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Meter.Name == IdentityEmailOutboxWorkerTelemetry.MeterName)
+                    listener.EnableMeasurementEvents(instrument);
+            };
+            metricListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
+            {
+                metricNames.Add(instrument.Name);
+                foreach (var tag in tags) metricTagKeys.Add(tag.Key);
+            });
+            metricListener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
+            {
+                metricNames.Add(instrument.Name);
+                foreach (var tag in tags) metricTagKeys.Add(tag.Key);
+            });
+            metricListener.Start();
             var config=releaseAuthorization.Configuration;
             Check(IdentityEmailOutboxDispatchPolicy.IsEnabled(
                 config,releaseAuthorization.HostEnvironment,clock),
                 "F2B_O3_PG_SIGNED_RELEASE_AUTHORIZATION");
             var runtimeServices=CreateIdentityServices(runtimeCs,keys);
+            runtimeServices.AddLogging(logging =>
+            {
+                logging.AddProvider(logCapture);
+                logging.SetMinimumLevel(LogLevel.Debug);
+            });
             runtimeServices.AddSingleton<TimeProvider>(clock);
             runtimeServices.AddSingleton<IHostEnvironment>(releaseAuthorization.HostEnvironment);
             runtimeServices.AddSingleton<IConfiguration>(config);
@@ -284,6 +310,7 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
     {
         var services=new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton<IdentityEmailOutboxWorkerTelemetry>();
         services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keys)).SetApplicationName("YangSpace-F2b-O3-PG");
         services.AddDbContext<DirectoryDb>(o=>o.UseNpgsql(cs,n=>n.MigrationsAssembly("YangSpace.PostgreSql.Migrations")));
         services.AddIdentityCore<IdentityUser>(o=>{
@@ -372,6 +399,7 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
 
     private static IdentityEmailOutboxWorker NewWorker(IServiceProvider p,TimeProvider clock,IConfiguration config)=>
         new(p.GetRequiredService<IServiceScopeFactory>(),p.GetRequiredService<ILogger<IdentityEmailOutboxWorker>>(),
+            p.GetRequiredService<IdentityEmailOutboxWorkerTelemetry>(),
             p.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,
             p.GetRequiredService<IHostEnvironment>());
 

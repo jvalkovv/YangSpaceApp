@@ -43,6 +43,44 @@ internal static class ProductionSchemaGate
             await ValidatePostgreSqlIntegrityAsync(db);
     }
 
+    internal static async Task ValidateRuntimeReadinessAsync(
+        DirectoryDb db, CancellationToken cancellationToken)
+    {
+        var provider = db.Database.ProviderName;
+        if (provider is not SqliteProvider and not PostgreSqlProvider)
+            throw new InvalidOperationException("Production readiness refused an unsupported provider.");
+
+        if (!db.Database.GetMigrations().Any())
+            throw new InvalidOperationException("Production readiness refused a missing migration set.");
+
+        if (!await db.Database.CanConnectAsync(cancellationToken))
+            throw new InvalidOperationException("Production readiness database is unavailable.");
+
+        if ((await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
+            throw new InvalidOperationException("Production readiness refused pending migrations.");
+
+        if (db.Database.HasPendingModelChanges())
+            throw new InvalidOperationException("Production readiness refused EF model drift.");
+
+        // Validate required application tables and columns, not merely TCP connectivity.
+        _ = await db.Users.AsNoTracking()
+            .Select(x => new { x.Id, x.Email, x.EmailConfirmed, x.SecurityStamp })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        _ = await db.IdentityEmailOutbox.AsNoTracking()
+            .Select(x => new
+            {
+                x.Id, x.UserId, x.Purpose, x.Status, x.QueuedAtUtc, x.AvailableAtUtc,
+                x.ExpiresAtUtc, x.AttemptCount, x.LeaseId, x.LeasedUntilUtc,
+                x.SentAtUtc, x.DeadLetterAtUtc, x.LastFailureCode, x.Revision
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        _ = await db.IdentityAbuseCounters.AsNoTracking()
+            .Select(x => new { x.Operation, x.KeyHash, x.Count, x.WindowStartUtc, x.UpdatedAtUtc })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     private static async Task ValidateSqliteIntegrityAsync(DirectoryDb db)
     {
         await db.Database.OpenConnectionAsync();
