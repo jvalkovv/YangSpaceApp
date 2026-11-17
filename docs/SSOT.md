@@ -1111,3 +1111,22 @@ Source correction:
 - H03's full SELECT/INSERT/UPDATE/DELETE requirement remains unchanged for the enabled public-account identity runtime role.
 
 No broad grants, role expansion, real DB access or production changes. Exact-SHA rerun and Independent Postflight are pending; PR #56 Draft, Issues #50/#55 OPEN, release HOLD.
+
+
+## 2026-11-17 — H02 H05e DB-outage probe RCA and correction
+
+The operator rerun advanced through O3 and O4-H01 to `h02-production-http`, then failed at `F2B_H05E_DB_UNAVAILABLE_READINESS_503_LIVE_200`. Prior H05 DataProtection sentinel-loss/corruption recovery markers in the same H02 contract had passed.
+
+**Root cause is in the fault-injection test, not the Production readiness endpoint:** the fixture revoked `CONNECT` from `ys_h02_identity`, but PostgreSQL does not terminate existing sessions when CONNECT is revoked. Npgsql pooling could reuse an authenticated session, so the simulated outage did not guarantee that the API had to open a new connection.
+
+**Test-harness correction committed:**
+- Revoke CONNECT and clear Npgsql pools in the same TestServer process.
+- Wait for zero remaining `ys_h02_identity` sessions in `pg_stat_activity`.
+- Prove a fresh non-pooled identity connection is denied with SQLSTATE `42501`.
+- Then require `/health/ready=503` while `/health/live=200`.
+- Restore CONNECT, clear pools, and require `/health/ready=200`.
+- Runner and Independent Postflight require `F2B_H05E_DB_UNAVAILABLE_SESSIONS_DRAINED`, `F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED`, and manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_POOL_CLEARED_SESSIONS_DRAINED`.
+
+Source/test contract commit: `f8a0d5309490e0c3bd7dc9f8d3164994128957e9`. Runner/Postflight marker and manifest commit: `ecb5adedb4761611c0205a14e70a4a7bde140f8d`.
+
+**Current acceptance boundary:** H01 stage was passed far enough for the ordered runner to start H02; H02 remains runtime HOLD until a clean exact-current-HEAD full run and Independent Postflight pass. PR #56 remains Draft/Open; Issues #50/#55 remain Open; release HOLD. No production DB, CT164, real SMTP, deployment or GitHub Actions.
