@@ -1120,13 +1120,14 @@ The operator rerun advanced through O3 and O4-H01 to `h02-production-http`, then
 **Root cause is in the fault-injection test, not the Production readiness endpoint:** the fixture revoked `CONNECT` from `ys_h02_identity`, but PostgreSQL does not terminate existing sessions when CONNECT is revoked. Npgsql pooling could reuse an authenticated session, so the simulated outage did not guarantee that the API had to open a new connection.
 
 **Test-harness correction committed:**
-- Revoke CONNECT and clear Npgsql pools in the same TestServer process.
+- The TestServer factory supplies an explicitly owned `NpgsqlDataSource` to EF Core `DirectoryDb`, using the same TLS VerifyFull connection string and runtime identity.
+- Revoke CONNECT and call `NpgsqlDataSource.Clear()` on the exact EF-owned pool; do not rely on `NpgsqlConnection.ClearAllPools()` for a separately managed EF data source.
 - Wait for zero remaining `ys_h02_identity` sessions in `pg_stat_activity`.
 - Prove a fresh non-pooled identity connection is denied with SQLSTATE `42501`.
 - Then require `/health/ready=503` while `/health/live=200`.
-- Restore CONNECT, clear pools, and require `/health/ready=200`.
-- Runner and Independent Postflight require `F2B_H05E_DB_UNAVAILABLE_SESSIONS_DRAINED`, `F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED`, and manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_POOL_CLEARED_SESSIONS_DRAINED`.
+- Restore CONNECT, clear the same data source, and require `/health/ready=200`.
+- Runner and Independent Postflight require the EF-data-source-cleared, session-drained and new-connection-denied markers plus manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED`.
 
-Source/test contract commit: `f8a0d5309490e0c3bd7dc9f8d3164994128957e9`. Runner/Postflight marker and manifest commit: `ecb5adedb4761611c0205a14e70a4a7bde140f8d`.
+Superseding source/test contract commit: `e15ad690d2519879f769124b6b28cdc67466ef9e`. Runner marker/manifest commit: `77cacf580e03630b62a808926b7f5ecbd6ae2c7d`; Independent Postflight commit: `0ec6637acb94d4b30613b48c7f93e66fc0f2f6cd`.
 
 **Current acceptance boundary:** H01 stage was passed far enough for the ordered runner to start H02; H02 remains runtime HOLD until a clean exact-current-HEAD full run and Independent Postflight pass. PR #56 remains Draft/Open; Issues #50/#55 remain Open; release HOLD. No production DB, CT164, real SMTP, deployment or GitHub Actions.
