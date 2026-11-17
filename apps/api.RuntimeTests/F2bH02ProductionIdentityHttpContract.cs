@@ -40,6 +40,39 @@ internal static class F2bH02ProductionIdentityHttpContract
         Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
             ? value : throw new InvalidOperationException("F2B_H02_ENV_MISSING=" + name);
 
+    private sealed class SyntheticKeyRingScope : IDisposable
+    {
+        internal string DirectoryPath { get; }
+
+        internal SyntheticKeyRingScope()
+        {
+            DirectoryPath = Path.Combine(
+                Path.GetTempPath(), "yangspace-h05-dp-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(DirectoryPath);
+            if (OperatingSystem.IsLinux())
+                File.SetUnixFileMode(DirectoryPath,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            var provider = DataProtectionProvider.Create(
+                new DirectoryInfo(DirectoryPath),
+                builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName));
+            var sentinel = provider.CreateProtector(PublicAccountDataProtectionPolicy.SentinelPurpose)
+                .Protect(PublicAccountDataProtectionPolicy.SentinelPlaintext);
+            var sentinelPath = Path.Combine(DirectoryPath, PublicAccountDataProtectionPolicy.SentinelFileName);
+            File.WriteAllText(sentinelPath, sentinel);
+            if (OperatingSystem.IsLinux())
+                File.SetUnixFileMode(sentinelPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Check(PublicAccountDataProtectionPolicy.IsReady(new DirectoryInfo(DirectoryPath)),
+                "F2B_H05_DATAPROTECTION_OFFLINE_PROVISIONED_KEYRING");
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(DirectoryPath))
+                Directory.Delete(DirectoryPath, recursive: true);
+        }
+    }
+
     private sealed class CommitEnvironmentScope : IDisposable
     {
         private readonly string? _previous =
@@ -243,6 +276,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE");
 
         using var environment = new CommitEnvironmentScope(commit);
+        using var keyRing = new SyntheticKeyRingScope();
         using var signer = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var authorization = CreateAuthorization(signer, commit);
         var startupConfiguration = authorization.ToDictionary(
@@ -257,6 +291,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         startupConfiguration["ClaimReview:QaEnabled"] = "false";
         startupConfiguration["ClaimReviewPostgreSqlQa:Enabled"] = "false";
         startupConfiguration["PublicAccounts:AbuseProtection:HmacKey"] = TestAbuseHmacKey;
+        startupConfiguration[PublicAccountDataProtectionPolicy.DirectorySetting] = keyRing.DirectoryPath;
         startupConfiguration["PublicAccounts:Email:SmtpHost"] = "127.0.0.1";
         startupConfiguration["PublicAccounts:Email:Port"] = "587";
         startupConfiguration["PublicAccounts:Email:Username"] = "synthetic";
@@ -302,6 +337,41 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(live.Headers.TryGetValues(TestPeerAddressStartupFilter.AppliedHeader, out var appliedPeer) &&
               appliedPeer.SingleOrDefault() == "192.0.2.10",
             "F2B_H02_TEST_PEER_PARTITIONING");
+
+        var firstProtector = DataProtectionProvider.Create(
+            new DirectoryInfo(keyRing.DirectoryPath),
+            builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName))
+            .CreateProtector("F2B_H05_KeyContinuity");
+        var protectedPayload = firstProtector.Protect("synthetic-continuity-proof");
+        var secondProtector = DataProtectionProvider.Create(
+            new DirectoryInfo(keyRing.DirectoryPath),
+            builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName))
+            .CreateProtector("F2B_H05_KeyContinuity");
+        Check(secondProtector.Unprotect(protectedPayload) == "synthetic-continuity-proof",
+            "F2B_H05_DATAPROTECTION_CROSS_INSTANCE_UNPROTECT");
+
+        var sentinelPath = Path.Combine(
+            keyRing.DirectoryPath, PublicAccountDataProtectionPolicy.SentinelFileName);
+        var sentinelRemovedPath = sentinelPath + ".temporarily-unavailable";
+        File.Move(sentinelPath, sentinelRemovedPath);
+        try
+        {
+            using var unavailable = await client.GetAsync("/health/ready");
+            using var alive = await client.GetAsync("/health/live");
+            Check(unavailable.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                  alive.StatusCode == HttpStatusCode.OK,
+                "F2B_H05_DATAPROTECTION_MISSING_SENTINEL_READINESS_503_LIVE_200");
+        }
+        finally
+        {
+            File.Move(sentinelRemovedPath, sentinelPath);
+        }
+
+        using (var restored = await client.GetAsync("/health/ready"))
+        {
+            Check(restored.StatusCode == HttpStatusCode.OK,
+                "F2B_H05_DATAPROTECTION_SENTINEL_RESTORED_READY_200");
+        }
 
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         const string password = "StrongPassword!2026";
