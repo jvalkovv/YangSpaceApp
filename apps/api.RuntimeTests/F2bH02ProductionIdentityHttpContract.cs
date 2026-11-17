@@ -382,6 +382,19 @@ internal static class F2bH02ProductionIdentityHttpContract
               !await ReadEmailConfirmedAsync(identityConnection, malformedConfirmationUser.Id),
             "F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED");
 
+        var invalidConfirmationEmail = "h04-invalid-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var invalidConfirmationUser = await CreatePublicUserAsync(
+            factory.Services, invalidConfirmationEmail, password, emailConfirmed: false);
+        var invalidIdentityConfirmationCode = WebEncoders.Base64UrlEncode(
+            Encoding.UTF8.GetBytes("synthetic-invalid-confirmation-token"));
+        using var invalidConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString(invalidConfirmationUser.Id) +
+            "&code=" + Uri.EscapeDataString(invalidIdentityConfirmationCode));
+        Check(invalidConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              invalidConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true &&
+              !await ReadEmailConfirmedAsync(identityConnection, invalidConfirmationUser.Id),
+            "F2B_H04_CONFIRM_INVALID_TOKEN_FAIL_CLOSED");
+
         using var unknownConfirmation = await client.GetAsync(
             "/api/public-account/confirm?userId=" + Uri.EscapeDataString("missing-" + Guid.NewGuid().ToString("N")) +
             "&code=" + Uri.EscapeDataString("synthetic-invalid-code"));
@@ -554,6 +567,17 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H04_RESET_MALFORMED_TOKEN_REJECTED");
         _ = await LoginAsync(client, invalidResetEmail, password);
         Check(true, "F2B_H04_RESET_MALFORMED_TOKEN_PRESERVES_PASSWORD");
+
+        var invalidResetTokenEmail = "h04-invalid-reset-token-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        _ = await CreatePublicUserAsync(factory.Services, invalidResetTokenEmail, password, emailConfirmed: true);
+        var invalidIdentityResetCode = WebEncoders.Base64UrlEncode(
+            Encoding.UTF8.GetBytes("synthetic-invalid-reset-token"));
+        using var invalidResetToken = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email = invalidResetTokenEmail, resetCode = invalidIdentityResetCode, newPassword = "InvalidTokenReplacement!2026" });
+        Check(invalidResetToken.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_RESET_INVALID_TOKEN_REJECTED");
+        _ = await LoginAsync(client, invalidResetTokenEmail, password);
+        Check(true, "F2B_H04_RESET_INVALID_TOKEN_PRESERVES_PASSWORD");
 
         SetTestPeer(client, "192.0.2.15");
         var expiredConfirmationEmail = "h02-expired-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
