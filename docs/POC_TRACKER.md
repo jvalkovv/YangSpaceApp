@@ -5,13 +5,14 @@ The latest operator run progressed through the O3 PostgreSQL worker stage and O4
 **RCA:** H02 simulated DB outage by revoking `CONNECT` from `ys_h02_identity`. PostgreSQL revocation blocks new sessions but does not terminate existing sessions; Npgsql pooling could reuse an existing authenticated session. The expected readiness 503 was therefore not guaranteed. This is a failure-injection defect, not proof of a production readiness defect.
 
 **Committed test correction:**
-- Clear Npgsql pools after revoking CONNECT.
+- The TestServer factory supplies an explicitly owned `NpgsqlDataSource` to EF Core `DirectoryDb`, preserving the exact TLS VerifyFull connection string and runtime identity.
+- Revoke CONNECT and clear the exact EF-owned pool with `NpgsqlDataSource.Clear()`.
 - Wait until `pg_stat_activity` reports zero sessions for the identity runtime role.
 - Prove a fresh non-pooled connection is refused with SQLSTATE `42501`.
-- Then require readiness 503/liveness 200; restore CONNECT, clear pools and require readiness 200.
-- Runner and Independent Postflight require the new session-drained/new-connection-denied markers and a manifest assertion.
+- Then require readiness 503/liveness 200; restore CONNECT, clear the same data source and require readiness 200.
+- Runner and Independent Postflight require EF-data-source-cleared, session-drained and new-connection-denied markers plus the manifest assertion.
 
-Source/test contract commit: `f8a0d5309490e0c3bd7dc9f8d3164994128957e9`. Runner/Postflight marker+manifest commit: `ecb5adedb4761611c0205a14e70a4a7bde140f8d`. Formatting-only runner follow-up: `6df601b855f2b5905766c60a9dc1504f848c08cd`.
+Superseding source/test contract commit: `e15ad690d2519879f769124b6b28cdc67466ef9e`. Runner marker/manifest commit: `77cacf580e03630b62a808926b7f5ecbd6ae2c7d`; Independent Postflight commit: `0ec6637acb94d4b30613b48c7f93e66fc0f2f6cd`.
 
 **Next gate:** run the complete current PR #56 HEAD from a clean Windows worktree; require O3 + H01 + H02, all H05e recovery markers, disposable cleanup and Independent Postflight at one exact SHA. PR #56 stays Draft/Open; Issues #50/#55 stay Open; release HOLD. No CT164, production DB, real SMTP, deployment or GitHub Actions.
 
