@@ -126,15 +126,21 @@ internal static class F2bH02ProductionIdentityHttpContract
     {
         private readonly ConcurrentQueue<Delivery> _deliveries = new();
         private int _failBeforeAccept;
+        private int _failAlways;
 
         internal IReadOnlyCollection<Delivery> Deliveries => _deliveries.ToArray();
         internal void FailBeforeAcceptOnce() => Interlocked.Exchange(ref _failBeforeAccept, 1);
+        internal bool FailAlways
+        {
+            get => Volatile.Read(ref _failAlways) == 1;
+            set => Volatile.Write(ref _failAlways, value ? 1 : 0);
+        }
 
         public Task SendConfirmationAsync(
             IdentityUser user, string email, string confirmationLink, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (Interlocked.Exchange(ref _failBeforeAccept, 0) == 1)
+            if (FailAlways || Interlocked.Exchange(ref _failBeforeAccept, 0) == 1)
                 throw new IOException("synthetic transport failure");
             _deliveries.Enqueue(new Delivery(IdentityEmailPurpose.ConfirmEmail, email, confirmationLink));
             return Task.CompletedTask;
@@ -144,6 +150,8 @@ internal static class F2bH02ProductionIdentityHttpContract
             IdentityUser user, string email, string resetCode, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (FailAlways)
+                throw new IOException("synthetic transport failure");
             _deliveries.Enqueue(new Delivery(IdentityEmailPurpose.ResetPassword, email, resetCode));
             return Task.CompletedTask;
         }
@@ -427,6 +435,56 @@ internal static class F2bH02ProductionIdentityHttpContract
         {
             Check(restoredAfterCorruption.StatusCode == HttpStatusCode.OK,
                 "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200");
+        }
+
+        fake.FailAlways = true;
+        try
+        {
+            using var smtpUnavailable = await client.GetAsync("/health/ready");
+            Check(smtpUnavailable.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_SMTP_UNAVAILABLE_READINESS_200");
+        }
+        finally
+        {
+            fake.FailAlways = false;
+        }
+
+        await SetIdentityRoleConnectAsync(migrator, enabled: false);
+        try
+        {
+            using var unavailable = await client.GetAsync("/health/ready");
+            using var alive = await client.GetAsync("/health/live");
+            Check(unavailable.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                  alive.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_DB_UNAVAILABLE_READINESS_503_LIVE_200");
+        }
+        finally
+        {
+            await SetIdentityRoleConnectAsync(migrator, enabled: true);
+        }
+        using (var restoredDatabase = await client.GetAsync("/health/ready"))
+        {
+            Check(restoredDatabase.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_DB_RESTORED_READINESS_200");
+        }
+
+        await RenameIdentityOutboxTableAsync(migrator, renamed: true);
+        try
+        {
+            using var schemaUnavailable = await client.GetAsync("/health/ready");
+            using var alive = await client.GetAsync("/health/live");
+            Check(schemaUnavailable.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                  alive.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_SCHEMA_UNAVAILABLE_READINESS_503_LIVE_200");
+        }
+        finally
+        {
+            await RenameIdentityOutboxTableAsync(migrator, renamed: false);
+        }
+        using (var restoredSchema = await client.GetAsync("/health/ready"))
+        {
+            Check(restoredSchema.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_SCHEMA_RESTORED_READINESS_200");
         }
 
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
@@ -995,6 +1053,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         var nonAdminBearer = await GetBearerAsync(client, publicEmail, password, gateway);
 
         var summaryUrl = "/api/v1/admin/email-outbox/summary";
+        var workerStatusUrl = "/api/v1/admin/email-outbox/worker-status";
         using (var missingGateway = await RequestAsync(
             client, HttpMethod.Get, summaryUrl, operatorBearer, null))
             Check(missingGateway.StatusCode == HttpStatusCode.NotFound,
@@ -1040,6 +1099,30 @@ internal static class F2bH02ProductionIdentityHttpContract
                   !content.Contains("userId", StringComparison.OrdinalIgnoreCase) &&
                   !content.Contains("token", StringComparison.OrdinalIgnoreCase),
                 "F2B_H05D_ADMIN_SUMMARY_HTTP_ALLOWED_NO_PII");
+        }
+
+        using (var anonymousWorkerStatus = await RequestAsync(
+            client, HttpMethod.Get, workerStatusUrl, null, gateway))
+            Check(anonymousWorkerStatus.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H05E_ADMIN_WORKER_STATUS_ANONYMOUS_REFUSED");
+
+        using (var workerStatus = await RequestAsync(
+            client, HttpMethod.Get, workerStatusUrl, operatorBearer, gateway))
+        {
+            var content = await workerStatus.Content.ReadAsStringAsync();
+            using var json = JsonDocument.Parse(content);
+            Check(workerStatus.StatusCode == HttpStatusCode.OK &&
+                  json.RootElement.TryGetProperty("worker", out var worker) &&
+                  worker.TryGetProperty("lastCycleSucceededAtUtc", out _) &&
+                  json.RootElement.TryGetProperty("backlog", out var backlog) &&
+                  backlog.TryGetProperty("pending", out _) &&
+                  !content.Contains("@", StringComparison.Ordinal) &&
+                  !content.Contains("UserId", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Email", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Token", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Payload", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Secret", StringComparison.OrdinalIgnoreCase),
+                "F2B_H05E_ADMIN_WORKER_STATUS_HTTP_NO_PII");
         }
 
         var deadUserEmail = "h05d-dead-" + Guid.NewGuid().ToString("N") + "@example.invalid";
@@ -1630,6 +1713,28 @@ internal static class F2bH02ProductionIdentityHttpContract
         cmd.CommandText = enabled
             ? """GRANT INSERT ON TABLE public."IdentityEmailOutbox" TO ys_h02_identity;"""
             : """REVOKE INSERT ON TABLE public."IdentityEmailOutbox" FROM ys_h02_identity;""";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task SetIdentityRoleConnectAsync(string migrator, bool enabled)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = enabled
+            ? $"GRANT CONNECT ON DATABASE {DatabaseName} TO {IdentityRole};"
+            : $"REVOKE CONNECT ON DATABASE {DatabaseName} FROM {IdentityRole};";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task RenameIdentityOutboxTableAsync(string migrator, bool renamed)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = renamed
+            ? """ALTER TABLE public."IdentityEmailOutbox" RENAME TO "IdentityEmailOutbox_H05E";"""
+            : """ALTER TABLE public."IdentityEmailOutbox_H05E" RENAME TO "IdentityEmailOutbox";""";
         await cmd.ExecuteNonQueryAsync();
     }
 
