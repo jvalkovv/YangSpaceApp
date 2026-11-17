@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using YangSpace.Api;
 
@@ -756,7 +757,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."IdentityEmailOutbox" TO ys_h02_identity;
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."IdentityAbuseCounters" TO ys_h02_identity;
             """;
-        await command.ExecuteNonQuery();
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<bool> VerifyQaScopeAsync(string connection, string token)
