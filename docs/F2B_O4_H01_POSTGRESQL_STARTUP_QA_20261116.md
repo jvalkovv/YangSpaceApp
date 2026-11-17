@@ -24,7 +24,7 @@ Remediation in the next H01 source commit:
 
 # F2b O4 / H01 — Production PostgreSQL TestServer startup (source candidate)
 
-Status: **DRAFT / NOT RUN / HOLD**. Depends on accepted O3 commit `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` and [Issue #33](https://github.com/jvalkovv/YangSpaceApp/issues/33). No public-account activation or CT164 access is authorized.
+Status: **CORRECTED SOURCE COMMITTED / EXACT-SHA RERUN PENDING / HOLD**. Current PR #56 source head: `28c846594008325fdbb4520d0c1db92cb3c22037`. Depends on the accepted O3 worker contract and [Issue #33](https://github.com/jvalkovv/YangSpaceApp/issues/33). No public-account activation or CT164 access is authorized.
 
 ## Scope and invariant
 
