@@ -125,11 +125,11 @@ internal static class F2bH02ProductionIdentityHttpContract
     private sealed class FakeTransport : IIdentityEmailOutboxTransport
     {
         private readonly ConcurrentQueue<Delivery> _deliveries = new();
-        private int _failBeforeAccept;
         private int _failAlways;
+        private long _failedSendAttempts;
 
         internal IReadOnlyCollection<Delivery> Deliveries => _deliveries.ToArray();
-        internal void FailBeforeAcceptOnce() => Interlocked.Exchange(ref _failBeforeAccept, 1);
+        internal long FailedSendAttempts => Interlocked.Read(ref _failedSendAttempts);
         internal bool FailAlways
         {
             get => Volatile.Read(ref _failAlways) == 1;
@@ -140,8 +140,11 @@ internal static class F2bH02ProductionIdentityHttpContract
             IdentityUser user, string email, string confirmationLink, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (FailAlways || Interlocked.Exchange(ref _failBeforeAccept, 0) == 1)
+            if (FailAlways)
+            {
+                Interlocked.Increment(ref _failedSendAttempts);
                 throw new IOException("synthetic transport failure");
+            }
             _deliveries.Enqueue(new Delivery(IdentityEmailPurpose.ConfirmEmail, email, confirmationLink));
             return Task.CompletedTask;
         }
@@ -151,7 +154,10 @@ internal static class F2bH02ProductionIdentityHttpContract
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (FailAlways)
+            {
+                Interlocked.Increment(ref _failedSendAttempts);
                 throw new IOException("synthetic transport failure");
+            }
             _deliveries.Enqueue(new Delivery(IdentityEmailPurpose.ResetPassword, email, resetCode));
             return Task.CompletedTask;
         }
@@ -437,18 +443,6 @@ internal static class F2bH02ProductionIdentityHttpContract
                 "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200");
         }
 
-        fake.FailAlways = true;
-        try
-        {
-            using var smtpUnavailable = await client.GetAsync("/health/ready");
-            Check(smtpUnavailable.StatusCode == HttpStatusCode.OK,
-                "F2B_H05E_SMTP_UNAVAILABLE_READINESS_200");
-        }
-        finally
-        {
-            fake.FailAlways = false;
-        }
-
         await SetIdentityRoleConnectAsync(migrator, enabled: false);
         try
         {
@@ -546,20 +540,45 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT");
 
         SetTestPeer(client, "192.0.2.10");
-        fake.FailBeforeAcceptOnce();
+        var failedSendAttemptsBefore = fake.FailedSendAttempts;
+        string registrationBody;
+        string userId;
+        Guid outboxId;
+        fake.FailAlways = true;
+        try
+        {
+            using var registration = await client.PostAsJsonAsync(
+                "/api/public-account/register", new { email, password });
+            Check(registration.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE");
+            registrationBody = await registration.Content.ReadAsStringAsync();
 
-        using var registration = await client.PostAsJsonAsync("/api/public-account/register",
-            new { email, password });
-        Check(registration.StatusCode == HttpStatusCode.Accepted,
-            "F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE");
+            userId = await WaitForUserIdAsync(
+                identityConnection, email, TimeSpan.FromSeconds(15));
+            Check(await ReadIdentityRoleAssignmentCountAsync(migrator, userId) == 0,
+                "F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE");
+            Check(await ReadOrganizationMembershipCountAsync(migrator, userId) == 0,
+                "F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP");
 
-        var userId = await WaitForUserIdAsync(identityConnection, email, TimeSpan.FromSeconds(15));
-        Check(await ReadIdentityRoleAssignmentCountAsync(migrator, userId) == 0,
-            "F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE");
-        Check(await ReadOrganizationMembershipCountAsync(migrator, userId) == 0,
-            "F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP");
-        var outboxId = await WaitForRetryAsync(identityConnection, userId, TimeSpan.FromSeconds(15));
-        Check(outboxId != Guid.Empty, "F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC");
+            outboxId = await WaitForRetryAsync(
+                identityConnection, userId, TimeSpan.FromSeconds(15));
+            Check(outboxId != Guid.Empty,
+                "F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC");
+            Check(fake.FailedSendAttempts > failedSendAttemptsBefore,
+                "F2B_H05E_SMTP_TRANSPORT_FAILURE_OBSERVED");
+            Check(await ReadAttemptCountAsync(identityConnection, outboxId) >= 1,
+                "F2B_H05E_SMTP_RETRY_PERSISTED");
+
+            using var smtpUnavailable = await client.GetAsync("/health/ready");
+            using var liveDuringSmtpFailure = await client.GetAsync("/health/live");
+            Check(smtpUnavailable.StatusCode == HttpStatusCode.OK &&
+                  liveDuringSmtpFailure.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_SMTP_UNAVAILABLE_READINESS_200");
+        }
+        finally
+        {
+            fake.FailAlways = false;
+        }
 
         var unknownResendEmail = "missing-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         using var unknownResend = await client.PostAsJsonAsync(
@@ -671,8 +690,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             new { email, password });
         Check(duplicate.StatusCode == HttpStatusCode.Accepted,
             "F2B_H02_DUPLICATE_REGISTRATION_GENERIC");
-        Check(await duplicate.Content.ReadAsStringAsync() ==
-              await registration.Content.ReadAsStringAsync(),
+        Check(await duplicate.Content.ReadAsStringAsync() == registrationBody,
             "F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC");
 
         var accessToken = await LoginAsync(client, email, password);
@@ -1797,7 +1815,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             await using var cmd = c.CreateCommand();
             cmd.CommandText = """
                 SELECT "Id" FROM public."IdentityEmailOutbox"
-                WHERE "UserId"=@user AND "Purpose"=@purpose AND "Status"=@pending AND "AttemptCount"=1
+                WHERE "UserId"=@user AND "Purpose"=@purpose AND "Status"=@pending AND "AttemptCount">=1
                 ORDER BY "QueuedAtUtc" DESC LIMIT 1
                 """;
             cmd.Parameters.AddWithValue("user", userId);
