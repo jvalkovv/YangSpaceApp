@@ -306,6 +306,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         const string password = "StrongPassword!2026";
 
+        SetTestPeer(client, "192.0.2.13");
         var malformedEmail = "not-an-email";
         using var malformedRegistration = await client.PostAsJsonAsync(
             "/api/public-account/register", new { email = malformedEmail, password });
@@ -320,6 +321,7 @@ internal static class F2bH02ProductionIdentityHttpContract
               !await UserExistsAsync(identityConnection, weakPasswordEmail),
             "F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT");
 
+        SetTestPeer(client, "192.0.2.10");
         fake.FailBeforeAcceptOnce();
 
         using var registration = await client.PostAsJsonAsync("/api/public-account/register",
@@ -368,6 +370,7 @@ internal static class F2bH02ProductionIdentityHttpContract
               confirmationPolicies.Contains("no-referrer", StringComparer.OrdinalIgnoreCase),
             "F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS");
 
+        SetTestPeer(client, "192.0.2.14");
         var malformedConfirmationEmail = "h04-malformed-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         var malformedConfirmationUser = await CreatePublicUserAsync(
             factory.Services, malformedConfirmationEmail, password, emailConfirmed: false);
@@ -386,6 +389,7 @@ internal static class F2bH02ProductionIdentityHttpContract
               unknownConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
             "F2B_H04_CONFIRM_UNKNOWN_USER_FAIL_CLOSED");
 
+        SetTestPeer(client, "192.0.2.10");
         using var replay = await client.GetAsync(confirmation.Payload);
         Check(replay.StatusCode == HttpStatusCode.Redirect &&
               replay.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
