@@ -1,3 +1,22 @@
+## 2026-11-17 — F2b O4-H01 passed; H02 H05e DB outage test-harness correction committed
+
+The latest operator run progressed through the O3 PostgreSQL worker stage and O4-H01 Production TestServer, then entered `h02-production-http`. It stopped at `F2B_H05E_DB_UNAVAILABLE_READINESS_503_LIVE_200`; the earlier H05 DataProtection sentinel-loss/corruption recovery checks passed.
+
+**RCA:** H02 simulated DB outage by revoking `CONNECT` from `ys_h02_identity`. PostgreSQL revocation blocks new sessions but does not terminate existing sessions; Npgsql pooling could reuse an existing authenticated session. The expected readiness 503 was therefore not guaranteed. This is a failure-injection defect, not proof of a production readiness defect.
+
+**Committed test correction:**
+- Clear Npgsql pools after revoking CONNECT.
+- Wait until `pg_stat_activity` reports zero sessions for the identity runtime role.
+- Prove a fresh non-pooled connection is refused with SQLSTATE `42501`.
+- Then require readiness 503/liveness 200; restore CONNECT, clear pools and require readiness 200.
+- Runner and Independent Postflight require the new session-drained/new-connection-denied markers and a manifest assertion.
+
+Source/test contract commit: `f8a0d5309490e0c3bd7dc9f8d3164994128957e9`. Runner/Postflight marker+manifest commit: `ecb5adedb4761611c0205a14e70a4a7bde140f8d`. Formatting-only runner follow-up: `6df601b855f2b5905766c60a9dc1504f848c08cd`.
+
+**Next gate:** run the complete current PR #56 HEAD from a clean Windows worktree; require O3 + H01 + H02, all H05e recovery markers, disposable cleanup and Independent Postflight at one exact SHA. PR #56 stays Draft/Open; Issues #50/#55 stay Open; release HOLD. No CT164, production DB, real SMTP, deployment or GitHub Actions.
+
+---
+
 ## H01 launcher destination correction — source fix / runtime pending
 
 The 2026-11-16 operator rerun passed content-root mkdir/copy/verify and launcher-copy, but `chmod` failed because `/run/pgcerts` was not an existing destination directory. The H01 runner now uses `/tmp/o4-h01-run.sh`, the same existing container path family as the O3 launcher: copy, chmod 0600, execute and cleanup all target the exact same path. This is a QA harness correction only; shared stage validation and production gates remain unchanged. New source SHA is required for full rerun; do not accept H01 on source-only evidence.
