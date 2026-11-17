@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h05c-outbox-operations-20261117'
+$Branch='feat/yangspace-f2b-h05d-admin-http-replay-20261117'
 $Git=(Get-Command git.exe -ErrorAction Stop).Source
 $Docker=(Get-Command docker.exe -ErrorAction Stop).Source
 function Check([bool]$Ok,[string]$Marker) {
@@ -37,7 +37,7 @@ Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'POSTFLIGHT_BRANCH_O
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_CLEAN_SOURCE'
 $Evidence=(Resolve-Path -LiteralPath $EvidenceDirectory).Path
-$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h05c-outbox-operations'))
+$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h05d-admin-http-replay'))
 Check ($Evidence.StartsWith($Root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) 'POSTFLIGHT_EVIDENCE_SCOPE'
 Check ((Split-Path $Evidence -Leaf) -match ('^'+$CommitSha.Substring(0,12)+'-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$')) 'POSTFLIGHT_EVIDENCE_IDENTITY'
 $ManifestPath=Join-Path $Evidence 'manifest.txt'
@@ -79,6 +79,7 @@ foreach ($Value in @(
     'H05_KEYRING_RECOVERY=PASS_SENTINEL_LOSS_503_RESTORE_200',
     'H05B_IDENTITY_RESTART_TOKEN_CONTINUITY=PASS_FOREIGN_REFUSED_RESTORED_ACCEPTED',
     'H05C_OUTBOX_OPERATOR_SUMMARY=PASS_POSTGRES_COUNTS_NO_PII',
+    'H05D_ADMIN_HTTP_REPLAY=PASS_BEARER_GATEWAY_CONCURRENT_CAS',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -312,6 +313,22 @@ foreach ($M in @(
     'F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED',
     'F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID',
     'F2B_H05B_RESTORED_KEYRING_CLEANED',
+    'F2B_H05D_ADMIN_REAL_PRODUCTION_TESTSERVER',
+    'F2B_H05D_ADMIN_BEARER_LOGIN_NO_COOKIE',
+    'F2B_H05D_ADMIN_MISSING_GATEWAY_REFUSED',
+    'F2B_H05D_ADMIN_INVALID_GATEWAY_REFUSED',
+    'F2B_H05D_ADMIN_NONLOOPBACK_GATEWAY_REFUSED',
+    'F2B_H05D_ADMIN_ANONYMOUS_REFUSED',
+    'F2B_H05D_ADMIN_COOKIE_ONLY_REFUSED',
+    'F2B_H05D_ADMIN_NONADMIN_BEARER_REFUSED',
+    'F2B_H05D_ADMIN_SUMMARY_HTTP_ALLOWED_NO_PII',
+    'F2B_H05D_ADMIN_DEADLETTER_LIST_ALLOWED_NO_PII',
+    'F2B_H05D_ADMIN_REPLAY_NONADMIN_REFUSED',
+    'F2B_H05D_ADMIN_REPLAY_GATEWAY_REFUSED',
+    'F2B_H05D_ADMIN_CONCURRENT_REPLAY_SINGLE_WINNER',
+    'F2B_H05D_ADMIN_REPLAY_STATE_RESET_ATOMIC',
+    'F2B_H05D_ADMIN_REPLAY_IDEMPOTENT_CONFLICT',
+    'F2B_H05D_ADMIN_REPLAY_UNKNOWN_404',
     'F2B_H02_LOGIN_HTTP','F2B_H02_LOGIN_NO_SET_COOKIE','F2B_H02_LOGIN_BEARER_ONLY',
     'F2B_H02_SESSION_REQUIRES_BEARER','F2B_H02_SESSION_BEARER_OK',
     'F2B_H02_STAFF_ROLE_FIXTURES_CREATED','F2B_H02_STAFF_CONFIRMATION_DENIED',
@@ -374,6 +391,7 @@ Write-Host 'F2B_H04_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H05_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H05B_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H05C_INDEPENDENT_POSTFLIGHT=PASS'
+Write-Host 'F2B_H05D_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant())

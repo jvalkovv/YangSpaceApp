@@ -5,7 +5,7 @@ param([Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$Co
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h05c-outbox-operations-20261117'
+$Branch='feat/yangspace-f2b-h05d-admin-http-replay-20261117'
 $Project='apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
 $Db='yangspace_f2b_o3_worker_disposable'
 $Image='postgres:17'
@@ -75,7 +75,7 @@ $DockerVersion=DockerValue @('info','--format','{{.ServerVersion}}')
 $ImageId=DockerValue @('image','inspect','--format','{{.Id}}',$Image)
 Check ($ImageId -match '^sha256:[0-9a-f]{64}$') 'F2B_O3_PG_IMAGE_PREEXISTS'
 $Nonce=RandomHex
-$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h05c-outbox-operations') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
+$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h05d-admin-http-replay') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
 $Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-h05-'+$Nonce.Substring(0,12))
@@ -438,6 +438,22 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED',
         'F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID',
         'F2B_H05B_RESTORED_KEYRING_CLEANED',
+        'F2B_H05D_ADMIN_REAL_PRODUCTION_TESTSERVER',
+        'F2B_H05D_ADMIN_BEARER_LOGIN_NO_COOKIE',
+        'F2B_H05D_ADMIN_MISSING_GATEWAY_REFUSED',
+        'F2B_H05D_ADMIN_INVALID_GATEWAY_REFUSED',
+        'F2B_H05D_ADMIN_NONLOOPBACK_GATEWAY_REFUSED',
+        'F2B_H05D_ADMIN_ANONYMOUS_REFUSED',
+        'F2B_H05D_ADMIN_COOKIE_ONLY_REFUSED',
+        'F2B_H05D_ADMIN_NONADMIN_BEARER_REFUSED',
+        'F2B_H05D_ADMIN_SUMMARY_HTTP_ALLOWED_NO_PII',
+        'F2B_H05D_ADMIN_DEADLETTER_LIST_ALLOWED_NO_PII',
+        'F2B_H05D_ADMIN_REPLAY_NONADMIN_REFUSED',
+        'F2B_H05D_ADMIN_REPLAY_GATEWAY_REFUSED',
+        'F2B_H05D_ADMIN_CONCURRENT_REPLAY_SINGLE_WINNER',
+        'F2B_H05D_ADMIN_REPLAY_STATE_RESET_ATOMIC',
+        'F2B_H05D_ADMIN_REPLAY_IDEMPOTENT_CONFLICT',
+        'F2B_H05D_ADMIN_REPLAY_UNKNOWN_404',
         'F2B_H02_LOGIN_HTTP',
         'F2B_H02_LOGIN_NO_SET_COOKIE',
         'F2B_H02_LOGIN_BEARER_ONLY',
@@ -603,6 +619,7 @@ $Manifest=@(
     'H05_KEYRING_RECOVERY=PASS_SENTINEL_LOSS_503_RESTORE_200',
     'H05B_IDENTITY_RESTART_TOKEN_CONTINUITY=PASS_FOREIGN_REFUSED_RESTORED_ACCEPTED',
     'H05C_OUTBOX_OPERATOR_SUMMARY=PASS_POSTGRES_COUNTS_NO_PII',
+    'H05D_ADMIN_HTTP_REPLAY=PASS_BEARER_GATEWAY_CONCURRENT_CAS',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -626,6 +643,7 @@ Write-Host 'F2B_H04_IDENTITY_EDGE_QA=PASS'
 Write-Host 'F2B_H05_DP_FOUNDATION_QA=PASS'
 Write-Host 'F2B_H05B_IDENTITY_RESTART_QA=PASS'
 Write-Host 'F2B_H05C_OPERATOR_SUMMARY_QA=PASS'
+Write-Host 'F2B_H05D_ADMIN_HTTP_QA=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath (Join-Path $Evidence 'manifest.txt') -Algorithm SHA256).Hash.ToLowerInvariant())

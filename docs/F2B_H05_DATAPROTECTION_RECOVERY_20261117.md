@@ -147,3 +147,23 @@ F2B_H05B_INDEPENDENT_POSTFLIGHT
 ### H05c operator run
 
 Execute the existing `scripts/Test-F2b-O4-H01-PostgreSql-Local.ps1` at the **current exact 40-char H05c head** in a clean detached worktree. Evidence root: `logs/yangspace/f2b-o4-h05c-outbox-operations`. TestServer/PG17 and independent Postflight use disposable resources only.
+
+
+## H05d — Production Admin HTTP bearer/gateway and operator replay
+
+**Source candidate; exact-SHA runtime acceptance PENDING.** Stacked on H05c accepted baseline `8e2509e93551ac95b7dfaa52909c0b9a86b5037f`.
+
+Application TestServer tests are implemented as an extension of the existing real Production `Program` fixture on disposable PostgreSQL 17/TLS VerifyFull, using temporary in-process gateway secret and a synthetic loopback TCP peer injected **only** by the test `IStartupFilter`.
+
+Required new behavioral checks:
+
+- Actual Production startup with `Admin:Enabled=true` and PublicAccounts explicit test-only authorization, confirmed synthetic PlatformAdmin fixture, and real `PlatformAdmin` bearer authorization.
+- Exact 32-byte Base64 internal admin gateway secret; missing/incorrect secret refused; valid secret from non-loopback peer refused.
+- Anonymous/cookie-only/non-admin bearer denied; valid admin bearer admitted to summary and dead-letter listing without any recipient/token payload.
+- Dead-letter replay cannot be performed by non-admin bearer or without gateway; concurrent replay via real HTTP must have exactly one 202 Accepted and one 409 Conflict.
+- After replay, persisted PostgreSQL row must be Pending with attempt counter reset, lease cleared, dead-letter/failure fields cleared and exactly one revision increment; repeated replay must conflict, unknown ID 404.
+- Fake transport only. Background dispatcher is removed **from the admin TestServer's test DI** to ensure stable row-state assertions; production `Program`, route mapping and auth policies are unchanged.
+
+Sixteen new `F2B_H05D_` markers are asserted by the exact-SHA runner and Independent Postflight, along with H01–H05c regressions, build/receipt/hash parity and disposable cleanup. Do not reuse earlier H05c manifest after this changed SHA.
+
+**Still not H05 full acceptance:** deterministic separate worker fault/re-drive observability and runtime DB-loss readiness/restore may remain; no real SMTP/CT164/production DB/public feature activation/ingress/GitHub Actions. No production secrets in source or evidence.

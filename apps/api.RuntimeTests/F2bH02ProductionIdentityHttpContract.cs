@@ -191,12 +191,15 @@ internal static class F2bH02ProductionIdentityHttpContract
         private readonly string _connection;
         private readonly IReadOnlyDictionary<string, string?> _configuration;
         internal FakeTransport Fake { get; }
+        private readonly bool _adminEnabled;
 
-        internal Factory(string connection, IReadOnlyDictionary<string, string?> configuration, FakeTransport fake)
+        internal Factory(string connection, IReadOnlyDictionary<string, string?> configuration,
+            FakeTransport fake, bool adminEnabled = false)
         {
             _connection = connection;
             _configuration = configuration;
             Fake = fake;
+            _adminEnabled = adminEnabled;
         }
 
         protected override IEnumerable<System.Reflection.Assembly> GetTestAssemblies()
@@ -223,7 +226,7 @@ internal static class F2bH02ProductionIdentityHttpContract
                 values["AllowedHosts"] = "yangspace.gndstore.eu";
                 values["Preview:Enabled"] = "false";
                 values["Preview:AllowRegistration"] = "false";
-                values["Admin:Enabled"] = "false";
+                values["Admin:Enabled"] = _adminEnabled ? "true" : "false";
                 values["MerchantRead:Enabled"] = "false";
                 values["ClaimReview:QaEnabled"] = "false";
                 values["ClaimReviewPostgreSqlQa:Enabled"] = "false";
@@ -241,6 +244,15 @@ internal static class F2bH02ProductionIdentityHttpContract
             builder.ConfigureTestServices(services =>
             {
                 services.AddSingleton<IStartupFilter>(new TestPeerAddressStartupFilter());
+                if (_adminEnabled)
+                {
+                    // Keep the real HTTP production application and auth policies;
+                    // suppress only background dispatch to make replay-state assertions deterministic.
+                    foreach (var descriptor in services.Where(descriptor =>
+                        descriptor.ServiceType == typeof(IHostedService) &&
+                        descriptor.ImplementationType == typeof(IdentityEmailOutboxWorker)).ToArray())
+                        services.Remove(descriptor);
+                }
                 services.RemoveAll<IIdentityEmailOutboxTransport>();
                 services.AddSingleton<IIdentityEmailOutboxTransport>(Fake);
                 services.Configure<IdentityEmailOutboxOptions>(options =>
@@ -914,6 +926,197 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         await RunH05RestartIdentityRecoveryAsync(
             factory, client, identityConnection, startupConfiguration, keyRing, password);
+        // H05b explicitly disposes the first factory/worker before H05d:
+        // otherwise a live background worker could race the replay assertions.
+        await RunH05dAdminHttpAsync(
+            identityConnection, startupConfiguration, staffConfirmedEmail, password);
+    }
+
+
+    // H05d: actual Production Program + PlatformAdmin bearer authorization and
+    // gateway filter, with synthetic loopback peer. All accounts/outbox rows live
+    // solely in the disposable PostgreSQL 17 fixture; no real SMTP is used.
+    private static async Task RunH05dAdminHttpAsync(
+        string connection, IReadOnlyDictionary<string, string?> configuration,
+        string operatorEmail, string password)
+    {
+        var gateway = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var values = configuration.ToDictionary(
+            pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        values["Admin:Enabled"] = "true";
+        values["Admin:GatewaySecret"] = gateway;
+
+        using var environment = new StartupEnvironmentScope(values, Environments.Production);
+        using var adminFactory = new Factory(connection, values, new FakeTransport(), adminEnabled: true);
+        using var client = adminFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
+            AllowAutoRedirect = false
+        });
+        SetTestPeer(client, "127.0.0.1");
+        Check(adminFactory.Services.GetRequiredService<IWebHostEnvironment>().IsProduction(),
+            "F2B_H05D_ADMIN_REAL_PRODUCTION_TESTSERVER");
+
+        static async Task<string> GetBearerAsync(
+            HttpClient client, string email, string pass, string gatewaySecret)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login");
+            request.Headers.Add(ProductionAdminAccess.HeaderName, gatewaySecret);
+            request.Content = JsonContent.Create(new { email, password = pass });
+            using var response = await client.SendAsync(request);
+            if (response.StatusCode != HttpStatusCode.OK ||
+                response.Headers.Contains("Set-Cookie"))
+                throw new InvalidOperationException("F2B_H05D_BEARER_LOGIN_FAILED");
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var bearer = json.RootElement.GetProperty("accessToken").GetString();
+            return !string.IsNullOrWhiteSpace(bearer)
+                ? bearer : throw new InvalidOperationException("F2B_H05D_BEARER_MISSING");
+        }
+
+        static async Task<HttpResponseMessage> RequestAsync(
+            HttpClient client, HttpMethod method, string endpoint,
+            string? bearer, string? gatewaySecret, bool sendCookie = false)
+        {
+            using var request = new HttpRequestMessage(method, endpoint);
+            if (bearer is not null)
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+            if (gatewaySecret is not null)
+                request.Headers.Add(ProductionAdminAccess.HeaderName, gatewaySecret);
+            if (sendCookie)
+                request.Headers.Add("Cookie", "Identity.Application=synthetic-cookie-not-a-bearer");
+            return await client.SendAsync(request);
+        }
+
+        var operatorBearer = await GetBearerAsync(client, operatorEmail, password, gateway);
+        Check(true, "F2B_H05D_ADMIN_BEARER_LOGIN_NO_COOKIE");
+
+        var publicEmail = "h05d-nonadmin-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        _ = await CreatePublicUserAsync(adminFactory.Services, publicEmail, password, emailConfirmed: true);
+        var nonAdminBearer = await GetBearerAsync(client, publicEmail, password, gateway);
+
+        var summaryUrl = "/api/v1/admin/email-outbox/summary";
+        using (var missingGateway = await RequestAsync(
+            client, HttpMethod.Get, summaryUrl, operatorBearer, null))
+            Check(missingGateway.StatusCode == HttpStatusCode.NotFound,
+                "F2B_H05D_ADMIN_MISSING_GATEWAY_REFUSED");
+
+        using (var badGateway = await RequestAsync(
+            client, HttpMethod.Get, summaryUrl, operatorBearer,
+            Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))))
+            Check(badGateway.StatusCode == HttpStatusCode.NotFound,
+                "F2B_H05D_ADMIN_INVALID_GATEWAY_REFUSED");
+
+        SetTestPeer(client, "198.51.100.91");
+        using (var nonLoopback = await RequestAsync(
+            client, HttpMethod.Get, summaryUrl, operatorBearer, gateway))
+            Check(nonLoopback.StatusCode == HttpStatusCode.NotFound,
+                "F2B_H05D_ADMIN_NONLOOPBACK_GATEWAY_REFUSED");
+        SetTestPeer(client, "127.0.0.1");
+
+        using (var anonymous = await RequestAsync(
+            client, HttpMethod.Get, summaryUrl, null, gateway))
+            Check(anonymous.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H05D_ADMIN_ANONYMOUS_REFUSED");
+
+        using (var cookieOnly = await RequestAsync(
+            client, HttpMethod.Get, summaryUrl, null, gateway, sendCookie: true))
+            Check(cookieOnly.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H05D_ADMIN_COOKIE_ONLY_REFUSED");
+
+        using (var nonAdmin = await RequestAsync(
+            client, HttpMethod.Get, summaryUrl, nonAdminBearer, gateway))
+            Check(nonAdmin.StatusCode == HttpStatusCode.Forbidden,
+                "F2B_H05D_ADMIN_NONADMIN_BEARER_REFUSED");
+
+        using (var accepted = await RequestAsync(
+            client, HttpMethod.Get, summaryUrl, operatorBearer, gateway))
+        {
+            var content = await accepted.Content.ReadAsStringAsync();
+            using var json = JsonDocument.Parse(content);
+            Check(accepted.StatusCode == HttpStatusCode.OK &&
+                  json.RootElement.TryGetProperty("pending", out _) &&
+                  json.RootElement.TryGetProperty("deadLetter", out _) &&
+                  !content.Contains("@", StringComparison.Ordinal) &&
+                  !content.Contains("userId", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("token", StringComparison.OrdinalIgnoreCase),
+                "F2B_H05D_ADMIN_SUMMARY_HTTP_ALLOWED_NO_PII");
+        }
+
+        var deadUserEmail = "h05d-dead-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var deadUser = await CreatePublicUserAsync(
+            adminFactory.Services, deadUserEmail, password, emailConfirmed: false);
+        var deadId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        await using (var scope = adminFactory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DirectoryDb>();
+            db.IdentityEmailOutbox.Add(new IdentityEmailOutboxMessage
+            {
+                Id = deadId, UserId = deadUser.Id, Purpose = IdentityEmailPurpose.ConfirmEmail,
+                Status = IdentityEmailOutboxStatus.DeadLetter, AttemptCount = 3,
+                Revision = 4, QueuedAtUtc = now.AddMinutes(-10),
+                AvailableAtUtc = now.AddMinutes(-9),
+                ExpiresAtUtc = now.AddHours(1), DeadLetterAtUtc = now.AddMinutes(-1),
+                LastFailureCode = "dispatch_failed"
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using (var deadList = await RequestAsync(
+            client, HttpMethod.Get, "/api/v1/admin/email-outbox/dead-letter",
+            operatorBearer, gateway))
+        {
+            var body = await deadList.Content.ReadAsStringAsync();
+            Check(deadList.StatusCode == HttpStatusCode.OK &&
+                  body.Contains(deadId.ToString(), StringComparison.OrdinalIgnoreCase) &&
+                  !body.Contains(deadUserEmail, StringComparison.OrdinalIgnoreCase),
+                "F2B_H05D_ADMIN_DEADLETTER_LIST_ALLOWED_NO_PII");
+        }
+
+        var replayPath = "/api/v1/admin/email-outbox/" + deadId + "/replay";
+        using (var denied = await RequestAsync(
+            client, HttpMethod.Post, replayPath, nonAdminBearer, gateway))
+            Check(denied.StatusCode == HttpStatusCode.Forbidden,
+                "F2B_H05D_ADMIN_REPLAY_NONADMIN_REFUSED");
+        using (var missingGateway = await RequestAsync(
+            client, HttpMethod.Post, replayPath, operatorBearer, null))
+            Check(missingGateway.StatusCode == HttpStatusCode.NotFound,
+                "F2B_H05D_ADMIN_REPLAY_GATEWAY_REFUSED");
+
+        var competing = await Task.WhenAll(
+            RequestAsync(client, HttpMethod.Post, replayPath, operatorBearer, gateway),
+            RequestAsync(client, HttpMethod.Post, replayPath, operatorBearer, gateway));
+        using (competing[0])
+        using (competing[1])
+        {
+            Check(competing.Count(response =>
+                response.StatusCode == HttpStatusCode.Accepted) == 1 &&
+                  competing.Count(response =>
+                response.StatusCode == HttpStatusCode.Conflict) == 1,
+                "F2B_H05D_ADMIN_CONCURRENT_REPLAY_SINGLE_WINNER");
+        }
+
+        await using (var scope = adminFactory.Services.CreateAsyncScope())
+        {
+            var row = await scope.ServiceProvider.GetRequiredService<DirectoryDb>()
+                .IdentityEmailOutbox.AsNoTracking().SingleAsync(item => item.Id == deadId);
+            Check(row.Status == IdentityEmailOutboxStatus.Pending &&
+                  row.AttemptCount == 0 && row.LeaseId is null &&
+                  row.LeasedUntilUtc is null && row.DeadLetterAtUtc is null &&
+                  row.LastFailureCode is null && row.Revision == 5,
+                "F2B_H05D_ADMIN_REPLAY_STATE_RESET_ATOMIC");
+        }
+        using (var retry = await RequestAsync(
+            client, HttpMethod.Post, replayPath, operatorBearer, gateway))
+            Check(retry.StatusCode == HttpStatusCode.Conflict,
+                "F2B_H05D_ADMIN_REPLAY_IDEMPOTENT_CONFLICT");
+
+        using (var unknown = await RequestAsync(
+            client, HttpMethod.Post,
+            "/api/v1/admin/email-outbox/" + Guid.NewGuid() + "/replay",
+            operatorBearer, gateway))
+            Check(unknown.StatusCode == HttpStatusCode.NotFound,
+                "F2B_H05D_ADMIN_REPLAY_UNKNOWN_404");
     }
 
     // H05b: exercise actual Identity tokens (not only generic DataProtection payloads)

@@ -4,6 +4,14 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H05c accepted and H05d protected admin HTTP source candidate
+
+**H05c:** exact-SHA Release/PG17 TestServer + 2 outbox summary no-PII markers + Independent Postflight PASS at `8e2509e93551ac95b7dfaa52909c0b9a86b5037f`, manifest SHA256 `ab702f410da0623d231a1ad26e534dfbcad99a5bd15715cf3df1f7b6e5cdbd5c`. PR #53 Ready for Review, not merged.
+
+**H05d:** branch `feat/yangspace-f2b-h05d-admin-http-replay-20261117`, stacked on H05c accepted source. Tests real Production `Program` with synthetic PlatformAdmin and non-admin bearer, protected gateway, negative access controls, privacy-safe summary/list, concurrent dead-letter HTTP replay and PostgreSQL CAS/idempotence evidence. Source candidate, **exact-SHA runtime QA pending**. Full H05 stays OPEN for any unproven worker fault/observability and readiness recovery contracts.
+
+**PR integration:** PR #47 H03 moved to Ready for Review (bounded exact-SHA PASS); open stacked PRs #43/#46/#47/#49/#51/#52/#53 have not been merged. Formal independent maintainer approval is still absent. Do not describe a Ready PR as merged or close a partially accepted upstream PR. Production switches remain OFF.
+
 ## 2026-11-17 — H05b bounded PASS and H05c outbox operator summary source
 
 **H05b:** full exact-SHA QA + independent Postflight PASS at `bdac3b0bc0159bb39a31b5f4f3337160f289d2ae`; nine Identity token restart/recovery markers PASS. Manifest SHA-256 `bc7420998a1de13dee891bb57b9d2e8d9ba17cb78b20d0b53ded6a6d17e33b9f`; PR #52 Ready for Review, not merged.
