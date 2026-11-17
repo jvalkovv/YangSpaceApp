@@ -44,7 +44,7 @@ internal static class ProductionSchemaGate
     }
 
     internal static async Task ValidateRuntimeReadinessAsync(
-        DirectoryDb db, CancellationToken cancellationToken)
+        DirectoryDb db, bool publicAccountsEnabled, CancellationToken cancellationToken)
     {
         var provider = db.Database.ProviderName;
         if (provider is not SqliteProvider and not PostgreSqlProvider)
@@ -76,9 +76,15 @@ internal static class ProductionSchemaGate
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        _ = await db.IdentityAbuseCounters.AsNoTracking()
-            .Select(x => new { x.Operation, x.KeyHash, x.Count, x.WindowStartUtc, x.UpdatedAtUtc })
-            .FirstOrDefaultAsync(cancellationToken);
+        // Account-abuse storage is a dependency only while public accounts are enabled.
+        // The disabled/default-off Production surface must remain ready without granting
+        // this runtime principal access to account-throttle data.
+        if (publicAccountsEnabled)
+        {
+            _ = await db.IdentityAbuseCounters.AsNoTracking()
+                .Select(x => new { x.Operation, x.KeyHash, x.Count, x.WindowStartUtc, x.UpdatedAtUtc })
+                .FirstOrDefaultAsync(cancellationToken);
+        }
     }
 
     private static async Task ValidateSqliteIntegrityAsync(DirectoryDb db)
