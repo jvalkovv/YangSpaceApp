@@ -389,7 +389,8 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
                 .SelectMany(x=>new[]{x.Id,x.Email})
                 .Concat(fake.Deliveries.SelectMany(x=>new[]{x.Email,x.Payload}))
                 .Concat(new[]{migratorCs,runtimeCs,scopeToken})
-                .Where(value=>!string.IsNullOrWhiteSpace(value))
+                .OfType<string>()
+                .Where(value=>value.Length>0)
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
             var forbiddenPropertyNames=new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
