@@ -320,10 +320,10 @@ internal static class F2bH02ProductionIdentityHttpContract
             throw new InvalidOperationException("F2B_H02_SOURCE_SHA_REFUSED");
 
         ValidateConnection(migrator, "ys_o3_migrator");
-        ValidateConnection(identityConnection, IdentityRole);
         Check(await VerifyQaScopeAsync(migrator, scopeToken),
             "F2B_H02_QA_SCOPE_BOUND");
         await GrantIdentityRoleAsync(migrator);
+        ValidateConnection(identityConnection, IdentityRole);
         await VerifyAbuseStoragePrivilegeGateAsync(migrator, identityConnection);
         Check(await VerifyIdentityRoleAsync(identityConnection),
             "F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE");
@@ -1481,6 +1481,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
+            GRANT CONNECT ON DATABASE yangspace_f2b_o3_worker_disposable TO ys_h02_identity;
             GRANT SELECT ON TABLE public."__EFMigrationsHistory" TO ys_h02_identity;
             GRANT SELECT, INSERT, UPDATE ON TABLE public."AspNetUsers" TO ys_h02_identity;
             GRANT SELECT ON TABLE public."AspNetUserRoles" TO ys_h02_identity;
@@ -1777,6 +1778,12 @@ internal static class F2bH02ProductionIdentityHttpContract
             await cmd.ExecuteNonQueryAsync();
         }
 
+        if (!enabled)
+        {
+            Check(!await IdentityRoleHasDatabaseConnectAsync(migrator),
+                "F2B_H05E_DB_UNAVAILABLE_CONNECT_PRIVILEGE_REVOKED");
+        }
+
         dataSource.Clear();
         if (!enabled)
         {
@@ -1786,6 +1793,17 @@ internal static class F2bH02ProductionIdentityHttpContract
             Check(await IdentityConnectionDeniedAsync(identityConnection),
                 "F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED");
         }
+    }
+
+    private static async Task<bool> IdentityRoleHasDatabaseConnectAsync(string migrator)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT has_database_privilege(@role, @database, 'CONNECT');";
+        cmd.Parameters.AddWithValue("role", IdentityRole);
+        cmd.Parameters.AddWithValue("database", DatabaseName);
+        return Convert.ToBoolean(await cmd.ExecuteScalarAsync());
     }
 
     private static async Task WaitForNoIdentitySessionsAsync(
