@@ -114,6 +114,9 @@ if (string.IsNullOrWhiteSpace(databaseProvider))
     throw new InvalidOperationException("Database:Provider must explicitly select SQLite or PostgreSQL.");
 PublicAccountEndpoints.ValidateConfiguration(builder.Configuration, builder.Environment,
     preview, merchantRead, claimReviewQa, productionAdmin);
+var publicAccountKeyRing = publicAccounts
+    ? PublicAccountDataProtectionPolicy.RequireExistingKeyRing(builder.Configuration)
+    : null;
 // QA-only: an isolated SQLite model created by the test harness; no production
 // PostgreSQL role or database is implicitly approved through this feature.
 if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
@@ -171,6 +174,8 @@ switch (databaseProvider.Trim().ToLowerInvariant())
             "Database:Provider must be exactly SQLite or PostgreSQL; implicit provider fallback is forbidden.");
 }
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+if (publicAccountKeyRing is not null)
+    PublicAccountDataProtectionPolicy.Configure(builder.Services, publicAccountKeyRing);
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;
@@ -187,6 +192,7 @@ if (publicAccounts)
 {
     // Queue inside the registration transaction; no synchronous SMTP in HTTP.
     builder.Services.AddScoped<IEmailSender<IdentityUser>, OutboxIdentityEmailSender>();
+    builder.Services.AddScoped<IIdentityAbuseThrottle, IdentityAbuseThrottle>();
     builder.Services.Configure<IdentityEmailOutboxOptions>(builder.Configuration.GetSection("PublicAccounts:Outbox"));
     builder.Services.AddTransient<SmtpPublicIdentityEmailSender>();
     builder.Services.AddTransient<IIdentityEmailOutboxTransport>(services => services.GetRequiredService<SmtpPublicIdentityEmailSender>());
@@ -240,6 +246,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
 app.MapGet("/health/ready", async (DirectoryDb db, CancellationToken ct) =>
+    (publicAccountKeyRing is null || PublicAccountDataProtectionPolicy.IsReady(publicAccountKeyRing)) &&
     await db.Database.CanConnectAsync(ct)
         ? Results.Ok(new { status = "ready" })
         : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
@@ -259,6 +266,13 @@ if (app.Environment.IsProduction())
         await ProductionSchemaGate.ValidateSchemaAsync(
             scope.ServiceProvider.GetRequiredService<DirectoryDb>());
     }
+}
+
+if (publicAccounts)
+{
+    using var scope = app.Services.CreateScope();
+    await ProductionSchemaGate.ValidatePublicAccountAbuseStorageAsync(
+        scope.ServiceProvider.GetRequiredService<DirectoryDb>());
 }
 
 if (preview || productionAdmin || merchantRead || claimReviewQa || claimReviewPostgreSqlQa)

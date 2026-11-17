@@ -144,6 +144,34 @@ internal static class ProductionSchemaGate
         }
     }
 
+    internal static async Task ValidatePublicAccountAbuseStorageAsync(DirectoryDb db)
+    {
+        if (db.Database.ProviderName != PostgreSqlProvider)
+            throw new InvalidOperationException(
+                "Production public accounts blocked: account abuse storage requires PostgreSQL.");
+
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = """
+                SELECT has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'SELECT')
+                   AND has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'INSERT')
+                   AND has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'UPDATE')
+                   AND has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'DELETE');
+                """;
+            var allowed = Convert.ToBoolean(
+                await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+            if (!allowed)
+                throw new InvalidOperationException(
+                    "PUBLIC_ACCOUNT_ABUSE_STORAGE_PRIVILEGE_REQUIRED");
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     internal static async Task ValidateAsync(WebApplication app)
     {
         using var scope = app.Services.CreateScope();

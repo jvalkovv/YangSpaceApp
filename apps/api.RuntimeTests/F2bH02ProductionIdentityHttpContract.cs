@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using YangSpace.Api;
 
@@ -24,6 +25,10 @@ internal static class F2bH02ProductionIdentityHttpContract
 {
     private const string DatabaseName = "yangspace_f2b_o3_worker_disposable";
     private const string IdentityRole = "ys_h02_identity";
+    private static readonly byte[] TestAbuseHmacKeyBytes =
+        Enumerable.Range(1, 32).Select(value => (byte)value).ToArray();
+    private static readonly string TestAbuseHmacKey =
+        Convert.ToBase64String(TestAbuseHmacKeyBytes);
 
     private static void Check(bool ok, string marker)
     {
@@ -34,6 +39,39 @@ internal static class F2bH02ProductionIdentityHttpContract
     private static string Required(string name) =>
         Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
             ? value : throw new InvalidOperationException("F2B_H02_ENV_MISSING=" + name);
+
+    private sealed class SyntheticKeyRingScope : IDisposable
+    {
+        internal string DirectoryPath { get; }
+
+        internal SyntheticKeyRingScope()
+        {
+            DirectoryPath = Path.Combine(
+                Path.GetTempPath(), "yangspace-h05-dp-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(DirectoryPath);
+            if (OperatingSystem.IsLinux())
+                File.SetUnixFileMode(DirectoryPath,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            var provider = DataProtectionProvider.Create(
+                new DirectoryInfo(DirectoryPath),
+                builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName));
+            var sentinel = provider.CreateProtector(PublicAccountDataProtectionPolicy.SentinelPurpose)
+                .Protect(PublicAccountDataProtectionPolicy.SentinelPlaintext);
+            var sentinelPath = Path.Combine(DirectoryPath, PublicAccountDataProtectionPolicy.SentinelFileName);
+            File.WriteAllText(sentinelPath, sentinel);
+            if (OperatingSystem.IsLinux())
+                File.SetUnixFileMode(sentinelPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Check(PublicAccountDataProtectionPolicy.IsReady(new DirectoryInfo(DirectoryPath)),
+                "F2B_H05_DATAPROTECTION_OFFLINE_PROVISIONED_KEYRING");
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(DirectoryPath))
+                Directory.Delete(DirectoryPath, recursive: true);
+        }
+    }
 
     private sealed class CommitEnvironmentScope : IDisposable
     {
@@ -190,6 +228,7 @@ internal static class F2bH02ProductionIdentityHttpContract
                 values["ClaimReview:QaEnabled"] = "false";
                 values["ClaimReviewPostgreSqlQa:Enabled"] = "false";
                 values["PublicAccounts:Enabled"] = "true";
+                values["PublicAccounts:AbuseProtection:HmacKey"] = TestAbuseHmacKey;
                 values["PublicAccounts:Outbox:DispatchEnabled"] = "true";
                 values["PublicAccounts:CanonicalOrigin"] = PublicAccountReleaseAuthorization.RequiredAudience;
                 values["PublicAccounts:Email:SmtpHost"] = "127.0.0.1";
@@ -232,10 +271,27 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(await VerifyQaScopeAsync(migrator, scopeToken),
             "F2B_H02_QA_SCOPE_BOUND");
         await GrantIdentityRoleAsync(migrator);
+        await VerifyAbuseStoragePrivilegeGateAsync(migrator, identityConnection);
         Check(await VerifyIdentityRoleAsync(identityConnection),
             "F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE");
 
         using var environment = new CommitEnvironmentScope(commit);
+        using var keyRing = new SyntheticKeyRingScope();
+        var missingConfigurationRefused = false;
+        try
+        {
+            _ = PublicAccountDataProtectionPolicy.RequireExistingKeyRing(
+                new ConfigurationBuilder().AddInMemoryCollection(
+                    new Dictionary<string, string?>()).Build());
+        }
+        catch (InvalidOperationException exception)
+            when (exception.Message == "PUBLIC_ACCOUNT_KEYRING_ABSOLUTE_PATH_REQUIRED")
+        {
+            missingConfigurationRefused = true;
+        }
+        Check(missingConfigurationRefused,
+            "F2B_H05_DATAPROTECTION_UNCONFIGURED_FAILS_CLOSED");
+
         using var signer = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var authorization = CreateAuthorization(signer, commit);
         var startupConfiguration = authorization.ToDictionary(
@@ -249,6 +305,8 @@ internal static class F2bH02ProductionIdentityHttpContract
         startupConfiguration["MerchantRead:Enabled"] = "false";
         startupConfiguration["ClaimReview:QaEnabled"] = "false";
         startupConfiguration["ClaimReviewPostgreSqlQa:Enabled"] = "false";
+        startupConfiguration["PublicAccounts:AbuseProtection:HmacKey"] = TestAbuseHmacKey;
+        startupConfiguration[PublicAccountDataProtectionPolicy.DirectorySetting] = keyRing.DirectoryPath;
         startupConfiguration["PublicAccounts:Email:SmtpHost"] = "127.0.0.1";
         startupConfiguration["PublicAccounts:Email:Port"] = "587";
         startupConfiguration["PublicAccounts:Email:Username"] = "synthetic";
@@ -264,6 +322,7 @@ internal static class F2bH02ProductionIdentityHttpContract
               Environment.GetEnvironmentVariable("Database__Provider") == "PostgreSQL" &&
               Environment.GetEnvironmentVariable("PublicAccounts__Enabled") == "true" &&
               Environment.GetEnvironmentVariable("PublicAccounts__Outbox__DispatchEnabled") == "true" &&
+              Environment.GetEnvironmentVariable("PublicAccounts__AbuseProtection__HmacKey") == TestAbuseHmacKey &&
               Environment.GetEnvironmentVariable("PublicAccounts__ReleaseAuthorization__Payload") ==
                   startupConfiguration["PublicAccounts:ReleaseAuthorization:Payload"],
             "F2B_H02_EARLY_STARTUP_CONFIGURATION");
@@ -294,8 +353,129 @@ internal static class F2bH02ProductionIdentityHttpContract
               appliedPeer.SingleOrDefault() == "192.0.2.10",
             "F2B_H02_TEST_PEER_PARTITIONING");
 
+        var firstProtector = DataProtectionProvider.Create(
+            new DirectoryInfo(keyRing.DirectoryPath),
+            builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName))
+            .CreateProtector("F2B_H05_KeyContinuity");
+        var protectedPayload = firstProtector.Protect("synthetic-continuity-proof");
+        var secondProtector = DataProtectionProvider.Create(
+            new DirectoryInfo(keyRing.DirectoryPath),
+            builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName))
+            .CreateProtector("F2B_H05_KeyContinuity");
+        Check(secondProtector.Unprotect(protectedPayload) == "synthetic-continuity-proof",
+            "F2B_H05_DATAPROTECTION_CROSS_INSTANCE_UNPROTECT");
+
+        using var isolatedKeyRing = new SyntheticKeyRingScope();
+        var isolatedProtector = DataProtectionProvider.Create(
+            new DirectoryInfo(isolatedKeyRing.DirectoryPath),
+            builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName))
+            .CreateProtector("F2B_H05_KeyContinuity");
+        var crossRingTokenRejected = false;
+        try { _ = isolatedProtector.Unprotect(protectedPayload); }
+        catch (CryptographicException) { crossRingTokenRejected = true; }
+        Check(crossRingTokenRejected,
+            "F2B_H05_DATAPROTECTION_ISOLATED_RING_REJECTS_TOKEN");
+
+        var sentinelPath = Path.Combine(
+            keyRing.DirectoryPath, PublicAccountDataProtectionPolicy.SentinelFileName);
+        var sentinelRemovedPath = sentinelPath + ".temporarily-unavailable";
+        File.Move(sentinelPath, sentinelRemovedPath);
+        try
+        {
+            using var unavailable = await client.GetAsync("/health/ready");
+            using var alive = await client.GetAsync("/health/live");
+            Check(unavailable.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                  alive.StatusCode == HttpStatusCode.OK,
+                "F2B_H05_DATAPROTECTION_MISSING_SENTINEL_READINESS_503_LIVE_200");
+        }
+        finally
+        {
+            File.Move(sentinelRemovedPath, sentinelPath);
+        }
+
+        using (var restored = await client.GetAsync("/health/ready"))
+        {
+            Check(restored.StatusCode == HttpStatusCode.OK,
+                "F2B_H05_DATAPROTECTION_SENTINEL_RESTORED_READY_200");
+        }
+
+        var originalSentinel = File.ReadAllText(sentinelPath);
+        File.WriteAllText(sentinelPath, "corrupted-synthetic-proof");
+        try
+        {
+            using var corrupted = await client.GetAsync("/health/ready");
+            Check(corrupted.StatusCode == HttpStatusCode.ServiceUnavailable,
+                "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_READINESS_503");
+        }
+        finally
+        {
+            File.WriteAllText(sentinelPath, originalSentinel);
+        }
+        using (var restoredAfterCorruption = await client.GetAsync("/health/ready"))
+        {
+            Check(restoredAfterCorruption.StatusCode == HttpStatusCode.OK,
+                "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200");
+        }
+
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         const string password = "StrongPassword!2026";
+
+        SetTestPeer(client, "192.0.2.13");
+        var outboxCountBeforeInvalidRegistrations = await ReadTotalOutboxCountAsync(migrator);
+
+        var malformedEmail = "not-an-email";
+        using var malformedRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = malformedEmail, password });
+        var malformedRegistrationBody = await malformedRegistration.Content.ReadAsStringAsync();
+        Check(malformedRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              !await UserExistsAsync(identityConnection, malformedEmail),
+            "F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT");
+
+        var emptyEmail = string.Empty;
+        using var emptyRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = emptyEmail, password });
+        var emptyRegistrationBody = await emptyRegistration.Content.ReadAsStringAsync();
+        Check(emptyRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              emptyRegistrationBody == malformedRegistrationBody &&
+              !await UserExistsAsync(identityConnection, emptyEmail),
+            "F2B_H04_REGISTER_EMPTY_EMAIL_NO_ACCOUNT");
+
+        var oversizedEmail = string.Concat(
+            new string('a', 64), "@",
+            new string('b', 63), ".",
+            new string('c', 63), ".",
+            new string('d', 63), ".",
+            new string('e', 60));
+        Check(oversizedEmail.Length > 254 &&
+              new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(oversizedEmail),
+            "F2B_H04_OVERSIZED_EMAIL_FIXTURE_VALIDATED");
+        using var oversizedRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = oversizedEmail, password });
+        var oversizedRegistrationBody = await oversizedRegistration.Content.ReadAsStringAsync();
+        Check(oversizedRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              oversizedRegistrationBody == malformedRegistrationBody &&
+              !await UserExistsAsync(identityConnection, oversizedEmail),
+            "F2B_H04_REGISTER_OVERSIZED_EMAIL_NO_ACCOUNT");
+
+        var emptyPasswordEmail = "h04-empty-password-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        using var emptyPasswordRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = emptyPasswordEmail, password = string.Empty });
+        Check(emptyPasswordRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              !await UserExistsAsync(identityConnection, emptyPasswordEmail),
+            "F2B_H04_REGISTER_EMPTY_PASSWORD_NO_ACCOUNT");
+
+        var weakPasswordEmail = "h04-weak-password-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        using var weakPasswordRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = weakPasswordEmail, password = "weak" });
+        Check(weakPasswordRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              !await UserExistsAsync(identityConnection, weakPasswordEmail),
+            "F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT");
+
+        var outboxCountAfterInvalidRegistrations = await ReadTotalOutboxCountAsync(migrator);
+        Check(outboxCountAfterInvalidRegistrations == outboxCountBeforeInvalidRegistrations,
+            "F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT");
+
+        SetTestPeer(client, "192.0.2.10");
         fake.FailBeforeAcceptOnce();
 
         using var registration = await client.PostAsJsonAsync("/api/public-account/register",
@@ -304,6 +484,10 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE");
 
         var userId = await WaitForUserIdAsync(identityConnection, email, TimeSpan.FromSeconds(15));
+        Check(await ReadIdentityRoleAssignmentCountAsync(migrator, userId) == 0,
+            "F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE");
+        Check(await ReadOrganizationMembershipCountAsync(migrator, userId) == 0,
+            "F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP");
         var outboxId = await WaitForRetryAsync(identityConnection, userId, TimeSpan.FromSeconds(15));
         Check(outboxId != Guid.Empty, "F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC");
 
@@ -339,6 +523,50 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(confirmed.StatusCode == HttpStatusCode.Redirect &&
               confirmed.Headers.Location?.OriginalString.Contains("confirmed=1", StringComparison.Ordinal) == true,
             "F2B_H02_EMAIL_CONFIRMATION_HTTP");
+        Check(confirmed.Headers.CacheControl?.NoStore == true &&
+              confirmed.Headers.TryGetValues("Referrer-Policy", out var confirmationPolicies) &&
+              confirmationPolicies.Contains("no-referrer", StringComparer.OrdinalIgnoreCase),
+            "F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS");
+
+        SetTestPeer(client, "192.0.2.14");
+        var malformedConfirmationEmail = "h04-malformed-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var malformedConfirmationUser = await CreatePublicUserAsync(
+            factory.Services, malformedConfirmationEmail, password, emailConfirmed: false);
+        using var malformedConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString(malformedConfirmationUser.Id) +
+            "&code=" + Uri.EscapeDataString("%%%"));
+        Check(malformedConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              malformedConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true &&
+              !await ReadEmailConfirmedAsync(identityConnection, malformedConfirmationUser.Id),
+            "F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED");
+
+        var invalidConfirmationEmail = "h04-invalid-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var invalidConfirmationUser = await CreatePublicUserAsync(
+            factory.Services, invalidConfirmationEmail, password, emailConfirmed: false);
+        var invalidIdentityConfirmationCode = WebEncoders.Base64UrlEncode(
+            Encoding.UTF8.GetBytes("synthetic-invalid-confirmation-token"));
+        using var invalidConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString(invalidConfirmationUser.Id) +
+            "&code=" + Uri.EscapeDataString(invalidIdentityConfirmationCode));
+        Check(invalidConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              invalidConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true &&
+              !await ReadEmailConfirmedAsync(identityConnection, invalidConfirmationUser.Id),
+            "F2B_H04_CONFIRM_INVALID_TOKEN_FAIL_CLOSED");
+
+        using var missingConfirmationUser = await client.GetAsync(
+            "/api/public-account/confirm?code=" + Uri.EscapeDataString("%%%"));
+        Check(missingConfirmationUser.StatusCode == HttpStatusCode.Redirect &&
+              missingConfirmationUser.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
+            "F2B_H04_CONFIRM_MISSING_USER_FAIL_CLOSED");
+
+        using var unknownConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString("missing-" + Guid.NewGuid().ToString("N")) +
+            "&code=" + Uri.EscapeDataString("synthetic-invalid-code"));
+        Check(unknownConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              unknownConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
+            "F2B_H04_CONFIRM_UNKNOWN_USER_FAIL_CLOSED");
+
+        SetTestPeer(client, "192.0.2.10");
         using var replay = await client.GetAsync(confirmation.Payload);
         Check(replay.StatusCode == HttpStatusCode.Redirect &&
               replay.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
@@ -373,6 +601,9 @@ internal static class F2bH02ProductionIdentityHttpContract
             new { email, password });
         Check(duplicate.StatusCode == HttpStatusCode.Accepted,
             "F2B_H02_DUPLICATE_REGISTRATION_GENERIC");
+        Check(await duplicate.Content.ReadAsStringAsync() ==
+              await registration.Content.ReadAsStringAsync(),
+            "F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC");
 
         var accessToken = await LoginAsync(client, email, password);
         using (var unauthenticatedSession = await client.GetAsync("/api/public-account/session"))
@@ -402,6 +633,12 @@ internal static class F2bH02ProductionIdentityHttpContract
             await SetStaffRoleWritePermissionAsync(migrator, enabled: false);
         }
         Check(true, "F2B_H02_STAFF_ROLE_FIXTURES_CREATED");
+        using (var staffScope = factory.Services.CreateScope())
+        {
+            var staffUsers = staffScope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+            Check((await staffUsers.GetRolesAsync(staffConfirmed)).Count == 4,
+                "F2B_H04_STAFF_MULTIPLE_ROLES_CREATED");
+        }
 
         SetTestPeer(client, "192.0.2.11");
         var staffConfirmationToken = await GenerateIdentityTokenAsync(
@@ -448,6 +685,12 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(staffReset.StatusCode == HttpStatusCode.BadRequest &&
               await ReadOutboxCountAsync(identityConnection, staffConfirmed.Id) == 0,
             "F2B_H02_STAFF_RESET_DENIED");
+        Check(staffConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              staffResend.StatusCode == HttpStatusCode.Accepted &&
+              staffLogin.StatusCode == HttpStatusCode.Unauthorized &&
+              staffForgot.StatusCode == HttpStatusCode.Accepted &&
+              staffReset.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_STAFF_ANY_ROLE_EXCLUDED_FROM_ALL_PUBLIC_ACTIONS");
 
         SetTestPeer(client, "192.0.2.12");
         using var forgot = await client.PostAsJsonAsync("/api/public-account/forgot-password", new { email });
@@ -464,12 +707,43 @@ internal static class F2bH02ProductionIdentityHttpContract
             new { email, resetCode = resetDelivery.Payload, newPassword = "ReplacementPassword!2026" });
         Check(reset.StatusCode == HttpStatusCode.OK, "F2B_H02_PASSWORD_RESET_HTTP");
 
+        using var resetReplay = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email, resetCode = resetDelivery.Payload, newPassword = "ReplayReplacement!2026" });
+        Check(resetReplay.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_RESET_TOKEN_REPLAY_REJECTED");
+
+        using var replayPasswordLogin = await client.PostAsJsonAsync("/api/public-account/login",
+            new { email, password = "ReplayReplacement!2026" });
+        Check(replayPasswordLogin.StatusCode == HttpStatusCode.Unauthorized,
+            "F2B_H04_RESET_REPLAY_DOES_NOT_CHANGE_PASSWORD");
+
         using var oldPassword = await client.PostAsJsonAsync("/api/public-account/login",
             new { email, password });
         Check(oldPassword.StatusCode == HttpStatusCode.Unauthorized,
             "F2B_H02_OLD_PASSWORD_REVOKED");
         _ = await LoginAsync(client, email, "ReplacementPassword!2026");
 
+        var invalidResetEmail = "h04-invalid-reset-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        _ = await CreatePublicUserAsync(factory.Services, invalidResetEmail, password, emailConfirmed: true);
+        using var invalidReset = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email = invalidResetEmail, resetCode = "%%%", newPassword = "InvalidReplacement!2026" });
+        Check(invalidReset.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_RESET_MALFORMED_TOKEN_REJECTED");
+        _ = await LoginAsync(client, invalidResetEmail, password);
+        Check(true, "F2B_H04_RESET_MALFORMED_TOKEN_PRESERVES_PASSWORD");
+
+        var invalidResetTokenEmail = "h04-invalid-reset-token-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        _ = await CreatePublicUserAsync(factory.Services, invalidResetTokenEmail, password, emailConfirmed: true);
+        var invalidIdentityResetCode = WebEncoders.Base64UrlEncode(
+            Encoding.UTF8.GetBytes("synthetic-invalid-reset-token"));
+        using var invalidResetToken = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email = invalidResetTokenEmail, resetCode = invalidIdentityResetCode, newPassword = "InvalidTokenReplacement!2026" });
+        Check(invalidResetToken.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_RESET_INVALID_TOKEN_REJECTED");
+        _ = await LoginAsync(client, invalidResetTokenEmail, password);
+        Check(true, "F2B_H04_RESET_INVALID_TOKEN_PRESERVES_PASSWORD");
+
+        SetTestPeer(client, "192.0.2.15");
         var expiredConfirmationEmail = "h02-expired-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         var expiredConfirmationUser = await CreatePublicUserAsync(
             factory.Services, expiredConfirmationEmail, password, emailConfirmed: false);
@@ -513,6 +787,123 @@ internal static class F2bH02ProductionIdentityHttpContract
             await SetOutboxInsertPermissionAsync(migrator, enabled: true);
         }
 
+        // H03 account-keyed abuse budgets are tested through the real Production Program
+        // and disposable PostgreSQL. Responses remain generic when the account is unknown
+        // or the account-keyed budget has been exhausted.
+        SetTestPeer(client, "192.0.2.30");
+        var abuseRegisterEmail = "h03-register-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var registerBodies = new List<string>();
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/register", new { email = abuseRegisterEmail, password });
+            Check(response.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H03_REGISTER_THROTTLE_GENERIC_ACCEPTED");
+            registerBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(registerBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.Register, abuseRegisterEmail) == 4,
+            "F2B_H03_REGISTER_ACCOUNT_BUDGET");
+
+        SetTestPeer(client, "192.0.2.31");
+        var abuseResendEmail = "h03-resend-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var resendBodies = new List<string>();
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/resend-confirmation", new { email = abuseResendEmail });
+            Check(response.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H03_RESEND_THROTTLE_GENERIC_ACCEPTED");
+            resendBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(resendBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ResendConfirmation, abuseResendEmail) == 4,
+            "F2B_H03_RESEND_ACCOUNT_BUDGET");
+
+        // Distinct transport peers race on one account key. The PostgreSQL
+        // UPSERT must preserve every increment and enforce one shared budget.
+        client.DefaultRequestHeaders.Remove(TestPeerAddressStartupFilter.RequestHeader);
+        var concurrentAbuseEmail = "h03-pg-concurrent-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var concurrentRequests = Enumerable.Range(1, 16).Select(async index =>
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, "/api/public-account/resend-confirmation")
+            {
+                Content = JsonContent.Create(new { email = concurrentAbuseEmail })
+            };
+            request.Headers.Add(
+                TestPeerAddressStartupFilter.RequestHeader, $"198.51.100.{index}");
+            using var response = await client.SendAsync(request);
+            return response.StatusCode;
+        }).ToArray();
+        var concurrentResponses = await Task.WhenAll(concurrentRequests);
+        Check(concurrentResponses.All(status => status == HttpStatusCode.Accepted) &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ResendConfirmation, concurrentAbuseEmail) == 16,
+            "F2B_H03_POSTGRES_ATOMIC_CROSS_PEER_COUNTER");
+
+        SetTestPeer(client, "192.0.2.32");
+        var abuseForgotEmail = "h03-forgot-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var forgotBodies = new List<string>();
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/forgot-password", new { email = abuseForgotEmail });
+            Check(response.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H03_FORGOT_THROTTLE_GENERIC_ACCEPTED");
+            forgotBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(forgotBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ForgotPassword, abuseForgotEmail) == 4,
+            "F2B_H03_FORGOT_ACCOUNT_BUDGET");
+
+        SetTestPeer(client, "192.0.2.33");
+        var abuseResetEmail = "h03-reset-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var resetBodies = new List<string>();
+        var invalidResetCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes("synthetic-invalid-reset-token"));
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/public-account/reset-password",
+                new { email = abuseResetEmail, resetCode = invalidResetCode, newPassword = "ReplacementPassword!2026" });
+            Check(response.StatusCode == HttpStatusCode.BadRequest,
+                "F2B_H03_RESET_THROTTLE_GENERIC_BAD_REQUEST");
+            resetBodies.Add(await response.Content.ReadAsStringAsync());
+        }
+        Check(resetBodies.Distinct(StringComparer.Ordinal).Count() == 1 &&
+              await ReadAbuseCounterCountAsync(
+                  identityConnection, IdentityAbuseOperation.ResetPassword, abuseResetEmail) == 6,
+            "F2B_H03_RESET_ACCOUNT_BUDGET");
+
+        // Identity's persistent lockout is account-scoped and cannot be bypassed
+        // by changing the synthetic source peer.
+        SetTestPeer(client, "192.0.2.34");
+        var lockoutEmail = "h03-lockout-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var lockoutUser = await CreatePublicUserAsync(
+            factory.Services, lockoutEmail, password, emailConfirmed: true);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var failed = await client.PostAsJsonAsync(
+                "/api/public-account/login", new { email = lockoutEmail, password = "WrongPassword!2026" });
+            Check(failed.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H03_IDENTITY_FAILED_LOGIN_GENERIC");
+        }
+        Check(await IsUserLockedOutAsync(identityConnection, lockoutUser.Id),
+            "F2B_H03_IDENTITY_FIVE_FAILURE_LOCKOUT");
+
+        SetTestPeer(client, "192.0.2.35");
+        using (var bypassAttempt = await client.PostAsJsonAsync(
+                   "/api/public-account/login", new { email = lockoutEmail, password }))
+            Check(bypassAttempt.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H03_IDENTITY_LOCKOUT_NOT_BYPASSED_BY_PEER");
+
+        await ExpireUserLockoutAsync(identityConnection, lockoutUser.Id);
+        _ = await LoginAsync(client, lockoutEmail, password);
+        Check(true, "F2B_H03_IDENTITY_LOCKOUT_EXPIRY_RECOVERY");
+
         Check(fake.Deliveries.Count(x => x.Email == email) == 2,
             "F2B_H02_FAKE_CONFIRMATION_AND_RESET_ONLY");
         Check(!client.DefaultRequestHeaders.Contains("Cookie"),
@@ -520,6 +911,143 @@ internal static class F2bH02ProductionIdentityHttpContract
         Console.WriteLine("F2B_H02_NO_REAL_SMTP=PASS");
         Console.WriteLine("F2B_H02_NO_CT164_OR_PRODUCTION_DB=PASS");
         Console.WriteLine("F2B_H02_IDENTITY_HTTP_FAKE_TRANSPORT=PASS");
+
+        await RunH05RestartIdentityRecoveryAsync(
+            factory, client, identityConnection, startupConfiguration, keyRing, password);
+    }
+
+    // H05b: exercise actual Identity tokens (not only generic DataProtection payloads)
+    // across a stopped Production TestServer, a foreign key ring and an offline
+    // restored copy of the original key ring. All data stays in disposable PG17.
+    private static async Task RunH05RestartIdentityRecoveryAsync(
+        Factory firstFactory, HttpClient firstClient, string identityConnection,
+        IReadOnlyDictionary<string, string?> originalConfiguration,
+        SyntheticKeyRingScope originalRing, string password)
+    {
+        var confirmationEmail =
+            "h05b-restart-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var resetEmail =
+            "h05b-restart-reset-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var confirmUser = await CreatePublicUserAsync(
+            firstFactory.Services, confirmationEmail, password, emailConfirmed: false);
+        var resetUser = await CreatePublicUserAsync(
+            firstFactory.Services, resetEmail, password, emailConfirmed: true);
+        var confirmationToken = await GenerateIdentityTokenAsync(
+            firstFactory.Services, confirmUser.Id, passwordReset: false);
+        var resetToken = await GenerateIdentityTokenAsync(
+            firstFactory.Services, resetUser.Id, passwordReset: true);
+        var encodedConfirmation = WebEncoders.Base64UrlEncode(
+            Encoding.UTF8.GetBytes(confirmationToken));
+        var encodedReset = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(resetToken));
+        var confirmationUrl = QueryHelpers.AddQueryString(
+            QueryHelpers.AddQueryString("/api/public-account/confirm", "userId", confirmUser.Id),
+            "code", encodedConfirmation);
+
+        // Dispose both client and host before constructing either replacement.
+        // The outer using declarations are idempotently disposed again at exit.
+        firstClient.Dispose();
+        firstFactory.Dispose();
+        Check(true, "F2B_H05B_FIRST_PRODUCTION_TESTSERVER_DISPOSED");
+
+        // An unrelated but properly provisioned key ring must NOT validate
+        // previously minted Identity tokens, even against the same database.
+        using (var foreignRing = new SyntheticKeyRingScope())
+        {
+            var foreignSettings = originalConfiguration.ToDictionary(
+                pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            foreignSettings[PublicAccountDataProtectionPolicy.DirectorySetting] =
+                foreignRing.DirectoryPath;
+            using var foreignEnvironment = new StartupEnvironmentScope(
+                foreignSettings, Environments.Production);
+            using var foreignFactory = new Factory(
+                identityConnection, foreignSettings, new FakeTransport());
+            using var foreignClient = foreignFactory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
+                    AllowAutoRedirect = false
+                });
+            SetTestPeer(foreignClient, "198.51.100.80");
+            using var foreignConfirmation = await foreignClient.GetAsync(confirmationUrl);
+            Check(foreignConfirmation.StatusCode == HttpStatusCode.Redirect &&
+                  foreignConfirmation.Headers.Location?.OriginalString.Contains(
+                      "confirmed=0", StringComparison.Ordinal) == true &&
+                  !await ReadEmailConfirmedAsync(identityConnection, confirmUser.Id),
+                "F2B_H05B_FOREIGN_RING_CONFIRMATION_TOKEN_REFUSED");
+
+            using var foreignReset = await foreignClient.PostAsJsonAsync(
+                "/api/public-account/reset-password",
+                new { email = resetEmail, resetCode = encodedReset, newPassword = "H05bForeign!2026" });
+            Check(foreignReset.StatusCode == HttpStatusCode.BadRequest,
+                "F2B_H05B_FOREIGN_RING_RESET_TOKEN_REFUSED");
+        }
+
+        // Simulate an offline key-ring backup/restore into a new absolute path.
+        // Tokens are never copied or persisted, only the original DP ring and
+        // protected continuity sentinel. This is not an off-host disaster test.
+        var restoredPath = Path.Combine(
+            Path.GetTempPath(), "yangspace-h05b-restored-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(restoredPath);
+        if (OperatingSystem.IsLinux())
+            File.SetUnixFileMode(restoredPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        try
+        {
+            foreach (var sourcePath in Directory.GetFiles(originalRing.DirectoryPath))
+            {
+                var destination = Path.Combine(restoredPath, Path.GetFileName(sourcePath));
+                File.Copy(sourcePath, destination);
+                if (OperatingSystem.IsLinux())
+                    File.SetUnixFileMode(destination,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+
+            Check(PublicAccountDataProtectionPolicy.IsReady(new DirectoryInfo(restoredPath)),
+                "F2B_H05B_OFFLINE_KEYRING_COPY_CONTINUITY_VALID");
+
+            var recoveredSettings = originalConfiguration.ToDictionary(
+                pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            recoveredSettings[PublicAccountDataProtectionPolicy.DirectorySetting] =
+                restoredPath;
+            using var recoveredEnvironment = new StartupEnvironmentScope(
+                recoveredSettings, Environments.Production);
+            using var recoveredFactory = new Factory(
+                identityConnection, recoveredSettings, new FakeTransport());
+            using var recoveredClient = recoveredFactory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
+                    AllowAutoRedirect = false
+                });
+            SetTestPeer(recoveredClient, "198.51.100.81");
+
+            using var recoveredConfirmation = await recoveredClient.GetAsync(confirmationUrl);
+            Check(recoveredConfirmation.StatusCode == HttpStatusCode.Redirect &&
+                  recoveredConfirmation.Headers.Location?.OriginalString.Contains(
+                      "confirmed=1", StringComparison.Ordinal) == true &&
+                  await ReadEmailConfirmedAsync(identityConnection, confirmUser.Id),
+                "F2B_H05B_RESTORED_RING_CONFIRMATION_HTTP_SUCCESS");
+
+            using var recoveredReset = await recoveredClient.PostAsJsonAsync(
+                "/api/public-account/reset-password",
+                new { email = resetEmail, resetCode = encodedReset, newPassword = "H05bRestored!2026" });
+            Check(recoveredReset.StatusCode == HttpStatusCode.OK,
+                "F2B_H05B_RESTORED_RING_RESET_HTTP_SUCCESS");
+
+            using var oldPassword = await recoveredClient.PostAsJsonAsync(
+                "/api/public-account/login", new { email = resetEmail, password });
+            Check(oldPassword.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED");
+            _ = await LoginAsync(recoveredClient, resetEmail, "H05bRestored!2026");
+            Check(true, "F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID");
+        }
+        finally
+        {
+            if (Directory.Exists(restoredPath))
+                Directory.Delete(restoredPath, recursive: true);
+        }
+        Check(!Directory.Exists(restoredPath),
+            "F2B_H05B_RESTORED_KEYRING_CLEANED");
     }
 
     private static Dictionary<string, string?> CreateAuthorization(ECDsa signer, string commit)
@@ -573,6 +1101,49 @@ internal static class F2bH02ProductionIdentityHttpContract
             throw new InvalidOperationException("F2B_H02_CONNECTION_SCOPE_REFUSED");
     }
 
+    private static async Task VerifyAbuseStoragePrivilegeGateAsync(
+        string migrator, string identityConnection)
+    {
+        await using (var connection = new NpgsqlConnection(migrator))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """REVOKE DELETE ON TABLE public."IdentityAbuseCounters" FROM ys_h02_identity;""";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var options = new DbContextOptionsBuilder<DirectoryDb>()
+            .UseNpgsql(identityConnection, postgres =>
+                postgres.MigrationsAssembly("YangSpace.PostgreSql.Migrations"))
+            .Options;
+        var rejected = false;
+        try
+        {
+            await using var db = new DirectoryDb(options);
+            await ProductionSchemaGate.ValidatePublicAccountAbuseStorageAsync(db);
+        }
+        catch (InvalidOperationException exception)
+            when (exception.Message == "PUBLIC_ACCOUNT_ABUSE_STORAGE_PRIVILEGE_REQUIRED")
+        {
+            rejected = true;
+        }
+        finally
+        {
+            await using var connection = new NpgsqlConnection(migrator);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """GRANT DELETE ON TABLE public."IdentityAbuseCounters" TO ys_h02_identity;""";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        Check(rejected, "F2B_H03_ABUSE_STORAGE_PRIVILEGE_FAIL_CLOSED");
+        await using (var db = new DirectoryDb(options))
+            await ProductionSchemaGate.ValidatePublicAccountAbuseStorageAsync(db);
+        Check(true, "F2B_H03_ABUSE_STORAGE_PRIVILEGES_RESTORED");
+    }
+
     private static async Task GrantIdentityRoleAsync(string migrator)
     {
         await using var connection = new NpgsqlConnection(migrator);
@@ -586,6 +1157,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             GRANT SELECT ON TABLE public."AspNetUserClaims" TO ys_h02_identity;
             GRANT SELECT ON TABLE public."AspNetRoleClaims" TO ys_h02_identity;
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."IdentityEmailOutbox" TO ys_h02_identity;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public."IdentityAbuseCounters" TO ys_h02_identity;
             """;
         await command.ExecuteNonQueryAsync();
     }
@@ -636,6 +1208,10 @@ internal static class F2bH02ProductionIdentityHttpContract
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','INSERT')
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','UPDATE')
               AND has_table_privilege(current_user,'public."IdentityEmailOutbox"','DELETE')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','SELECT')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','INSERT')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','UPDATE')
+              AND has_table_privilege(current_user,'public."IdentityAbuseCounters"','DELETE')
               AND NOT has_table_privilege(current_user,'public.yangspace_f2b_o3_qa_guard','SELECT')
               AND NOT has_table_privilege(current_user,'public."Organizations"','SELECT')
               AND NOT has_table_privilege(current_user,'public."Locations"','SELECT')
@@ -681,7 +1257,8 @@ internal static class F2bH02ProductionIdentityHttpContract
         {
             UserName = email,
             Email = email,
-            EmailConfirmed = emailConfirmed
+            EmailConfirmed = emailConfirmed,
+            LockoutEnabled = true
         };
         var created = await users.CreateAsync(user, password);
         if (!created.Succeeded)
@@ -737,9 +1314,10 @@ internal static class F2bH02ProductionIdentityHttpContract
         using var scope = services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        const string roleName = "H02Staff";
-        if (!await roles.RoleExistsAsync(roleName))
+        var roleNames = new[] { "H02Staff", "PlatformAdmin", "Moderator", "SupportAgent" };
+        foreach (var roleName in roleNames)
         {
+            if (await roles.RoleExistsAsync(roleName)) continue;
             var role = await roles.CreateAsync(new IdentityRole(roleName));
             if (!role.Succeeded)
                 throw new InvalidOperationException("F2B_H02_STAFF_ROLE_CREATE_FAILED");
@@ -754,7 +1332,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         var created = await users.CreateAsync(user, password);
         if (!created.Succeeded)
             throw new InvalidOperationException("F2B_H02_STAFF_USER_CREATE_FAILED");
-        var assigned = await users.AddToRoleAsync(user, roleName);
+        var assigned = await users.AddToRolesAsync(user, roleNames);
         if (!assigned.Succeeded)
             throw new InvalidOperationException("F2B_H02_STAFF_ROLE_ASSIGN_FAILED");
         return user;
@@ -780,6 +1358,55 @@ internal static class F2bH02ProductionIdentityHttpContract
         cmd.CommandText = """SELECT "EmailConfirmed" FROM public."AspNetUsers" WHERE "Id"=@id""";
         cmd.Parameters.AddWithValue("id", userId);
         return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<int> ReadAbuseCounterCountAsync(
+        string connection, IdentityAbuseOperation operation, string email)
+    {
+        var normalized = email.Trim().ToUpperInvariant();
+        var digest = Convert.ToHexString(HMACSHA256.HashData(
+            TestAbuseHmacKeyBytes, Encoding.UTF8.GetBytes(normalized))).ToLowerInvariant();
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT "Count" FROM public."IdentityAbuseCounters"
+            WHERE "Operation"=@operation AND "KeyHash"=@keyHash
+            ORDER BY "WindowStartUtc" DESC LIMIT 1
+            """;
+        cmd.Parameters.AddWithValue("operation", operation.ToString());
+        cmd.Parameters.AddWithValue("keyHash", digest);
+        var value = await cmd.ExecuteScalarAsync();
+        return value is null ? 0 : Convert.ToInt32(
+            value, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<bool> IsUserLockedOutAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT "LockoutEnd" IS NOT NULL AND "LockoutEnd" > now()
+            FROM public."AspNetUsers" WHERE "Id"=@id
+            """;
+        cmd.Parameters.AddWithValue("id", userId);
+        return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task ExpireUserLockoutAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            UPDATE public."AspNetUsers"
+            SET "LockoutEnd"=now() - interval '1 minute', "AccessFailedCount"=0
+            WHERE "Id"=@id
+            """;
+        cmd.Parameters.AddWithValue("id", userId);
+        if (await cmd.ExecuteNonQueryAsync() != 1)
+            throw new InvalidOperationException("F2B_H03_LOCKOUT_EXPIRY_FIXTURE_FAILED");
     }
 
     private static async Task<int> ReadOutboxCountAsync(string connection, string userId)
@@ -811,6 +1438,35 @@ internal static class F2bH02ProductionIdentityHttpContract
         cmd.CommandText = """SELECT EXISTS(SELECT 1 FROM public."AspNetUsers" WHERE "Email"=@email)""";
         cmd.Parameters.AddWithValue("email", email);
         return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<int> ReadTotalOutboxCountAsync(string connection)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT count(*) FROM public."IdentityEmailOutbox" """;
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<int> ReadIdentityRoleAssignmentCountAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT count(*) FROM public."AspNetUserRoles" WHERE "UserId"=@userId""";
+        cmd.Parameters.AddWithValue("userId", userId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<int> ReadOrganizationMembershipCountAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT count(*) FROM public."OrganizationMembers" WHERE "UserId"=@userId""";
+        cmd.Parameters.AddWithValue("userId", userId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task<int> ReadAttemptCountAsync(string connection, Guid id)

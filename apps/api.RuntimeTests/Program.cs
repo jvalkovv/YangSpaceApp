@@ -212,7 +212,10 @@ static async Task RunRecoveryRehearsalAsync(
         applied.SequenceEqual(new[]
         {
             "20261110043149_InitialDirectorySchema",
-            "20261111125709_PublicationFreshnessTimestamps"
+            "20261111125709_PublicationFreshnessTimestamps",
+            "20261114183515_F2aOrganizationClaimFoundation",
+            "20261115101409_F2bIdentityEmailOutbox",
+            "20261116213000_F2bIdentityAbuseProtection"
         }),
         "RECOVERED_MIGRATION_HISTORY");
 
@@ -276,6 +279,22 @@ if (args.Length == 1 &&
     string.Equals(args[0], "--f2b-o4-h01-postgresql-http-only", StringComparison.Ordinal))
 {
     await F2bO4H01PostgreSqlStartupContract.RunAsync();
+    return;
+}
+
+// H03: real ASP.NET RateLimiter middleware over TestServer with synthetic transport peers.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h03-auth-rate-http-only", StringComparison.Ordinal))
+{
+    await AuthRateLimitHttpContract.RunAsync();
+    return;
+}
+
+// H03: durable account-keyed abuse throttling, SQLite migrations, atomic concurrency and retention.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h03-identity-abuse-sqlite-only", StringComparison.Ordinal))
+{
+    await IdentityAbuseThrottleContract.RunAsync();
     return;
 }
 
