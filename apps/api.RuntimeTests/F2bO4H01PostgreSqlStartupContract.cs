@@ -259,6 +259,21 @@ internal static class F2bO4H01PostgreSqlStartupContract
                 "F2B_O4_H01_RUNTIME_METADATA_READ_ONLY");
         }
 
+        // Public accounts are disabled in this H01 baseline. Prove the generic
+        // application runtime role has no account-abuse table grant; readiness
+        // must not require feature-specific permissions while the feature is off.
+        await using (var db = new NpgsqlConnection(runtime))
+        {
+            await db.OpenAsync();
+            await using var cmd = db.CreateCommand();
+            cmd.CommandText = """
+                SELECT NOT has_table_privilege(
+                    current_user, 'public."IdentityAbuseCounters"', 'SELECT');
+                """;
+            Check((bool)(await cmd.ExecuteScalarAsync() ?? false),
+                "F2B_O4_H01_PUBLIC_ACCOUNTS_OFF_NO_ABUSE_COUNTER_GRANT");
+        }
+
         // This is the SAME policy used by Program for its Production PostgreSQL startup.
         ProductionPostgreSqlPolicy.RequirePreparedConnection(runtime);
         Check(true, "F2B_O4_H01_PRODUCTION_PG_POLICY");
