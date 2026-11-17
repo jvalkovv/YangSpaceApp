@@ -83,6 +83,10 @@ internal static class PublicAccountDataProtectionPolicy
         {
             throw new InvalidOperationException("PUBLIC_ACCOUNT_KEYRING_CONTINUITY_FAILED");
         }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException("PUBLIC_ACCOUNT_KEYRING_SENTINEL_FORMAT_INVALID");
+        }
         catch (System.Xml.XmlException)
         {
             throw new InvalidOperationException("PUBLIC_ACCOUNT_KEYRING_XML_INVALID");
