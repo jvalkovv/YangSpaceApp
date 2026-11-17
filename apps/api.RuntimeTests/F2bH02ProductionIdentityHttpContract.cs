@@ -305,6 +305,21 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         const string password = "StrongPassword!2026";
+
+        var malformedEmail = "not-an-email";
+        using var malformedRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = malformedEmail, password });
+        Check(malformedRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              !await UserExistsAsync(identityConnection, malformedEmail),
+            "F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT");
+
+        var weakPasswordEmail = "h04-weak-password-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        using var weakPasswordRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = weakPasswordEmail, password = "weak" });
+        Check(weakPasswordRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              !await UserExistsAsync(identityConnection, weakPasswordEmail),
+            "F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT");
+
         fake.FailBeforeAcceptOnce();
 
         using var registration = await client.PostAsJsonAsync("/api/public-account/register",
@@ -348,6 +363,29 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(confirmed.StatusCode == HttpStatusCode.Redirect &&
               confirmed.Headers.Location?.OriginalString.Contains("confirmed=1", StringComparison.Ordinal) == true,
             "F2B_H02_EMAIL_CONFIRMATION_HTTP");
+        Check(confirmed.Headers.CacheControl?.NoStore == true &&
+              confirmed.Headers.TryGetValues("Referrer-Policy", out var confirmationPolicies) &&
+              confirmationPolicies.Contains("no-referrer", StringComparer.OrdinalIgnoreCase),
+            "F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS");
+
+        var malformedConfirmationEmail = "h04-malformed-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var malformedConfirmationUser = await CreatePublicUserAsync(
+            factory.Services, malformedConfirmationEmail, password, emailConfirmed: false);
+        using var malformedConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString(malformedConfirmationUser.Id) +
+            "&code=" + Uri.EscapeDataString("%%%"));
+        Check(malformedConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              malformedConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true &&
+              !await ReadEmailConfirmedAsync(identityConnection, malformedConfirmationUser.Id),
+            "F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED");
+
+        using var unknownConfirmation = await client.GetAsync(
+            "/api/public-account/confirm?userId=" + Uri.EscapeDataString("missing-" + Guid.NewGuid().ToString("N")) +
+            "&code=" + Uri.EscapeDataString("synthetic-invalid-code"));
+        Check(unknownConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              unknownConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
+            "F2B_H04_CONFIRM_UNKNOWN_USER_FAIL_CLOSED");
+
         using var replay = await client.GetAsync(confirmation.Payload);
         Check(replay.StatusCode == HttpStatusCode.Redirect &&
               replay.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
@@ -382,6 +420,9 @@ internal static class F2bH02ProductionIdentityHttpContract
             new { email, password });
         Check(duplicate.StatusCode == HttpStatusCode.Accepted,
             "F2B_H02_DUPLICATE_REGISTRATION_GENERIC");
+        Check(await duplicate.Content.ReadAsStringAsync() ==
+              await registration.Content.ReadAsStringAsync(),
+            "F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC");
 
         var accessToken = await LoginAsync(client, email, password);
         using (var unauthenticatedSession = await client.GetAsync("/api/public-account/session"))
@@ -411,6 +452,12 @@ internal static class F2bH02ProductionIdentityHttpContract
             await SetStaffRoleWritePermissionAsync(migrator, enabled: false);
         }
         Check(true, "F2B_H02_STAFF_ROLE_FIXTURES_CREATED");
+        using (var staffScope = factory.Services.CreateScope())
+        {
+            var staffUsers = staffScope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+            Check((await staffUsers.GetRolesAsync(staffConfirmed)).Count == 4,
+                "F2B_H04_STAFF_MULTIPLE_ROLES_CREATED");
+        }
 
         SetTestPeer(client, "192.0.2.11");
         var staffConfirmationToken = await GenerateIdentityTokenAsync(
@@ -457,6 +504,12 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(staffReset.StatusCode == HttpStatusCode.BadRequest &&
               await ReadOutboxCountAsync(identityConnection, staffConfirmed.Id) == 0,
             "F2B_H02_STAFF_RESET_DENIED");
+        Check(staffConfirmation.StatusCode == HttpStatusCode.Redirect &&
+              staffResend.StatusCode == HttpStatusCode.Accepted &&
+              staffLogin.StatusCode == HttpStatusCode.Unauthorized &&
+              staffForgot.StatusCode == HttpStatusCode.Accepted &&
+              staffReset.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_STAFF_ANY_ROLE_EXCLUDED_FROM_ALL_PUBLIC_ACTIONS");
 
         SetTestPeer(client, "192.0.2.12");
         using var forgot = await client.PostAsJsonAsync("/api/public-account/forgot-password", new { email });
@@ -473,11 +526,30 @@ internal static class F2bH02ProductionIdentityHttpContract
             new { email, resetCode = resetDelivery.Payload, newPassword = "ReplacementPassword!2026" });
         Check(reset.StatusCode == HttpStatusCode.OK, "F2B_H02_PASSWORD_RESET_HTTP");
 
+        using var resetReplay = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email, resetCode = resetDelivery.Payload, newPassword = "ReplayReplacement!2026" });
+        Check(resetReplay.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_RESET_TOKEN_REPLAY_REJECTED");
+
+        using var replayPasswordLogin = await client.PostAsJsonAsync("/api/public-account/login",
+            new { email, password = "ReplayReplacement!2026" });
+        Check(replayPasswordLogin.StatusCode == HttpStatusCode.Unauthorized,
+            "F2B_H04_RESET_REPLAY_DOES_NOT_CHANGE_PASSWORD");
+
         using var oldPassword = await client.PostAsJsonAsync("/api/public-account/login",
             new { email, password });
         Check(oldPassword.StatusCode == HttpStatusCode.Unauthorized,
             "F2B_H02_OLD_PASSWORD_REVOKED");
         _ = await LoginAsync(client, email, "ReplacementPassword!2026");
+
+        var invalidResetEmail = "h04-invalid-reset-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        _ = await CreatePublicUserAsync(factory.Services, invalidResetEmail, password, emailConfirmed: true);
+        using var invalidReset = await client.PostAsJsonAsync("/api/public-account/reset-password",
+            new { email = invalidResetEmail, resetCode = "%%%", newPassword = "InvalidReplacement!2026" });
+        Check(invalidReset.StatusCode == HttpStatusCode.BadRequest,
+            "F2B_H04_RESET_MALFORMED_TOKEN_REJECTED");
+        _ = await LoginAsync(client, invalidResetEmail, password);
+        Check(true, "F2B_H04_RESET_MALFORMED_TOKEN_PRESERVES_PASSWORD");
 
         var expiredConfirmationEmail = "h02-expired-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         var expiredConfirmationUser = await CreatePublicUserAsync(
@@ -912,9 +984,10 @@ internal static class F2bH02ProductionIdentityHttpContract
         using var scope = services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        const string roleName = "H02Staff";
-        if (!await roles.RoleExistsAsync(roleName))
+        var roleNames = new[] { "H02Staff", "PlatformAdmin", "Moderator", "SupportAgent" };
+        foreach (var roleName in roleNames)
         {
+            if (await roles.RoleExistsAsync(roleName)) continue;
             var role = await roles.CreateAsync(new IdentityRole(roleName));
             if (!role.Succeeded)
                 throw new InvalidOperationException("F2B_H02_STAFF_ROLE_CREATE_FAILED");
@@ -929,7 +1002,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         var created = await users.CreateAsync(user, password);
         if (!created.Succeeded)
             throw new InvalidOperationException("F2B_H02_STAFF_USER_CREATE_FAILED");
-        var assigned = await users.AddToRoleAsync(user, roleName);
+        var assigned = await users.AddToRolesAsync(user, roleNames);
         if (!assigned.Succeeded)
             throw new InvalidOperationException("F2B_H02_STAFF_ROLE_ASSIGN_FAILED");
         return user;
