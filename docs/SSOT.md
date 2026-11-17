@@ -1095,3 +1095,19 @@ Operator ran both required Windows exact-SHA runners from a clean detached workt
 - Correction: capture each worker log's rendered message, structured property names/values and exception text. The gate now rejects PII-bearing property names, labelled sensitive fields, actual synthetic user IDs/emails, generated delivery payloads/tokens, scoped DB connection strings and release scope token. It still requires both transport-failure and worker-cycle-failure event IDs.
 - This is a test-observability correction; production worker log templates and behavior are unchanged. No weakening or deletion of the no-PII acceptance gate.
 - Corrected exact-SHA runtime and Independent Postflight are pending. Do not claim H05e PASS until the complete runner, cleanup and Independent Postflight pass at one exact SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD.
+
+
+## 2026-11-17 — O4-H01 readiness failed on feature-disabled abuse storage; corrected
+
+Operator runtime reached O4-H01 Production TestServer after O3 PostgreSQL 17, TLS VerifyFull, non-elevated roles and fake-transport worker receipts passed. H01 then failed at `F2B_O4_H01_PRODUCTION_HTTP_READY` with SQLSTATE `42501 permission denied for table IdentityAbuseCounters`.
+
+RCA: H01 intentionally runs the default-off public-account configuration as `ys_o3_runtime`, which has no account-abuse table grant. `/health/ready` called `ValidateRuntimeReadinessAsync`, which unconditionally selected from `IdentityAbuseCounters`. The table's full CRUD privilege gate is already separately enforced at startup only when `PublicAccounts:Enabled=true`. Therefore the readiness query imposed a disabled feature's permission requirement on the generic runtime role.
+
+Source correction:
+- Runtime readiness now receives the explicit `publicAccounts` switch.
+- Abuse-counter schema/data probe runs only when public accounts are enabled.
+- H01 test explicitly proves the runtime role has no SELECT privilege on `IdentityAbuseCounters` while the feature is off, then requires `/health/ready=200`.
+- Runner and Independent Postflight require the new marker and manifest entry.
+- H03's full SELECT/INSERT/UPDATE/DELETE requirement remains unchanged for the enabled public-account identity runtime role.
+
+No broad grants, role expansion, real DB access or production changes. Exact-SHA rerun and Independent Postflight are pending; PR #56 Draft, Issues #50/#55 OPEN, release HOLD.
