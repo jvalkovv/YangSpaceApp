@@ -443,7 +443,7 @@ internal static class F2bH02ProductionIdentityHttpContract
                 "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200");
         }
 
-        await SetIdentityRoleConnectAsync(migrator, enabled: false);
+        await SetIdentityRoleConnectAsync(migrator, identityConnection, enabled: false);
         try
         {
             using var unavailable = await client.GetAsync("/health/ready");
@@ -454,7 +454,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         }
         finally
         {
-            await SetIdentityRoleConnectAsync(migrator, enabled: true);
+            await SetIdentityRoleConnectAsync(migrator, identityConnection, enabled: true);
         }
         using (var restoredDatabase = await client.GetAsync("/health/ready"))
         {
@@ -1734,15 +1734,86 @@ internal static class F2bH02ProductionIdentityHttpContract
         await cmd.ExecuteNonQueryAsync();
     }
 
-    private static async Task SetIdentityRoleConnectAsync(string migrator, bool enabled)
+    private static async Task SetIdentityRoleConnectAsync(
+        string migrator, string identityConnection, bool enabled)
+    {
+        // REVOKE CONNECT affects new sessions only. Existing PostgreSQL sessions
+        // remain usable, and Npgsql pooling can hand them back to readiness checks.
+        // Change the privilege, then clear the TestServer process pools so the
+        // outage probe exercises a genuinely new database connection.
+        await using (var c = new NpgsqlConnection(migrator))
+        {
+            await c.OpenAsync();
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText = enabled
+                ? $"GRANT CONNECT ON DATABASE {DatabaseName} TO {IdentityRole};"
+                : $"REVOKE CONNECT ON DATABASE {DatabaseName} FROM {IdentityRole};";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        NpgsqlConnection.ClearAllPools();
+
+        if (!enabled)
+        {
+            await WaitForNoIdentitySessionsAsync(migrator, TimeSpan.FromSeconds(5));
+            Check(true, "F2B_H05E_DB_UNAVAILABLE_SESSIONS_DRAINED");
+            Check(await IdentityConnectionDeniedAsync(identityConnection),
+                "F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED");
+        }
+    }
+
+    private static async Task WaitForNoIdentitySessionsAsync(
+        string migrator, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (true)
+        {
+            var sessions = await ReadIdentitySessionCountAsync(migrator);
+            if (sessions == 0)
+                return;
+
+            if (DateTimeOffset.UtcNow >= deadline)
+                throw new InvalidOperationException(
+                    "F2B_H05E_DB_UNAVAILABLE_SESSIONS_DID_NOT_DRAIN");
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+        }
+    }
+
+    private static async Task<int> ReadIdentitySessionCountAsync(string migrator)
     {
         await using var c = new NpgsqlConnection(migrator);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = enabled
-            ? $"GRANT CONNECT ON DATABASE {DatabaseName} TO {IdentityRole};"
-            : $"REVOKE CONNECT ON DATABASE {DatabaseName} FROM {IdentityRole};";
-        await cmd.ExecuteNonQueryAsync();
+        cmd.CommandText = """
+            SELECT count(*)
+            FROM pg_stat_activity
+            WHERE datname=@database
+              AND usename=@role
+              AND pid<>pg_backend_pid();
+            """;
+        cmd.Parameters.AddWithValue("database", DatabaseName);
+        cmd.Parameters.AddWithValue("role", IdentityRole);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+    }
+
+    private static async Task<bool> IdentityConnectionDeniedAsync(string identityConnection)
+    {
+        var connectionString = new NpgsqlConnectionStringBuilder(identityConnection)
+        {
+            Pooling = false
+        };
+
+        await using var c = new NpgsqlConnection(connectionString.ConnectionString);
+        try
+        {
+            await c.OpenAsync();
+            return false;
+        }
+        catch (PostgresException exception) when (exception.SqlState == "42501")
+        {
+            return true;
+        }
     }
 
     private static async Task RenameIdentityOutboxTableAsync(string migrator, bool renamed)
