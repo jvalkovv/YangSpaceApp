@@ -1131,3 +1131,20 @@ The operator rerun advanced through O3 and O4-H01 to `h02-production-http`, then
 Superseding source/test contract commit: `e15ad690d2519879f769124b6b28cdc67466ef9e`. Runner marker/manifest commit: `77cacf580e03630b62a808926b7f5ecbd6ae2c7d`; Independent Postflight commit: `0ec6637acb94d4b30613b48c7f93e66fc0f2f6cd`.
 
 **Current acceptance boundary:** H01 stage was passed far enough for the ordered runner to start H02; H02 remains runtime HOLD until a clean exact-current-HEAD full run and Independent Postflight pass. PR #56 remains Draft/Open; Issues #50/#55 remain Open; release HOLD. No production DB, CT164, real SMTP, deployment or GitHub Actions.
+
+
+## 2026-11-18 — H02 H05e CONNECT revocation grantor RCA
+
+The latest operator rerun passed O3 PostgreSQL worker and O4-H01 Production TestServer. H02 passed DataProtection recovery, cleared the exact EF-owned Npgsql data source and drained all identity-role sessions, but failed the fresh connection denial marker.
+
+**Root cause:** the O3 setup granted CONNECT to `ys_h02_identity` as PostgreSQL superuser `postgres`, while H02 later attempted to revoke it as `ys_o3_migrator`. The migrator was not the grantor or database owner and did not hold CONNECT WITH GRANT OPTION. PostgreSQL therefore left the original superuser grant effective. The fresh non-pooled connection correctly succeeded. This is a disposable test ACL/grantor mismatch, not a production readiness failure.
+
+**Correction committed in PR #56:**
+- Grant CONNECT WITH GRANT OPTION to the disposable migrator and ordinary CONNECT to the O3 runtime role; do not grant identity CONNECT from postgres.
+- H02 grants identity CONNECT through the migrator before validating the identity connection, so the migrator owns the grant and can later revoke it.
+- After REVOKE, query `has_database_privilege(..., 'CONNECT')` and require false before clearing EF's exact `NpgsqlDataSource`, draining sessions, and asserting a fresh non-pooled connection is rejected with SQLSTATE `42501`.
+- Runner and Independent Postflight require `F2B_H05E_DB_UNAVAILABLE_CONNECT_PRIVILEGE_REVOKED` and manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_ACL_VERIFIED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED`.
+
+Source/test correction: `ed45175a108ff41bee9201d40a4467ac329d1c4b`. Runner: `c6be324e3d458e4b159607f7ca1ba7ba57b9d0b7`. Independent Postflight: `f1e8e0739ffed25bad90886406a24e24f4d448ff`.
+
+**Acceptance boundary:** H02 remains HOLD until a clean full exact-SHA runner, cleanup and Independent Postflight pass. PR #56 remains Draft/Open; Issues #50/#55 remain Open; release HOLD. No production DB, CT164, real SMTP, deployment or GitHub Actions.
