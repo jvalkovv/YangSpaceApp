@@ -13,6 +13,10 @@ internal sealed record IdentityEmailOutboxOperationalSummary(
     long Leased, long Sent, long Suppressed, long DeadLetter,
     DateTime? OldestPendingUtc, DateTime? LatestSentUtc);
 
+internal sealed record IdentityEmailOutboxWorkerOperationalStatus(
+    IdentityEmailOutboxWorkerSnapshot Worker,
+    IdentityEmailOutboxOperationalSummary Backlog);
+
 internal static class IdentityEmailOutboxAdminEndpoints
 {
     internal static void MapIdentityEmailOutboxAdmin(this RouteGroupBuilder admin)
@@ -22,6 +26,15 @@ internal static class IdentityEmailOutboxAdminEndpoints
         admin.MapGet("/email-outbox/summary", async (
             DirectoryDb db, TimeProvider clock, CancellationToken ct) =>
             Results.Ok(await ReadSummaryAsync(db, clock, ct)));
+
+        admin.MapGet("/email-outbox/worker-status", async (
+            DirectoryDb db, TimeProvider clock,
+            IdentityEmailOutboxWorkerTelemetry telemetry, CancellationToken ct) =>
+        {
+            var backlog = await ReadSummaryAsync(db, clock, ct);
+            return Results.Ok(new IdentityEmailOutboxWorkerOperationalStatus(
+                telemetry.Snapshot(), backlog));
+        });
 
         admin.MapGet("/email-outbox/dead-letter", async (DirectoryDb db, CancellationToken ct) =>
         {

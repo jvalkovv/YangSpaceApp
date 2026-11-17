@@ -24,7 +24,7 @@ Remediation in the next H01 source commit:
 
 # F2b O4 / H01 — Production PostgreSQL TestServer startup (source candidate)
 
-Status: **DRAFT / NOT RUN / HOLD**. Depends on accepted O3 commit `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` and [Issue #33](https://github.com/jvalkovv/YangSpaceApp/issues/33). No public-account activation or CT164 access is authorized.
+Status: **CORRECTED SOURCE COMMITTED / EXACT-SHA RERUN PENDING / HOLD**. Current PR #56 source head: `28c846594008325fdbb4520d0c1db92cb3c22037`. Depends on the accepted O3 worker contract and [Issue #33](https://github.com/jvalkovv/YangSpaceApp/issues/33). No public-account activation or CT164 access is authorized.
 
 ## Scope and invariant
 
@@ -97,3 +97,19 @@ On any failure: record **first failing marker**, exact SHA and sanitized evidenc
 - H06: privacy/browser/mobile/accessibility.
 - O5: DataProtection off-release key backups, alerting and operational recovery; O6: reviewed integration/merge.
 - CT164/public production: **HOLD** until all gates pass.
+
+
+## 2026-11-17 — H01 readiness feature-dependency correction
+
+The O4-H01 TestServer run reached the real Production `/health/ready` route, then failed with PostgreSQL SQLSTATE `42501` on `public."IdentityAbuseCounters"`. This was not a missing broad production grant: the H01 runtime role is intentionally a non-identity, default-off principal and must not receive account-abuse data access while `PublicAccounts:Enabled=false`.
+
+Root cause: `ProductionSchemaGate.ValidateRuntimeReadinessAsync` queried `IdentityAbuseCounters` unconditionally, although the feature's full SELECT/INSERT/UPDATE/DELETE privilege gate is only required when public accounts are enabled.
+
+Correction in current source:
+- Pass the actual `publicAccounts` feature switch into runtime readiness.
+- Keep DB connectivity, migrations/model-drift, Identity user columns and outbox readiness checks.
+- Probe `IdentityAbuseCounters` only when `PublicAccounts:Enabled=true`; the existing startup gate still requires all four table privileges in that state.
+- Add an H01 regression assertion that `ys_o3_runtime` has **no SELECT grant** on the abuse table while public accounts are off, and that Production readiness still returns HTTP 200.
+- Runner manifest and Independent Postflight require the new negative-privilege marker.
+
+This preserves least privilege; no generic table grants or production role expansion. Exact-SHA rerun and Independent Postflight remain pending. PR #56 stays Draft; Issues #50/#55 stay OPEN; release HOLD.

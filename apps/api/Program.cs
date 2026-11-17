@@ -196,6 +196,7 @@ if (publicAccounts)
     builder.Services.Configure<IdentityEmailOutboxOptions>(builder.Configuration.GetSection("PublicAccounts:Outbox"));
     builder.Services.AddTransient<SmtpPublicIdentityEmailSender>();
     builder.Services.AddTransient<IIdentityEmailOutboxTransport>(services => services.GetRequiredService<SmtpPublicIdentityEmailSender>());
+    builder.Services.AddSingleton<IdentityEmailOutboxWorkerTelemetry>();
     builder.Services.AddHostedService<IdentityEmailOutboxWorker>();
 }
 builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
@@ -245,11 +246,34 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
-app.MapGet("/health/ready", async (DirectoryDb db, CancellationToken ct) =>
-    (publicAccountKeyRing is null || PublicAccountDataProtectionPolicy.IsReady(publicAccountKeyRing)) &&
-    await db.Database.CanConnectAsync(ct)
-        ? Results.Ok(new { status = "ready" })
-        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
+app.MapGet("/health/ready", async (
+    DirectoryDb db, ILoggerFactory loggerFactory, CancellationToken ct) =>
+{
+    if (publicAccountKeyRing is not null &&
+        !PublicAccountDataProtectionPolicy.IsReady(publicAccountKeyRing))
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+    try
+    {
+        if (app.Environment.IsProduction())
+            await ProductionSchemaGate.ValidateRuntimeReadinessAsync(db, publicAccounts, ct);
+        else if (!await db.Database.CanConnectAsync(ct))
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        return Results.Ok(new { status = "ready" });
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+    {
+        throw;
+    }
+    catch (Exception)
+    {
+        // Health responses expose no connection strings, schema details or exception text.
+        loggerFactory.CreateLogger("YangSpace.Readiness")
+            .LogWarning("YANGSPACE_HEALTH_READY_DATABASE_OR_SCHEMA_UNAVAILABLE");
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 app.MapDirectory();
 // The production schema is created and migrated only by a reviewed OFFLINE

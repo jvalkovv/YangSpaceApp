@@ -4,6 +4,30 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H05e runtime QA blocker: telemetry DI constructor (source correction prepared)
+
+- Exact failed QA source: `3eb99abcea489575cdc3769efc92b659ee984798`.
+- Windows Release restore/build passed; the SQLite worker regression stopped at DI container validation before PostgreSQL 17/TLS VerifyFull provisioning.
+- Root cause: `IdentityEmailOutboxWorkerTelemetry` is an internal implementation type whose parameterless constructor was also internal. The default Microsoft DI `AddSingleton<T>()` implementation-type registration only selects public constructors, so the hosted worker could not be activated.
+- Correction: make the constructor public (the telemetry type itself remains internal), and add an explicit Production worker-contract assertion for singleton DI activation. The SQLite runner and Independent Postflight now require `F2B_H05E_TELEMETRY_DI_ACTIVATION`; the manifest records `H05E_TELEMETRY_DI=PASS_PUBLIC_CONSTRUCTOR_SINGLETON_ACTIVATION`.
+- This is a source/test-gate correction only. The failing run did not reach PostgreSQL; no runtime H05e acceptance is claimed. Re-run the complete exact-SHA runner and Independent Postflight after the correction commit. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD.
+
+## 2026-11-17 — H05e SMTP fault-injection evidence correction (runtime QA PENDING)
+
+- Correction baseline: PR #56 head `d845bea20730e9da0611ee06748509c13fdb874b`.
+- The prior SMTP readiness probe only toggled the fake transport failure flag while requesting `/health/ready`; it did not exercise a send. The corrected Production TestServer test drives public registration through the real worker, observes the fake transport failure, verifies a persisted Pending outbox retry with at least one attempt, and proves readiness/liveness remain 200 while SMTP is unavailable.
+- The fake transport is restored in `finally` before the existing resend/recovery test. No real SMTP is used.
+- Runner and Independent Postflight require `F2B_H05E_SMTP_TRANSPORT_FAILURE_OBSERVED`, `F2B_H05E_SMTP_RETRY_PERSISTED`, `F2B_H05E_SMTP_UNAVAILABLE_READINESS_200`, and manifest entry `H05E_SMTP_FAILURE_READINESS=PASS_OBSERVED_FAKE_TRANSPORT_RETRY_AND_HTTP_200`.
+- Source correction only; exact-SHA runtime QA remains PENDING. PR #56 remains Draft; Issues #50/#55 remain OPEN. Current PR #56 head is the acceptance SHA to test.
+
+## 2026-11-17 — H05d accepted; H05e source implementation committed (runtime QA PENDING)
+
+- H05d PR #54 merged into the F2b feature branch, not main. Exact tested source 5dc3939a62b0b2766988d21758bc22819f1cb99b; Release + PostgreSQL 17/TLS VerifyFull + full H01–H05c regression + H05d HTTP markers + Independent Postflight PASS. Evidence manifest SHA-256 d70584c89a532775a9e8acee4f6709138a13b74c62efc12bf18fc12524e0f35b. Merge commit 6b411be1295fcff92d1ce5af38aca4c407234bd8.
+- H05e branch feat/yangspace-f2b-h05e-recovery-observability-20261117; integrated PR #56 baseline before SMTP fault-injection correction: d845bea20730e9da0611ee06748509c13fdb874b. See the correction entry above; the live PR #56 head is the current exact-SHA target.
+- H05e source adds lease/revision fencing for Sent/retry/suppress, separates transport failures from DB finalization errors, preserves at-least-once recovery after Sent-write failure, verifies runtime DB/schema readiness, adds worker metrics/logs and a protected aggregate worker-status endpoint.
+- H05e adds PG17 fault tests for stale lease owners and Sent-finalization DB failure, plus Production TestServer DB/schema loss and recovery checks. Runner and independent Postflight now require these H05e markers and use the H05e evidence root.
+- **No H05e runtime PASS is claimed yet.** Operator must run exact-SHA Release build, full regression, disposable PG17/TLS VerifyFull/TestServer matrix and independent Postflight on this exact HEAD. H05 #50 and H05e #55 remain OPEN. H06 waits for full H05 acceptance. No main/CT164/production DB/key ring/SMTP/public activation/GitHub Actions changes.
+
 ## 2026-11-17 — H05c accepted and H05d protected admin HTTP source candidate
 
 **H05c:** exact-SHA Release/PG17 TestServer + 2 outbox summary no-PII markers + Independent Postflight PASS at `8e2509e93551ac95b7dfaa52909c0b9a86b5037f`, manifest SHA256 `ab702f410da0623d231a1ad26e534dfbcad99a5bd15715cf3df1f7b6e5cdbd5c`. PR #53 Ready for Review, not merged.
@@ -1062,3 +1086,65 @@ Operator ran both required Windows exact-SHA runners from a clean detached workt
 
 **Next:** a separate default-OFF, synthetic-only PostgreSQL bearer HTTP + competing EF writer child slice. Keep parent PR #17 OPEN/DRAFT/HOLD until all parent DoD and independent release gates pass.
 
+
+
+## 2026-11-17 — H05e PostgreSQL worker log assertion false positive; structured PII gate corrected
+
+- Failed exact-SHA runtime: `323a121dbacdc39d3dac3b0aaa13570b3ef83f30`. SQLite regression and PostgreSQL 17 provisioning passed; the PG worker contract reached H05e lease fencing, DB-finalization recovery, telemetry snapshot and metric-cardinality markers before failing `F2B_H05E_WORKER_LOGS_NO_PII`.
+- Root cause is in the test oracle, not evidence of a worker data leak: the old assertion rejected any rendered log message containing the substring `Email`, while the required stable event IDs themselves contain `IDENTITY_EMAIL_OUTBOX_...`. The assertion therefore rejected the expected safe event names.
+- Correction: capture each worker log's rendered message, structured property names/values and exception text. The gate now rejects PII-bearing property names, labelled sensitive fields, actual synthetic user IDs/emails, generated delivery payloads/tokens, scoped DB connection strings and release scope token. It still requires both transport-failure and worker-cycle-failure event IDs.
+- This is a test-observability correction; production worker log templates and behavior are unchanged. No weakening or deletion of the no-PII acceptance gate.
+- Corrected exact-SHA runtime and Independent Postflight are pending. Do not claim H05e PASS until the complete runner, cleanup and Independent Postflight pass at one exact SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD.
+
+
+## 2026-11-17 — O4-H01 readiness failed on feature-disabled abuse storage; corrected
+
+Operator runtime reached O4-H01 Production TestServer after O3 PostgreSQL 17, TLS VerifyFull, non-elevated roles and fake-transport worker receipts passed. H01 then failed at `F2B_O4_H01_PRODUCTION_HTTP_READY` with SQLSTATE `42501 permission denied for table IdentityAbuseCounters`.
+
+RCA: H01 intentionally runs the default-off public-account configuration as `ys_o3_runtime`, which has no account-abuse table grant. `/health/ready` called `ValidateRuntimeReadinessAsync`, which unconditionally selected from `IdentityAbuseCounters`. The table's full CRUD privilege gate is already separately enforced at startup only when `PublicAccounts:Enabled=true`. Therefore the readiness query imposed a disabled feature's permission requirement on the generic runtime role.
+
+Source correction:
+- Runtime readiness now receives the explicit `publicAccounts` switch.
+- Abuse-counter schema/data probe runs only when public accounts are enabled.
+- H01 test explicitly proves the runtime role has no SELECT privilege on `IdentityAbuseCounters` while the feature is off, then requires `/health/ready=200`.
+- Runner and Independent Postflight require the new marker and manifest entry.
+- H03's full SELECT/INSERT/UPDATE/DELETE requirement remains unchanged for the enabled public-account identity runtime role.
+
+No broad grants, role expansion, real DB access or production changes. Exact-SHA rerun and Independent Postflight are pending; PR #56 Draft, Issues #50/#55 OPEN, release HOLD.
+
+
+## 2026-11-17 — H02 H05e DB-outage probe RCA and correction
+
+The operator rerun advanced through O3 and O4-H01 to `h02-production-http`, then failed at `F2B_H05E_DB_UNAVAILABLE_READINESS_503_LIVE_200`. Prior H05 DataProtection sentinel-loss/corruption recovery markers in the same H02 contract had passed.
+
+**Root cause is in the fault-injection test, not the Production readiness endpoint:** the fixture revoked `CONNECT` from `ys_h02_identity`, but PostgreSQL does not terminate existing sessions when CONNECT is revoked. Npgsql pooling could reuse an authenticated session, so the simulated outage did not guarantee that the API had to open a new connection.
+
+**Test-harness correction committed:**
+- The TestServer factory supplies an explicitly owned `NpgsqlDataSource` to EF Core `DirectoryDb`, using the same TLS VerifyFull connection string and runtime identity.
+- Revoke CONNECT and call `NpgsqlDataSource.Clear()` on the exact EF-owned pool; do not rely on `NpgsqlConnection.ClearAllPools()` for a separately managed EF data source.
+- Wait for zero remaining `ys_h02_identity` sessions in `pg_stat_activity`.
+- Prove a fresh non-pooled identity connection is denied with SQLSTATE `42501`.
+- Then require `/health/ready=503` while `/health/live=200`.
+- Restore CONNECT, clear the same data source, and require `/health/ready=200`.
+- Runner and Independent Postflight require the EF-data-source-cleared, session-drained and new-connection-denied markers plus manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED`.
+
+Superseding source/test contract commit: `e15ad690d2519879f769124b6b28cdc67466ef9e`. Runner marker/manifest commit: `77cacf580e03630b62a808926b7f5ecbd6ae2c7d`; Independent Postflight commit: `0ec6637acb94d4b30613b48c7f93e66fc0f2f6cd`.
+
+**Current acceptance boundary:** H01 stage was passed far enough for the ordered runner to start H02; H02 remains runtime HOLD until a clean exact-current-HEAD full run and Independent Postflight pass. PR #56 remains Draft/Open; Issues #50/#55 remain Open; release HOLD. No production DB, CT164, real SMTP, deployment or GitHub Actions.
+
+
+## 2026-11-18 — H02 H05e CONNECT revocation grantor RCA
+
+The latest operator rerun passed O3 PostgreSQL worker and O4-H01 Production TestServer. H02 passed DataProtection recovery, cleared the exact EF-owned Npgsql data source and drained all identity-role sessions, but failed the fresh connection denial marker.
+
+**Root cause:** the O3 setup granted CONNECT to `ys_h02_identity` as PostgreSQL superuser `postgres`, while H02 later attempted to revoke it as `ys_o3_migrator`. The migrator was not the grantor or database owner and did not hold CONNECT WITH GRANT OPTION. PostgreSQL therefore left the original superuser grant effective. The fresh non-pooled connection correctly succeeded. This is a disposable test ACL/grantor mismatch, not a production readiness failure.
+
+**Correction committed in PR #56:**
+- Grant CONNECT WITH GRANT OPTION to the disposable migrator and ordinary CONNECT to the O3 runtime role; do not grant identity CONNECT from postgres.
+- H02 grants identity CONNECT through the migrator before validating the identity connection, so the migrator owns the grant and can later revoke it.
+- After REVOKE, query `has_database_privilege(..., 'CONNECT')` and require false before clearing EF's exact `NpgsqlDataSource`, draining sessions, and asserting a fresh non-pooled connection is rejected with SQLSTATE `42501`.
+- Runner and Independent Postflight require `F2B_H05E_DB_UNAVAILABLE_CONNECT_PRIVILEGE_REVOKED` and manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_ACL_VERIFIED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED`.
+
+Source/test correction: `ed45175a108ff41bee9201d40a4467ac329d1c4b`. Runner: `c6be324e3d458e4b159607f7ca1ba7ba57b9d0b7`. Independent Postflight: `f1e8e0739ffed25bad90886406a24e24f4d448ff`.
+
+**Acceptance boundary:** H02 remains HOLD until a clean full exact-SHA runner, cleanup and Independent Postflight pass. PR #56 remains Draft/Open; Issues #50/#55 remain Open; release HOLD. No production DB, CT164, real SMTP, deployment or GitHub Actions.

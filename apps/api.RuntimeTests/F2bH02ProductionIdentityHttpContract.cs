@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql;
 using YangSpace.Api;
 
@@ -125,17 +126,26 @@ internal static class F2bH02ProductionIdentityHttpContract
     private sealed class FakeTransport : IIdentityEmailOutboxTransport
     {
         private readonly ConcurrentQueue<Delivery> _deliveries = new();
-        private int _failBeforeAccept;
+        private int _failAlways;
+        private long _failedSendAttempts;
 
         internal IReadOnlyCollection<Delivery> Deliveries => _deliveries.ToArray();
-        internal void FailBeforeAcceptOnce() => Interlocked.Exchange(ref _failBeforeAccept, 1);
+        internal long FailedSendAttempts => Interlocked.Read(ref _failedSendAttempts);
+        internal bool FailAlways
+        {
+            get => Volatile.Read(ref _failAlways) == 1;
+            set => Volatile.Write(ref _failAlways, value ? 1 : 0);
+        }
 
         public Task SendConfirmationAsync(
             IdentityUser user, string email, string confirmationLink, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (Interlocked.Exchange(ref _failBeforeAccept, 0) == 1)
+            if (FailAlways)
+            {
+                Interlocked.Increment(ref _failedSendAttempts);
                 throw new IOException("synthetic transport failure");
+            }
             _deliveries.Enqueue(new Delivery(IdentityEmailPurpose.ConfirmEmail, email, confirmationLink));
             return Task.CompletedTask;
         }
@@ -144,6 +154,11 @@ internal static class F2bH02ProductionIdentityHttpContract
             IdentityUser user, string email, string resetCode, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (FailAlways)
+            {
+                Interlocked.Increment(ref _failedSendAttempts);
+                throw new IOException("synthetic transport failure");
+            }
             _deliveries.Enqueue(new Delivery(IdentityEmailPurpose.ResetPassword, email, resetCode));
             return Task.CompletedTask;
         }
@@ -190,6 +205,8 @@ internal static class F2bH02ProductionIdentityHttpContract
     {
         private readonly string _connection;
         private readonly IReadOnlyDictionary<string, string?> _configuration;
+        private readonly NpgsqlDataSource _dataSource;
+        internal NpgsqlDataSource DataSource => _dataSource;
         internal FakeTransport Fake { get; }
         private readonly bool _adminEnabled;
 
@@ -198,6 +215,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         {
             _connection = connection;
             _configuration = configuration;
+            _dataSource = NpgsqlDataSource.Create(connection);
             Fake = fake;
             _adminEnabled = adminEnabled;
         }
@@ -243,6 +261,16 @@ internal static class F2bH02ProductionIdentityHttpContract
             });
             builder.ConfigureTestServices(services =>
             {
+                // Use an explicitly owned EF data source in this TestServer so
+                // the recovery contract can clear the exact pool used by EF.
+                // Production Program and the connection string remain unchanged.
+                services.RemoveAll<DirectoryDb>();
+                services.RemoveAll<DbContextOptions<DirectoryDb>>();
+                services.RemoveAll<IDbContextOptionsConfiguration<DirectoryDb>>();
+                services.AddDbContext<DirectoryDb>(options =>
+                    options.UseNpgsql(_dataSource,
+                        postgres => postgres.MigrationsAssembly("YangSpace.PostgreSql.Migrations")));
+
                 services.AddSingleton<IStartupFilter>(new TestPeerAddressStartupFilter());
                 if (_adminEnabled)
                 {
@@ -267,6 +295,19 @@ internal static class F2bH02ProductionIdentityHttpContract
                 });
             });
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                base.Dispose(disposing);
+            }
+            finally
+            {
+                if (disposing)
+                    _dataSource.Dispose();
+            }
+        }
     }
 
     internal static async Task RunAsync()
@@ -279,10 +320,10 @@ internal static class F2bH02ProductionIdentityHttpContract
             throw new InvalidOperationException("F2B_H02_SOURCE_SHA_REFUSED");
 
         ValidateConnection(migrator, "ys_o3_migrator");
-        ValidateConnection(identityConnection, IdentityRole);
         Check(await VerifyQaScopeAsync(migrator, scopeToken),
             "F2B_H02_QA_SCOPE_BOUND");
         await GrantIdentityRoleAsync(migrator);
+        ValidateConnection(identityConnection, IdentityRole);
         await VerifyAbuseStoragePrivilegeGateAsync(migrator, identityConnection);
         Check(await VerifyIdentityRoleAsync(identityConnection),
             "F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE");
@@ -429,6 +470,44 @@ internal static class F2bH02ProductionIdentityHttpContract
                 "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200");
         }
 
+        await SetIdentityRoleConnectAsync(migrator, identityConnection, factory.DataSource, enabled: false);
+        try
+        {
+            using var unavailable = await client.GetAsync("/health/ready");
+            using var alive = await client.GetAsync("/health/live");
+            Check(unavailable.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                  alive.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_DB_UNAVAILABLE_READINESS_503_LIVE_200");
+        }
+        finally
+        {
+            await SetIdentityRoleConnectAsync(migrator, identityConnection, factory.DataSource, enabled: true);
+        }
+        using (var restoredDatabase = await client.GetAsync("/health/ready"))
+        {
+            Check(restoredDatabase.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_DB_RESTORED_READINESS_200");
+        }
+
+        await RenameIdentityOutboxTableAsync(migrator, renamed: true);
+        try
+        {
+            using var schemaUnavailable = await client.GetAsync("/health/ready");
+            using var alive = await client.GetAsync("/health/live");
+            Check(schemaUnavailable.StatusCode == HttpStatusCode.ServiceUnavailable &&
+                  alive.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_SCHEMA_UNAVAILABLE_READINESS_503_LIVE_200");
+        }
+        finally
+        {
+            await RenameIdentityOutboxTableAsync(migrator, renamed: false);
+        }
+        using (var restoredSchema = await client.GetAsync("/health/ready"))
+        {
+            Check(restoredSchema.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_SCHEMA_RESTORED_READINESS_200");
+        }
+
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         const string password = "StrongPassword!2026";
 
@@ -488,20 +567,45 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT");
 
         SetTestPeer(client, "192.0.2.10");
-        fake.FailBeforeAcceptOnce();
+        var failedSendAttemptsBefore = fake.FailedSendAttempts;
+        string registrationBody;
+        string userId;
+        Guid outboxId;
+        fake.FailAlways = true;
+        try
+        {
+            using var registration = await client.PostAsJsonAsync(
+                "/api/public-account/register", new { email, password });
+            Check(registration.StatusCode == HttpStatusCode.Accepted,
+                "F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE");
+            registrationBody = await registration.Content.ReadAsStringAsync();
 
-        using var registration = await client.PostAsJsonAsync("/api/public-account/register",
-            new { email, password });
-        Check(registration.StatusCode == HttpStatusCode.Accepted,
-            "F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE");
+            userId = await WaitForUserIdAsync(
+                identityConnection, email, TimeSpan.FromSeconds(15));
+            Check(await ReadIdentityRoleAssignmentCountAsync(migrator, userId) == 0,
+                "F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE");
+            Check(await ReadOrganizationMembershipCountAsync(migrator, userId) == 0,
+                "F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP");
 
-        var userId = await WaitForUserIdAsync(identityConnection, email, TimeSpan.FromSeconds(15));
-        Check(await ReadIdentityRoleAssignmentCountAsync(migrator, userId) == 0,
-            "F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE");
-        Check(await ReadOrganizationMembershipCountAsync(migrator, userId) == 0,
-            "F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP");
-        var outboxId = await WaitForRetryAsync(identityConnection, userId, TimeSpan.FromSeconds(15));
-        Check(outboxId != Guid.Empty, "F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC");
+            outboxId = await WaitForRetryAsync(
+                identityConnection, userId, TimeSpan.FromSeconds(15));
+            Check(outboxId != Guid.Empty,
+                "F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC");
+            Check(fake.FailedSendAttempts > failedSendAttemptsBefore,
+                "F2B_H05E_SMTP_TRANSPORT_FAILURE_OBSERVED");
+            Check(await ReadAttemptCountAsync(identityConnection, outboxId) >= 1,
+                "F2B_H05E_SMTP_RETRY_PERSISTED");
+
+            using var smtpUnavailable = await client.GetAsync("/health/ready");
+            using var liveDuringSmtpFailure = await client.GetAsync("/health/live");
+            Check(smtpUnavailable.StatusCode == HttpStatusCode.OK &&
+                  liveDuringSmtpFailure.StatusCode == HttpStatusCode.OK,
+                "F2B_H05E_SMTP_UNAVAILABLE_READINESS_200");
+        }
+        finally
+        {
+            fake.FailAlways = false;
+        }
 
         var unknownResendEmail = "missing-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         using var unknownResend = await client.PostAsJsonAsync(
@@ -613,8 +717,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             new { email, password });
         Check(duplicate.StatusCode == HttpStatusCode.Accepted,
             "F2B_H02_DUPLICATE_REGISTRATION_GENERIC");
-        Check(await duplicate.Content.ReadAsStringAsync() ==
-              await registration.Content.ReadAsStringAsync(),
+        Check(await duplicate.Content.ReadAsStringAsync() == registrationBody,
             "F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC");
 
         var accessToken = await LoginAsync(client, email, password);
@@ -995,6 +1098,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         var nonAdminBearer = await GetBearerAsync(client, publicEmail, password, gateway);
 
         var summaryUrl = "/api/v1/admin/email-outbox/summary";
+        var workerStatusUrl = "/api/v1/admin/email-outbox/worker-status";
         using (var missingGateway = await RequestAsync(
             client, HttpMethod.Get, summaryUrl, operatorBearer, null))
             Check(missingGateway.StatusCode == HttpStatusCode.NotFound,
@@ -1040,6 +1144,30 @@ internal static class F2bH02ProductionIdentityHttpContract
                   !content.Contains("userId", StringComparison.OrdinalIgnoreCase) &&
                   !content.Contains("token", StringComparison.OrdinalIgnoreCase),
                 "F2B_H05D_ADMIN_SUMMARY_HTTP_ALLOWED_NO_PII");
+        }
+
+        using (var anonymousWorkerStatus = await RequestAsync(
+            client, HttpMethod.Get, workerStatusUrl, null, gateway))
+            Check(anonymousWorkerStatus.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H05E_ADMIN_WORKER_STATUS_ANONYMOUS_REFUSED");
+
+        using (var workerStatus = await RequestAsync(
+            client, HttpMethod.Get, workerStatusUrl, operatorBearer, gateway))
+        {
+            var content = await workerStatus.Content.ReadAsStringAsync();
+            using var json = JsonDocument.Parse(content);
+            Check(workerStatus.StatusCode == HttpStatusCode.OK &&
+                  json.RootElement.TryGetProperty("worker", out var worker) &&
+                  worker.TryGetProperty("lastCycleSucceededAtUtc", out _) &&
+                  json.RootElement.TryGetProperty("backlog", out var backlog) &&
+                  backlog.TryGetProperty("pending", out _) &&
+                  !content.Contains("@", StringComparison.Ordinal) &&
+                  !content.Contains("UserId", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Email", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Token", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Payload", StringComparison.OrdinalIgnoreCase) &&
+                  !content.Contains("Secret", StringComparison.OrdinalIgnoreCase),
+                "F2B_H05E_ADMIN_WORKER_STATUS_HTTP_NO_PII");
         }
 
         var deadUserEmail = "h05d-dead-" + Guid.NewGuid().ToString("N") + "@example.invalid";
@@ -1353,6 +1481,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
+            GRANT CONNECT ON DATABASE yangspace_f2b_o3_worker_disposable TO ys_h02_identity;
             GRANT SELECT ON TABLE public."__EFMigrationsHistory" TO ys_h02_identity;
             GRANT SELECT, INSERT, UPDATE ON TABLE public."AspNetUsers" TO ys_h02_identity;
             GRANT SELECT ON TABLE public."AspNetUserRoles" TO ys_h02_identity;
@@ -1633,6 +1762,115 @@ internal static class F2bH02ProductionIdentityHttpContract
         await cmd.ExecuteNonQueryAsync();
     }
 
+    private static async Task SetIdentityRoleConnectAsync(
+        string migrator, string identityConnection, NpgsqlDataSource dataSource, bool enabled)
+    {
+        // REVOKE CONNECT affects new sessions only. Existing PostgreSQL sessions
+        // remain usable, and EF's NpgsqlDataSource owns the actual TestServer pool.
+        // Clear that exact data source so readiness must establish a new connection.
+        await using (var c = new NpgsqlConnection(migrator))
+        {
+            await c.OpenAsync();
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText = enabled
+                ? $"GRANT CONNECT ON DATABASE {DatabaseName} TO {IdentityRole};"
+                : $"REVOKE CONNECT ON DATABASE {DatabaseName} FROM {IdentityRole};";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        if (!enabled)
+        {
+            Check(!await IdentityRoleHasDatabaseConnectAsync(migrator),
+                "F2B_H05E_DB_UNAVAILABLE_CONNECT_PRIVILEGE_REVOKED");
+        }
+
+        dataSource.Clear();
+        if (!enabled)
+        {
+            Check(true, "F2B_H05E_DB_UNAVAILABLE_EF_DATASOURCE_CLEARED");
+            await WaitForNoIdentitySessionsAsync(migrator, TimeSpan.FromSeconds(5));
+            Check(true, "F2B_H05E_DB_UNAVAILABLE_SESSIONS_DRAINED");
+            Check(await IdentityConnectionDeniedAsync(identityConnection),
+                "F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED");
+        }
+    }
+
+    private static async Task<bool> IdentityRoleHasDatabaseConnectAsync(string migrator)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT has_database_privilege(@role, @database, 'CONNECT');";
+        cmd.Parameters.AddWithValue("role", IdentityRole);
+        cmd.Parameters.AddWithValue("database", DatabaseName);
+        return Convert.ToBoolean(await cmd.ExecuteScalarAsync());
+    }
+
+    private static async Task WaitForNoIdentitySessionsAsync(
+        string migrator, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (true)
+        {
+            var sessions = await ReadIdentitySessionCountAsync(migrator);
+            if (sessions == 0)
+                return;
+
+            if (DateTimeOffset.UtcNow >= deadline)
+                throw new InvalidOperationException(
+                    "F2B_H05E_DB_UNAVAILABLE_SESSIONS_DID_NOT_DRAIN");
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+        }
+    }
+
+    private static async Task<int> ReadIdentitySessionCountAsync(string migrator)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT count(*)
+            FROM pg_stat_activity
+            WHERE datname=@database
+              AND usename=@role
+              AND pid<>pg_backend_pid();
+            """;
+        cmd.Parameters.AddWithValue("database", DatabaseName);
+        cmd.Parameters.AddWithValue("role", IdentityRole);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+    }
+
+    private static async Task<bool> IdentityConnectionDeniedAsync(string identityConnection)
+    {
+        var connectionString = new NpgsqlConnectionStringBuilder(identityConnection)
+        {
+            Pooling = false
+        };
+
+        await using var c = new NpgsqlConnection(connectionString.ConnectionString);
+        try
+        {
+            await c.OpenAsync();
+            return false;
+        }
+        catch (PostgresException exception) when (exception.SqlState == "42501")
+        {
+            return true;
+        }
+    }
+
+    private static async Task RenameIdentityOutboxTableAsync(string migrator, bool renamed)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = renamed
+            ? """ALTER TABLE public."IdentityEmailOutbox" RENAME TO "IdentityEmailOutbox_H05E";"""
+            : """ALTER TABLE public."IdentityEmailOutbox_H05E" RENAME TO "IdentityEmailOutbox";""";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     private static async Task<bool> UserExistsAsync(string connection, string email)
     {
         await using var c = new NpgsqlConnection(connection);
@@ -1692,7 +1930,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             await using var cmd = c.CreateCommand();
             cmd.CommandText = """
                 SELECT "Id" FROM public."IdentityEmailOutbox"
-                WHERE "UserId"=@user AND "Purpose"=@purpose AND "Status"=@pending AND "AttemptCount"=1
+                WHERE "UserId"=@user AND "Purpose"=@purpose AND "Status"=@pending AND "AttemptCount">=1
                 ORDER BY "QueuedAtUtc" DESC LIMIT 1
                 """;
             cmd.Parameters.AddWithValue("user", userId);

@@ -44,6 +44,7 @@ internal static class IdentityEmailOutboxWorkerContract
                 "F2B_O3_WORKER_SIGNED_RELEASE_AUTHORIZATION");
             var services=new ServiceCollection();
             services.AddLogging();
+            services.AddSingleton<IdentityEmailOutboxWorkerTelemetry>();
             services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keys))
                 .SetApplicationName("YangSpace-F2b-O3-Contract");
             services.AddDbContext<DirectoryDb>(o=>o.UseSqlite(cs));
@@ -69,6 +70,9 @@ internal static class IdentityEmailOutboxWorkerContract
             using var provider=services.BuildServiceProvider(new ServiceProviderOptions {
                 ValidateScopes=true, ValidateOnBuild=true
             });
+            var telemetry=provider.GetRequiredService<IdentityEmailOutboxWorkerTelemetry>();
+            Check(telemetry.Snapshot().TotalCycles==0,
+                "F2B_H05E_TELEMETRY_DI_ACTIVATION");
             await using var scope=provider.CreateAsyncScope();
             var db=scope.ServiceProvider.GetRequiredService<DirectoryDb>();
             var users=scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
@@ -310,6 +314,7 @@ internal static class IdentityEmailOutboxWorkerContract
     private static IdentityEmailOutboxWorker NewWorker(IServiceProvider provider,TimeProvider clock,IConfiguration config) =>
         new(provider.GetRequiredService<IServiceScopeFactory>(),
             provider.GetRequiredService<ILogger<IdentityEmailOutboxWorker>>(),
+            provider.GetRequiredService<IdentityEmailOutboxWorkerTelemetry>(),
             provider.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,
             provider.GetRequiredService<IHostEnvironment>());
 
