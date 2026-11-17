@@ -2,6 +2,14 @@
 
 Status: **H05a–H05d bounded slices accepted at their exact SHAs. H05e implementation is committed but exact-SHA runtime acceptance is PENDING.** Full H05 recovery remains OPEN in [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50).
 
+## 2026-11-17 — H05e SMTP fault-injection evidence correction (runtime QA PENDING)
+
+- Correction baseline: PR #56 head `d845bea20730e9da0611ee06748509c13fdb874b`.
+- The previous SMTP-readiness probe only set `FakeTransport.FailAlways` and requested `/health/ready`; no transport send was attempted. The corrected Production TestServer contract uses public registration to enqueue an actual message, observes a failed fake transport send, verifies the persisted Pending retry and attempt count, and confirms readiness/liveness remain 200 while transport remains unavailable.
+- The fake transport is restored in `finally`, then the existing resend flow proves delivery recovery. Fake transport only; no real SMTP.
+- Required markers: `F2B_H05E_SMTP_TRANSPORT_FAILURE_OBSERVED`, `F2B_H05E_SMTP_RETRY_PERSISTED`, `F2B_H05E_SMTP_UNAVAILABLE_READINESS_200`; manifest: `H05E_SMTP_FAILURE_READINESS=PASS_OBSERVED_FAKE_TRANSPORT_RETRY_AND_HTTP_200`.
+- The runner and Independent Postflight require all three markers. Exact-SHA runtime acceptance remains PENDING; PR #56 remains Draft, Issues #50/#55 remain OPEN and release remains HOLD.
+
 ## 2026-11-17 — H05d accepted; H05e implementation source checkpoint
 
 H05d PR #54 is merged into the consolidated F2b feature branch (not main). Exact tested source SHA: 5dc3939a62b0b2766988d21758bc22819f1cb99b. Release build, full H01–H05c regression, PostgreSQL 17/TLS VerifyFull, H05d Production HTTP markers and Independent Postflight passed. Evidence manifest SHA-256: d70584c89a532775a9e8acee4f6709138a13b74c62efc12bf18fc12524e0f35b. Merge commit: 6b411be1295fcff92d1ce5af38aca4c407234bd8.
@@ -9,7 +17,8 @@ H05d PR #54 is merged into the consolidated F2b feature branch (not main). Exact
 ### H05e source implementation
 
 Branch: feat/yangspace-f2b-h05e-recovery-observability-20261117.
-Current source HEAD: 66042a5210a126e1d1d379fc42f338297c21ceb0.
+Integrated PR #56 baseline before SMTP fault-injection correction: d845bea20730e9da0611ee06748509c13fdb874b.
+Current exact-SHA acceptance target: the live PR #56 head.
 
 - Worker owner transitions use row ID + expected revision + lease ID + unexpired lease for Sent, retry and suppression. Zero-row transitions are recorded as lease loss.
 - Transport failure handling is isolated from database finalization. A database exception during Sent finalization is a worker/database cycle failure, not a transport failure; the row remains leased until expiry/reclaim.
@@ -17,7 +26,7 @@ Current source HEAD: 66042a5210a126e1d1d379fc42f338297c21ceb0.
 - Production readiness checks DB connectivity, migration/model state and required Identity/outbox/abuse tables. DB/schema exceptions produce 503 while liveness remains independent. SMTP is not a readiness dependency.
 - Added low-cardinality System.Diagnostics.Metrics counters/gauges, redacted structured worker events, and a protected PlatformAdmin/gateway worker-status endpoint with aggregate backlog only.
 - PostgreSQL worker tests cover stale owner finalization/retry fencing and a trigger-induced Sent finalization failure followed by lease-expiry recovery.
-- Production TestServer tests cover SMTP-independent readiness, runtime DB connect loss/restore and required outbox schema loss/restore.
+- Production TestServer tests cover actual fake-transport failure through public registration, persisted Pending retry, SMTP-independent readiness/liveness, runtime DB connect loss/restore and required outbox schema loss/restore.
 
 **H05e source is not yet accepted.** The exact-SHA Windows Release build, complete H01–H05d regression, disposable PostgreSQL 17/TLS VerifyFull run, all H05e markers, cleanup, checksum/manifest parity and Independent Postflight have not yet been executed on this HEAD. Keep Issues #50/#55 OPEN and release HOLD. No real SMTP, production DB/key ring, CT164, public activation or GitHub Actions.
 
