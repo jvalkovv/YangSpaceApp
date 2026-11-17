@@ -1,8 +1,22 @@
-# Current application execution focus — 2026-11-17
+# Current application execution focus — 2026-11-18
 
 **Owner direction:** develop YangSpace as a complete product: UX/UI, Angular workflows, .NET business logic, persistence, authorization and real user journeys. The existing reachable application environment is `https://yangspace.gndstore.eu`.
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
+
+## 2026-11-18 — F2b H05 FULL ACCEPTANCE PASS; H06 ACTIVE
+
+**H05 is complete.** The exact tested source SHA `a73422d9037df691857c3ff8b6b029532345d60c` passed all nine runtime gates: O4-H01 Production Startup, H02 Identity HTTP, H03 Abuse Protection, H04 Identity Edge, H05 DataProtection, H05b Identity Restart, H05c Operator Summary, H05d Admin HTTP and H05e Recovery/Readiness/Observability. Independent Postflight completed successfully with aggregate `F2B_H05_INDEPENDENT_POSTFLIGHT=PASS` and the H01/H02/H03/H04/H05b/H05c/H05d markers; H05e-specific manifest, marker, checksum, cleanup and clean-source assertions are included in that verifier.
+
+- Evidence: `D:\GitHub\YangSpaceApp-F2b-H05e-QA-20261118-r3\logs\yangspace\f2b-o4-h05e-recovery-observability\a73422d9037d-20261118-002610-a3f3bb75`
+- Manifest SHA-256: `6f367b711c8383529fda39ed28faad096db21f4f70c709aedeeaa64a84431f0d`
+- H05e [PR #56](https://github.com/jvalkovv/YangSpaceApp/pull/56) merged into `feat/yangspace-f2b-public-identity-foundation-20261113` at merge commit `5df7f5c0519d532a2501bcf3194f64e3e585e770`; exact tested head remains `a73422d9037df691857c3ff8b6b029532345d60c`.
+- H05 [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50) and H05e [Issue #55](https://github.com/jvalkovv/YangSpaceApp/issues/55) are CLOSED as completed.
+- Parent F2b [PR #29](https://github.com/jvalkovv/YangSpaceApp/pull/29) remains Draft and targets the F2a feature branch. `main` was not changed; no production deployment occurred.
+- **Next active milestone: H06 [Issue #57](https://github.com/jvalkovv/YangSpaceApp/issues/57)** — complete Angular UX/UI and user journeys, real-browser acceptance, mobile/tablet/desktop responsiveness, accessibility and privacy. Application work only; Cloudflare/Nginx/proxy/firewall/DNS/ingress are excluded.
+
+Public registration and outbox dispatch remain OFF; fake transport only. No real SMTP, production DB/key ring, CT164, deployment or GitHub Actions. Overall F2b/product release remains HOLD until H06 and remaining MVP gates pass.
+
 
 ## 2026-11-17 — H05e runtime QA blocker: telemetry DI constructor (source correction prepared)
 
