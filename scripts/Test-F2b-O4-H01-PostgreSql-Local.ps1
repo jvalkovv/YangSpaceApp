@@ -107,6 +107,7 @@ try {
     Stage 'o3-build' $Dotnet @('build',$Project,'-c','Release','--no-restore','-warnaserror')
     Stage 'o3-sqlite-regression' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--f2b-outbox-worker-synthetic-only')
     foreach ($M in @(
+        'F2B_H05E_TELEMETRY_DI_ACTIVATION',
         'F2B_O3_WORKER_CONFIRMATION_DISPATCH','F2B_O3_WORKER_RESET_DISPATCH',
         'F2B_O3_WORKER_RETRY_RECOVERY','F2B_O3_WORKER_UNCERTAIN_ACK_AT_LEAST_ONCE',
         'F2B_O3_WORKER_CONCURRENT_CLAIM','F2B_O3_WORKER_NULL_LEASE_RECOVERY',
