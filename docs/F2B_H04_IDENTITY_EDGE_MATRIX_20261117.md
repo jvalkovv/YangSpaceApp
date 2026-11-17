@@ -1,29 +1,70 @@
 # F2b H04 — Identity HTTP edge-case matrix
 
-Status: **SOURCE IMPLEMENTED / EXACT-SHA RUNTIME QA PENDING**.
+Status: **SOURCE IMPLEMENTED / EXACT-SHA RUNTIME QA PENDING** for the current follow-up HEAD. Previous H04 runtime evidence applies only to its recorded SHA and is not reusable after these test/runner changes.
 
 ## Scope
 
-Application/backend only. This slice extends the real Production `Program` / WebApplicationFactory TestServer contract. It does not change Cloudflare, Nginx, proxy, firewall, DNS, ingress, production deployment or the public application switches.
+Application/backend only. This slice extends the real Production `Program` / `WebApplicationFactory` TestServer contract. It does not change production runtime behavior, account switches, Cloudflare, Nginx, proxy, firewall, DNS, ingress or deployment.
 
-## Added negative and replay cases
+## Required application-level matrix
 
-- Invalid email registration returns 400 and creates no Identity row.
-- Weak-password registration returns 400 and creates no Identity row.
-- Duplicate registration response body remains indistinguishable from the initial accepted registration response.
-- Successful confirmation response has `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
-- Malformed confirmation code and unknown user fail closed with the generic failure redirect; malformed confirmation leaves the account unconfirmed.
-- A staff fixture carries four distinct roles (`H02Staff`, `PlatformAdmin`, `Moderator`, `SupportAgent`); confirmation, resend, login, forgot and reset remain denied/suppressed for staff.
-- A successful password-reset token cannot be replayed to set another password.
-- A malformed reset token is rejected and the existing password remains valid.
+### Registration
 
-Existing H02/H03 contracts remain in the same run: Production startup and Identity HTTP, signed release authorization, fake transport, PostgreSQL 17/TLS VerifyFull, least-privilege runtime role, account budgets, lockout, SQLite regression, worker recovery and exact-SHA postflight.
+- Malformed, empty and oversized (>254 characters) email return the same stable HTTP 400 validation response.
+- Oversized fixture is independently verified to pass `EmailAddressAttribute` before the application length guard rejects it.
+- Invalid email and weak-password cases create no Identity user and no outbox insertion.
+- Duplicate registration remains indistinguishable from a new accepted request.
+- A successfully registered public account receives no Identity role assignment and no `OrganizationMember` row.
+- Public registration never grants owner, staff or organization membership.
+
+### Email confirmation
+
+- Missing/unknown user, malformed Base64Url, syntactically valid but invalid Identity token and expired token fail closed.
+- Negative confirmation does not change `EmailConfirmed`.
+- Success is single-use; concurrent confirmation has exactly one winner.
+- Confirmation response retains `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
+
+### Password recovery
+
+- Malformed, syntactically valid but invalid, expired and replayed reset tokens fail closed.
+- Successful reset invalidates the old password and the reset token.
+- Failed reset preserves the current password.
+- Unknown and known email responses remain indistinguishable.
+
+### Staff exclusion
+
+- Any persisted Identity role excludes an account from public login, confirmation, resend, forgot and reset.
+- Verify multiple distinct staff roles, not only one synthetic role.
+- Public registration creates no Identity role or organization membership.
+
+### Bearer/session and abuse
+
+- Login never emits `Set-Cookie`.
+- Session requires a real bearer token; no cookie-only fallback.
+- Preserve H03 account budgets and transport 429; do not weaken or duplicate accepted H03 logic.
+
+## Runtime and evidence
+
+- Real Production `Program` through WebApplicationFactory/TestServer.
+- Disposable PostgreSQL 17 with TLS VerifyFull and the existing least-privilege Identity role.
+- Fake transport only; no SMTP socket or real credentials.
+- Exact-SHA Release build with warnings as errors.
+- Every H04 case has a stable PASS marker and negative assertion against persisted state.
+- Independent Postflight verifies exact source/remote SHA, stage receipts, manifest/log hashes, clean worktree and disposable resource cleanup.
+- Registration outbox assertion compares total persisted outbox rows before/after invalid registration requests; worker processing may update/purge existing rows but must not add rows for rejected requests.
+- Identity role and `OrganizationMembers` checks use the disposable migrator connection for observation; the application runtime role is not granted extra tenant-table privileges.
 
 ## Required H04 markers
 
 ```text
 F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT
+F2B_H04_REGISTER_EMPTY_EMAIL_NO_ACCOUNT
+F2B_H04_OVERSIZED_EMAIL_FIXTURE_VALIDATED
+F2B_H04_REGISTER_OVERSIZED_EMAIL_NO_ACCOUNT
 F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT
+F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT
+F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE
+F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP
 F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS
 F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED
 F2B_H04_CONFIRM_INVALID_TOKEN_FAIL_CLOSED
@@ -47,7 +88,7 @@ From a clean detached worktree at the exact current branch HEAD:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$Repo = 'D:\GitHub\YangSpaceApp'
+$Repo = 'D:\\GitHub\\YangSpaceApp'
 $Branch = 'feat/yangspace-f2b-h04-identity-edge-matrix-20261117'
 $Sha = '<exact 40-character remote HEAD>'
 
@@ -61,7 +102,7 @@ git -C $Repo worktree list --porcelain
 Create a new, non-existing detached QA worktree at the exact SHA, verify clean source and execute:
 
 ```powershell
-& "$Repo\scripts\Test-F2b-O4-H01-PostgreSql-Local.ps1" -CommitSha $Sha
+& "$Repo\\scripts\\Test-F2b-O4-H01-PostgreSql-Local.ps1" -CommitSha $Sha
 if ($LASTEXITCODE -ne 0) { throw 'H04_ACCEPTANCE_FAILED' }
 ```
 
