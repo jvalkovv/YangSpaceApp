@@ -4,10 +4,18 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H05e SMTP fault-injection evidence correction (runtime QA PENDING)
+
+- Correction baseline: PR #56 head `d845bea20730e9da0611ee06748509c13fdb874b`.
+- The prior SMTP readiness probe only toggled the fake transport failure flag while requesting `/health/ready`; it did not exercise a send. The corrected Production TestServer test drives public registration through the real worker, observes the fake transport failure, verifies a persisted Pending outbox retry with at least one attempt, and proves readiness/liveness remain 200 while SMTP is unavailable.
+- The fake transport is restored in `finally` before the existing resend/recovery test. No real SMTP is used.
+- Runner and Independent Postflight require `F2B_H05E_SMTP_TRANSPORT_FAILURE_OBSERVED`, `F2B_H05E_SMTP_RETRY_PERSISTED`, `F2B_H05E_SMTP_UNAVAILABLE_READINESS_200`, and manifest entry `H05E_SMTP_FAILURE_READINESS=PASS_OBSERVED_FAKE_TRANSPORT_RETRY_AND_HTTP_200`.
+- Source correction only; exact-SHA runtime QA remains PENDING. PR #56 remains Draft; Issues #50/#55 remain OPEN. Current PR #56 head is the acceptance SHA to test.
+
 ## 2026-11-17 — H05d accepted; H05e source implementation committed (runtime QA PENDING)
 
 - H05d PR #54 merged into the F2b feature branch, not main. Exact tested source 5dc3939a62b0b2766988d21758bc22819f1cb99b; Release + PostgreSQL 17/TLS VerifyFull + full H01–H05c regression + H05d HTTP markers + Independent Postflight PASS. Evidence manifest SHA-256 d70584c89a532775a9e8acee4f6709138a13b74c62efc12bf18fc12524e0f35b. Merge commit 6b411be1295fcff92d1ce5af38aca4c407234bd8.
-- H05e branch feat/yangspace-f2b-h05e-recovery-observability-20261117 current HEAD 66042a5210a126e1d1d379fc42f338297c21ceb0.
+- H05e branch feat/yangspace-f2b-h05e-recovery-observability-20261117; integrated PR #56 baseline before SMTP fault-injection correction: d845bea20730e9da0611ee06748509c13fdb874b. See the correction entry above; the live PR #56 head is the current exact-SHA target.
 - H05e source adds lease/revision fencing for Sent/retry/suppress, separates transport failures from DB finalization errors, preserves at-least-once recovery after Sent-write failure, verifies runtime DB/schema readiness, adds worker metrics/logs and a protected aggregate worker-status endpoint.
 - H05e adds PG17 fault tests for stale lease owners and Sent-finalization DB failure, plus Production TestServer DB/schema loss and recovery checks. Runner and independent Postflight now require these H05e markers and use the H05e evidence root.
 - **No H05e runtime PASS is claimed yet.** Operator must run exact-SHA Release build, full regression, disposable PG17/TLS VerifyFull/TestServer matrix and independent Postflight on this exact HEAD. H05 #50 and H05e #55 remain OPEN. H06 waits for full H05 acceptance. No main/CT164/production DB/key ring/SMTP/public activation/GitHub Actions changes.
