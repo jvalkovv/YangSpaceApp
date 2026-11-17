@@ -11,9 +11,10 @@
 The H04 acceptance review identified two missing parts of the written Issue #48 DoD. The follow-up adds:
 
 - Registration HTTP 400 cases for malformed, empty and oversized email; the oversized fixture is first verified as syntactically valid by `EmailAddressAttribute`.
-- Stable response-body equality across invalid-email boundaries.
-- An exact before/after disposable outbox row-count assertion for invalid email and weak-password requests.
+- Empty and weak-password rejection with no Identity account or outbox insertion.
+- Stable response-body equality across invalid-email boundaries and an exact before/after disposable outbox row-count assertion for all rejected registration cases.
 - Persisted-state assertions that a successfully registered public account has zero Identity role assignments and zero `OrganizationMembers` rows.
+- Missing and unknown confirmation-user cases fail closed in addition to malformed/invalid/expired tokens.
 - Matching stable markers in the exact-SHA runner and Independent Postflight, plus manifest requirements and an updated H04 operator matrix.
 
 The observation queries use the disposable migrator connection; the application Identity runtime role receives no additional tenant-table privileges. No production code switches, real SMTP, CT164, Production DB or deployment are changed.
@@ -34,7 +35,7 @@ Baseline: H03 exact tested source `441c3a7742d7387b3d900d7f2bbee48cdd39001f`.
 ## Active sequence
 
 1. **H04 — Identity HTTP edge cases:** negative/replay/role matrix on the real Production TestServer, disposable PostgreSQL 17/TLS VerifyFull, fake transport only. [Issue #48](https://github.com/jvalkovv/YangSpaceApp/issues/48).
-2. **H05 — application recovery:** DataProtection key continuity, outbox retry/re-drive, deterministic failure recovery and readiness behavior. No ingress work.
+2. **H05 — application recovery:** [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50) — DataProtection key continuity, outbox retry/re-drive, deterministic failure recovery and readiness behavior. No ingress work.
 3. **H06 — Angular/browser/mobile/privacy:** account journeys, responsive navigation/forms, accessible loading/error/empty states, privacy notices and browser acceptance.
 4. **M2 — ownership/claim:** synthetic-only workflow until legal/privacy #24; reviewer-only decision and atomic Claim + Organization + Location + Owner membership + audit.
 5. **M3 — Merchant Workspace/CMS:** owner/editor dashboard, scoped profile editing, offers/brochures/jobs lifecycle, revision conflicts, audit history, preview/publish and tenant isolation.
