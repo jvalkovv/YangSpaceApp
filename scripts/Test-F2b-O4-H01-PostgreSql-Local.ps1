@@ -264,7 +264,8 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     Stage 'o3-db-create' $Docker @('exec',$Container,'createdb','-U','postgres','--owner=postgres',$Db)
     [IO.File]::WriteAllText($GrantsPath,(
         "REVOKE ALL ON DATABASE $Db FROM PUBLIC;" + [Environment]::NewLine +
-        "GRANT CONNECT ON DATABASE $Db TO ys_o3_migrator,ys_o3_runtime,ys_h02_identity;" + [Environment]::NewLine +
+        "GRANT CONNECT ON DATABASE $Db TO ys_o3_migrator WITH GRANT OPTION;" + [Environment]::NewLine +
+        "GRANT CONNECT ON DATABASE $Db TO ys_o3_runtime;" + [Environment]::NewLine +
         "REVOKE ALL ON SCHEMA public FROM PUBLIC;" + [Environment]::NewLine +
         "GRANT USAGE,CREATE ON SCHEMA public TO ys_o3_migrator;" + [Environment]::NewLine +
         "GRANT USAGE ON SCHEMA public TO ys_o3_runtime,ys_h02_identity;" + [Environment]::NewLine +
@@ -443,6 +444,7 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_H05E_SMTP_TRANSPORT_FAILURE_OBSERVED',
         'F2B_H05E_SMTP_RETRY_PERSISTED',
         'F2B_H05E_SMTP_UNAVAILABLE_READINESS_200',
+        'F2B_H05E_DB_UNAVAILABLE_CONNECT_PRIVILEGE_REVOKED',
         'F2B_H05E_DB_UNAVAILABLE_EF_DATASOURCE_CLEARED',
         'F2B_H05E_DB_UNAVAILABLE_SESSIONS_DRAINED',
         'F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED',
@@ -649,7 +651,7 @@ $Manifest=@(
     'H05E_STALE_LEASE_OWNER_FENCING=PASS_REVISION_LEASE_EXPIRY_CAS',
     'H05E_SENT_FINALIZATION_RECOVERY=PASS_AT_LEAST_ONCE',
     'H05E_RUNTIME_READINESS=PASS_DB_AND_SCHEMA_LOSS_RESTORE',
-    'H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED',
+    'H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_ACL_VERIFIED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED',
     'H05E_SMTP_FAILURE_READINESS=PASS_OBSERVED_FAKE_TRANSPORT_RETRY_AND_HTTP_200',
     'H05E_WORKER_OBSERVABILITY=PASS_LOW_CARDINALITY_NO_PII',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
