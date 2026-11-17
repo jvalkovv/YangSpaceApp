@@ -4,6 +4,14 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H05d accepted; H05e source implementation committed (runtime QA PENDING)
+
+- H05d PR #54 merged into the F2b feature branch, not main. Exact tested source 5dc3939a62b0b2766988d21758bc22819f1cb99b; Release + PostgreSQL 17/TLS VerifyFull + full H01–H05c regression + H05d HTTP markers + Independent Postflight PASS. Evidence manifest SHA-256 d70584c89a532775a9e8acee4f6709138a13b74c62efc12bf18fc12524e0f35b. Merge commit 6b411be1295fcff92d1ce5af38aca4c407234bd8.
+- H05e branch feat/yangspace-f2b-h05e-recovery-observability-20261117 current HEAD 66042a5210a126e1d1d379fc42f338297c21ceb0.
+- H05e source adds lease/revision fencing for Sent/retry/suppress, separates transport failures from DB finalization errors, preserves at-least-once recovery after Sent-write failure, verifies runtime DB/schema readiness, adds worker metrics/logs and a protected aggregate worker-status endpoint.
+- H05e adds PG17 fault tests for stale lease owners and Sent-finalization DB failure, plus Production TestServer DB/schema loss and recovery checks. Runner and independent Postflight now require these H05e markers and use the H05e evidence root.
+- **No H05e runtime PASS is claimed yet.** Operator must run exact-SHA Release build, full regression, disposable PG17/TLS VerifyFull/TestServer matrix and independent Postflight on this exact HEAD. H05 #50 and H05e #55 remain OPEN. H06 waits for full H05 acceptance. No main/CT164/production DB/key ring/SMTP/public activation/GitHub Actions changes.
+
 ## 2026-11-17 — H05c accepted and H05d protected admin HTTP source candidate
 
 **H05c:** exact-SHA Release/PG17 TestServer + 2 outbox summary no-PII markers + Independent Postflight PASS at `8e2509e93551ac95b7dfaa52909c0b9a86b5037f`, manifest SHA256 `ab702f410da0623d231a1ad26e534dfbcad99a5bd15715cf3df1f7b6e5cdbd5c`. PR #53 Ready for Review, not merged.

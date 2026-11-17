@@ -1,6 +1,25 @@
 # F2b H05 — Application recovery: bounded DataProtection foundation
 
-Status: **SOURCE CANDIDATE / NOT RUNTIME ACCEPTED**. Full H05 recovery remains OPEN in [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50).
+Status: **H05a–H05d bounded slices accepted at their exact SHAs. H05e implementation is committed but exact-SHA runtime acceptance is PENDING.** Full H05 recovery remains OPEN in [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50).
+
+## 2026-11-17 — H05d accepted; H05e implementation source checkpoint
+
+H05d PR #54 is merged into the consolidated F2b feature branch (not main). Exact tested source SHA: 5dc3939a62b0b2766988d21758bc22819f1cb99b. Release build, full H01–H05c regression, PostgreSQL 17/TLS VerifyFull, H05d Production HTTP markers and Independent Postflight passed. Evidence manifest SHA-256: d70584c89a532775a9e8acee4f6709138a13b74c62efc12bf18fc12524e0f35b. Merge commit: 6b411be1295fcff92d1ce5af38aca4c407234bd8.
+
+### H05e source implementation
+
+Branch: feat/yangspace-f2b-h05e-recovery-observability-20261117.
+Current source HEAD: 66042a5210a126e1d1d379fc42f338297c21ceb0.
+
+- Worker owner transitions use row ID + expected revision + lease ID + unexpired lease for Sent, retry and suppression. Zero-row transitions are recorded as lease loss.
+- Transport failure handling is isolated from database finalization. A database exception during Sent finalization is a worker/database cycle failure, not a transport failure; the row remains leased until expiry/reclaim.
+- Delivery remains at-least-once when transport accepted but Sent persistence failed. Duplicate delivery is possible and is not misrepresented as exactly-once.
+- Production readiness checks DB connectivity, migration/model state and required Identity/outbox/abuse tables. DB/schema exceptions produce 503 while liveness remains independent. SMTP is not a readiness dependency.
+- Added low-cardinality System.Diagnostics.Metrics counters/gauges, redacted structured worker events, and a protected PlatformAdmin/gateway worker-status endpoint with aggregate backlog only.
+- PostgreSQL worker tests cover stale owner finalization/retry fencing and a trigger-induced Sent finalization failure followed by lease-expiry recovery.
+- Production TestServer tests cover SMTP-independent readiness, runtime DB connect loss/restore and required outbox schema loss/restore.
+
+**H05e source is not yet accepted.** The exact-SHA Windows Release build, complete H01–H05d regression, disposable PostgreSQL 17/TLS VerifyFull run, all H05e markers, cleanup, checksum/manifest parity and Independent Postflight have not yet been executed on this HEAD. Keep Issues #50/#55 OPEN and release HOLD. No real SMTP, production DB/key ring, CT164, public activation or GitHub Actions.
 
 ## Accepted starting point
 
