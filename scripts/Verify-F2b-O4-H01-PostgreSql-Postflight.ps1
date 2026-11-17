@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h05b-restart-token-restore-20261117'
+$Branch='feat/yangspace-f2b-h05c-outbox-operations-20261117'
 $Git=(Get-Command git.exe -ErrorAction Stop).Source
 $Docker=(Get-Command docker.exe -ErrorAction Stop).Source
 function Check([bool]$Ok,[string]$Marker) {
@@ -37,7 +37,7 @@ Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'POSTFLIGHT_BRANCH_O
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_CLEAN_SOURCE'
 $Evidence=(Resolve-Path -LiteralPath $EvidenceDirectory).Path
-$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h05b-token-recovery'))
+$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h05c-outbox-operations'))
 Check ($Evidence.StartsWith($Root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) 'POSTFLIGHT_EVIDENCE_SCOPE'
 Check ((Split-Path $Evidence -Leaf) -match ('^'+$CommitSha.Substring(0,12)+'-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$')) 'POSTFLIGHT_EVIDENCE_IDENTITY'
 $ManifestPath=Join-Path $Evidence 'manifest.txt'
@@ -78,6 +78,7 @@ foreach ($Value in @(
     'H05_DATAPROTECTION_FOUNDATION=PASS_PRODUCTION_TESTSERVER_PG17',
     'H05_KEYRING_RECOVERY=PASS_SENTINEL_LOSS_503_RESTORE_200',
     'H05B_IDENTITY_RESTART_TOKEN_CONTINUITY=PASS_FOREIGN_REFUSED_RESTORED_ACCEPTED',
+    'H05C_OUTBOX_OPERATOR_SUMMARY=PASS_POSTGRES_COUNTS_NO_PII',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -191,6 +192,8 @@ foreach ($M in @(
     'F2B_O3_PG_UNCERTAIN_ACK_AT_LEAST_ONCE','F2B_O3_PG_CRASH_LEASE_PRESERVED',
     'F2B_O3_PG_CRASH_RESTART_RECOVERY','F2B_O3_PG_DEADLETTER',
     'F2B_O3_PG_OPERATOR_REPLAY','F2B_O3_PG_RETENTION_PURGE',
+    'F2B_H05C_OUTBOX_SUMMARY_PERSISTED_COUNTS',
+    'F2B_H05C_OUTBOX_SUMMARY_NO_PII',
     'F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST',
     'F2B_O3_WORKER_NPGSQL_PROVIDER','F2B_O3_WORKER_POSTGRESQL_17',
     'F2B_O3_WORKER_TLS_VERIFYFULL','F2B_O3_WORKER_RUNTIME_LEAST_PRIVILEGE',
@@ -370,6 +373,7 @@ Write-Host 'F2B_H03_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H04_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H05_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H05B_INDEPENDENT_POSTFLIGHT=PASS'
+Write-Host 'F2B_H05C_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant())
