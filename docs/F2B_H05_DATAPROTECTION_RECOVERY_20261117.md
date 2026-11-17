@@ -1,6 +1,6 @@
 # F2b H05 — Application recovery: bounded DataProtection foundation
 
-Status: **H05a–H05d bounded slices accepted at their exact SHAs. H05e implementation is committed but exact-SHA runtime acceptance is PENDING.** Full H05 recovery remains OPEN in [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50).
+Status: **H05a–H05d bounded slices accepted at their exact SHAs. H05e implementation and test-harness corrections are committed; exact-SHA full runtime acceptance and Independent Postflight are PENDING.** Full H05 recovery remains OPEN in [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50).
 
 ## 2026-11-17 — H05e runtime QA blocker: telemetry DI constructor (source correction prepared)
 
@@ -212,3 +212,22 @@ Sixteen new `F2B_H05D_` markers are asserted by the exact-SHA runner and Indepen
 - Correction: capture each worker log's rendered message, structured property names/values and exception text. The gate now rejects PII-bearing property names, labelled sensitive fields, actual synthetic user IDs/emails, generated delivery payloads/tokens, scoped DB connection strings and release scope token. It still requires both transport-failure and worker-cycle-failure event IDs.
 - This is a test-observability correction; production worker log templates and behavior are unchanged. No weakening or deletion of the no-PII acceptance gate.
 - Corrected exact-SHA runtime and Independent Postflight are pending. Do not claim H05e PASS until the complete runner, cleanup and Independent Postflight pass at one exact SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD.
+
+
+## 2026-11-17 — H05e DB-outage fault injection corrected (runtime QA PENDING)
+
+The latest exact-SHA operator run passed the earlier H01 stage and advanced into the H02 Production Identity HTTP contract. It failed at `F2B_H05E_DB_UNAVAILABLE_READINESS_503_LIVE_200` after the H05 DataProtection missing/corrupt-sentinel recovery checks had passed.
+
+**Root cause:** the H02 fixture used `REVOKE CONNECT ON DATABASE ... FROM ys_h02_identity` as its DB outage injection. PostgreSQL applies this to new sessions only; existing authenticated sessions remain connected. Npgsql pooling could therefore reuse an already-established session, allowing readiness queries to continue and invalidating the test's expected 503.
+
+**Correction (test harness only; no production health behavior changed):**
+- Revoke CONNECT, then call `NpgsqlConnection.ClearAllPools()` in the same TestServer process.
+- Wait, with a bounded timeout, until `pg_stat_activity` reports zero remaining sessions for `ys_h02_identity`.
+- Prove a fresh non-pooled identity connection is refused with PostgreSQL SQLSTATE `42501`.
+- Only then assert `/health/ready=503` and `/health/live=200`.
+- Restore CONNECT and clear pools again before requiring readiness recovery to HTTP 200.
+- Runner and Independent Postflight require the two new proof markers and a manifest entry: `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_POOL_CLEARED_SESSIONS_DRAINED`.
+
+Source correction commit: `f8a0d5309490e0c3bd7dc9f8d3164994128957e9`. Runner marker/manifest commit: `ecb5adedb4761611c0205a14e70a4a7bde140f8d` (with subsequent formatting-only runner commit).
+
+**Acceptance remains PENDING:** this correction has not yet been run on Windows at the latest exact PR #56 HEAD, and the full runner plus Independent Postflight must pass at the same SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD. No CT164, production DB, real SMTP, deployment or GitHub Actions.
