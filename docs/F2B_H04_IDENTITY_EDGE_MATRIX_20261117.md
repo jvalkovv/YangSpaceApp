@@ -12,14 +12,14 @@ Application/backend only. This slice extends the real Production `Program` / `We
 
 - Malformed, empty and oversized (>254 characters) email return the same stable HTTP 400 validation response.
 - Oversized fixture is independently verified to pass `EmailAddressAttribute` before the application length guard rejects it.
-- Invalid email and weak-password cases create no Identity user and no outbox insertion.
+- Invalid email, empty-password and weak-password cases create no Identity user and no outbox insertion.
 - Duplicate registration remains indistinguishable from a new accepted request.
 - A successfully registered public account receives no Identity role assignment and no `OrganizationMember` row.
 - Public registration never grants owner, staff or organization membership.
 
 ### Email confirmation
 
-- Missing/unknown user, malformed Base64Url, syntactically valid but invalid Identity token and expired token fail closed.
+- Missing `userId`, unknown user, malformed Base64Url, syntactically valid but invalid Identity token and expired token fail closed.
 - Negative confirmation does not change `EmailConfirmed`.
 - Success is single-use; concurrent confirmation has exactly one winner.
 - Confirmation response retains `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
@@ -61,6 +61,7 @@ F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT
 F2B_H04_REGISTER_EMPTY_EMAIL_NO_ACCOUNT
 F2B_H04_OVERSIZED_EMAIL_FIXTURE_VALIDATED
 F2B_H04_REGISTER_OVERSIZED_EMAIL_NO_ACCOUNT
+F2B_H04_REGISTER_EMPTY_PASSWORD_NO_ACCOUNT
 F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT
 F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT
 F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE
@@ -69,6 +70,7 @@ F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS
 F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED
 F2B_H04_CONFIRM_INVALID_TOKEN_FAIL_CLOSED
 F2B_H04_CONFIRM_UNKNOWN_USER_FAIL_CLOSED
+F2B_H04_CONFIRM_MISSING_USER_FAIL_CLOSED
 F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC
 F2B_H04_STAFF_MULTIPLE_ROLES_CREATED
 F2B_H04_STAFF_ANY_ROLE_EXCLUDED_FROM_ALL_PUBLIC_ACTIONS
