@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +11,17 @@ namespace YangSpace.Api;
 /// Store only a minimal email intent; worker generates fresh Identity tokens
 /// and fetches the current recipient at dispatch. No external I/O here.
 /// </summary>
-internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<IdentityUser>
+internal sealed class OutboxIdentityEmailSender : IEmailSender<IdentityUser>
 {
+    private readonly DirectoryDb _db;
+    private readonly TimeProvider _clock;
+
+    public OutboxIdentityEmailSender(DirectoryDb db, TimeProvider? clock = null)
+    {
+        _db = db;
+        _clock = clock ?? TimeProvider.System;
+    }
+
     private const string PendingUniqueIndex = "UX_IdentityEmailOutbox_PendingUserPurpose";
     private const int MaxCoalescingAttempts = 4;
 
@@ -33,32 +44,61 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<I
             !string.Equals(user.Email, recipient, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("OUTBOX_IDENTITY_RECIPIENT_MISMATCH");
 
-        var now = DateTime.UtcNow;
-        var expiresAt = now.Add(purpose == IdentityEmailPurpose.ResetPassword
-            ? TimeSpan.FromHours(2)
-            : TimeSpan.FromHours(24));
-
         // The partial unique index is the final concurrency authority. This
         // loop handles the winner/loser race and retries a lease transition
         // without ever allowing two Pending rows for the same intent.
         for (var attempt = 0; attempt < MaxCoalescingAttempts; attempt++)
         {
-            var pending = await db.IdentityEmailOutbox
+            var pending = await _db.IdentityEmailOutbox
                 .AsNoTracking()
                 .SingleOrDefaultAsync(message =>
                     message.UserId == user.Id &&
                     message.Purpose == purpose &&
                     message.Status == IdentityEmailOutboxStatus.Pending);
 
+            // Capture time after the read. A concurrent request may refresh an
+            // expired row while this request is waiting for its SELECT. If we
+            // reuse a timestamp captured before the read, the refreshed
+            // AvailableAtUtc can appear to be in the future and cause a false
+            // resend-expedite (and an unnecessary Revision increment).
+            var now = _clock.GetUtcNow().UtcDateTime;
+            var expiresAt = now.Add(purpose == IdentityEmailPurpose.ResetPassword
+                ? TimeSpan.FromHours(2)
+                : TimeSpan.FromHours(24));
+
             if (pending is not null)
             {
                 if (pending.ExpiresAtUtc > now)
-                    return;
+                {
+                    // A resend request must release an already-pending retry.
+                    // Coalesce with the existing intent, but do not leave a
+                    // valid request waiting behind its previous backoff.
+                    if (pending.AvailableAtUtc <= now)
+                        return;
+
+                    var expedited = await _db.IdentityEmailOutbox
+                        .Where(message =>
+                            message.Id == pending.Id &&
+                            message.Status == IdentityEmailOutboxStatus.Pending &&
+                            message.Revision == pending.Revision &&
+                            message.ExpiresAtUtc > now &&
+                            message.AvailableAtUtc > now)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(message => message.AvailableAtUtc, now)
+                            .SetProperty(message => message.LastFailureCode, (string?)null)
+                            .SetProperty(message => message.Revision, message => message.Revision + 1));
+
+                    if (expedited == 1)
+                        return;
+
+                    // A worker or another request changed the row after our read.
+                    continue;
+                }
 
                 // Reuse an expired Pending row rather than inserting a second
                 // row. Revision + status predicates prevent overwriting a
                 // concurrent worker lease or another request's refresh.
-                var refreshed = await db.IdentityEmailOutbox
+                var refreshed = await _db.IdentityEmailOutbox
                     .Where(message =>
                         message.Id == pending.Id &&
                         message.Status == IdentityEmailOutboxStatus.Pending &&
@@ -91,12 +131,12 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<I
                 AvailableAtUtc = now,
                 ExpiresAtUtc = expiresAt
             };
-            db.IdentityEmailOutbox.Add(message);
+            _db.IdentityEmailOutbox.Add(message);
 
             try
             {
                 // Participates in the caller's EF transaction during registration.
-                await db.SaveChangesAsync();
+                await _db.SaveChangesAsync();
                 return;
             }
             catch (DbUpdateException exception)
@@ -104,12 +144,12 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<I
                 // Never swallow a constraint error inside a caller-owned
                 // transaction: PostgreSQL marks that transaction aborted.
                 // Registration uses an explicit transaction and must roll back.
-                if (db.Database.CurrentTransaction is not null ||
+                if (_db.Database.CurrentTransaction is not null ||
                     System.Transactions.Transaction.Current is not null ||
                     !IsPendingUniqueConflict(exception))
                     throw;
 
-                db.Entry(message).State = EntityState.Detached;
+                _db.Entry(message).State = EntityState.Detached;
                 // Another request won the insert. Re-read and coalesce. If a
                 // worker already leased it, the next pass may enqueue a new
                 // Pending intent because the partial unique predicate no
@@ -140,9 +180,43 @@ internal sealed class OutboxIdentityEmailSender(DirectoryDb db) : IEmailSender<I
     }
 }
 
-// Deliberate compile-time startup HOLD until the reviewed migration, worker,
-// outbox leases and restart recovery have all passed, independent of config.
+// Implementation availability is distinct from release authorization.
+// O3 is accepted; activation still requires both default-OFF switches and a
+// short-lived signed authorization bound to the exact Production release.
 internal static class IdentityEmailOutboxDispatchPolicy
 {
-    internal static bool DispatcherAvailable => false;
+    internal static bool DispatcherAvailable => true;
+
+    internal static bool AreSwitchesEnabled(IConfiguration configuration) =>
+        configuration.GetValue<bool>("PublicAccounts:Enabled") &&
+        configuration.GetValue<bool>("PublicAccounts:Outbox:DispatchEnabled");
+
+    internal static bool IsEnabled(
+        IConfiguration configuration,
+        IHostEnvironment? environment,
+        TimeProvider? clock = null)
+    {
+        if (!DispatcherAvailable || !AreSwitchesEnabled(configuration) ||
+            environment is null || !string.Equals(environment.EnvironmentName, Environments.Production, StringComparison.Ordinal))
+            return false;
+
+        return PublicAccountReleaseAuthorization.IsAuthorized(
+            configuration,
+            environment.EnvironmentName,
+            Environment.GetEnvironmentVariable("YANGSPACE_RELEASE_COMMIT_SHA"),
+            (clock ?? TimeProvider.System).GetUtcNow());
+    }
+
+    internal static void RequireAuthorization(
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        TimeProvider clock)
+    {
+        if (!PublicAccountReleaseAuthorization.IsAuthorized(
+            configuration,
+            environment.EnvironmentName,
+            Environment.GetEnvironmentVariable("YANGSPACE_RELEASE_COMMIT_SHA"),
+            clock.GetUtcNow()))
+            throw new InvalidOperationException("PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED");
+    }
 }

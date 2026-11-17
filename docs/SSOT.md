@@ -1,3 +1,248 @@
+# Current application execution focus — 2026-11-17
+
+**Owner direction:** develop YangSpace as a complete product: UX/UI, Angular workflows, .NET business logic, persistence, authorization and real user journeys. The existing reachable application environment is `https://yangspace.gndstore.eu`.
+
+**Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
+
+## 2026-11-17 — H05b bounded PASS and H05c outbox operator summary source
+
+**H05b:** full exact-SHA QA + independent Postflight PASS at `bdac3b0bc0159bb39a31b5f4f3337160f289d2ae`; nine Identity token restart/recovery markers PASS. Manifest SHA-256 `bc7420998a1de13dee891bb57b9d2e8d9ba17cb78b20d0b53ded6a6d17e33b9f`; PR #52 Ready for Review, not merged.
+
+**H05c:** branch `feat/yangspace-f2b-h05c-outbox-operations-20261117` stacked on H05b accepted SHA. Adds a backend-only privacy-safe operational summary under the existing protected PlatformAdmin/gateway group, with PostgreSQL persisted-count and no-PII tests bound into exact-SHA Release QA/independent Postflight. **Source candidate only; H05c runtime QA pending.** Full H05 remains OPEN until actual Production TestServer HTTP authorization/gateway and replay fault/restart matrices, plus observability, are accepted.
+
+**Focus remains application backend and Angular product functionality; Cloudflare/nginx work excluded.** Production release HOLD, public registration/dispatch OFF, no production database/SMTP/CT164/GitHub Actions.
+
+## 2026-11-17 — H05a bounded QA PASS / H05b source only
+
+**H05a accepted:** exact source SHA `93c9a77403c7820c18365d540e09fd147b13a90c`, full Release/PostgreSQL 17/TLS VerifyFull TestServer regression and 8 DataProtection markers **PASS**, Independent Postflight PASS. Operator manifest SHA-256 `d4792b4cdaac3409a813e18474fc2abc64b467161606e25de1db0dff9d119820`. PR #51 **Ready for Review**, not merged; formal approval remains separate.
+
+**H05b started:** branch `feat/yangspace-f2b-h05b-restart-token-restore-20261117` is pinned on accepted H05a SHA. New real ASP.NET Identity tests generate confirmation/reset tokens from the first Production TestServer, stop it, confirm foreign-ring refusal in a replacement TestServer, simulate offline key-ring copy/restore, and verify the original tokens succeed in a new TestServer using the restored keys. No token or secret is logged. Full H01–H05a regression, H05b marker gates, manifest/hash verification and independent Postflight remain **PENDING** on the H05b head.
+
+**Boundaries:** H05b is not full Issue #50 acceptance. Worker HTTP replay authorization, restart fault matrix, observability and off-host backup recovery remain open. No SMTP/CT164/Production DB/production key-ring/deployment/GitHub Actions. Public activation OFF.
+
+## 2026-11-17 — H05 DataProtection foundation started
+
+**H04 bounded final acceptance:** runtime + Independent Postflight PASS at exact source `8c68de48a64215eff57f2eaa2bd8594541bba2b3`. Operator evidence: `logs/yangspace/f2b-o4-h04-identity-edge/8c68de48a642-20261117-131434-d5921358` in detached operator worktree. Manifest SHA-256 `43cf7fe0cb00101ce628e01a8637a44d46dae73cec16b2aa03ef0f4298b938ad`. PR #49 is Ready for Review; no formal GitHub approval or merge claimed. Public release remains HOLD.
+
+**H05 source candidate, untested:** separate branch `feat/yangspace-f2b-h05-app-recovery-20261117` is stacked on H04's accepted exact source, tracking [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50). Initial production runtime contract requires an operator-provisioned persistent DataProtection key ring with a stable application name, safe directory permissions and decryptable continuity sentinel, plus liveness/readiness checks. The Production TestServer synthetic harness covers key continuity across independently created providers, missing/foreign/corrupt ring cases and readiness loss/recovery; H05 runner/Postflight require exact SHA and full H01–H04 regressions.
+
+**Do not infer PASS:** no H05 source build, PG17 TestServer run or Independent Postflight completed at the H05 branch. This is only a bounded DataProtection foundation; the full H05 worker restart, operator replay, backup/restore and observability acceptance remains open. No CT164, Production DB, live SMTP, production keyring/deployment or GitHub Actions. See `docs/F2B_H05_DATAPROTECTION_RECOVERY_20261117.md`.
+
+## 2026-11-17 — H04 acceptance follow-up
+
+**Status: SOURCE FOLLOW-UP COMMITTED / EXACT-SHA RUNTIME QA PENDING.** PR #49 remains Draft and Issue #48 remains open. The prior H04 runtime result is tied to its own exact source SHA and must not be reused after the follow-up changes below.
+
+The H04 acceptance review identified two missing parts of the written Issue #48 DoD. The follow-up adds:
+
+- Registration HTTP 400 cases for malformed, empty and oversized email; the oversized fixture is first verified as syntactically valid by `EmailAddressAttribute`.
+- Empty and weak-password rejection with no Identity account or outbox insertion.
+- Stable response-body equality across invalid-email boundaries and an exact before/after disposable outbox row-count assertion for all rejected registration cases.
+- Persisted-state assertions that a successfully registered public account has zero Identity role assignments and zero `OrganizationMembers` rows.
+- Missing and unknown confirmation-user cases fail closed in addition to malformed/invalid/expired tokens.
+- Matching stable markers in the exact-SHA runner and Independent Postflight, plus manifest requirements and an updated H04 operator matrix.
+
+The observation queries use the disposable migrator connection; the application Identity runtime role receives no additional tenant-table privileges. No production code switches, real SMTP, CT164, Production DB or deployment are changed.
+
+**Acceptance remains HOLD** until the current remote PR head passes the complete Release/PostgreSQL 17/TLS VerifyFull runner and Independent Postflight, followed by scoped source review. Keep PR #49 Draft and do not enable public registration or outbox dispatch.
+
+## Current application source audit
+
+Baseline: H03 exact tested source `441c3a7742d7387b3d900d7f2bbee48cdd39001f`.
+
+- Angular currently provides public directory/search/category filters, location detail, offers/brochures/jobs highlights, Identity screens and a PlatformAdmin preview CMS.
+- `/admin` is not a business-owner workspace. Merchant API currently has only a QA-gated read endpoint.
+- Organization, OrganizationMember, BusinessClaim and ContentAuditEvent persistence foundations exist, but there is no production owner-scoped profile/content mutation API or complete owner-facing CMS.
+- Claim/reviewer HTTP remains QA-only. Legal/privacy Issue #24 blocks real evidence intake, live claim decisions and Owner grants.
+- Public pages still carry demo-state messaging; the profile experience lacks full owner-managed content, opening-hour exceptions, rich media workflow, directions/map actions and privacy-reviewed public action reporting.
+- Payments, checkout, bookings, POS, ATS/CV storage and native apps remain outside the approved MVP.
+
+## Active sequence
+
+1. **H04 — Identity HTTP edge cases:** negative/replay/role matrix on the real Production TestServer, disposable PostgreSQL 17/TLS VerifyFull, fake transport only. [Issue #48](https://github.com/jvalkovv/YangSpaceApp/issues/48).
+2. **H05 — application recovery:** [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50) — DataProtection key continuity, outbox retry/re-drive, deterministic failure recovery and readiness behavior. No ingress work.
+3. **H06 — Angular/browser/mobile/privacy:** account journeys, responsive navigation/forms, accessible loading/error/empty states, privacy notices and browser acceptance.
+4. **M2 — ownership/claim:** synthetic-only workflow until legal/privacy #24; reviewer-only decision and atomic Claim + Organization + Location + Owner membership + audit.
+5. **M3 — Merchant Workspace/CMS:** owner/editor dashboard, scoped profile editing, offers/brochures/jobs lifecycle, revision conflicts, audit history, preview/publish and tenant isolation.
+6. **M4 — resident discovery:** verified geo, neighborhood filters, useful profile actions, map/list only with verified coordinates, favorites, canonical SEO pages and performance.
+7. **M5/M6 — application release and Varna pilot:** privacy, data quality, recovery and product acceptance; Phase A 20–30 verified businesses, Phase B 100 only after Phase A passes.
+
+H03 application-level abuse protection is accepted at `441c3a7742d7387b3d900d7f2bbee48cdd39001f`; evidence and manifest are recorded in Master Issue #32 and child Issue #34. H03 ingress work is excluded from this application roadmap.
+
+---
+
+## H01 launcher destination correction — source fix / runtime pending
+
+The 2026-11-16 operator rerun passed content-root mkdir/copy/verify and launcher-copy, but `chmod` failed because `/run/pgcerts` was not an existing destination directory. The H01 runner now uses `/tmp/o4-h01-run.sh`, the same existing container path family as the O3 launcher: copy, chmod 0600, execute and cleanup all target the exact same path. This is a QA harness correction only; shared stage validation and production gates remain unchanged. New source SHA is required for full rerun; do not accept H01 on source-only evidence.
+
+---
+
+## O4/H01 stage-argument remediation — source candidate / NOT RUN
+
+Observed operator run on `d947804f1733d922f15145d9ad2c98b7e61b844f`: O3 PostgreSQL Worker markers continued to PASS, but H01 stopped **before TestServer startup** at `STAGE_UNSAFE_ARGUMENT=o4-h01-content-root`. Root cause: H01 used `bash -c` with `&&`, shell quoting and redirection in command arguments, which `Invoke-YangSpaceStage.ps1` correctly rejects. The shared stage security boundary is **not** a defect and must not be weakened.
+
+Remediation in the next H01 source commit:
+- Replace the compound content-root command with separate safe-argv Docker stages: `o4-h01-root-mkdir`, `o4-h01-root-copy`, `o4-h01-root-verify`.
+- Generate the H01 launcher directly from the already-scoped O3 launcher within PowerShell; copy it as a temporary file into the existing disposable container, set restrictive mode, invoke by file path. No shell operators, credentials or script source in the stage's `.runner.cmd` arguments.
+- Update independent Postflight receipts for the new stages and require the temporary H01 launcher to be deleted. The existing Docker cleanup/production gate remains unchanged.
+- Preserve `DispatcherAvailable=false`, PublicAccounts/Outbox defaults OFF, fake transport only, no CT164, production database, live SMTP or GitHub Actions.
+
+**Observed result:** previous H01 run = HOLD (not H01 PASS). **Remediated SHA: NOT TESTED** until the operator reruns the full runner from a clean exact SHA; this includes O3 regression + disposable PostgreSQL + H01 TestServer + independent Postflight. Do not merge/close PR #43 or H01 without new runtime evidence. Historical O3 acceptance at `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` is unaffected.
+
+---
+
+## 2026-11-16 — F2b O4/H01 disposable Production TestServer source candidate (NOT RUN)
+
+O3 exact-SHA worker/provider acceptance remains anchored to `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` (source SHA and evidence unchanged). Work proceeds on the **separate** `feat/yangspace-f2b-o4-h01-pg-http-startup-20261116` branch. This H01 source adds a real `Production` Program TestServer with PostgreSQL17/TLS VerifyFull, verified disposable sentinel/least privilege, `ProductionSchemaGate`, health endpoints, default-off registration 404 and negative startup/security gates. Existing O3 regression runs first on every H01 execution. A separate independent H01 Postflight checks receipts/hashes/cleanup.
+
+**NOT RUN** on the H01 source; H01 remains unchecked and Issue #33 OPEN. The compile-time `DispatcherAvailable=false` is intentionally preserved. Enabled public Identity HTTP is **not testable** until a separately reviewed production release-authorization contract exists; no QA override of the production gate was introduced. The H01 result can validate production startup *with public accounts off*, never live deliverability. H02–H06 and O5/O6 remain OPEN. CT164/production DB/public SMTP untouched. No GitHub Actions.
+
+Runbook: `docs/F2B_O4_H01_POSTGRESQL_STARTUP_QA_20261116.md`.
+
+---
+
+## 2026-11-16 — Expanded O3 PostgreSQL provider QA gates, source only (HOLD)
+
+O3 PostgreSQL worker contract now adds password reset, already-confirmed suppression, uncertain SMTP-style acknowledgement simulation, crash/lease restart recovery, dead-letter and operator replay, retention purge, and absence of tokens/recipients at rest. Its fixture Password policy is explicitly configured, and reset tokens are Base64Url-decoded before verification. Dedicated non-superuser runtime role and narrow Identity reads remain mandatory.
+
+The disposable PostgreSQL runner now performs its **independent Postflight automatically** (same exact source SHA), persists public-CA and Linux binary evidence, validates source/log hashes, and checks cleanup. It supports clean detached worktrees. Runbook: `docs/F2B_O3_POSTGRES_WORKER_QA_20261116.md`.
+
+**No build or actual PostgreSQL execution of these new changes has occurred.** Source is not runtime PASS; O3 / PR #42 are HOLD/Draft. No CT164, live DB, SMTP, public HTTP or GitHub Actions. Next operator action is the single Windows PowerShell runbook block; capture the first failing marker or accepted evidence before progressing.
+
+---
+
+## 2026-11-16 — O3 PostgreSQL 17 worker QA source candidate (RUNTIME HOLD)
+
+This iteration adds `scripts/Test-F2b-Outbox-Worker-PostgreSql-Local.ps1` (exact-SHA disposable QA) and `scripts/Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1` (independent evidence verification).
+
+- The PostgreSQL worker contract runs via the real Npgsql/EF Core provider, with a dedicated non-superuser migrator and limited runtime role.
+- The runtime role has outbox DML and column-restricted Identity read; negative privilege probes reject credential reads and administrative writes.
+- Tests cover confirmation token dispatch, retry/backoff, concurrent claims, expired lease recovery, and the full previously accepted SQLite synthetic regression.
+- Disposable PostgreSQL 17 runs on local Docker only: internal network, no published ports, tmpfs-only storage, ephemeral TLS VerifyFull, no image pulls and no CT164/production access.
+- The runner captures command receipts, source and log hashes, manifest and public ephemeral CA; secrets, container and network must be removed.
+- The independent verifier checks exact local/remote SHA, evidence scope and hashes, required markers and resource absence.
+
+**No new exact-SHA build, SQLite run, PostgreSQL run or independent Postflight has been executed in this source iteration.** Status is `HOLD`; this is not accepted evidence. Production dispatch and public registration remain default OFF. No real SMTP, no production DB, no deployment, no GitHub Actions. PR #42 remains Draft.
+
+Operator from an exact clean branch checkout (or detached worktree after the runner supports it):
+
+```powershell
+$Sha = (git rev-parse HEAD).Trim()
+& .\scripts\Test-F2b-Outbox-Worker-PostgreSql-Local.ps1 -CommitSha $Sha
+# Take EVIDENCE_DIR emitted by the runner, then run independently:
+& .\scripts\Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1 -CommitSha $Sha -EvidenceDirectory '<EVIDENCE_DIR>'
+```
+
+Provider QA is a prerequisite for O3 approval; O4 and CT164 deployment remain blocked.
+
+---
+
+## 2026-11-16 — O3 SQLite synthetic + independent Postflight PASS; PostgreSQL worker QA next
+
+Operator executed exact-SHA O3 worker synthetic at \`750f58ab8ce089161004bec1015cc1a25c760031\`:
+- Exact source and all default-OFF guards: PASS.
+- Restore and Release build: PASS.
+- Complete SQLite synthetic worker contract: PASS.
+- DI activation, confirmation/reset dispatch, dispatch-off, current email/confirmation/staff rechecks, expired-intent suppression, retry/backoff, uncertain ACK, concurrent claims, null/expired lease recovery, crash/restart recovery, dead-letter, operator replay, retention purge, no token/recipient at rest: PASS.
+- Fake transport only, SQLite shared in-memory only, all stage receipts and clean worktree: PASS.
+
+Evidence directory: \`logs/yangspace/f2b-o3-worker/750f58ab8ce0-20261116-064142-4ce016c0\`
+Manifest SHA-256: \`9f59ee1d14a13aaa6f244d831fb94b25a3064b8d01fd98e32e53c8bcc5a90f45\`
+
+The operator then executed \`Verify-F2b-Outbox-Worker-Postflight.ps1\` at the same exact SHA. **Independent Postflight: PASS**, including source/remote identity, clean worktree, evidence scope, manifest, all receipts and worker markers, and default-OFF guards.
+
+**Next gate: disposable PostgreSQL 17 worker/provider QA.** Must exercise the actual Npgsql/EF Core provider path using an isolated PostgreSQL 17 instance, dedicated least-privilege runtime role, fake email transport, real database transactions/atomic claims, concurrent worker claims, lease expiry/recovery and failure/retry behavior. No production DB, CT164, real SMTP, public HTTP, deployment or GitHub Actions. The current O2 disposable PostgreSQL runner is migration-focused and must not be treated as proof of O3 worker/provider behavior.
+
+After PostgreSQL QA: independent PostgreSQL evidence Postflight, provider-specific code review, then O3 acceptance decision. O4 remains gated. PR #42 remains Draft; Issue #36 and MVP remain OPEN.
+
+---
+
+## 2026-11-16 — dispatch-off failure isolated into independent assertions (SOURCE COMMITTED / RE-RUN PENDING)
+
+Operator reran branch HEAD \`933adb6510ff82bcc6ea21b4d64cd9b85b8b24dc\`:
+- PostgreSQL review QA default-off: PASS.
+- Restore: PASS.
+- Release build: PASS.
+- DI activation: PASS.
+- Synthetic failed at the combined \`F2B_O3_WORKER_DISPATCH_DEFAULT_OFF\` assertion (line 96).
+
+The old compound assertion did not reveal which of its four conditions failed. Source now emits separate markers for runtime switch evaluation, batch blocking, hosted task creation, hosted-loop exit, Pending-state preservation and no fake delivery. The hosted task is awaited with a bounded two-second timeout rather than sampled immediately. This is diagnostic hardening, not a passing result.
+
+Current source-code commit: \`4961d6fe3d53261ec916198b5a3fa2a4c254ebe1\`. Exact-SHA Release build, full synthetic contract and independent Postflight have not yet been rerun at this commit. O3 remains HOLD; PostgreSQL worker QA and O4 remain blocked. Production \`DispatcherAvailable=false\`; both appsettings switches remain false; no SMTP, CT164 DB, deployment or GitHub Actions.
+
+---
+
+## 2026-11-16 — O3 dispatch-off assertion isolated (SOURCE COMMITTED / RE-RUN PENDING)
+
+Operator reran exact branch HEAD \`933adb6510ff82bcc6ea21b4d64cd9b85b8b24dc\`:
+- PostgreSQL review QA default-off: PASS.
+- Restore: PASS.
+- Release build: PASS.
+- DI activation: PASS.
+- Synthetic failed at the combined \`F2B_O3_WORKER_DISPATCH_DEFAULT_OFF\` assertion (line 96).
+
+The previous assertion combined four independent conditions, so the failing condition was not identifiable. The test now reports each independently:
+1. Runtime config switches evaluate disabled.
+2. \`ProcessBatchOnceAsync\` claims zero.
+3. Hosted task is created and exits successfully within a bounded timeout.
+4. Outbox row remains Pending.
+5. Fake transport receives no delivery.
+
+This is diagnostic test hardening, not an assertion that the worker already passes. Current source HEAD will be recorded after commit. O3 remains HOLD; do not proceed to PostgreSQL or O4 until exact-SHA synthetic and independent Postflight pass.
+
+---
+
+## 2026-11-16 — O3 production DI activation covered by synthetic contract (SOURCE COMMITTED / RE-RUN PENDING)
+
+The worker contract now mirrors the actual production DI registrations and resolves:
+- \`IEmailSender<IdentityUser> -> OutboxIdentityEmailSender\`
+- \`SmtpPublicIdentityEmailSender\` without opening an SMTP connection
+- \`IHostedService -> IdentityEmailOutboxWorker\`
+
+The synthetic contract uses \`ValidateOnBuild=true\` and resolves the hosted worker and SMTP adapter, so non-public constructor/DI activation failures are caught before PostgreSQL QA. The worker, SMTP adapter and outbox sender now expose DI-discoverable public constructors (their containing types remain internal). New acceptance marker: \`F2B_O3_WORKER_DI_ACTIVATION=PASS\`.
+
+Production dispatch authorization remains compile-time false until O3 acceptance; only the internal synthetic harness supplies the test-only constructor override with fake transport and in-memory switches.
+
+Current branch HEAD: \`7681057020f11d23d9ce16be5aa36e84c12af613\` (latest source-code change: \`28ec89d29c4863dcc77016061eeb15e834d87b07\`; subsequent commit is documentation-only). No rerun has been executed at this HEAD; do not infer acceptance from source changes. PostgreSQL worker/concurrency, Postflight and O4 remain blocked.
+
+---
+
+## 2026-11-16 — production dispatch authorization remains compile-time held (SOURCE COMMITTED / RE-RUN PENDING)
+
+The O3 remediation also restores the explicit production release boundary:
+- \`IdentityEmailOutboxDispatchPolicy.DispatcherAvailable=false\` remains in production source until O3 acceptance is formally complete.
+- Public Identity startup continues to fail closed if an operator enables PublicAccounts before O3 acceptance.
+- The worker's optional synthetic override is an internal constructor argument only. The RuntimeTests harness supplies it with an in-memory SQLite database and fake transport; no configuration key, endpoint or deployment setting can enable it in production.
+- Both runtime switches are still required even in the synthetic harness. The dispatch-off regression verifies that the hosted loop exits and the batch method returns without processing.
+
+Current branch HEAD after this release-gate correction: \`de7980008c7109e83f9caf396e480c40ae18714d\`. The earlier exact-SHA build at \`f63149e8908d19945ca3dd5d2345798a92d68e2f\` passed restore/build but failed synthetic; the remediated head has not yet been rerun. PostgreSQL worker QA and O4 remain blocked.
+
+---
+
+## 2026-11-16 — O3 first local run failed; source remediation committed (RE-RUN PENDING / HOLD)
+
+Operator ran exact source \`f63149e8908d19945ca3dd5d2345798a92d68e2f\`:
+- Git/source identity: PASS.
+- PublicAccounts, Outbox dispatch and PostgreSQL review QA default-off checks: PASS.
+- .NET restore: PASS.
+- Release build: PASS.
+- Worker synthetic contract: FAIL at \`IdentityEmailOutboxWorkerContract.cs:76\`, \`Sequence contains no matching element\` while selecting the expected fake confirmation delivery.
+- Independent Postflight: NOT RUN. O3 is NOT accepted.
+
+Root causes and corrections now committed on the same child branch:
+1. Enqueue used \`DateTime.UtcNow\` while the worker contract used a frozen \`MutableClock\`; the pending intent could be timestamped a few milliseconds after the worker's frozen time. \`OutboxIdentityEmailSender\` now uses the injected \`TimeProvider\`, and the synthetic contract passes the same clock and asserts timestamp consistency.
+2. Candidate selection allowed a leased row with null \`LeasedUntilUtc\`, but the atomic claim predicate did not. Candidate and claim predicates now match, and null-lease recovery remains explicitly tested.
+3. Source review found that the hosted worker did not honor \`PublicAccounts:Outbox:DispatchEnabled\`. Both the hosted loop and batch processor now fail closed, with a regression test proving the worker exits and does not dispatch when the switch is false.
+
+- Remediated exact source HEAD: \`1618f2c4fdc7f19c9571523b9cd7721877a1b245\`.
+- PR #42 remains OPEN/DRAFT; Issue #36 remains OPEN.
+- Next gate: rerun exact-SHA O3 Release build + full SQLite synthetic contract, then independent read-only Postflight.
+- PostgreSQL 17 worker/concurrency QA remains NOT RUN.
+- PublicAccounts and Outbox dispatch remain false in appsettings. Real SMTP NOT CONNECTED. CT164/Production DB NOT ACCESSED. No deployment and no GitHub Actions.
+
+Do not proceed to PostgreSQL worker acceptance or O4 Identity HTTP until the remediated exact-SHA synthetic contract and independent Postflight both pass.
+
+---
+
 ## 2026-11-15 — F2b O2 RUNNER + INITIAL INDEPENDENT POSTFLIGHT PASS
 
 The exact O2 runner and its first independent postflight completed successfully. This supersedes earlier O2 `NOT RUN / HOLD` statements below; those remain historical records of intermediate failed runs.

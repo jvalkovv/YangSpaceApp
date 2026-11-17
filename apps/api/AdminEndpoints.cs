@@ -13,6 +13,8 @@ public static class AdminEndpoints
                 ProductionAdminAccess.RequireGateway(context, next, gatewaySecret));
         admin.MapGet("/me", (System.Security.Claims.ClaimsPrincipal user) => Results.Ok(new { email = user.Identity?.Name, role = "PlatformAdmin" }));
         admin.MapContentManagement();
+        if (app.Configuration.GetValue<bool>("PublicAccounts:Enabled"))
+            admin.MapIdentityEmailOutboxAdmin();
         admin.MapGet("/locations", async (DirectoryDb db, CancellationToken ct) =>
         {
             var items = await db.Locations.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct);
