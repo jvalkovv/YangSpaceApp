@@ -1,3 +1,21 @@
+## 2026-11-18 — F2b H05e CONNECT grantor mismatch corrected; runtime rerun pending
+
+The 2026-11-17 exact-SHA rerun passed O3 PostgreSQL worker and O4-H01 Production TestServer. H02 passed the DataProtection recovery checks, cleared the exact EF-owned Npgsql data source and drained all identity sessions, then failed at `F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED`.
+
+**RCA:** the setup grants CONNECT to `ys_h02_identity` in a grants file executed as `postgres`, but the H02 test revoked CONNECT using `ys_o3_migrator`. PostgreSQL only allows a non-owner to revoke grants it made (or grants it can control via grant option); the migrator did not own the original grant. The ACL therefore remained effective and the new connection correctly succeeded. This is test-fixture ACL ownership, not production readiness behavior.
+
+**Correction committed:**
+- Grant CONNECT WITH GRANT OPTION to disposable `ys_o3_migrator`; grant ordinary CONNECT to `ys_o3_runtime`; remove the direct superuser grant to identity.
+- H02 grants identity CONNECT as the migrator before validating identity connection.
+- Verify `has_database_privilege(identityRole, database, 'CONNECT') = false` immediately after REVOKE, then clear EF's exact data source, drain sessions and prove a fresh non-pooled connection is denied with SQLSTATE `42501`.
+- Runner and Independent Postflight require the explicit CONNECT-revoked marker and updated manifest.
+
+Source/test: `ed45175a108ff41bee9201d40a4467ac329d1c4b`. Runner: `c6be324e3d458e4b159607f7ca1ba7ba57b9d0b7`. Independent Postflight: `f1e8e0739ffed25bad90886406a24e24f4d448ff`.
+
+**Next:** clean worktree at the current PR #56 HEAD; run the complete O3 → O4-H01 → H02 runner, confirm disposable cleanup, then Independent Postflight at the same SHA. PR #56 Draft; Issues #50/#55 Open; release HOLD. No production DB, CT164, real SMTP or deployment.
+
+---
+
 ## 2026-11-17 — F2b O4-H01 passed; H02 H05e DB outage test-harness correction committed
 
 The latest operator run progressed through the O3 PostgreSQL worker stage and O4-H01 Production TestServer, then entered `h02-production-http`. It stopped at `F2B_H05E_DB_UNAVAILABLE_READINESS_503_LIVE_200`; the earlier H05 DataProtection sentinel-loss/corruption recovery checks passed.
