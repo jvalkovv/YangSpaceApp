@@ -383,14 +383,35 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
                 metricTagKeys.All(key=>key is "outcome" or "failure_category"),
                 "F2B_H05E_METRICS_LOW_CARDINALITY");
             var workerLogs=logCapture.Messages;
-            Check(workerLogs.Any(message=>message.Contains("IDENTITY_EMAIL_OUTBOX_TRANSPORT_FAILED",StringComparison.Ordinal)) &&
-                workerLogs.Any(message=>message.Contains("IDENTITY_EMAIL_OUTBOX_WORKER_CYCLE_FAILED",StringComparison.Ordinal)) &&
-                workerLogs.All(message=>!message.Contains("@",StringComparison.Ordinal) &&
-                    !message.Contains("UserId",StringComparison.OrdinalIgnoreCase) &&
-                    !message.Contains("Email",StringComparison.OrdinalIgnoreCase) &&
-                    !message.Contains("Token",StringComparison.OrdinalIgnoreCase) &&
-                    !message.Contains("Payload",StringComparison.OrdinalIgnoreCase) &&
-                    !message.Contains("Secret",StringComparison.OrdinalIgnoreCase)),
+            var identityValues=await db.Users.AsNoTracking()
+                .Select(x=>new { x.Id,x.Email }).ToArrayAsync();
+            var sensitiveValues=identityValues
+                .SelectMany(x=>new[]{x.Id,x.Email})
+                .Concat(fake.Deliveries.SelectMany(x=>new[]{x.Email,x.Payload}))
+                .Concat(new[]{migratorCs,runtimeCs,scopeToken})
+                .Where(value=>!string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var forbiddenPropertyNames=new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+                "Email","UserId","Token","Payload","Secret","Recipient","LeaseId"
+            };
+            Check(workerLogs.Any(entry=>entry.Message.Contains("IDENTITY_EMAIL_OUTBOX_TRANSPORT_FAILED",StringComparison.Ordinal)) &&
+                workerLogs.Any(entry=>entry.Message.Contains("IDENTITY_EMAIL_OUTBOX_WORKER_CYCLE_FAILED",StringComparison.Ordinal)) &&
+                workerLogs.All(entry=>
+                    !entry.Message.Contains("@",StringComparison.Ordinal) &&
+                    !entry.Message.Contains("UserId=",StringComparison.OrdinalIgnoreCase) &&
+                    !entry.Message.Contains("Email=",StringComparison.OrdinalIgnoreCase) &&
+                    !entry.Message.Contains("Token=",StringComparison.OrdinalIgnoreCase) &&
+                    !entry.Message.Contains("Payload=",StringComparison.OrdinalIgnoreCase) &&
+                    !entry.Message.Contains("Secret=",StringComparison.OrdinalIgnoreCase) &&
+                    !entry.Message.Contains("LeaseId=",StringComparison.OrdinalIgnoreCase) &&
+                    !entry.Properties.Keys.Any(forbiddenPropertyNames.Contains) &&
+                    !sensitiveValues.Any(value=>
+                        entry.Message.Contains(value,StringComparison.Ordinal) ||
+                        (entry.Exception?.Contains(value,StringComparison.Ordinal) ?? false) ||
+                        entry.Properties.Values.Any(propertyValue=>
+                            propertyValue?.Contains(value,StringComparison.Ordinal) ?? false)) &&
+                    !(entry.Exception?.Contains("@",StringComparison.Ordinal) ?? false)),
                 "F2B_H05E_WORKER_LOGS_NO_PII");
 
             Console.WriteLine("F2B_O3_WORKER_NPGSQL_PROVIDER=PASS");
@@ -578,10 +599,15 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
         public override DateTimeOffset GetUtcNow()=>_now;
         internal void Advance(TimeSpan span)=>_now=_now.Add(span);
     }
+    internal sealed record CapturedLog(
+        string Message,
+        IReadOnlyDictionary<string,string?> Properties,
+        string? Exception);
+
     private sealed class CapturingLoggerProvider : ILoggerProvider
     {
-        private readonly ConcurrentQueue<string> _messages=new();
-        internal IReadOnlyCollection<string> Messages=>_messages.ToArray();
+        private readonly ConcurrentQueue<CapturedLog> _messages=new();
+        internal IReadOnlyCollection<CapturedLog> Messages=>_messages.ToArray();
 
         public ILogger CreateLogger(string categoryName) =>
             categoryName.EndsWith(nameof(IdentityEmailOutboxWorker),StringComparison.Ordinal)
@@ -590,14 +616,22 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
 
         public void Dispose() { }
 
-        private sealed class CapturingLogger(ConcurrentQueue<string> messages) : ILogger
+        private sealed class CapturingLogger(ConcurrentQueue<CapturedLog> messages) : ILogger
         {
             public IDisposable? BeginScope<TState>(TState state) where TState:notnull => null;
             public bool IsEnabled(LogLevel logLevel)=>logLevel>=LogLevel.Debug;
             public void Log<TState>(LogLevel logLevel,EventId eventId,TState state,
                 Exception? exception,Func<TState,Exception?,string> formatter)
             {
-                if(IsEnabled(logLevel)) messages.Enqueue(formatter(state,exception));
+                if(!IsEnabled(logLevel)) return;
+                var properties=state is IEnumerable<KeyValuePair<string,object?>> values
+                    ? values.Where(value=>value.Key!="{OriginalFormat}")
+                        .GroupBy(value=>value.Key,StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(group=>group.Key,group=>group.Last().Value?.ToString(),
+                            StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string,string?>(StringComparer.OrdinalIgnoreCase);
+                messages.Enqueue(new CapturedLog(
+                    formatter(state,exception),properties,exception?.ToString()));
             }
         }
 
