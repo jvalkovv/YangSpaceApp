@@ -4,6 +4,22 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H05b bounded PASS and H05c outbox operator summary source
+
+**H05b:** full exact-SHA QA + independent Postflight PASS at `bdac3b0bc0159bb39a31b5f4f3337160f289d2ae`; nine Identity token restart/recovery markers PASS. Manifest SHA-256 `bc7420998a1de13dee891bb57b9d2e8d9ba17cb78b20d0b53ded6a6d17e33b9f`; PR #52 Ready for Review, not merged.
+
+**H05c:** branch `feat/yangspace-f2b-h05c-outbox-operations-20261117` stacked on H05b accepted SHA. Adds a backend-only privacy-safe operational summary under the existing protected PlatformAdmin/gateway group, with PostgreSQL persisted-count and no-PII tests bound into exact-SHA Release QA/independent Postflight. **Source candidate only; H05c runtime QA pending.** Full H05 remains OPEN until actual Production TestServer HTTP authorization/gateway and replay fault/restart matrices, plus observability, are accepted.
+
+**Focus remains application backend and Angular product functionality; Cloudflare/nginx work excluded.** Production release HOLD, public registration/dispatch OFF, no production database/SMTP/CT164/GitHub Actions.
+
+## 2026-11-17 — H05a bounded QA PASS / H05b source only
+
+**H05a accepted:** exact source SHA `93c9a77403c7820c18365d540e09fd147b13a90c`, full Release/PostgreSQL 17/TLS VerifyFull TestServer regression and 8 DataProtection markers **PASS**, Independent Postflight PASS. Operator manifest SHA-256 `d4792b4cdaac3409a813e18474fc2abc64b467161606e25de1db0dff9d119820`. PR #51 **Ready for Review**, not merged; formal approval remains separate.
+
+**H05b started:** branch `feat/yangspace-f2b-h05b-restart-token-restore-20261117` is pinned on accepted H05a SHA. New real ASP.NET Identity tests generate confirmation/reset tokens from the first Production TestServer, stop it, confirm foreign-ring refusal in a replacement TestServer, simulate offline key-ring copy/restore, and verify the original tokens succeed in a new TestServer using the restored keys. No token or secret is logged. Full H01–H05a regression, H05b marker gates, manifest/hash verification and independent Postflight remain **PENDING** on the H05b head.
+
+**Boundaries:** H05b is not full Issue #50 acceptance. Worker HTTP replay authorization, restart fault matrix, observability and off-host backup recovery remain open. No SMTP/CT164/Production DB/production key-ring/deployment/GitHub Actions. Public activation OFF.
+
 ## 2026-11-17 — H05 DataProtection foundation started
 
 **H04 bounded final acceptance:** runtime + Independent Postflight PASS at exact source `8c68de48a64215eff57f2eaa2bd8594541bba2b3`. Operator evidence: `logs/yangspace/f2b-o4-h04-identity-edge/8c68de48a642-20261117-131434-d5921358` in detached operator worktree. Manifest SHA-256 `43cf7fe0cb00101ce628e01a8637a44d46dae73cec16b2aa03ef0f4298b938ad`. PR #49 is Ready for Review; no formal GitHub approval or merge claimed. Public release remains HOLD.

@@ -911,6 +911,143 @@ internal static class F2bH02ProductionIdentityHttpContract
         Console.WriteLine("F2B_H02_NO_REAL_SMTP=PASS");
         Console.WriteLine("F2B_H02_NO_CT164_OR_PRODUCTION_DB=PASS");
         Console.WriteLine("F2B_H02_IDENTITY_HTTP_FAKE_TRANSPORT=PASS");
+
+        await RunH05RestartIdentityRecoveryAsync(
+            factory, client, identityConnection, startupConfiguration, keyRing, password);
+    }
+
+    // H05b: exercise actual Identity tokens (not only generic DataProtection payloads)
+    // across a stopped Production TestServer, a foreign key ring and an offline
+    // restored copy of the original key ring. All data stays in disposable PG17.
+    private static async Task RunH05RestartIdentityRecoveryAsync(
+        Factory firstFactory, HttpClient firstClient, string identityConnection,
+        IReadOnlyDictionary<string, string?> originalConfiguration,
+        SyntheticKeyRingScope originalRing, string password)
+    {
+        var confirmationEmail =
+            "h05b-restart-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var resetEmail =
+            "h05b-restart-reset-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        var confirmUser = await CreatePublicUserAsync(
+            firstFactory.Services, confirmationEmail, password, emailConfirmed: false);
+        var resetUser = await CreatePublicUserAsync(
+            firstFactory.Services, resetEmail, password, emailConfirmed: true);
+        var confirmationToken = await GenerateIdentityTokenAsync(
+            firstFactory.Services, confirmUser.Id, passwordReset: false);
+        var resetToken = await GenerateIdentityTokenAsync(
+            firstFactory.Services, resetUser.Id, passwordReset: true);
+        var encodedConfirmation = WebEncoders.Base64UrlEncode(
+            Encoding.UTF8.GetBytes(confirmationToken));
+        var encodedReset = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(resetToken));
+        var confirmationUrl = QueryHelpers.AddQueryString(
+            QueryHelpers.AddQueryString("/api/public-account/confirm", "userId", confirmUser.Id),
+            "code", encodedConfirmation);
+
+        // Dispose both client and host before constructing either replacement.
+        // The outer using declarations are idempotently disposed again at exit.
+        firstClient.Dispose();
+        firstFactory.Dispose();
+        Check(true, "F2B_H05B_FIRST_PRODUCTION_TESTSERVER_DISPOSED");
+
+        // An unrelated but properly provisioned key ring must NOT validate
+        // previously minted Identity tokens, even against the same database.
+        using (var foreignRing = new SyntheticKeyRingScope())
+        {
+            var foreignSettings = originalConfiguration.ToDictionary(
+                pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            foreignSettings[PublicAccountDataProtectionPolicy.DirectorySetting] =
+                foreignRing.DirectoryPath;
+            using var foreignEnvironment = new StartupEnvironmentScope(
+                foreignSettings, Environments.Production);
+            using var foreignFactory = new Factory(
+                identityConnection, foreignSettings, new FakeTransport());
+            using var foreignClient = foreignFactory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
+                    AllowAutoRedirect = false
+                });
+            SetTestPeer(foreignClient, "198.51.100.80");
+            using var foreignConfirmation = await foreignClient.GetAsync(confirmationUrl);
+            Check(foreignConfirmation.StatusCode == HttpStatusCode.Redirect &&
+                  foreignConfirmation.Headers.Location?.OriginalString.Contains(
+                      "confirmed=0", StringComparison.Ordinal) == true &&
+                  !await ReadEmailConfirmedAsync(identityConnection, confirmUser.Id),
+                "F2B_H05B_FOREIGN_RING_CONFIRMATION_TOKEN_REFUSED");
+
+            using var foreignReset = await foreignClient.PostAsJsonAsync(
+                "/api/public-account/reset-password",
+                new { email = resetEmail, resetCode = encodedReset, newPassword = "H05bForeign!2026" });
+            Check(foreignReset.StatusCode == HttpStatusCode.BadRequest,
+                "F2B_H05B_FOREIGN_RING_RESET_TOKEN_REFUSED");
+        }
+
+        // Simulate an offline key-ring backup/restore into a new absolute path.
+        // Tokens are never copied or persisted, only the original DP ring and
+        // protected continuity sentinel. This is not an off-host disaster test.
+        var restoredPath = Path.Combine(
+            Path.GetTempPath(), "yangspace-h05b-restored-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(restoredPath);
+        if (OperatingSystem.IsLinux())
+            File.SetUnixFileMode(restoredPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        try
+        {
+            foreach (var sourcePath in Directory.GetFiles(originalRing.DirectoryPath))
+            {
+                var destination = Path.Combine(restoredPath, Path.GetFileName(sourcePath));
+                File.Copy(sourcePath, destination);
+                if (OperatingSystem.IsLinux())
+                    File.SetUnixFileMode(destination,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+
+            Check(PublicAccountDataProtectionPolicy.IsReady(new DirectoryInfo(restoredPath)),
+                "F2B_H05B_OFFLINE_KEYRING_COPY_CONTINUITY_VALID");
+
+            var recoveredSettings = originalConfiguration.ToDictionary(
+                pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            recoveredSettings[PublicAccountDataProtectionPolicy.DirectorySetting] =
+                restoredPath;
+            using var recoveredEnvironment = new StartupEnvironmentScope(
+                recoveredSettings, Environments.Production);
+            using var recoveredFactory = new Factory(
+                identityConnection, recoveredSettings, new FakeTransport());
+            using var recoveredClient = recoveredFactory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    BaseAddress = new Uri(PublicAccountReleaseAuthorization.RequiredAudience),
+                    AllowAutoRedirect = false
+                });
+            SetTestPeer(recoveredClient, "198.51.100.81");
+
+            using var recoveredConfirmation = await recoveredClient.GetAsync(confirmationUrl);
+            Check(recoveredConfirmation.StatusCode == HttpStatusCode.Redirect &&
+                  recoveredConfirmation.Headers.Location?.OriginalString.Contains(
+                      "confirmed=1", StringComparison.Ordinal) == true &&
+                  await ReadEmailConfirmedAsync(identityConnection, confirmUser.Id),
+                "F2B_H05B_RESTORED_RING_CONFIRMATION_HTTP_SUCCESS");
+
+            using var recoveredReset = await recoveredClient.PostAsJsonAsync(
+                "/api/public-account/reset-password",
+                new { email = resetEmail, resetCode = encodedReset, newPassword = "H05bRestored!2026" });
+            Check(recoveredReset.StatusCode == HttpStatusCode.OK,
+                "F2B_H05B_RESTORED_RING_RESET_HTTP_SUCCESS");
+
+            using var oldPassword = await recoveredClient.PostAsJsonAsync(
+                "/api/public-account/login", new { email = resetEmail, password });
+            Check(oldPassword.StatusCode == HttpStatusCode.Unauthorized,
+                "F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED");
+            _ = await LoginAsync(recoveredClient, resetEmail, "H05bRestored!2026");
+            Check(true, "F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID");
+        }
+        finally
+        {
+            if (Directory.Exists(restoredPath))
+                Directory.Delete(restoredPath, recursive: true);
+        }
+        Check(!Directory.Exists(restoredPath),
+            "F2B_H05B_RESTORED_KEYRING_CLEANED");
     }
 
     private static Dictionary<string, string?> CreateAuthorization(ECDsa signer, string commit)
