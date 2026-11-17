@@ -277,6 +277,21 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         using var environment = new CommitEnvironmentScope(commit);
         using var keyRing = new SyntheticKeyRingScope();
+        var missingConfigurationRefused = false;
+        try
+        {
+            _ = PublicAccountDataProtectionPolicy.RequireExistingKeyRing(
+                new ConfigurationBuilder().AddInMemoryCollection(
+                    new Dictionary<string, string?>()).Build());
+        }
+        catch (InvalidOperationException exception)
+            when (exception.Message == "PUBLIC_ACCOUNT_KEYRING_ABSOLUTE_PATH_REQUIRED")
+        {
+            missingConfigurationRefused = true;
+        }
+        Check(missingConfigurationRefused,
+            "F2B_H05_DATAPROTECTION_UNCONFIGURED_FAILS_CLOSED");
+
         using var signer = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var authorization = CreateAuthorization(signer, commit);
         var startupConfiguration = authorization.ToDictionary(
@@ -350,6 +365,17 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(secondProtector.Unprotect(protectedPayload) == "synthetic-continuity-proof",
             "F2B_H05_DATAPROTECTION_CROSS_INSTANCE_UNPROTECT");
 
+        using var isolatedKeyRing = new SyntheticKeyRingScope();
+        var isolatedProtector = DataProtectionProvider.Create(
+            new DirectoryInfo(isolatedKeyRing.DirectoryPath),
+            builder => builder.SetApplicationName(PublicAccountDataProtectionPolicy.ApplicationName))
+            .CreateProtector("F2B_H05_KeyContinuity");
+        var crossRingTokenRejected = false;
+        try { _ = isolatedProtector.Unprotect(protectedPayload); }
+        catch (CryptographicException) { crossRingTokenRejected = true; }
+        Check(crossRingTokenRejected,
+            "F2B_H05_DATAPROTECTION_ISOLATED_RING_REJECTS_TOKEN");
+
         var sentinelPath = Path.Combine(
             keyRing.DirectoryPath, PublicAccountDataProtectionPolicy.SentinelFileName);
         var sentinelRemovedPath = sentinelPath + ".temporarily-unavailable";
@@ -371,6 +397,24 @@ internal static class F2bH02ProductionIdentityHttpContract
         {
             Check(restored.StatusCode == HttpStatusCode.OK,
                 "F2B_H05_DATAPROTECTION_SENTINEL_RESTORED_READY_200");
+        }
+
+        var originalSentinel = File.ReadAllText(sentinelPath);
+        File.WriteAllText(sentinelPath, "corrupted-synthetic-proof");
+        try
+        {
+            using var corrupted = await client.GetAsync("/health/ready");
+            Check(corrupted.StatusCode == HttpStatusCode.ServiceUnavailable,
+                "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_READINESS_503");
+        }
+        finally
+        {
+            File.WriteAllText(sentinelPath, originalSentinel);
+        }
+        using (var restoredAfterCorruption = await client.GetAsync("/health/ready"))
+        {
+            Check(restoredAfterCorruption.StatusCode == HttpStatusCode.OK,
+                "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200");
         }
 
         var email = "h02-" + Guid.NewGuid().ToString("N") + "@example.invalid";
