@@ -60,7 +60,7 @@ internal sealed class IdentityEmailOutboxWorkerTelemetry : IDisposable
     private int _consecutiveFailures;
     private string? _lastCycleFailureCategory;
 
-    internal IdentityEmailOutboxWorkerTelemetry()
+    public IdentityEmailOutboxWorkerTelemetry()
     {
         _cycles = _meter.CreateCounter<long>(
             "yangspace.identity_email_outbox.worker.cycles", "{cycle}");
