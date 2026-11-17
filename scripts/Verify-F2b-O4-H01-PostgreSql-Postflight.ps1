@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h05-app-recovery-20261117'
+$Branch='feat/yangspace-f2b-h05b-restart-token-restore-20261117'
 $Git=(Get-Command git.exe -ErrorAction Stop).Source
 $Docker=(Get-Command docker.exe -ErrorAction Stop).Source
 function Check([bool]$Ok,[string]$Marker) {
@@ -37,7 +37,7 @@ Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'POSTFLIGHT_BRANCH_O
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_CLEAN_SOURCE'
 $Evidence=(Resolve-Path -LiteralPath $EvidenceDirectory).Path
-$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h05-dataprotection'))
+$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h05b-token-recovery'))
 Check ($Evidence.StartsWith($Root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) 'POSTFLIGHT_EVIDENCE_SCOPE'
 Check ((Split-Path $Evidence -Leaf) -match ('^'+$CommitSha.Substring(0,12)+'-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$')) 'POSTFLIGHT_EVIDENCE_IDENTITY'
 $ManifestPath=Join-Path $Evidence 'manifest.txt'
@@ -77,6 +77,7 @@ foreach ($Value in @(
     'H04_PUBLIC_ACCOUNT_ISOLATION=NO_IDENTITY_ROLE_NO_ORGANIZATION_MEMBERSHIP',
     'H05_DATAPROTECTION_FOUNDATION=PASS_PRODUCTION_TESTSERVER_PG17',
     'H05_KEYRING_RECOVERY=PASS_SENTINEL_LOSS_503_RESTORE_200',
+    'H05B_IDENTITY_RESTART_TOKEN_CONTINUITY=PASS_FOREIGN_REFUSED_RESTORED_ACCEPTED',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -88,7 +89,7 @@ foreach ($Value in @(
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H05_RECOVERY_AND_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H05_FULL_RECOVERY_AND_H06'
 )) { ManifestLine $Lines $Value }
 $PgVersionEntry=@($Lines | Where-Object { $_ -like 'POSTGRES_VERSION=*' })
 Check ($PgVersionEntry.Count -eq 1) 'POSTFLIGHT_PG_VERSION_RECORDED'
@@ -299,6 +300,15 @@ foreach ($M in @(
     'F2B_H05_DATAPROTECTION_CROSS_INSTANCE_UNPROTECT',
     'F2B_H05_DATAPROTECTION_MISSING_SENTINEL_READINESS_503_LIVE_200',
     'F2B_H05_DATAPROTECTION_SENTINEL_RESTORED_READY_200',
+    'F2B_H05B_FIRST_PRODUCTION_TESTSERVER_DISPOSED',
+    'F2B_H05B_FOREIGN_RING_CONFIRMATION_TOKEN_REFUSED',
+    'F2B_H05B_FOREIGN_RING_RESET_TOKEN_REFUSED',
+    'F2B_H05B_OFFLINE_KEYRING_COPY_CONTINUITY_VALID',
+    'F2B_H05B_RESTORED_RING_CONFIRMATION_HTTP_SUCCESS',
+    'F2B_H05B_RESTORED_RING_RESET_HTTP_SUCCESS',
+    'F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED',
+    'F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID',
+    'F2B_H05B_RESTORED_KEYRING_CLEANED',
     'F2B_H02_LOGIN_HTTP','F2B_H02_LOGIN_NO_SET_COOKIE','F2B_H02_LOGIN_BEARER_ONLY',
     'F2B_H02_SESSION_REQUIRES_BEARER','F2B_H02_SESSION_BEARER_OK',
     'F2B_H02_STAFF_ROLE_FIXTURES_CREATED','F2B_H02_STAFF_CONFIRMATION_DENIED',
@@ -359,7 +369,8 @@ Write-Host 'F2B_H02_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H03_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H04_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H05_INDEPENDENT_POSTFLIGHT=PASS'
+Write-Host 'F2B_H05B_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant())
-Write-Host 'RELEASE_GATE=HOLD_H05_RECOVERY_AND_H06'
+Write-Host 'RELEASE_GATE=HOLD_H05_FULL_RECOVERY_AND_H06'
