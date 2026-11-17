@@ -256,7 +256,7 @@ app.MapGet("/health/ready", async (
     try
     {
         if (app.Environment.IsProduction())
-            await ProductionSchemaGate.ValidateRuntimeReadinessAsync(db, ct);
+            await ProductionSchemaGate.ValidateRuntimeReadinessAsync(db, publicAccounts, ct);
         else if (!await db.Database.CanConnectAsync(ct))
             return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
 
