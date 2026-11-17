@@ -258,6 +258,85 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
 
             // H05c: verify the actual operational projection against persisted PG17.
             // Expose only count and UTC time fields (no identity/user/message data).
+
+            var staleSentUser=await NewUser(users,"pg-worker-stale-sent@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(staleSentUser,staleSentUser.Email!,"discarded");
+            var staleSentId=await IntentId(db,staleSentUser.Id);
+            fake.BlockNext();
+            var staleSentTask=worker.ProcessBatchOnceAsync();
+            await fake.WaitBlockedAsync();
+            clock.Advance(TimeSpan.FromSeconds(31));
+            await NewWorker(runtimeProvider,clock,config).ProcessBatchOnceAsync();
+            var currentOwnerState=await Message(db,staleSentId);
+            Check(currentOwnerState.Status==IdentityEmailOutboxStatus.Sent &&
+                currentOwnerState.AttemptCount==2,
+                "F2B_H05E_NEW_LEASE_OWNER_FINALIZED");
+            fake.Release();
+            await staleSentTask;
+            var afterStaleSent=await Message(db,staleSentId);
+            Check(afterStaleSent.Status==currentOwnerState.Status &&
+                afterStaleSent.Revision==currentOwnerState.Revision &&
+                afterStaleSent.SentAtUtc==currentOwnerState.SentAtUtc &&
+                fake.Deliveries.Count(x=>x.Email==staleSentUser.Email)==2,
+                "F2B_H05E_STALE_LEASE_OWNER_CANNOT_FINALIZE");
+
+            var staleRetryUser=await NewUser(users,"pg-worker-stale-retry@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(staleRetryUser,staleRetryUser.Email!,"discarded");
+            var staleRetryId=await IntentId(db,staleRetryUser.Id);
+            fake.BlockNextThenFailBeforeAccept();
+            var staleRetryTask=worker.ProcessBatchOnceAsync();
+            await fake.WaitBlockedAsync();
+            clock.Advance(TimeSpan.FromSeconds(31));
+            await NewWorker(runtimeProvider,clock,config).ProcessBatchOnceAsync();
+            var retryOwnerState=await Message(db,staleRetryId);
+            fake.Release();
+            await staleRetryTask;
+            var afterStaleRetry=await Message(db,staleRetryId);
+            Check(retryOwnerState.Status==IdentityEmailOutboxStatus.Sent &&
+                afterStaleRetry.Status==retryOwnerState.Status &&
+                afterStaleRetry.Revision==retryOwnerState.Revision &&
+                afterStaleRetry.AttemptCount==retryOwnerState.AttemptCount &&
+                fake.Deliveries.Count(x=>x.Email==staleRetryUser.Email)==1,
+                "F2B_H05E_STALE_LEASE_OWNER_CANNOT_RETRY");
+
+            var finalizationUser=await NewUser(users,"pg-worker-finalization@example.invalid",false);
+            await queue.SendConfirmationLinkAsync(finalizationUser,finalizationUser.Email!,"discarded");
+            var finalizationId=await IntentId(db,finalizationUser.Id);
+            await InstallSentFinalizationFailureAsync(migratorCs,finalizationId);
+            var finalizationFailureObserved=false;
+            try
+            {
+                await worker.ProcessBatchOnceAsync();
+            }
+            catch(Exception exception) when(HasSqlState(exception,"P0001"))
+            {
+                finalizationFailureObserved=true;
+            }
+            finally
+            {
+                await RemoveSentFinalizationFailureAsync(migratorCs);
+            }
+
+            var afterFinalizationFailure=await Message(db,finalizationId);
+            Check(finalizationFailureObserved &&
+                afterFinalizationFailure.Status==IdentityEmailOutboxStatus.Leased &&
+                afterFinalizationFailure.AttemptCount==1 &&
+                afterFinalizationFailure.SentAtUtc is null &&
+                afterFinalizationFailure.LastFailureCode is null &&
+                fake.Deliveries.Count(x=>x.Email==finalizationUser.Email)==1,
+                "F2B_H05E_SENT_FINALIZATION_DB_FAILURE_NOT_FALSE_SENT");
+            var failureSnapshot=runtimeProvider.GetRequiredService<IdentityEmailOutboxWorkerTelemetry>().Snapshot();
+            Check(failureSnapshot.LastCycleFailureCategory=="database" &&
+                failureSnapshot.ConsecutiveFailures==1,
+                "F2B_H05E_DATABASE_FAILURE_CLASSIFIED");
+            clock.Advance(TimeSpan.FromSeconds(31));
+            await worker.ProcessBatchOnceAsync();
+            var afterFinalizationRecovery=await Message(db,finalizationId);
+            Check(afterFinalizationRecovery.Status==IdentityEmailOutboxStatus.Sent &&
+                afterFinalizationRecovery.AttemptCount==2 &&
+                fake.Deliveries.Count(x=>x.Email==finalizationUser.Email)==2,
+                "F2B_H05E_SENT_FINALIZATION_AT_LEAST_ONCE_RECOVERY");
+
             var summary = await IdentityEmailOutboxAdminEndpoints.ReadSummaryAsync(
                 db, clock, CancellationToken.None);
             var expectedSent = await db.IdentityEmailOutbox.AsNoTracking()
@@ -282,6 +361,37 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
                 !summaryJson.Contains("Payload", StringComparison.OrdinalIgnoreCase) &&
                 !summaryJson.Contains("Secret", StringComparison.OrdinalIgnoreCase),
                 "F2B_H05C_OUTBOX_SUMMARY_NO_PII");
+
+            metricListener.RecordObservableInstruments();
+            var telemetrySnapshot=runtimeProvider
+                .GetRequiredService<IdentityEmailOutboxWorkerTelemetry>().Snapshot();
+            Check(telemetrySnapshot.TotalCycles>0 &&
+                telemetrySnapshot.SuccessfulCycles>0 &&
+                telemetrySnapshot.FailedCycles>0 &&
+                telemetrySnapshot.LastCycleSucceededAtUtc is not null &&
+                telemetrySnapshot.ConsecutiveFailures==0 &&
+                telemetrySnapshot.TotalSent>0 &&
+                telemetrySnapshot.TotalRetried>0 &&
+                telemetrySnapshot.TotalLeaseLost>0 &&
+                telemetrySnapshot.Pending>=0 && telemetrySnapshot.DeadLetter>=0,
+                "F2B_H05E_WORKER_OBSERVABILITY_SNAPSHOT");
+            Check(metricNames.Contains("yangspace.identity_email_outbox.worker.cycles") &&
+                metricNames.Contains("yangspace.identity_email_outbox.messages") &&
+                metricNames.Contains("yangspace.identity_email_outbox.pending") &&
+                metricNames.Contains("yangspace.identity_email_outbox.dead_letter") &&
+                metricTagKeys.Count>0 &&
+                metricTagKeys.All(key=>key is "outcome" or "failure_category"),
+                "F2B_H05E_METRICS_LOW_CARDINALITY");
+            var workerLogs=logCapture.Messages;
+            Check(workerLogs.Any(message=>message.Contains("IDENTITY_EMAIL_OUTBOX_TRANSPORT_FAILED",StringComparison.Ordinal)) &&
+                workerLogs.Any(message=>message.Contains("IDENTITY_EMAIL_OUTBOX_WORKER_CYCLE_FAILED",StringComparison.Ordinal)) &&
+                workerLogs.All(message=>!message.Contains("@",StringComparison.Ordinal) &&
+                    !message.Contains("UserId",StringComparison.OrdinalIgnoreCase) &&
+                    !message.Contains("Email",StringComparison.OrdinalIgnoreCase) &&
+                    !message.Contains("Token",StringComparison.OrdinalIgnoreCase) &&
+                    !message.Contains("Payload",StringComparison.OrdinalIgnoreCase) &&
+                    !message.Contains("Secret",StringComparison.OrdinalIgnoreCase)),
+                "F2B_H05E_WORKER_LOGS_NO_PII");
 
             Console.WriteLine("F2B_O3_WORKER_NPGSQL_PROVIDER=PASS");
             Console.WriteLine("F2B_O3_WORKER_POSTGRESQL_17=PASS");
@@ -322,6 +432,52 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
         })
             .AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>().AddDefaultTokenProviders();
         return services;
+    }
+
+    private static async Task InstallSentFinalizationFailureAsync(string connection, Guid id)
+    {
+        await using var c=new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd=c.CreateCommand();
+        cmd.CommandText=$"""
+            CREATE OR REPLACE FUNCTION public.h05e_fail_sent_finalization() RETURNS trigger
+            LANGUAGE plpgsql AS $h05e$
+            BEGIN
+                IF NEW."Id" = '{id:D}'::uuid AND NEW."Status" = 'Sent' THEN
+                    RAISE EXCEPTION 'H05E_SYNTHETIC_SENT_FINALIZATION_FAILURE'
+                        USING ERRCODE = 'P0001';
+                END IF;
+                RETURN NEW;
+            END;
+            $h05e$;
+            DROP TRIGGER IF EXISTS h05e_fail_sent_finalization
+                ON public."IdentityEmailOutbox";
+            CREATE TRIGGER h05e_fail_sent_finalization
+                BEFORE UPDATE OF "Status" ON public."IdentityEmailOutbox"
+                FOR EACH ROW EXECUTE FUNCTION public.h05e_fail_sent_finalization();
+            """;
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task RemoveSentFinalizationFailureAsync(string connection)
+    {
+        await using var c=new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd=c.CreateCommand();
+        cmd.CommandText="""
+            DROP TRIGGER IF EXISTS h05e_fail_sent_finalization
+                ON public."IdentityEmailOutbox";
+            DROP FUNCTION IF EXISTS public.h05e_fail_sent_finalization();
+            """;
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static bool HasSqlState(Exception exception,string sqlState)
+    {
+        for(Exception? current=exception;current is not null;current=current.InnerException)
+            if(current is PostgresException postgres && postgres.SqlState==sqlState)
+                return true;
+        return false;
     }
 
     private static async Task<bool> VerifyScope(string cs,string token,string role)
@@ -422,6 +578,38 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
         public override DateTimeOffset GetUtcNow()=>_now;
         internal void Advance(TimeSpan span)=>_now=_now.Add(span);
     }
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        private readonly ConcurrentQueue<string> _messages=new();
+        internal IReadOnlyCollection<string> Messages=>_messages.ToArray();
+
+        public ILogger CreateLogger(string categoryName) =>
+            categoryName.EndsWith(nameof(IdentityEmailOutboxWorker),StringComparison.Ordinal)
+                ? new CapturingLogger(_messages)
+                : new NullLogger();
+
+        public void Dispose() { }
+
+        private sealed class CapturingLogger(ConcurrentQueue<string> messages) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState:notnull => null;
+            public bool IsEnabled(LogLevel logLevel)=>logLevel>=LogLevel.Debug;
+            public void Log<TState>(LogLevel logLevel,EventId eventId,TState state,
+                Exception? exception,Func<TState,Exception?,string> formatter)
+            {
+                if(IsEnabled(logLevel)) messages.Enqueue(formatter(state,exception));
+            }
+        }
+
+        private sealed class NullLogger : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState:notnull => null;
+            public bool IsEnabled(LogLevel logLevel)=>false;
+            public void Log<TState>(LogLevel logLevel,EventId eventId,TState state,
+                Exception? exception,Func<TState,Exception?,string> formatter) { }
+        }
+    }
+
     private sealed record Delivery(string Email,string Payload);
     private sealed class FakeTransport:IIdentityEmailOutboxTransport
     {
@@ -435,14 +623,32 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             get=>Volatile.Read(ref _failAlways)==1;
             set=>Volatile.Write(ref _failAlways,value?1:0);
         }
-        internal void BlockNext(){_blocked=Signal();_release=Signal();Interlocked.Exchange(ref _block,1);}
+        private int _failBlockedBefore;
+        internal void BlockNext()
+        {
+            _blocked=Signal();_release=Signal();
+            Interlocked.Exchange(ref _failBlockedBefore,0);
+            Interlocked.Exchange(ref _block,1);
+        }
+        internal void BlockNextThenFailBeforeAccept()
+        {
+            _blocked=Signal();_release=Signal();
+            Interlocked.Exchange(ref _failBlockedBefore,1);
+            Interlocked.Exchange(ref _block,1);
+        }
         internal Task WaitBlockedAsync()=>_blocked.Task.WaitAsync(TimeSpan.FromSeconds(10));
         internal void Release()=>_release.TrySetResult(true);
         public Task SendConfirmationAsync(IdentityUser user,string email,string link,CancellationToken ct)=>Send(email,link,ct);
         public Task SendPasswordResetAsync(IdentityUser user,string email,string code,CancellationToken ct)=>Send(email,code,ct);
         private async Task Send(string email,string payload,CancellationToken ct)
         {
-            if(Interlocked.Exchange(ref _block,0)==1){_blocked.TrySetResult(true);await _release.Task.WaitAsync(ct);}
+            if(Interlocked.Exchange(ref _block,0)==1)
+            {
+                _blocked.TrySetResult(true);
+                await _release.Task.WaitAsync(ct);
+                if(Interlocked.Exchange(ref _failBlockedBefore,0)==1)
+                    throw new IOException("synthetic stale-owner transport failure");
+            }
             if(FailAlways || Interlocked.Exchange(ref _failBefore,0)==1)
                 throw new IOException("synthetic failure");
             _items.Enqueue(new Delivery(email,payload));
