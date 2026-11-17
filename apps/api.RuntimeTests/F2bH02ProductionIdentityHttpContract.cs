@@ -307,12 +307,41 @@ internal static class F2bH02ProductionIdentityHttpContract
         const string password = "StrongPassword!2026";
 
         SetTestPeer(client, "192.0.2.13");
+        var outboxCountBeforeInvalidRegistrations = await ReadTotalOutboxCountAsync(migrator);
+
         var malformedEmail = "not-an-email";
         using var malformedRegistration = await client.PostAsJsonAsync(
             "/api/public-account/register", new { email = malformedEmail, password });
+        var malformedRegistrationBody = await malformedRegistration.Content.ReadAsStringAsync();
         Check(malformedRegistration.StatusCode == HttpStatusCode.BadRequest &&
               !await UserExistsAsync(identityConnection, malformedEmail),
             "F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT");
+
+        var emptyEmail = string.Empty;
+        using var emptyRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = emptyEmail, password });
+        var emptyRegistrationBody = await emptyRegistration.Content.ReadAsStringAsync();
+        Check(emptyRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              emptyRegistrationBody == malformedRegistrationBody &&
+              !await UserExistsAsync(identityConnection, emptyEmail),
+            "F2B_H04_REGISTER_EMPTY_EMAIL_NO_ACCOUNT");
+
+        var oversizedEmail = string.Concat(
+            new string('a', 64), "@",
+            new string('b', 63), ".",
+            new string('c', 63), ".",
+            new string('d', 63), ".",
+            new string('e', 60));
+        Check(oversizedEmail.Length > 254 &&
+              new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(oversizedEmail),
+            "F2B_H04_OVERSIZED_EMAIL_FIXTURE_VALIDATED");
+        using var oversizedRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = oversizedEmail, password });
+        var oversizedRegistrationBody = await oversizedRegistration.Content.ReadAsStringAsync();
+        Check(oversizedRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              oversizedRegistrationBody == malformedRegistrationBody &&
+              !await UserExistsAsync(identityConnection, oversizedEmail),
+            "F2B_H04_REGISTER_OVERSIZED_EMAIL_NO_ACCOUNT");
 
         var weakPasswordEmail = "h04-weak-password-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         using var weakPasswordRegistration = await client.PostAsJsonAsync(
@@ -320,6 +349,10 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(weakPasswordRegistration.StatusCode == HttpStatusCode.BadRequest &&
               !await UserExistsAsync(identityConnection, weakPasswordEmail),
             "F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT");
+
+        var outboxCountAfterInvalidRegistrations = await ReadTotalOutboxCountAsync(migrator);
+        Check(outboxCountAfterInvalidRegistrations <= outboxCountBeforeInvalidRegistrations,
+            "F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT");
 
         SetTestPeer(client, "192.0.2.10");
         fake.FailBeforeAcceptOnce();
@@ -330,6 +363,10 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE");
 
         var userId = await WaitForUserIdAsync(identityConnection, email, TimeSpan.FromSeconds(15));
+        Check(await ReadIdentityRoleAssignmentCountAsync(migrator, userId) == 0,
+            "F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE");
+        Check(await ReadOrganizationMembershipCountAsync(migrator, userId) == 0,
+            "F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP");
         var outboxId = await WaitForRetryAsync(identityConnection, userId, TimeSpan.FromSeconds(15));
         Check(outboxId != Guid.Empty, "F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC");
 
@@ -1137,6 +1174,35 @@ internal static class F2bH02ProductionIdentityHttpContract
         cmd.CommandText = """SELECT EXISTS(SELECT 1 FROM public."AspNetUsers" WHERE "Email"=@email)""";
         cmd.Parameters.AddWithValue("email", email);
         return (bool)(await cmd.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<int> ReadTotalOutboxCountAsync(string connection)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT count(*) FROM public."IdentityEmailOutbox" """;
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<int> ReadIdentityRoleAssignmentCountAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT count(*) FROM public."AspNetUserRoles" WHERE "UserId"=@userId""";
+        cmd.Parameters.AddWithValue("userId", userId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<int> ReadOrganizationMembershipCountAsync(string connection, string userId)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """SELECT count(*) FROM public."OrganizationMembers" WHERE "UserId"=@userId""";
+        cmd.Parameters.AddWithValue("userId", userId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task<int> ReadAttemptCountAsync(string connection, Guid id)
