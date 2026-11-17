@@ -4,6 +4,14 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H05 DataProtection foundation started
+
+**H04 bounded final acceptance:** runtime + Independent Postflight PASS at exact source `8c68de48a64215eff57f2eaa2bd8594541bba2b3`. Operator evidence: `logs/yangspace/f2b-o4-h04-identity-edge/8c68de48a642-20261117-131434-d5921358` in detached operator worktree. Manifest SHA-256 `43cf7fe0cb00101ce628e01a8637a44d46dae73cec16b2aa03ef0f4298b938ad`. PR #49 is Ready for Review; no formal GitHub approval or merge claimed. Public release remains HOLD.
+
+**H05 source candidate, untested:** separate branch `feat/yangspace-f2b-h05-app-recovery-20261117` is stacked on H04's accepted exact source, tracking [Issue #50](https://github.com/jvalkovv/YangSpaceApp/issues/50). Initial production runtime contract requires an operator-provisioned persistent DataProtection key ring with a stable application name, safe directory permissions and decryptable continuity sentinel, plus liveness/readiness checks. The Production TestServer synthetic harness covers key continuity across independently created providers, missing/foreign/corrupt ring cases and readiness loss/recovery; H05 runner/Postflight require exact SHA and full H01–H04 regressions.
+
+**Do not infer PASS:** no H05 source build, PG17 TestServer run or Independent Postflight completed at the H05 branch. This is only a bounded DataProtection foundation; the full H05 worker restart, operator replay, backup/restore and observability acceptance remains open. No CT164, Production DB, live SMTP, production keyring/deployment or GitHub Actions. See `docs/F2B_H05_DATAPROTECTION_RECOVERY_20261117.md`.
+
 ## 2026-11-17 — H04 acceptance follow-up
 
 **Status: SOURCE FOLLOW-UP COMMITTED / EXACT-SHA RUNTIME QA PENDING.** PR #49 remains Draft and Issue #48 remains open. The prior H04 runtime result is tied to its own exact source SHA and must not be reused after the follow-up changes below.
