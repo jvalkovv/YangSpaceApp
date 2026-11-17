@@ -5,7 +5,7 @@ param([Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$Co
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h03-identity-abuse-controls-20261116'
+$Branch='feat/yangspace-f2b-h05c-outbox-operations-20261117'
 $Project='apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
 $Db='yangspace_f2b_o3_worker_disposable'
 $Image='postgres:17'
@@ -75,10 +75,10 @@ $DockerVersion=DockerValue @('info','--format','{{.ServerVersion}}')
 $ImageId=DockerValue @('image','inspect','--format','{{.Id}}',$Image)
 Check ($ImageId -match '^sha256:[0-9a-f]{64}$') 'F2B_O3_PG_IMAGE_PREEXISTS'
 $Nonce=RandomHex
-$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h03-identity-abuse') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
+$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h05c-outbox-operations') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
-$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-h03-'+$Nonce.Substring(0,12))
+$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-h05-'+$Nonce.Substring(0,12))
 $Publish=Join-Path $Temp 'publish'
 $Network='ys-f2b-o3-'+$Nonce.Substring(0,12)
 $Container='ys-f2b-o3-pg17-'+$Nonce.Substring(0,12)
@@ -317,6 +317,8 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O3_PG_UNCERTAIN_ACK_AT_LEAST_ONCE','F2B_O3_PG_CRASH_LEASE_PRESERVED',
         'F2B_O3_PG_CRASH_RESTART_RECOVERY','F2B_O3_PG_DEADLETTER',
         'F2B_O3_PG_OPERATOR_REPLAY','F2B_O3_PG_RETENTION_PURGE',
+        'F2B_H05C_OUTBOX_SUMMARY_PERSISTED_COUNTS',
+        'F2B_H05C_OUTBOX_SUMMARY_NO_PII',
         'F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST',
         'F2B_O3_WORKER_NPGSQL_PROVIDER','F2B_O3_WORKER_POSTGRESQL_17',
         'F2B_O3_WORKER_TLS_VERIFYFULL','F2B_O3_WORKER_RUNTIME_LEAST_PRIVILEGE',
@@ -391,11 +393,51 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_H02_CONFIRMATION_TOKEN_DELIVERED',
         'F2B_H02_EMAIL_CONFIRMATION_HTTP',
         'F2B_H02_CONFIRMATION_REPLAY_REJECTED',
+        'F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS',
+        'F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED',
+        'F2B_H04_CONFIRM_INVALID_TOKEN_FAIL_CLOSED',
+        'F2B_H04_CONFIRM_UNKNOWN_USER_FAIL_CLOSED',
+        'F2B_H04_CONFIRM_MISSING_USER_FAIL_CLOSED',
         'F2B_H02_CONCURRENT_CONFIRMATION_SINGLE_WINNER',
         'F2B_H02_EXPIRED_CONFIRMATION_TOKEN_REJECTED',
         'F2B_H02_EXPIRED_RESET_TOKEN_REJECTED',
         'F2B_H02_EXPIRED_RESET_PRESERVES_PASSWORD',
         'F2B_H02_DUPLICATE_REGISTRATION_GENERIC',
+        'F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT',
+        'F2B_H04_REGISTER_EMPTY_EMAIL_NO_ACCOUNT',
+        'F2B_H04_OVERSIZED_EMAIL_FIXTURE_VALIDATED',
+        'F2B_H04_REGISTER_OVERSIZED_EMAIL_NO_ACCOUNT',
+        'F2B_H04_REGISTER_EMPTY_PASSWORD_NO_ACCOUNT',
+        'F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT',
+        'F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT',
+        'F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE',
+        'F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP',
+        'F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC',
+        'F2B_H04_STAFF_MULTIPLE_ROLES_CREATED',
+        'F2B_H04_STAFF_ANY_ROLE_EXCLUDED_FROM_ALL_PUBLIC_ACTIONS',
+        'F2B_H04_RESET_TOKEN_REPLAY_REJECTED',
+        'F2B_H04_RESET_REPLAY_DOES_NOT_CHANGE_PASSWORD',
+        'F2B_H04_RESET_MALFORMED_TOKEN_REJECTED',
+        'F2B_H04_RESET_MALFORMED_TOKEN_PRESERVES_PASSWORD',
+        'F2B_H04_RESET_INVALID_TOKEN_REJECTED',
+        'F2B_H04_RESET_INVALID_TOKEN_PRESERVES_PASSWORD',
+        'F2B_H05_DATAPROTECTION_UNCONFIGURED_FAILS_CLOSED',
+        'F2B_H05_DATAPROTECTION_OFFLINE_PROVISIONED_KEYRING',
+        'F2B_H05_DATAPROTECTION_ISOLATED_RING_REJECTS_TOKEN',
+        'F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_READINESS_503',
+        'F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200',
+        'F2B_H05_DATAPROTECTION_CROSS_INSTANCE_UNPROTECT',
+        'F2B_H05_DATAPROTECTION_MISSING_SENTINEL_READINESS_503_LIVE_200',
+        'F2B_H05_DATAPROTECTION_SENTINEL_RESTORED_READY_200',
+        'F2B_H05B_FIRST_PRODUCTION_TESTSERVER_DISPOSED',
+        'F2B_H05B_FOREIGN_RING_CONFIRMATION_TOKEN_REFUSED',
+        'F2B_H05B_FOREIGN_RING_RESET_TOKEN_REFUSED',
+        'F2B_H05B_OFFLINE_KEYRING_COPY_CONTINUITY_VALID',
+        'F2B_H05B_RESTORED_RING_CONFIRMATION_HTTP_SUCCESS',
+        'F2B_H05B_RESTORED_RING_RESET_HTTP_SUCCESS',
+        'F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED',
+        'F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID',
+        'F2B_H05B_RESTORED_KEYRING_CLEANED',
         'F2B_H02_LOGIN_HTTP',
         'F2B_H02_LOGIN_NO_SET_COOKIE',
         'F2B_H02_LOGIN_BEARER_ONLY',
@@ -468,8 +510,10 @@ $SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01R
 Check ($SecretsRemain.Count -eq 0 -and -not (Test-Path -LiteralPath $Temp)) 'F2B_O3_TEMPORARY_SECRET_CLEANUP'
 $HashPaths=@(
     'apps/api/IdentityEmailOutboxWorker.cs',
+    'apps/api/IdentityEmailOutboxAdminEndpoints.cs',
     'apps/api/OutboxIdentityEmailSender.cs',
     'apps/api/Program.cs',
+    'apps/api/PublicAccountDataProtectionPolicy.cs',
     'apps/api/ProductionPostgreSqlPolicy.cs',
     'apps/api/ProductionSchemaGate.cs',
     'apps/api/PublicAccountEndpoints.cs',
@@ -497,6 +541,9 @@ $HashPaths=@(
     'apps/api/appsettings.json',
     'docs/F2B_H02_RELEASE_AUTHORIZATION_20261116.md',
     'docs/F2B_H03_IDENTITY_ABUSE_PROTECTION_20261116.md',
+    'docs/F2B_H04_IDENTITY_EDGE_MATRIX_20261117.md',
+    'docs/F2B_H05_DATAPROTECTION_RECOVERY_20261117.md',
+    'docs/SSOT.md',
     'scripts/Invoke-YangSpaceStage.ps1',
     'scripts/Test-F2b-Outbox-Worker-PostgreSql-Local.ps1',
     'scripts/Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1',
@@ -548,6 +595,14 @@ $Manifest=@(
     'H03_APPLICATION_ABUSE_PROTECTION=PASS_TESTSERVER_AND_DISPOSABLE_SQLITE_POSTGRES',
     'H03_ACCOUNT_KEY=HMAC_SHA256_ONLY',
     'H03_RAW_EMAIL_COUNTER_STORAGE=PROHIBITED',
+    'H04_IDENTITY_EDGE_MATRIX=PASS_PRODUCTION_TESTSERVER_PG17',
+    'H04_REGISTRATION_NEGATIVE_MATRIX=PASS_EMPTY_MALFORMED_OVERSIZED_EMAIL_EMPTY_WEAK_PASSWORD',
+    'H04_INVALID_REGISTRATION_OUTBOX=NO_INSERT',
+    'H04_PUBLIC_ACCOUNT_ISOLATION=NO_IDENTITY_ROLE_NO_ORGANIZATION_MEMBERSHIP',
+    'H05_DATAPROTECTION_FOUNDATION=PASS_PRODUCTION_TESTSERVER_PG17',
+    'H05_KEYRING_RECOVERY=PASS_SENTINEL_LOSS_503_RESTORE_200',
+    'H05B_IDENTITY_RESTART_TOKEN_CONTINUITY=PASS_FOREIGN_REFUSED_RESTORED_ACCEPTED',
+    'H05C_OUTBOX_OPERATOR_SUMMARY=PASS_POSTGRES_COUNTS_NO_PII',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -559,7 +614,7 @@ $Manifest=@(
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H03_REVIEW_AND_H04_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H05_FULL_RECOVERY_AND_H06'
 )
 [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]$Manifest,$Utf8)
 & (Join-Path $PSScriptRoot 'Verify-F2b-O4-H01-PostgreSql-Postflight.ps1') -CommitSha $CommitSha -EvidenceDirectory $Evidence
@@ -567,7 +622,11 @@ if (-not $?) { throw 'F2B_O4_H01_INDEPENDENT_POSTFLIGHT_FAILED' }
 Write-Host 'F2B_O4_H01_PRODUCTION_STARTUP_QA=PASS'
 Write-Host 'F2B_H02_PRODUCTION_IDENTITY_HTTP_QA=PASS'
 Write-Host 'F2B_H03_APPLICATION_ABUSE_PROTECTION_QA=PASS'
+Write-Host 'F2B_H04_IDENTITY_EDGE_QA=PASS'
+Write-Host 'F2B_H05_DP_FOUNDATION_QA=PASS'
+Write-Host 'F2B_H05B_IDENTITY_RESTART_QA=PASS'
+Write-Host 'F2B_H05C_OPERATOR_SUMMARY_QA=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath (Join-Path $Evidence 'manifest.txt') -Algorithm SHA256).Hash.ToLowerInvariant())
-Write-Host 'RELEASE_GATE=HOLD_H03_REVIEW_AND_H04_H06'
+Write-Host 'RELEASE_GATE=HOLD_H05_FULL_RECOVERY_AND_H06'
