@@ -343,6 +343,13 @@ internal static class F2bH02ProductionIdentityHttpContract
               !await UserExistsAsync(identityConnection, oversizedEmail),
             "F2B_H04_REGISTER_OVERSIZED_EMAIL_NO_ACCOUNT");
 
+        var emptyPasswordEmail = "h04-empty-password-" + Guid.NewGuid().ToString("N") + "@example.invalid";
+        using var emptyPasswordRegistration = await client.PostAsJsonAsync(
+            "/api/public-account/register", new { email = emptyPasswordEmail, password = string.Empty });
+        Check(emptyPasswordRegistration.StatusCode == HttpStatusCode.BadRequest &&
+              !await UserExistsAsync(identityConnection, emptyPasswordEmail),
+            "F2B_H04_REGISTER_EMPTY_PASSWORD_NO_ACCOUNT");
+
         var weakPasswordEmail = "h04-weak-password-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         using var weakPasswordRegistration = await client.PostAsJsonAsync(
             "/api/public-account/register", new { email = weakPasswordEmail, password = "weak" });
@@ -431,6 +438,12 @@ internal static class F2bH02ProductionIdentityHttpContract
               invalidConfirmation.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true &&
               !await ReadEmailConfirmedAsync(identityConnection, invalidConfirmationUser.Id),
             "F2B_H04_CONFIRM_INVALID_TOKEN_FAIL_CLOSED");
+
+        using var missingConfirmationUser = await client.GetAsync(
+            "/api/public-account/confirm?code=" + Uri.EscapeDataString("%%%"));
+        Check(missingConfirmationUser.StatusCode == HttpStatusCode.Redirect &&
+              missingConfirmationUser.Headers.Location?.OriginalString.Contains("confirmed=0", StringComparison.Ordinal) == true,
+            "F2B_H04_CONFIRM_MISSING_USER_FAIL_CLOSED");
 
         using var unknownConfirmation = await client.GetAsync(
             "/api/public-account/confirm?userId=" + Uri.EscapeDataString("missing-" + Guid.NewGuid().ToString("N")) +
