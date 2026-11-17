@@ -232,3 +232,22 @@ The latest exact-SHA operator run passed the earlier H01 stage and advanced into
 Superseding source/test correction commit: `e15ad690d2519879f769124b6b28cdc67466ef9e`. Runner marker/manifest commit: `77cacf580e03630b62a808926b7f5ecbd6ae2c7d`; Independent Postflight commit: `0ec6637acb94d4b30613b48c7f93e66fc0f2f6cd`.
 
 **Acceptance remains PENDING:** this correction has not yet been run on Windows at the latest exact PR #56 HEAD, and the full runner plus Independent Postflight must pass at the same SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD. No CT164, production DB, real SMTP, deployment or GitHub Actions.
+
+
+## 2026-11-18 — H02 DB outage probe: CONNECT grantor mismatch corrected
+
+The 2026-11-17 rerun at `54ae2a10e73801424e353f80be2756d73fddb0cd` passed the complete O3 PostgreSQL worker slice and O4-H01 Production TestServer slice. H02 passed the DataProtection missing/corrupt-sentinel recovery checks and emitted `F2B_H05E_DB_UNAVAILABLE_EF_DATASOURCE_CLEARED=PASS` plus `F2B_H05E_DB_UNAVAILABLE_SESSIONS_DRAINED=PASS`, but failed at `F2B_H05E_DB_UNAVAILABLE_NEW_CONNECTION_DENIED`.
+
+**Root cause:** the disposable runner initially granted database CONNECT to `ys_h02_identity` while executing its grants file as PostgreSQL superuser `postgres`. The H02 fault injector later attempted `REVOKE CONNECT` using `ys_o3_migrator`. The migrator was neither the grantor nor the database owner and did not hold CONNECT with grant option, so PostgreSQL did not remove the original grant. Clearing the EF-owned data source and draining sessions was correct; the fresh non-pooled connection was still legitimately allowed by the remaining ACL. This is a test-fixture ACL ownership defect, not an application readiness defect.
+
+**Correction (disposable test harness only):**
+- The setup grants `CONNECT WITH GRANT OPTION` to `ys_o3_migrator` and ordinary CONNECT to `ys_o3_runtime`; it no longer grants identity CONNECT directly as `postgres`.
+- H02 `GrantIdentityRoleAsync` now grants CONNECT to `ys_h02_identity` using the migrator connection, making the migrator the actual grantor. Identity connection validation runs after this grant.
+- After revocation, H02 queries `has_database_privilege(identityRole, database, 'CONNECT')` and requires `false` before clearing the exact EF `NpgsqlDataSource`, draining sessions, and proving a fresh non-pooled connection fails with SQLSTATE `42501`.
+- Runner and Independent Postflight require `F2B_H05E_DB_UNAVAILABLE_CONNECT_PRIVILEGE_REVOKED` plus manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_ACL_VERIFIED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED`.
+
+Source/test contract correction: `ed45175a108ff41bee9201d40a4467ac329d1c4b`. Runner correction: `c6be324e3d458e4b159607f7ca1ba7ba57b9d0b7`. Independent Postflight correction: `f1e8e0739ffed25bad90886406a24e24f4d448ff`.
+
+PostgreSQL 17 documents that a role can revoke only privileges granted by that role unless it is the object owner or has the relevant grant option; see [REVOKE](https://www.postgresql.org/docs/17/sql-revoke.html) and [Privileges](https://www.postgresql.org/docs/17/ddl-priv.html).
+
+**Acceptance remains PENDING:** correction has not yet been run at the new exact PR #56 HEAD. Full runner, disposable cleanup, and Independent Postflight must all pass at one SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD. No production health code, production DB, CT164, real SMTP, deployment or GitHub Actions.
