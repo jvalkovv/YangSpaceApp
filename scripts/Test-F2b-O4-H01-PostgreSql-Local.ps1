@@ -5,7 +5,7 @@ param([Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$Co
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-o4-h01-pg-http-startup-20261116'
+$Branch='feat/yangspace-f2b-h05c-outbox-operations-20261117'
 $Project='apps/api.RuntimeTests/YangSpace.Api.RuntimeTests.csproj'
 $Db='yangspace_f2b_o3_worker_disposable'
 $Image='postgres:17'
@@ -75,10 +75,10 @@ $DockerVersion=DockerValue @('info','--format','{{.ServerVersion}}')
 $ImageId=DockerValue @('image','inspect','--format','{{.Id}}',$Image)
 Check ($ImageId -match '^sha256:[0-9a-f]{64}$') 'F2B_O3_PG_IMAGE_PREEXISTS'
 $Nonce=RandomHex
-$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h01-postgres') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
+$Evidence=Join-Path (Join-Path $Repo 'logs/yangspace/f2b-o4-h05c-outbox-operations') ($CommitSha.Substring(0,12)+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Nonce.Substring(0,8))
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 . (Join-Path $PSScriptRoot 'Invoke-YangSpaceStage.ps1')
-$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-o3-'+$Nonce.Substring(0,12))
+$Temp=Join-Path ([IO.Path]::GetTempPath()) ('yangspace-h05-'+$Nonce.Substring(0,12))
 $Publish=Join-Path $Temp 'publish'
 $Network='ys-f2b-o3-'+$Nonce.Substring(0,12)
 $Container='ys-f2b-o3-pg17-'+$Nonce.Substring(0,12)
@@ -88,9 +88,11 @@ $RolesPath=Join-Path $Evidence 'temporary-roles.sql'
 $GrantsPath=Join-Path $Evidence 'temporary-grants.sql'
 $RunnerPath=Join-Path $Evidence 'temporary-run.sh'
 $H01RunnerPath=Join-Path $Evidence 'temporary-o4-h01-run.sh'
+$H02RunnerPath=Join-Path $Evidence 'temporary-h02-identity-run.sh'
 $CaPath=Join-Path $Evidence 'pg-root-ca.crt'
 $MigratorPw=RandomHex
 $RuntimePw=RandomHex
+$IdentityPw=RandomHex
 $Scope=RandomHex
 $NetworkAttempted=$false
 $ContainerAttempted=$false
@@ -110,8 +112,67 @@ try {
         'F2B_O3_WORKER_CONCURRENT_CLAIM','F2B_O3_WORKER_NULL_LEASE_RECOVERY',
         'F2B_O3_WORKER_LEASE_EXPIRY_RECOVERY','F2B_O3_WORKER_DEADLETTER',
         'F2B_O3_WORKER_OPERATOR_REPLAY','F2B_O3_WORKER_RETENTION_PURGE',
+        'F2B_O3_WORKER_SIGNED_RELEASE_AUTHORIZATION',
         'F2B_O3_WORKER_SQLITE_SYNTHETIC_ONLY'
     )) { Marker 'o3-sqlite-regression' $M }
+    Stage 'h02-enqueue-synthetic' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--outbox-enqueue-synthetic-only')
+    foreach ($M in @(
+        'F2B_OUTBOX_EMAIL_INTENT_PERSISTED','F2B_OUTBOX_MINIMAL_PENDING_INTENT',
+        'F2B_OUTBOX_PENDING_COALESCED','F2B_OUTBOX_PENDING_RETRY_EXPEDITED',
+        'F2B_OUTBOX_EXPIRED_PENDING_REUSED','F2B_OUTBOX_RESET_INTENT_PERSISTED',
+        'F2B_OUTBOX_NO_EMAIL_PAYLOAD_STORED','F2B_OUTBOX_DISPATCH_IMPLEMENTATION_AVAILABLE',
+        'F2B_OUTBOX_ATOMIC_ROLLBACK','F2B_OUTBOX_CONCURRENT_ENQUEUE_COALESCED',
+        'F2B_OUTBOX_PENDING_UNIQUE_INDEX','F2B_OUTBOX_LEASED_HISTORY_DOES_NOT_BLOCK_PENDING',
+        'F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH','F2B_OUTBOX_ENQUEUE_SYNTHETIC_ONLY',
+        'F2B_OUTBOX_SQLITE_CONCURRENCY'
+    )) { Marker 'h02-enqueue-synthetic' $M }
+    Stage 'h02-release-auth-contract' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--f2b-h02-release-authorization-only')
+    foreach ($M in @(
+        'F2B_H02_AUTH_VALID_SIGNATURE','F2B_H02_AUTH_MISSING_REFUSED',
+        'F2B_H02_AUTH_BAD_SIGNATURE_REFUSED','F2B_H02_AUTH_EXPIRED_REFUSED',
+        'F2B_H02_AUTH_FUTURE_ISSUED_REFUSED','F2B_H02_AUTH_ONE_HOUR_BOUNDARY_ACCEPTED',
+        'F2B_H02_AUTH_OVER_ONE_HOUR_REFUSED',
+        'F2B_H02_AUTH_WRONG_AUDIENCE_REFUSED','F2B_H02_AUTH_WRONG_SCOPE_REFUSED',
+        'F2B_H02_AUTH_WRONG_ENVIRONMENT_REFUSED','F2B_H02_AUTH_WRONG_COMMIT_REFUSED',
+        'F2B_H02_AUTH_NULL_SOURCE_COMMIT_REFUSED','F2B_H02_AUTH_NULL_APPROVAL_ID_REFUSED',
+        'F2B_H02_AUTH_WRONG_KEY_ID_REFUSED','F2B_H02_AUTH_BAD_PUBLIC_KEY_REFUSED',
+        'F2B_H02_AUTH_DEPLOYMENT_SHA_BINDING','F2B_H02_AUTH_PRODUCTION_ONLY',
+        'F2B_H02_AUTH_DEFAULT_SWITCHES_OFF','F2B_H02_AUTH_IMPLEMENTATION_AVAILABLE_AFTER_O3',
+        'F2B_H02_SIGNED_RELEASE_AUTHORIZATION_CONTRACT'
+    )) { Marker 'h02-release-auth-contract' $M }
+    Stage 'h03-abuse-sqlite' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--f2b-h03-identity-abuse-sqlite-only')
+    foreach ($M in @(
+        'F2B_H03_ABUSE_HMAC_KEY_VALIDATED',
+        'F2B_H03_ABUSE_MISSING_HMAC_KEY_FAILS_CLOSED',
+        'F2B_H03_ABUSE_SHORT_HMAC_KEY_FAILS_CLOSED',
+        'F2B_H03_ABUSE_SQLITE_MIGRATIONS_APPLIED',
+        'F2B_H03_ABUSE_SQLITE_SCHEMA_GATE',
+        'F2B_H03_ABUSE_RESEND_FIRST_ALLOWED',
+        'F2B_H03_ABUSE_NORMALIZED_EMAIL_SHARED_BUCKET',
+        'F2B_H03_ABUSE_THIRD_ALLOWED',
+        'F2B_H03_ABUSE_RESEND_LIMIT_ENFORCED',
+        'F2B_H03_ABUSE_OPERATION_BUCKET_ISOLATION',
+        'F2B_H03_ABUSE_ACCOUNT_BUCKET_ISOLATION',
+        'F2B_H03_ABUSE_COUNTER_PERSISTED',
+        'F2B_H03_ABUSE_NO_RAW_EMAIL_AT_REST',
+        'F2B_H03_ABUSE_WINDOW_EXPIRY_RECOVERY',
+        'F2B_H03_ABUSE_ATOMIC_CONCURRENT_BUDGET',
+        'F2B_H03_ABUSE_RETENTION_NEW_WINDOW_ALLOWED',
+        'F2B_H03_ABUSE_EXPIRED_COUNTERS_PURGED',
+        'F2B_H03_ABUSE_SQLITE_RUNTIME',
+        'F2B_H03_ABUSE_CROSS_INSTANCE_ATOMIC_UPSERT',
+        'F2B_H03_ABUSE_RETENTION'
+    )) { Marker 'h03-abuse-sqlite' $M }
+    Stage 'h03-auth-rate-http' $Dotnet @('run','--project',$Project,'-c','Release','--no-restore','--no-build','--','--f2b-h03-auth-rate-http-only')
+    foreach ($M in @(
+        'F2B_H03_AUTH_RATE_HTTP_429_AFTER_TWELVE',
+        'F2B_H03_AUTH_RATE_CLIENT_B_INDEPENDENT_BUDGET',
+        'F2B_H03_AUTH_RATE_MAPPED_IPV4_SAME_BUCKET',
+        'F2B_H03_AUTH_RATE_UNKNOWN_PEER_LIMITED',
+        'F2B_H03_AUTH_RATE_REAL_MIDDLEWARE',
+        'F2B_H03_AUTH_RATE_FORWARDED_HEADER_NOT_TRUSTED',
+        'F2B_H03_AUTH_RATE_TESTSERVER_ONLY'
+    )) { Marker 'h03-auth-rate-http' $M }
     Stage 'o3-publish-linux' $Dotnet @('publish',$Project,'-c','Release','-r','linux-x64','--self-contained','true','-warnaserror','-o',$Publish)
     $AppHost=Join-Path $Publish 'YangSpace.Api.RuntimeTests'
     $Dll=Join-Path $Publish 'YangSpace.Api.RuntimeTests.dll'
@@ -192,7 +253,8 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
 
     [IO.File]::WriteAllText($RolesPath,(
         "CREATE ROLE ys_o3_migrator LOGIN PASSWORD '$MigratorPw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;" + [Environment]::NewLine +
-        "CREATE ROLE ys_o3_runtime LOGIN PASSWORD '$RuntimePw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT;" + [Environment]::NewLine
+        "CREATE ROLE ys_o3_runtime LOGIN PASSWORD '$RuntimePw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT;" + [Environment]::NewLine +
+        "CREATE ROLE ys_h02_identity LOGIN PASSWORD '$IdentityPw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT;" + [Environment]::NewLine
     ),$Utf8)
     Stage 'o3-roles-copy' $Docker @('cp',$RolesPath,($Container+':/tmp/o3-roles.sql'))
     Stage 'o3-roles-apply' $Docker @('exec',$Container,'psql','-X','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-f','/tmp/o3-roles.sql')
@@ -201,10 +263,10 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     Stage 'o3-db-create' $Docker @('exec',$Container,'createdb','-U','postgres','--owner=postgres',$Db)
     [IO.File]::WriteAllText($GrantsPath,(
         "REVOKE ALL ON DATABASE $Db FROM PUBLIC;" + [Environment]::NewLine +
-        "GRANT CONNECT ON DATABASE $Db TO ys_o3_migrator,ys_o3_runtime;" + [Environment]::NewLine +
+        "GRANT CONNECT ON DATABASE $Db TO ys_o3_migrator,ys_o3_runtime,ys_h02_identity;" + [Environment]::NewLine +
         "REVOKE ALL ON SCHEMA public FROM PUBLIC;" + [Environment]::NewLine +
         "GRANT USAGE,CREATE ON SCHEMA public TO ys_o3_migrator;" + [Environment]::NewLine +
-        "GRANT USAGE ON SCHEMA public TO ys_o3_runtime;" + [Environment]::NewLine +
+        "GRANT USAGE ON SCHEMA public TO ys_o3_runtime,ys_h02_identity;" + [Environment]::NewLine +
         "CREATE TABLE public.yangspace_f2b_o3_qa_guard(scope_token text PRIMARY KEY);" + [Environment]::NewLine +
         "INSERT INTO public.yangspace_f2b_o3_qa_guard(scope_token) VALUES ('$Scope');" + [Environment]::NewLine +
         "GRANT SELECT ON public.yangspace_f2b_o3_qa_guard TO ys_o3_migrator,ys_o3_runtime;" + [Environment]::NewLine
@@ -216,8 +278,10 @@ exec /usr/local/bin/docker-entrypoint.sh postgres
     $BaseCs="Host=localhost;Port=5432;Database=$Db;SSL Mode=VerifyFull;Root Certificate=/run/pgcerts/ca.crt;Pooling=false;Timeout=10;Command Timeout=30;Include Error Detail=false"
     $MigratorCs="$BaseCs;Username=ys_o3_migrator;Password=$MigratorPw"
     $RuntimeCs="$BaseCs;Username=ys_o3_runtime;Password=$RuntimePw"
+    $IdentityCs="$BaseCs;Username=ys_h02_identity;Password=$IdentityPw"
     $MigratorB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($MigratorCs))
     $RuntimeB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($RuntimeCs))
+    $IdentityB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($IdentityCs))
     $ScopeB64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Scope))
     $Run=@'
 #!/bin/bash
@@ -226,11 +290,13 @@ umask 077
 export YANGSPACE_F2B_O3_PG_MIGRATOR_CONNECTION="$(printf '%s' '__MIGRATOR__' | base64 -d)"
 export YANGSPACE_F2B_O3_PG_RUNTIME_CONNECTION="$(printf '%s' '__RUNTIME__' | base64 -d)"
 export YANGSPACE_F2B_O3_PG_SCOPE_TOKEN="$(printf '%s' '__SCOPE__' | base64 -d)"
+export YANGSPACE_F2B_H02_PG_IDENTITY_CONNECTION="$(printf '%s' '__IDENTITY__' | base64 -d)"
+export YANGSPACE_RELEASE_COMMIT_SHA='__COMMIT_SHA__'
 export YANGSPACE_F2B_O3_PG_KEY_DIR=/run/pgcerts/o3-keys
 cd /tmp/o3-runtime
 exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
 '@
-    $Run=$Run.Replace('__MIGRATOR__',$MigratorB64).Replace('__RUNTIME__',$RuntimeB64).Replace('__SCOPE__',$ScopeB64)
+    $Run=$Run.Replace('__MIGRATOR__',$MigratorB64).Replace('__RUNTIME__',$RuntimeB64).Replace('__SCOPE__',$ScopeB64).Replace('__IDENTITY__',$IdentityB64).Replace('__COMMIT_SHA__',$CommitSha)
     [IO.File]::WriteAllText($RunnerPath,([regex]::Replace($Run,"\r\n?",[string][char]10)),$Utf8)
     Stage 'o3-runtime-mkdir' $Docker @('exec',$Container,'mkdir','-p','/tmp/o3-runtime')
     Stage 'o3-runtime-copy' $Docker @('cp',($Publish+'\.'),($Container+':/tmp/o3-runtime/'))
@@ -241,8 +307,9 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
     foreach ($M in @(
         'F2B_O3_PG_MIGRATIONS_APPLIED','F2B_O3_PG_MIGRATOR_TLS_SCOPE',
         'F2B_O3_PG_RUNTIME_LEAST_PRIVILEGE','F2B_O3_PG_RUNTIME_DENIED_OPERATIONS',
-        'F2B_O3_PG_RUNTIME_TLS_SCOPE','F2B_O3_PG_PRODUCTION_DISPATCHER_FALSE',
+        'F2B_O3_PG_RUNTIME_TLS_SCOPE','F2B_O3_PG_DISPATCH_IMPLEMENTATION_AVAILABLE',
         'F2B_O3_PG_DI_ACTIVATION','F2B_O3_PG_FAKE_TRANSPORT_ONLY',
+        'F2B_O3_PG_SIGNED_RELEASE_AUTHORIZATION',
         'F2B_O3_PG_CONFIRMATION_DISPATCH','F2B_O3_PG_RETRY_BACKOFF',
         'F2B_O3_PG_RETRY_RECOVERY','F2B_O3_PG_CONCURRENT_CLAIM',
         'F2B_O3_PG_LEASE_EXPIRY_RECOVERY','F2B_O3_PG_PASSWORD_RESET',
@@ -250,6 +317,8 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O3_PG_UNCERTAIN_ACK_AT_LEAST_ONCE','F2B_O3_PG_CRASH_LEASE_PRESERVED',
         'F2B_O3_PG_CRASH_RESTART_RECOVERY','F2B_O3_PG_DEADLETTER',
         'F2B_O3_PG_OPERATOR_REPLAY','F2B_O3_PG_RETENTION_PURGE',
+        'F2B_H05C_OUTBOX_SUMMARY_PERSISTED_COUNTS',
+        'F2B_H05C_OUTBOX_SUMMARY_NO_PII',
         'F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST',
         'F2B_O3_WORKER_NPGSQL_PROVIDER','F2B_O3_WORKER_POSTGRESQL_17',
         'F2B_O3_WORKER_TLS_VERIFYFULL','F2B_O3_WORKER_RUNTIME_LEAST_PRIVILEGE',
@@ -285,7 +354,10 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O4_H01_REJECTS_DISABLED_TLS',
         'F2B_O4_H01_REJECTS_TLS_HOSTNAME_MISMATCH',
         'F2B_O4_H01_REJECTS_MIGRATOR_AS_RUNTIME',
-        'F2B_O4_H01_REJECTS_PREMATURE_PUBLIC_ENABLE',
+        'F2B_O4_H01_REJECTS_MISSING_RELEASE_AUTHORIZATION',
+        'F2B_O4_H01_REJECTS_BAD_RELEASE_SIGNATURE',
+        'F2B_O4_H01_REJECTS_EXPIRED_RELEASE_AUTHORIZATION',
+        'F2B_O4_H01_REJECTS_WRONG_RELEASE_COMMIT',
         'F2B_O4_H01_REJECTS_PUBLIC_WITH_DISPATCH_OFF',
         'F2B_O4_H01_REJECTS_NONPRODUCTION_PUBLIC_ENABLE',
         'F2B_O4_H01_REAL_TESTSERVER_DEFAULT_OFF',
@@ -293,9 +365,108 @@ exec ./YangSpace.Api.RuntimeTests --f2b-o3-postgresql-worker-only
         'F2B_O4_H01_PRODUCTION_GATES_FAIL_CLOSED'
     )) { Marker 'o4-h01-testserver' $M }
     $H01Log=[IO.File]::ReadAllText((Join-Path $Evidence 'o4-h01-testserver.stdout.log'))
-    Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_RELEASE_POLICY\s*$') 'F2B_O4_H01_PUBLIC_RELEASE_POLICY_HELD'
+    Check ($H01Log -match '(?m)^F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION\s*$') 'F2B_O4_H01_PUBLIC_RELEASE_POLICY_HELD'
     Check ($H01Log -match '(?m)^F2B_O4_H01_SMTP=NOT_CONNECTED\s*$') 'F2B_O4_H01_SMTP_DISCONNECTED'
-    Stage 'o3-runtime-clean' $Docker @('exec',$Container,'rm','-rf','/tmp/o3-runtime','/qa','/tmp/o3-run.sh','/tmp/o4-h01-run.sh','/run/pgcerts/o3-keys')
+
+    $H02Run=$Run.Replace('cd /tmp/o3-runtime','cd /qa').Replace(
+        '--f2b-o3-postgresql-worker-only','--f2b-h02-production-identity-http-only')
+    [IO.File]::WriteAllText($H02RunnerPath,([regex]::Replace($H02Run,"\r\n?",[string][char]10)),$Utf8)
+    Stage 'h02-identity-runner-copy' $Docker @('cp',$H02RunnerPath,($Container+':/tmp/h02-identity-run.sh'))
+    Stage 'h02-identity-runner-mode' $Docker @('exec',$Container,'chmod','0600','/tmp/h02-identity-run.sh')
+    Remove-Item -LiteralPath $H02RunnerPath -Force
+    Stage 'h02-production-http' $Docker @('exec',$Container,'bash','/tmp/h02-identity-run.sh') 2400
+    foreach ($M in @(
+        'F2B_H02_QA_SCOPE_BOUND',
+        'F2B_H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE',
+        'F2B_H02_TEST_PEER_PARTITIONING',
+        'F2B_H02_EARLY_STARTUP_CONFIGURATION',
+        'F2B_H02_POSTGRES_ENUM_TEXT_MAPPING',
+        'F2B_H02_REAL_PRODUCTION_ENVIRONMENT',
+        'F2B_H02_FAKE_TRANSPORT_ONLY',
+        'F2B_H02_RELEASE_AUTHORIZATION_VALID',
+        'F2B_H02_PRODUCTION_LIVE_READY',
+        'F2B_H02_REGISTER_ACCEPTED_WITH_TRANSPORT_FAILURE',
+        'F2B_H02_REGISTER_IDENTITY_AND_OUTBOX_ATOMIC',
+        'F2B_H02_RESEND_UNKNOWN_GENERIC','F2B_H02_RESEND_CONFIRMATION_ACCEPTED',
+        'F2B_H02_RESEND_CONFIRMATION_RELEASES_RETRY',
+        'F2B_H02_CONFIRMATION_LINK_CANONICAL_HTTPS',
+        'F2B_H02_CONFIRMATION_TOKEN_DELIVERED',
+        'F2B_H02_EMAIL_CONFIRMATION_HTTP',
+        'F2B_H02_CONFIRMATION_REPLAY_REJECTED',
+        'F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS',
+        'F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED',
+        'F2B_H04_CONFIRM_INVALID_TOKEN_FAIL_CLOSED',
+        'F2B_H04_CONFIRM_UNKNOWN_USER_FAIL_CLOSED',
+        'F2B_H04_CONFIRM_MISSING_USER_FAIL_CLOSED',
+        'F2B_H02_CONCURRENT_CONFIRMATION_SINGLE_WINNER',
+        'F2B_H02_EXPIRED_CONFIRMATION_TOKEN_REJECTED',
+        'F2B_H02_EXPIRED_RESET_TOKEN_REJECTED',
+        'F2B_H02_EXPIRED_RESET_PRESERVES_PASSWORD',
+        'F2B_H02_DUPLICATE_REGISTRATION_GENERIC',
+        'F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT',
+        'F2B_H04_REGISTER_EMPTY_EMAIL_NO_ACCOUNT',
+        'F2B_H04_OVERSIZED_EMAIL_FIXTURE_VALIDATED',
+        'F2B_H04_REGISTER_OVERSIZED_EMAIL_NO_ACCOUNT',
+        'F2B_H04_REGISTER_EMPTY_PASSWORD_NO_ACCOUNT',
+        'F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT',
+        'F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT',
+        'F2B_H04_PUBLIC_REGISTER_NO_IDENTITY_ROLE',
+        'F2B_H04_PUBLIC_REGISTER_NO_ORGANIZATION_MEMBERSHIP',
+        'F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC',
+        'F2B_H04_STAFF_MULTIPLE_ROLES_CREATED',
+        'F2B_H04_STAFF_ANY_ROLE_EXCLUDED_FROM_ALL_PUBLIC_ACTIONS',
+        'F2B_H04_RESET_TOKEN_REPLAY_REJECTED',
+        'F2B_H04_RESET_REPLAY_DOES_NOT_CHANGE_PASSWORD',
+        'F2B_H04_RESET_MALFORMED_TOKEN_REJECTED',
+        'F2B_H04_RESET_MALFORMED_TOKEN_PRESERVES_PASSWORD',
+        'F2B_H04_RESET_INVALID_TOKEN_REJECTED',
+        'F2B_H04_RESET_INVALID_TOKEN_PRESERVES_PASSWORD',
+        'F2B_H05_DATAPROTECTION_UNCONFIGURED_FAILS_CLOSED',
+        'F2B_H05_DATAPROTECTION_OFFLINE_PROVISIONED_KEYRING',
+        'F2B_H05_DATAPROTECTION_ISOLATED_RING_REJECTS_TOKEN',
+        'F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_READINESS_503',
+        'F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200',
+        'F2B_H05_DATAPROTECTION_CROSS_INSTANCE_UNPROTECT',
+        'F2B_H05_DATAPROTECTION_MISSING_SENTINEL_READINESS_503_LIVE_200',
+        'F2B_H05_DATAPROTECTION_SENTINEL_RESTORED_READY_200',
+        'F2B_H05B_FIRST_PRODUCTION_TESTSERVER_DISPOSED',
+        'F2B_H05B_FOREIGN_RING_CONFIRMATION_TOKEN_REFUSED',
+        'F2B_H05B_FOREIGN_RING_RESET_TOKEN_REFUSED',
+        'F2B_H05B_OFFLINE_KEYRING_COPY_CONTINUITY_VALID',
+        'F2B_H05B_RESTORED_RING_CONFIRMATION_HTTP_SUCCESS',
+        'F2B_H05B_RESTORED_RING_RESET_HTTP_SUCCESS',
+        'F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED',
+        'F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID',
+        'F2B_H05B_RESTORED_KEYRING_CLEANED',
+        'F2B_H02_LOGIN_HTTP',
+        'F2B_H02_LOGIN_NO_SET_COOKIE',
+        'F2B_H02_LOGIN_BEARER_ONLY',
+        'F2B_H02_SESSION_REQUIRES_BEARER',
+        'F2B_H02_SESSION_BEARER_OK',
+        'F2B_H02_STAFF_ROLE_FIXTURES_CREATED','F2B_H02_STAFF_CONFIRMATION_DENIED',
+        'F2B_H02_STAFF_RESEND_NO_OUTBOX','F2B_H02_STAFF_LOGIN_DENIED',
+        'F2B_H02_STAFF_FORGOT_NO_OUTBOX','F2B_H02_STAFF_RESET_DENIED',
+        'F2B_H02_FORGOT_PASSWORD_ACCEPTED','F2B_H02_FORGOT_PASSWORD_UNKNOWN_GENERIC',
+        'F2B_H02_PASSWORD_RESET_HTTP',
+        'F2B_H02_REGISTER_ENQUEUE_FAILURE_HTTP_500','F2B_H02_REGISTER_ENQUEUE_FAILURE_ROLLBACK',
+        'F2B_H02_OLD_PASSWORD_REVOKED',
+        'F2B_H02_FAKE_CONFIRMATION_AND_RESET_ONLY',
+        'F2B_H02_NO_COOKIE_CLIENT_FALLBACK',
+        'F2B_H02_NO_REAL_SMTP',
+        'F2B_H02_NO_CT164_OR_PRODUCTION_DB',
+        'F2B_H02_IDENTITY_HTTP_FAKE_TRANSPORT',
+        'F2B_H03_ABUSE_STORAGE_PRIVILEGE_FAIL_CLOSED',
+        'F2B_H03_ABUSE_STORAGE_PRIVILEGES_RESTORED',
+        'F2B_H03_REGISTER_ACCOUNT_BUDGET',
+        'F2B_H03_RESEND_ACCOUNT_BUDGET',
+        'F2B_H03_POSTGRES_ATOMIC_CROSS_PEER_COUNTER',
+        'F2B_H03_FORGOT_ACCOUNT_BUDGET',
+        'F2B_H03_RESET_ACCOUNT_BUDGET',
+        'F2B_H03_IDENTITY_FIVE_FAILURE_LOCKOUT',
+        'F2B_H03_IDENTITY_LOCKOUT_NOT_BYPASSED_BY_PEER',
+        'F2B_H03_IDENTITY_LOCKOUT_EXPIRY_RECOVERY'
+    )) { Marker 'h02-production-http' $M }
+    Stage 'o3-runtime-clean' $Docker @('exec',$Container,'rm','-rf','/tmp/o3-runtime','/qa','/tmp/o3-run.sh','/tmp/o4-h01-run.sh','/tmp/h02-identity-run.sh','/run/pgcerts/o3-keys')
     $Complete=$true
 }
 finally {
@@ -322,7 +493,7 @@ finally {
         }
     } finally {
         $ErrorActionPreference=$Saved
-        foreach ($P in @($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath)) {
+        foreach ($P in @($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath,$H02RunnerPath)) {
             if (Test-Path -LiteralPath $P) { Remove-Item -LiteralPath $P -Force -ErrorAction SilentlyContinue }
         }
         if (Test-Path -LiteralPath $Temp) { Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction SilentlyContinue }
@@ -335,14 +506,44 @@ if (-not $Complete -or -not $Cleanup) {
     [IO.File]::WriteAllText((Join-Path $Evidence 'gate.txt'),'F2B_O3_PG=HOLD',$Utf8)
     throw 'F2B_O3_POSTGRES_RUN_OR_CLEANUP_FAILED'
 }
-$SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath) | Where-Object { Test-Path -LiteralPath $_ })
+$SecretsRemain=@(@($InitPath,$EntryPath,$RolesPath,$GrantsPath,$RunnerPath,$H01RunnerPath,$H02RunnerPath) | Where-Object { Test-Path -LiteralPath $_ })
 Check ($SecretsRemain.Count -eq 0 -and -not (Test-Path -LiteralPath $Temp)) 'F2B_O3_TEMPORARY_SECRET_CLEANUP'
 $HashPaths=@(
     'apps/api/IdentityEmailOutboxWorker.cs',
+    'apps/api/IdentityEmailOutboxAdminEndpoints.cs',
+    'apps/api/OutboxIdentityEmailSender.cs',
+    'apps/api/Program.cs',
+    'apps/api/PublicAccountDataProtectionPolicy.cs',
+    'apps/api/ProductionPostgreSqlPolicy.cs',
+    'apps/api/ProductionSchemaGate.cs',
+    'apps/api/PublicAccountEndpoints.cs',
+    'apps/api/IdentityAbuseThrottle.cs',
+    'apps/persistence/IdentityAbuseCounter.cs',
+    'apps/persistence/Models.cs',
+    'apps/api/Migrations/20261116213000_F2bIdentityAbuseProtection.cs',
+    'apps/api/Migrations/20261116213000_F2bIdentityAbuseProtection.Designer.cs',
+    'apps/api/Migrations/DirectoryDbModelSnapshot.cs',
+    'apps/api.Migrations.PostgreSql/Migrations/20261116213000_F2bIdentityAbuseProtection.cs',
+    'apps/api.Migrations.PostgreSql/Migrations/20261116213000_F2bIdentityAbuseProtection.Designer.cs',
+    'apps/api.Migrations.PostgreSql/Migrations/DirectoryDbModelSnapshot.cs',
+    'apps/api.RuntimeTests/AuthRateLimitHttpContract.cs',
+    'apps/api.RuntimeTests/IdentityAbuseThrottleContract.cs',
+    'apps/api/PublicAccountReleaseAuthorization.cs',
+    'apps/api/SmtpPublicIdentityEmailSender.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxWorkerContract.cs',
     'apps/api.RuntimeTests/IdentityEmailOutboxPostgreSqlWorkerContract.cs',
+    'apps/api.RuntimeTests/TestReleaseAuthorizationScope.cs',
+    'apps/api.RuntimeTests/IdentityEmailOutboxEnqueueContract.cs',
     'apps/api.RuntimeTests/Program.cs',
-    'apps/api.RuntimeTests/F2bO4H01PostgreSqlStartupContract.cs','apps/api/appsettings.json',
+    'apps/api.RuntimeTests/F2bO4H01PostgreSqlStartupContract.cs',
+    'apps/api.RuntimeTests/F2bH02ReleaseAuthorizationContract.cs',
+    'apps/api.RuntimeTests/F2bH02ProductionIdentityHttpContract.cs',
+    'apps/api/appsettings.json',
+    'docs/F2B_H02_RELEASE_AUTHORIZATION_20261116.md',
+    'docs/F2B_H03_IDENTITY_ABUSE_PROTECTION_20261116.md',
+    'docs/F2B_H04_IDENTITY_EDGE_MATRIX_20261117.md',
+    'docs/F2B_H05_DATAPROTECTION_RECOVERY_20261117.md',
+    'docs/SSOT.md',
     'scripts/Invoke-YangSpaceStage.ps1',
     'scripts/Test-F2b-Outbox-Worker-PostgreSql-Local.ps1',
     'scripts/Verify-F2b-Outbox-Worker-PostgreSql-Postflight.ps1',
@@ -356,7 +557,9 @@ foreach ($P in $HashPaths) {
     $Checksums+=((Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
 }
 foreach ($P in @(
-    'pg-root-ca.crt','o3-sqlite-regression.stdout.log','o3-pg-worker.stdout.log','o4-h01-testserver.stdout.log',
+    'pg-root-ca.crt','o3-sqlite-regression.stdout.log','h02-enqueue-synthetic.stdout.log','o3-pg-worker.stdout.log',
+    'h02-release-auth-contract.stdout.log','h03-abuse-sqlite.stdout.log','h03-auth-rate-http.stdout.log',
+    'o4-h01-testserver.stdout.log','h02-production-http.stdout.log',
     'YangSpace.Api.RuntimeTests.linux-x64','YangSpace.Api.RuntimeTests.dll'
 )) {
     $Checksums+=((Get-FileHash -LiteralPath (Join-Path $Evidence $P) -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+$P)
@@ -377,25 +580,53 @@ $Manifest=@(
     'POSTGRES_WORKER_PASSWORD_RESET=PASS','POSTGRES_WORKER_UNCERTAIN_ACK=PASS',
     'POSTGRES_WORKER_CRASH_RECOVERY=PASS','POSTGRES_WORKER_DEADLETTER_REPLAY=PASS',
     'POSTGRES_WORKER_RETENTION=PASS','POSTGRES_WORKER_NO_SENSITIVE_OUTBOX_FIELDS=PASS',
-    'SQLITE_REGRESSION=PASS','FAKE_TRANSPORT=PASS',
+    'SQLITE_REGRESSION=PASS','H02_ENQUEUE_SYNTHETIC=PASS','FAKE_TRANSPORT=PASS',
     'H01_REAL_PRODUCTION_TESTSERVER_DEFAULT_OFF=PASS',
     'H01_PRODUCTION_SCHEMA_GATE=PASS',
     'H01_TLS_HOSTNAME_NEGATIVE=PASS',
     'H01_LEAST_PRIVILEGE_NEGATIVE=PASS',
     'H01_PUBLIC_STARTUP_FAIL_CLOSED=PASS',
-    'H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_COMPILE_TIME_RELEASE_POLICY',
+    'H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION',
+    'H02_RELEASE_AUTHORIZATION=EPHEMERAL_TEST_ONLY',
+    'H02_AUTHORIZATION_MAX_LIFETIME=1_HOUR',
+    'H02_AUTHORIZATION_STARTUP_NEGATIVE_MATRIX=PASS',
+    'H02_IDENTITY_RUNTIME_ROLE=ys_h02_identity',
+    'H02_IDENTITY_RUNTIME_LEAST_PRIVILEGE=PASS',
+    'H03_APPLICATION_ABUSE_PROTECTION=PASS_TESTSERVER_AND_DISPOSABLE_SQLITE_POSTGRES',
+    'H03_ACCOUNT_KEY=HMAC_SHA256_ONLY',
+    'H03_RAW_EMAIL_COUNTER_STORAGE=PROHIBITED',
+    'H04_IDENTITY_EDGE_MATRIX=PASS_PRODUCTION_TESTSERVER_PG17',
+    'H04_REGISTRATION_NEGATIVE_MATRIX=PASS_EMPTY_MALFORMED_OVERSIZED_EMAIL_EMPTY_WEAK_PASSWORD',
+    'H04_INVALID_REGISTRATION_OUTBOX=NO_INSERT',
+    'H04_PUBLIC_ACCOUNT_ISOLATION=NO_IDENTITY_ROLE_NO_ORGANIZATION_MEMBERSHIP',
+    'H05_DATAPROTECTION_FOUNDATION=PASS_PRODUCTION_TESTSERVER_PG17',
+    'H05_KEYRING_RECOVERY=PASS_SENTINEL_LOSS_503_RESTORE_200',
+    'H05B_IDENTITY_RESTART_TOKEN_CONTINUITY=PASS_FOREIGN_REFUSED_RESTORED_ACCEPTED',
+    'H05C_OUTBOX_OPERATOR_SUMMARY=PASS_POSTGRES_COUNTS_NO_PII',
+    'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
+    'H02_FAKE_TRANSPORT=PASS',
+    'H02_NO_REAL_SMTP=PASS',
+    'H02_NO_CT164=PASS',
+    'H02_NO_PRODUCTION_DB=PASS',
+    'H02_SOURCE_DEFAULTS_OFF=PASS',
     'NO_HOST_PORTS=PASS','NO_HOST_BINDS=PASS','TMPFS_ONLY=PASS',
     'CONTAINER_REMOVED=PASS','NETWORK_REMOVED=PASS',
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_O4_H01_REVIEW_AND_H02_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H05_FULL_RECOVERY_AND_H06'
 )
 [IO.File]::WriteAllLines((Join-Path $Evidence 'manifest.txt'),[string[]]$Manifest,$Utf8)
 & (Join-Path $PSScriptRoot 'Verify-F2b-O4-H01-PostgreSql-Postflight.ps1') -CommitSha $CommitSha -EvidenceDirectory $Evidence
 if (-not $?) { throw 'F2B_O4_H01_INDEPENDENT_POSTFLIGHT_FAILED' }
 Write-Host 'F2B_O4_H01_PRODUCTION_STARTUP_QA=PASS'
+Write-Host 'F2B_H02_PRODUCTION_IDENTITY_HTTP_QA=PASS'
+Write-Host 'F2B_H03_APPLICATION_ABUSE_PROTECTION_QA=PASS'
+Write-Host 'F2B_H04_IDENTITY_EDGE_QA=PASS'
+Write-Host 'F2B_H05_DP_FOUNDATION_QA=PASS'
+Write-Host 'F2B_H05B_IDENTITY_RESTART_QA=PASS'
+Write-Host 'F2B_H05C_OPERATOR_SUMMARY_QA=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath (Join-Path $Evidence 'manifest.txt') -Algorithm SHA256).Hash.ToLowerInvariant())
-Write-Host 'RELEASE_GATE=HOLD_O4_H01_REVIEW_AND_H02_H06'
+Write-Host 'RELEASE_GATE=HOLD_H05_FULL_RECOVERY_AND_H06'

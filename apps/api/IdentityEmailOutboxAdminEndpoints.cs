@@ -8,10 +8,21 @@ namespace YangSpace.Api;
 
 internal enum IdentityEmailOutboxReplayResult { Replayed, NotFound, NotDeadLetter, PendingExists }
 
+internal sealed record IdentityEmailOutboxOperationalSummary(
+    DateTime ObservedAtUtc, long Pending, long Due, long RetryPending,
+    long Leased, long Sent, long Suppressed, long DeadLetter,
+    DateTime? OldestPendingUtc, DateTime? LatestSentUtc);
+
 internal static class IdentityEmailOutboxAdminEndpoints
 {
     internal static void MapIdentityEmailOutboxAdmin(this RouteGroupBuilder admin)
     {
+        // Only mapped beneath the existing PlatformAdmin bearer + gateway filtered group.
+        // Count-based operational data; deliberately no user IDs, emails, tokens or payloads.
+        admin.MapGet("/email-outbox/summary", async (
+            DirectoryDb db, TimeProvider clock, CancellationToken ct) =>
+            Results.Ok(await ReadSummaryAsync(db, clock, ct)));
+
         admin.MapGet("/email-outbox/dead-letter", async (DirectoryDb db, CancellationToken ct) =>
         {
             var rows = await db.IdentityEmailOutbox.AsNoTracking()
@@ -42,6 +53,40 @@ internal static class IdentityEmailOutboxAdminEndpoints
                 _ => Results.Conflict(new { error = "The outbox item cannot be replayed in its current state." })
             };
         });
+    }
+
+    internal static async Task<IdentityEmailOutboxOperationalSummary> ReadSummaryAsync(
+        DirectoryDb db, TimeProvider clock, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var rows = await db.IdentityEmailOutbox.AsNoTracking()
+            .GroupBy(x => x.Status)
+            .Select(group => new { Status = group.Key, Count = group.LongCount() })
+            .ToArrayAsync(ct);
+        long Count(IdentityEmailOutboxStatus status) =>
+            rows.Where(x => x.Status == status).Sum(x => x.Count);
+
+        var due = await db.IdentityEmailOutbox.AsNoTracking().LongCountAsync(x =>
+            x.Status == IdentityEmailOutboxStatus.Pending &&
+            x.AvailableAtUtc <= now && x.ExpiresAtUtc > now, ct);
+        var retryPending = await db.IdentityEmailOutbox.AsNoTracking().LongCountAsync(x =>
+            x.Status == IdentityEmailOutboxStatus.Pending && x.AttemptCount > 0, ct);
+        var oldestPending = await db.IdentityEmailOutbox.AsNoTracking()
+            .Where(x => x.Status == IdentityEmailOutboxStatus.Pending)
+            .MinAsync(x => (DateTime?)x.QueuedAtUtc, ct);
+        var latestSent = await db.IdentityEmailOutbox.AsNoTracking()
+            .Where(x => x.Status == IdentityEmailOutboxStatus.Sent)
+            .MaxAsync(x => x.SentAtUtc, ct);
+
+        return new IdentityEmailOutboxOperationalSummary(
+            now,
+            Count(IdentityEmailOutboxStatus.Pending),
+            due, retryPending,
+            Count(IdentityEmailOutboxStatus.Leased),
+            Count(IdentityEmailOutboxStatus.Sent),
+            Count(IdentityEmailOutboxStatus.Suppressed),
+            Count(IdentityEmailOutboxStatus.DeadLetter),
+            oldestPending, latestSent);
     }
 
     internal static async Task<IdentityEmailOutboxReplayResult> ReplayDeadLetterAsync(

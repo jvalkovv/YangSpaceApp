@@ -48,6 +48,21 @@ internal static class IdentityEmailOutboxEnqueueContract
                   intent.ExpiresAtUtc == originalExpiry,
                   "F2B_OUTBOX_PENDING_COALESCED");
 
+            // An explicit resend releases a valid Pending retry from backoff
+            // without creating a second intent or resetting its attempt count.
+            intent.AvailableAtUtc = DateTime.UtcNow.AddMinutes(5);
+            intent.LastFailureCode = "synthetic-retry";
+            await db.SaveChangesAsync();
+            var retryRevision = intent.Revision;
+            await queue.SendConfirmationLinkAsync(
+                user, user.Email!, "https://yangspace.gndstore.eu/confirm?token=resend_secret");
+            await db.Entry(intent).ReloadAsync();
+            Check(intent.AvailableAtUtc <= DateTime.UtcNow.AddSeconds(1) &&
+                  intent.LastFailureCode is null &&
+                  intent.Revision == retryRevision + 1 &&
+                  await db.IdentityEmailOutbox.CountAsync() == 1,
+                  "F2B_OUTBOX_PENDING_RETRY_EXPEDITED");
+
             // An expired Pending intent is refreshed in place, not duplicated.
             intent.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1);
             intent.AttemptCount = 5;
@@ -78,8 +93,8 @@ internal static class IdentityEmailOutboxEnqueueContract
             Check(allRows.All(x => x.LastFailureCode is null) &&
                   allRows.All(x => x.UserId != user.Email),
                   "F2B_OUTBOX_NO_EMAIL_PAYLOAD_STORED");
-            Check(!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
-                  "F2B_OUTBOX_DISPATCH_FAIL_CLOSED");
+            Check(IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,
+                  "F2B_OUTBOX_DISPATCH_IMPLEMENTATION_AVAILABLE");
 
             var rolledBack = new IdentityUser
             {
@@ -145,6 +160,7 @@ internal static class IdentityEmailOutboxEnqueueContract
             await RunConcurrentBatchAsync(connectionString, userId, email, 16);
 
             Guid pendingId;
+            long revisionBeforeExpiredRefresh;
             await using (var verifyConnection = new SqliteConnection(connectionString))
             {
                 await verifyConnection.OpenAsync();
@@ -215,6 +231,7 @@ internal static class IdentityEmailOutboxEnqueueContract
                 pending.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1);
                 pending.AttemptCount = 4;
                 pending.LastFailureCode = "synthetic-retry";
+                revisionBeforeExpiredRefresh = pending.Revision;
                 await db.SaveChangesAsync();
             }
 
@@ -230,12 +247,24 @@ internal static class IdentityEmailOutboxEnqueueContract
                     .SingleAsync(x => x.UserId == userId &&
                                       x.Purpose == IdentityEmailPurpose.ConfirmEmail &&
                                       x.Status == IdentityEmailOutboxStatus.Pending);
-                Check(pending.Id == pendingId &&
-                      pending.ExpiresAtUtc > DateTime.UtcNow &&
-                      pending.AttemptCount == 0 &&
-                      pending.LastFailureCode is null &&
-                      pending.Revision == 1,
-                      "F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH");
+                var expiredRefreshPassed = pending.Id == pendingId &&
+                    pending.ExpiresAtUtc > DateTime.UtcNow &&
+                    pending.AttemptCount == 0 &&
+                    pending.LastFailureCode is null &&
+                    pending.Revision == revisionBeforeExpiredRefresh + 1;
+
+                if (!expiredRefreshPassed)
+                {
+                    Console.Error.WriteLine(
+                        $"F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH_OBSERVED id={pending.Id:D} " +
+                        $"expectedId={pendingId:D} expiryUtc={pending.ExpiresAtUtc:O} " +
+                        $"nowUtc={DateTime.UtcNow:O} attemptCount={pending.AttemptCount} " +
+                        $"lastFailureCode={pending.LastFailureCode ?? "<null>"} " +
+                        $"revision={pending.Revision} " +
+                        $"expectedRevision={revisionBeforeExpiredRefresh + 1}");
+                }
+
+                Check(expiredRefreshPassed, "F2B_OUTBOX_CONCURRENT_EXPIRED_REFRESH");
             }
         }
         finally
