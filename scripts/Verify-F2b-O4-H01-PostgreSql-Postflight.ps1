@@ -1,4 +1,4 @@
-# Independent O3 PostgreSQL worker postflight; evidence-only, no database connections.
+# Independent H04 application Identity postflight; evidence-only, no database connections.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$CommitSha,
@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Repo=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Branch='feat/yangspace-f2b-h03-identity-abuse-controls-20261116'
+$Branch='feat/yangspace-f2b-h04-identity-edge-matrix-20261117'
 $Git=(Get-Command git.exe -ErrorAction Stop).Source
 $Docker=(Get-Command docker.exe -ErrorAction Stop).Source
 function Check([bool]$Ok,[string]$Marker) {
@@ -37,7 +37,7 @@ Check ($ActiveBranch -eq '' -or $ActiveBranch -ceq $Branch) 'POSTFLIGHT_BRANCH_O
 $Dirty=@(& $Git -C $Repo status --porcelain --untracked-files=all | Where-Object { $_ })
 Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_CLEAN_SOURCE'
 $Evidence=(Resolve-Path -LiteralPath $EvidenceDirectory).Path
-$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h03-identity-abuse'))
+$Root=[IO.Path]::GetFullPath((Join-Path $Repo 'logs/yangspace/f2b-o4-h04-identity-edge'))
 Check ($Evidence.StartsWith($Root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) 'POSTFLIGHT_EVIDENCE_SCOPE'
 Check ((Split-Path $Evidence -Leaf) -match ('^'+$CommitSha.Substring(0,12)+'-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$')) 'POSTFLIGHT_EVIDENCE_IDENTITY'
 $ManifestPath=Join-Path $Evidence 'manifest.txt'
@@ -71,6 +71,7 @@ foreach ($Value in @(
     'H03_APPLICATION_ABUSE_PROTECTION=PASS_TESTSERVER_AND_DISPOSABLE_SQLITE_POSTGRES',
     'H03_ACCOUNT_KEY=HMAC_SHA256_ONLY',
     'H03_RAW_EMAIL_COUNTER_STORAGE=PROHIBITED',
+    'H04_IDENTITY_EDGE_MATRIX=PASS_PRODUCTION_TESTSERVER_PG17',
     'H02_PRODUCTION_HTTP=PASS_TESTSERVER_ONLY',
     'H02_FAKE_TRANSPORT=PASS',
     'H02_NO_REAL_SMTP=PASS',
@@ -82,7 +83,7 @@ foreach ($Value in @(
     'TEMPORARY_SECRETS_REMOVED=PASS','CLEAN_SOURCE=PASS',
     'PUBLIC_REGISTRATION=OFF','OUTBOX_DISPATCH=OFF',
     'SMTP=NOT_CONNECTED','CT164_DB=NOT_ACCESSED','PRODUCTION_DB=NOT_ACCESSED',
-    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H03_REVIEW_AND_H04_H06'
+    'GITHUB_ACTIONS=NOT_USED','RELEASE_GATE=HOLD_H04_REVIEW_AND_H05_H06'
 )) { ManifestLine $Lines $Value }
 $PgVersionEntry=@($Lines | Where-Object { $_ -like 'POSTGRES_VERSION=*' })
 Check ($PgVersionEntry.Count -eq 1) 'POSTFLIGHT_PG_VERSION_RECORDED'
@@ -257,11 +258,23 @@ foreach ($M in @(
     'F2B_H02_CONFIRMATION_TOKEN_DELIVERED',
     'F2B_H02_EMAIL_CONFIRMATION_HTTP',
     'F2B_H02_CONFIRMATION_REPLAY_REJECTED',
+    'F2B_H04_CONFIRMATION_RESPONSE_SECURITY_HEADERS',
+    'F2B_H04_CONFIRM_MALFORMED_TOKEN_FAIL_CLOSED',
+    'F2B_H04_CONFIRM_UNKNOWN_USER_FAIL_CLOSED',
     'F2B_H02_CONCURRENT_CONFIRMATION_SINGLE_WINNER',
     'F2B_H02_EXPIRED_CONFIRMATION_TOKEN_REJECTED',
     'F2B_H02_EXPIRED_RESET_TOKEN_REJECTED',
     'F2B_H02_EXPIRED_RESET_PRESERVES_PASSWORD',
     'F2B_H02_DUPLICATE_REGISTRATION_GENERIC',
+    'F2B_H04_REGISTER_INVALID_EMAIL_NO_ACCOUNT',
+    'F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT',
+    'F2B_H04_DUPLICATE_REGISTRATION_BODY_GENERIC',
+    'F2B_H04_STAFF_MULTIPLE_ROLES_CREATED',
+    'F2B_H04_STAFF_ANY_ROLE_EXCLUDED_FROM_ALL_PUBLIC_ACTIONS',
+    'F2B_H04_RESET_TOKEN_REPLAY_REJECTED',
+    'F2B_H04_RESET_REPLAY_DOES_NOT_CHANGE_PASSWORD',
+    'F2B_H04_RESET_MALFORMED_TOKEN_REJECTED',
+    'F2B_H04_RESET_MALFORMED_TOKEN_PRESERVES_PASSWORD',
     'F2B_H02_LOGIN_HTTP','F2B_H02_LOGIN_NO_SET_COOKIE','F2B_H02_LOGIN_BEARER_ONLY',
     'F2B_H02_SESSION_REQUIRES_BEARER','F2B_H02_SESSION_BEARER_OK',
     'F2B_H02_STAFF_ROLE_FIXTURES_CREATED','F2B_H02_STAFF_CONFIRMATION_DENIED',
@@ -320,7 +333,8 @@ Check ($LASTEXITCODE -eq 0 -and $Dirty.Count -eq 0) 'POSTFLIGHT_FINAL_CLEAN_SOUR
 Write-Host 'F2B_O4_H01_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H02_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host 'F2B_H03_INDEPENDENT_POSTFLIGHT=PASS'
+Write-Host 'F2B_H04_INDEPENDENT_POSTFLIGHT=PASS'
 Write-Host "COMMIT_SHA=$CommitSha"
 Write-Host "EVIDENCE_DIR=$Evidence"
 Write-Host ('MANIFEST_SHA256='+(Get-FileHash -LiteralPath $ManifestPath -Algorithm SHA256).Hash.ToLowerInvariant())
-Write-Host 'RELEASE_GATE=HOLD_H03_REVIEW_AND_H04_H06'
+Write-Host 'RELEASE_GATE=HOLD_H04_REVIEW_AND_H05_H06'
