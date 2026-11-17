@@ -924,10 +924,12 @@ internal static class F2bH02ProductionIdentityHttpContract
         Console.WriteLine("F2B_H02_NO_CT164_OR_PRODUCTION_DB=PASS");
         Console.WriteLine("F2B_H02_IDENTITY_HTTP_FAKE_TRANSPORT=PASS");
 
-        await RunH05dAdminHttpAsync(
-            factory, identityConnection, startupConfiguration, staffConfirmedEmail, password);
         await RunH05RestartIdentityRecoveryAsync(
             factory, client, identityConnection, startupConfiguration, keyRing, password);
+        // H05b explicitly disposes the first factory/worker before H05d:
+        // otherwise a live background worker could race the replay assertions.
+        await RunH05dAdminHttpAsync(
+            identityConnection, startupConfiguration, staffConfirmedEmail, password);
     }
 
 
@@ -935,8 +937,7 @@ internal static class F2bH02ProductionIdentityHttpContract
     // gateway filter, with synthetic loopback peer. All accounts/outbox rows live
     // solely in the disposable PostgreSQL 17 fixture; no real SMTP is used.
     private static async Task RunH05dAdminHttpAsync(
-        Factory seedFactory, string connection,
-        IReadOnlyDictionary<string, string?> configuration,
+        string connection, IReadOnlyDictionary<string, string?> configuration,
         string operatorEmail, string password)
     {
         var gateway = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -990,7 +991,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         Check(true, "F2B_H05D_ADMIN_BEARER_LOGIN_NO_COOKIE");
 
         var publicEmail = "h05d-nonadmin-" + Guid.NewGuid().ToString("N") + "@example.invalid";
-        _ = await CreatePublicUserAsync(seedFactory.Services, publicEmail, password, emailConfirmed: true);
+        _ = await CreatePublicUserAsync(adminFactory.Services, publicEmail, password, emailConfirmed: true);
         var nonAdminBearer = await GetBearerAsync(client, publicEmail, password, gateway);
 
         var summaryUrl = "/api/v1/admin/email-outbox/summary";
@@ -1043,7 +1044,7 @@ internal static class F2bH02ProductionIdentityHttpContract
 
         var deadUserEmail = "h05d-dead-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         var deadUser = await CreatePublicUserAsync(
-            seedFactory.Services, deadUserEmail, password, emailConfirmed: false);
+            adminFactory.Services, deadUserEmail, password, emailConfirmed: false);
         var deadId = Guid.NewGuid();
         var now = DateTime.UtcNow;
         await using (var scope = adminFactory.Services.CreateAsyncScope())
