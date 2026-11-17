@@ -4,6 +4,14 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H05e runtime QA blocker: telemetry DI constructor (source correction prepared)
+
+- Exact failed QA source: `3eb99abcea489575cdc3769efc92b659ee984798`.
+- Windows Release restore/build passed; the SQLite worker regression stopped at DI container validation before PostgreSQL 17/TLS VerifyFull provisioning.
+- Root cause: `IdentityEmailOutboxWorkerTelemetry` is an internal implementation type whose parameterless constructor was also internal. The default Microsoft DI `AddSingleton<T>()` implementation-type registration only selects public constructors, so the hosted worker could not be activated.
+- Correction: make the constructor public (the telemetry type itself remains internal), and add an explicit Production worker-contract assertion for singleton DI activation. The SQLite runner and Independent Postflight now require `F2B_H05E_TELEMETRY_DI_ACTIVATION`; the manifest records `H05E_TELEMETRY_DI=PASS_PUBLIC_CONSTRUCTOR_SINGLETON_ACTIVATION`.
+- This is a source/test-gate correction only. The failing run did not reach PostgreSQL; no runtime H05e acceptance is claimed. Re-run the complete exact-SHA runner and Independent Postflight after the correction commit. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD.
+
 ## 2026-11-17 — H05e SMTP fault-injection evidence correction (runtime QA PENDING)
 
 - Correction baseline: PR #56 head `d845bea20730e9da0611ee06748509c13fdb874b`.
