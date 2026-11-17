@@ -4,6 +4,22 @@
 
 **Explicit scope exclusion:** Cloudflare, Nginx, proxy, firewall, DNS and ingress engineering are not active application tasks. Do not expand the current work into infrastructure troubleshooting.
 
+## 2026-11-17 — H04 acceptance follow-up
+
+**Status: SOURCE FOLLOW-UP COMMITTED / EXACT-SHA RUNTIME QA PENDING.** PR #49 remains Draft and Issue #48 remains open. The prior H04 runtime result is tied to its own exact source SHA and must not be reused after the follow-up changes below.
+
+The H04 acceptance review identified two missing parts of the written Issue #48 DoD. The follow-up adds:
+
+- Registration HTTP 400 cases for malformed, empty and oversized email; the oversized fixture is first verified as syntactically valid by `EmailAddressAttribute`.
+- Stable response-body equality across invalid-email boundaries.
+- An exact before/after disposable outbox row-count assertion for invalid email and weak-password requests.
+- Persisted-state assertions that a successfully registered public account has zero Identity role assignments and zero `OrganizationMembers` rows.
+- Matching stable markers in the exact-SHA runner and Independent Postflight, plus manifest requirements and an updated H04 operator matrix.
+
+The observation queries use the disposable migrator connection; the application Identity runtime role receives no additional tenant-table privileges. No production code switches, real SMTP, CT164, Production DB or deployment are changed.
+
+**Acceptance remains HOLD** until the current remote PR head passes the complete Release/PostgreSQL 17/TLS VerifyFull runner and Independent Postflight, followed by scoped source review. Keep PR #49 Draft and do not enable public registration or outbox dispatch.
+
 ## Current application source audit
 
 Baseline: H03 exact tested source `441c3a7742d7387b3d900d7f2bbee48cdd39001f`.
