@@ -221,13 +221,14 @@ The latest exact-SHA operator run passed the earlier H01 stage and advanced into
 **Root cause:** the H02 fixture used `REVOKE CONNECT ON DATABASE ... FROM ys_h02_identity` as its DB outage injection. PostgreSQL applies this to new sessions only; existing authenticated sessions remain connected. Npgsql pooling could therefore reuse an already-established session, allowing readiness queries to continue and invalidating the test's expected 503.
 
 **Correction (test harness only; no production health behavior changed):**
-- Revoke CONNECT, then call `NpgsqlConnection.ClearAllPools()` in the same TestServer process.
+- The TestServer factory now supplies an explicitly owned `NpgsqlDataSource` to the EF Core `DirectoryDb` options, using the same exact TLS VerifyFull connection string and runtime identity as Production.
+- Revoke CONNECT, then call `NpgsqlDataSource.Clear()` on the **exact data source used by EF**. This avoids relying on `NpgsqlConnection.ClearAllPools()`, which is not a reliable way to clear an explicitly managed EF data-source pool.
 - Wait, with a bounded timeout, until `pg_stat_activity` reports zero remaining sessions for `ys_h02_identity`.
 - Prove a fresh non-pooled identity connection is refused with PostgreSQL SQLSTATE `42501`.
 - Only then assert `/health/ready=503` and `/health/live=200`.
-- Restore CONNECT and clear pools again before requiring readiness recovery to HTTP 200.
-- Runner and Independent Postflight require the two new proof markers and a manifest entry: `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_POOL_CLEARED_SESSIONS_DRAINED`.
+- Restore CONNECT and clear the same data source again before requiring readiness recovery to HTTP 200.
+- Runner and Independent Postflight require the EF data-source-cleared, session-drained and new-connection-denied markers plus manifest `H05E_DB_UNAVAILABLE_PROBE=PASS_CONNECT_REVOKED_EF_DATASOURCE_CLEARED_SESSIONS_DRAINED`.
 
-Source correction commit: `f8a0d5309490e0c3bd7dc9f8d3164994128957e9`. Runner marker/manifest commit: `ecb5adedb4761611c0205a14e70a4a7bde140f8d` (with subsequent formatting-only runner commit).
+Superseding source/test correction commit: `e15ad690d2519879f769124b6b28cdc67466ef9e`. Runner marker/manifest commit: `77cacf580e03630b62a808926b7f5ecbd6ae2c7d`; Independent Postflight commit: `0ec6637acb94d4b30613b48c7f93e66fc0f2f6cd`.
 
 **Acceptance remains PENDING:** this correction has not yet been run on Windows at the latest exact PR #56 HEAD, and the full runner plus Independent Postflight must pass at the same SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD. No CT164, production DB, real SMTP, deployment or GitHub Actions.
