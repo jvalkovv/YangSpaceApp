@@ -45,14 +45,16 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             Check(await DeniedOperations(runtimeCs),"F2B_O3_PG_RUNTIME_DENIED_OPERATIONS");
 
             var clock=new MutableClock(DateTimeOffset.UtcNow);
+            using var releaseAuthorization=new TestReleaseAuthorizationScope(
+                clock.GetUtcNow(),Required("YANGSPACE_RELEASE_COMMIT_SHA"));
             var fake=new FakeTransport();
-            var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
-                ["PublicAccounts:CanonicalOrigin"]="https://yangspace.gndstore.eu",
-                ["PublicAccounts:Enabled"]="true",
-                ["PublicAccounts:Outbox:DispatchEnabled"]="true"
-            }).Build();
+            var config=releaseAuthorization.Configuration;
+            Check(IdentityEmailOutboxDispatchPolicy.IsEnabled(
+                config,releaseAuthorization.HostEnvironment,clock),
+                "F2B_O3_PG_SIGNED_RELEASE_AUTHORIZATION");
             var runtimeServices=CreateIdentityServices(runtimeCs,keys);
             runtimeServices.AddSingleton<TimeProvider>(clock);
+            runtimeServices.AddSingleton<IHostEnvironment>(releaseAuthorization.HostEnvironment);
             runtimeServices.AddSingleton<IConfiguration>(config);
             runtimeServices.AddScoped<IEmailSender<IdentityUser>,OutboxIdentityEmailSender>();
             runtimeServices.AddSingleton<IIdentityEmailOutboxTransport>(fake);
@@ -67,7 +69,7 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             var queue=runtimeScope.ServiceProvider.GetRequiredService<IEmailSender<IdentityUser>>();
             var users=migratorScope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
             Check(await VerifyScope(runtimeCs,scopeToken,"ys_o3_runtime"),"F2B_O3_PG_RUNTIME_TLS_SCOPE");
-            Check(!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,"F2B_O3_PG_PRODUCTION_DISPATCHER_FALSE");
+            Check(IdentityEmailOutboxDispatchPolicy.DispatcherAvailable,"F2B_O3_PG_DISPATCH_IMPLEMENTATION_AVAILABLE");
             Check(runtimeProvider.GetServices<IHostedService>().Any(x=>x is IdentityEmailOutboxWorker),"F2B_O3_PG_DI_ACTIVATION");
             Check(ReferenceEquals(runtimeScope.ServiceProvider.GetRequiredService<IIdentityEmailOutboxTransport>(),fake),"F2B_O3_PG_FAKE_TRANSPORT_ONLY");
 
@@ -228,6 +230,33 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
             Check(!forbidden && (await db.IdentityEmailOutbox.AsNoTracking().ToArrayAsync())
                 .All(x=>x.UserId!=user.Email),"F2B_O3_PG_NO_TOKEN_OR_RECIPIENT_AT_REST");
 
+            // H05c: verify the actual operational projection against persisted PG17.
+            // Expose only count and UTC time fields (no identity/user/message data).
+            var summary = await IdentityEmailOutboxAdminEndpoints.ReadSummaryAsync(
+                db, clock, CancellationToken.None);
+            var expectedSent = await db.IdentityEmailOutbox.AsNoTracking()
+                .LongCountAsync(x => x.Status == IdentityEmailOutboxStatus.Sent);
+            var expectedPending = await db.IdentityEmailOutbox.AsNoTracking()
+                .LongCountAsync(x => x.Status == IdentityEmailOutboxStatus.Pending);
+            var expectedDeadLetter = await db.IdentityEmailOutbox.AsNoTracking()
+                .LongCountAsync(x => x.Status == IdentityEmailOutboxStatus.DeadLetter);
+            Check(summary.Sent == expectedSent &&
+                summary.Pending == expectedPending &&
+                summary.DeadLetter == expectedDeadLetter &&
+                summary.Due <= summary.Pending &&
+                summary.RetryPending <= summary.Pending &&
+                summary.ObservedAtUtc == clock.GetUtcNow().UtcDateTime,
+                "F2B_H05C_OUTBOX_SUMMARY_PERSISTED_COUNTS");
+
+            var summaryJson = System.Text.Json.JsonSerializer.Serialize(summary);
+            Check(!summaryJson.Contains("@", StringComparison.Ordinal) &&
+                !summaryJson.Contains("UserId", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Email", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Token", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Payload", StringComparison.OrdinalIgnoreCase) &&
+                !summaryJson.Contains("Secret", StringComparison.OrdinalIgnoreCase),
+                "F2B_H05C_OUTBOX_SUMMARY_NO_PII");
+
             Console.WriteLine("F2B_O3_WORKER_NPGSQL_PROVIDER=PASS");
             Console.WriteLine("F2B_O3_WORKER_POSTGRESQL_17=PASS");
             Console.WriteLine("F2B_O3_WORKER_TLS_VERIFYFULL=PASS");
@@ -343,7 +372,8 @@ internal static class IdentityEmailOutboxPostgreSqlWorkerContract
 
     private static IdentityEmailOutboxWorker NewWorker(IServiceProvider p,TimeProvider clock,IConfiguration config)=>
         new(p.GetRequiredService<IServiceScopeFactory>(),p.GetRequiredService<ILogger<IdentityEmailOutboxWorker>>(),
-            p.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,allowSyntheticDispatch:true);
+            p.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,
+            p.GetRequiredService<IHostEnvironment>());
 
     private static async Task<IdentityUser> NewUser(UserManager<IdentityUser> users,string email,bool confirmed)
     {

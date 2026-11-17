@@ -1,3 +1,33 @@
+## H01 launcher destination correction — source fix / runtime pending
+
+The 2026-11-16 operator rerun passed content-root mkdir/copy/verify and launcher-copy, but `chmod` failed because `/run/pgcerts` was not an existing destination directory. The H01 runner now uses `/tmp/o4-h01-run.sh`, the same existing container path family as the O3 launcher: copy, chmod 0600, execute and cleanup all target the exact same path. This is a QA harness correction only; shared stage validation and production gates remain unchanged. New source SHA is required for full rerun; do not accept H01 on source-only evidence.
+
+---
+
+## O4/H01 stage-argument remediation — source candidate / NOT RUN
+
+Observed operator run on `d947804f1733d922f15145d9ad2c98b7e61b844f`: O3 PostgreSQL Worker markers continued to PASS, but H01 stopped **before TestServer startup** at `STAGE_UNSAFE_ARGUMENT=o4-h01-content-root`. Root cause: H01 used `bash -c` with `&&`, shell quoting and redirection in command arguments, which `Invoke-YangSpaceStage.ps1` correctly rejects. The shared stage security boundary is **not** a defect and must not be weakened.
+
+Remediation in the next H01 source commit:
+- Replace the compound content-root command with separate safe-argv Docker stages: `o4-h01-root-mkdir`, `o4-h01-root-copy`, `o4-h01-root-verify`.
+- Generate the H01 launcher directly from the already-scoped O3 launcher within PowerShell; copy it as a temporary file into the existing disposable container, set restrictive mode, invoke by file path. No shell operators, credentials or script source in the stage's `.runner.cmd` arguments.
+- Update independent Postflight receipts for the new stages and require the temporary H01 launcher to be deleted. The existing Docker cleanup/production gate remains unchanged.
+- Preserve `DispatcherAvailable=false`, PublicAccounts/Outbox defaults OFF, fake transport only, no CT164, production database, live SMTP or GitHub Actions.
+
+**Observed result:** previous H01 run = HOLD (not H01 PASS). **Remediated SHA: NOT TESTED** until the operator reruns the full runner from a clean exact SHA; this includes O3 regression + disposable PostgreSQL + H01 TestServer + independent Postflight. Do not merge/close PR #43 or H01 without new runtime evidence. Historical O3 acceptance at `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` is unaffected.
+
+---
+
+## 2026-11-16 — F2b O4/H01 disposable Production TestServer source candidate (NOT RUN)
+
+O3 exact-SHA worker/provider acceptance remains anchored to `5e0546ae4adcc27d6c997f6f4bfa4eb03d2e28cd` (source SHA and evidence unchanged). Work proceeds on the **separate** `feat/yangspace-f2b-o4-h01-pg-http-startup-20261116` branch. This H01 source adds a real `Production` Program TestServer with PostgreSQL17/TLS VerifyFull, verified disposable sentinel/least privilege, `ProductionSchemaGate`, health endpoints, default-off registration 404 and negative startup/security gates. Existing O3 regression runs first on every H01 execution. A separate independent H01 Postflight checks receipts/hashes/cleanup.
+
+**NOT RUN** on the H01 source; H01 remains unchecked and Issue #33 OPEN. The compile-time `DispatcherAvailable=false` is intentionally preserved. Enabled public Identity HTTP is **not testable** until a separately reviewed production release-authorization contract exists; no QA override of the production gate was introduced. The H01 result can validate production startup *with public accounts off*, never live deliverability. H02–H06 and O5/O6 remain OPEN. CT164/production DB/public SMTP untouched. No GitHub Actions.
+
+Runbook: `docs/F2B_O4_H01_POSTGRESQL_STARTUP_QA_20261116.md`.
+
+---
+
 ## 2026-11-16 — Expanded O3 PostgreSQL provider QA gates, source only (HOLD)
 
 O3 PostgreSQL worker contract now adds password reset, already-confirmed suppression, uncertain SMTP-style acknowledgement simulation, crash/lease restart recovery, dead-letter and operator replay, retention purge, and absence of tokens/recipients at rest. Its fixture Password policy is explicitly configured, and reset tokens are Base64Url-decoded before verification. Dedicated non-superuser runtime role and narrow Identity reads remain mandatory.

@@ -15,9 +15,10 @@ internal static class PublicAccountEndpoints
         bool preview, bool merchantQa, bool reviewerQa, bool productionAdmin)
     {
         if (!configuration.GetValue<bool>("PublicAccounts:Enabled")) return;
-        // Outbox enqueue is not deliverability. Keep public endpoints disabled
-        // until the migration and leased worker pass independent QA.
-        if (!IdentityEmailOutboxDispatchPolicy.IsEnabled(configuration))
+        // O3 implementation is available, but both explicit runtime switches
+        // remain default-OFF and a signed release authorization is mandatory.
+        if (!IdentityEmailOutboxDispatchPolicy.DispatcherAvailable ||
+            !IdentityEmailOutboxDispatchPolicy.AreSwitchesEnabled(configuration))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY");
         // Public Identity HTTP must not depend on the admin gateway being enabled.
         // Operator replay is mapped only inside the existing protected admin route group.
@@ -25,6 +26,8 @@ internal static class PublicAccountEndpoints
         if (!environment.IsProduction() || preview || merchantQa || reviewerQa ||
             configuration.GetValue<bool>("Preview:AllowRegistration"))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_SCOPE_REFUSED");
+        IdentityEmailOutboxDispatchPolicy.RequireAuthorization(
+            configuration, environment, TimeProvider.System);
         if (!string.Equals(configuration["Database:Provider"], "PostgreSQL", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("PUBLIC_ACCOUNT_POSTGRESQL_REQUIRED");
         if (configuration["PublicAccounts:CanonicalOrigin"] != "https://yangspace.gndstore.eu")
@@ -35,6 +38,7 @@ internal static class PublicAccountEndpoints
             throw new InvalidOperationException("PUBLIC_ACCOUNT_HOST_POLICY_REFUSED");
         // Operator replay is exposed only inside the separately protected production admin surface.
         PublicAccountEmailSettings.RequireConfigured(configuration);
+        IdentityAbuseThrottle.ValidateConfiguration(configuration);
     }
 
     internal static RouteGroupBuilder MapPublicAccounts(this WebApplication app)
@@ -46,7 +50,9 @@ internal static class PublicAccountEndpoints
             UserManager<IdentityUser> users,
             IPasswordValidator<IdentityUser> passwordValidator,
             IEmailSender<IdentityUser> emails,
-            DirectoryDb db) =>
+            DirectoryDb db,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null || string.IsNullOrEmpty(request.Password) || request.Password.Length > 256)
@@ -58,6 +64,12 @@ internal static class PublicAccountEndpoints
             var validPassword = await passwordValidator.ValidateAsync(users, user, request.Password);
             if (!validPassword.Succeeded)
                 return Results.BadRequest(new { error = "Password does not meet the account security policy." });
+
+            // Account-keyed throttling is independent of the transport/IP budget.
+            // Denials remain indistinguishable from duplicate registrations.
+            if (!await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.Register, email, cancellationToken))
+                return Results.Accepted();
 
             // Duplicate and already-existing account outcomes must not
             // identify whether an email belongs to an existing user.
@@ -81,10 +93,15 @@ internal static class PublicAccountEndpoints
 
         group.MapPost("/resend-confirmation", async Task<IResult> (
             PublicEmailRequest request, UserManager<IdentityUser> users,
-            IEmailSender<IdentityUser> emails) =>
+            IEmailSender<IdentityUser> emails,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null) return Results.Accepted();
+            if (!await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.ResendConfirmation, email, cancellationToken))
+                return Results.Accepted();
             var user = await users.FindByEmailAsync(email);
             if (user is not null && !user.EmailConfirmed &&
                 !await IsStaffAsync(users, user))
@@ -103,7 +120,12 @@ internal static class PublicAccountEndpoints
                 userId.Length <= 256 && code.Length <= 4096)
             {
                 var user = await users.FindByIdAsync(userId);
-                if (user is not null && !await IsStaffAsync(users, user))
+                // ConfirmEmailAsync validates the token but does not make a
+                // successful confirmation single-use by itself. Refuse an
+                // already-confirmed account before invoking Identity again;
+                // the Identity store's ConcurrencyStamp remains the arbiter
+                // when two first-time confirmations race.
+                if (user is not null && !user.EmailConfirmed && !await IsStaffAsync(users, user))
                 {
                     try
                     {
@@ -137,10 +159,14 @@ internal static class PublicAccountEndpoints
 
         group.MapPost("/forgot-password", async Task<IResult> (
             PublicEmailRequest request, UserManager<IdentityUser> users,
-            IEmailSender<IdentityUser> emails) =>
+            IEmailSender<IdentityUser> emails,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
-            if (email is not null)
+            if (email is not null &&
+                await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.ForgotPassword, email, cancellationToken))
             {
                 var user = await users.FindByEmailAsync(email);
                 if (user is not null && user.EmailConfirmed && !await IsStaffAsync(users, user))
@@ -153,13 +179,19 @@ internal static class PublicAccountEndpoints
         });
 
         group.MapPost("/reset-password", async Task<IResult> (
-            PublicResetRequest request, UserManager<IdentityUser> users) =>
+            PublicResetRequest request, UserManager<IdentityUser> users,
+            IIdentityAbuseThrottle abuse,
+            CancellationToken cancellationToken) =>
         {
             var email = NormalizeEmail(request.Email);
             if (email is null || string.IsNullOrWhiteSpace(request.ResetCode) ||
                 request.ResetCode.Length > 4096 ||
                 string.IsNullOrEmpty(request.NewPassword) || request.NewPassword.Length > 256)
                 return Results.BadRequest(new { error = "Invalid reset details." });
+
+            if (!await abuse.TryAcquireAsync(
+                    IdentityAbuseOperation.ResetPassword, email, cancellationToken))
+                return Results.BadRequest(new { error = "Invalid or expired reset details." });
 
             var user = await users.FindByEmailAsync(email);
             if (user is null || !user.EmailConfirmed || await IsStaffAsync(users, user))

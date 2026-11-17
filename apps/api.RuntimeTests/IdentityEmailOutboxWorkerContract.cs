@@ -35,12 +35,13 @@ internal static class IdentityEmailOutboxWorkerContract
             await keeper.OpenAsync();
 
             var clock=new MutableClock(DateTimeOffset.UtcNow);
+            using var releaseAuthorization=new TestReleaseAuthorizationScope(
+                clock.GetUtcNow(),new string('a',40));
             var fake=new FakeTransport();
-            var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> {
-                ["PublicAccounts:CanonicalOrigin"]="https://yangspace.gndstore.eu",
-                ["PublicAccounts:Enabled"]="true",
-                ["PublicAccounts:Outbox:DispatchEnabled"]="true"
-            }).Build();
+            var config=releaseAuthorization.Configuration;
+            Check(IdentityEmailOutboxDispatchPolicy.IsEnabled(
+                config,releaseAuthorization.HostEnvironment,clock),
+                "F2B_O3_WORKER_SIGNED_RELEASE_AUTHORIZATION");
             var services=new ServiceCollection();
             services.AddLogging();
             services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keys))
@@ -54,6 +55,7 @@ internal static class IdentityEmailOutboxWorkerContract
                 o.Password.RequireNonAlphanumeric=false;
             }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>().AddDefaultTokenProviders();
             services.AddSingleton<TimeProvider>(clock);
+            services.AddSingleton<IHostEnvironment>(releaseAuthorization.HostEnvironment);
             services.AddScoped<IEmailSender<IdentityUser>,OutboxIdentityEmailSender>();
             services.AddTransient<SmtpPublicIdentityEmailSender>();
             services.AddTransient<IIdentityEmailOutboxTransport>(sp=>sp.GetRequiredService<SmtpPublicIdentityEmailSender>());
@@ -309,7 +311,7 @@ internal static class IdentityEmailOutboxWorkerContract
         new(provider.GetRequiredService<IServiceScopeFactory>(),
             provider.GetRequiredService<ILogger<IdentityEmailOutboxWorker>>(),
             provider.GetRequiredService<IOptions<IdentityEmailOutboxOptions>>(),clock,config,
-            allowSyntheticDispatch: true);
+            provider.GetRequiredService<IHostEnvironment>());
 
     private static async Task<IdentityUser> NewUser(UserManager<IdentityUser> users,string email,bool confirmed)
     {
