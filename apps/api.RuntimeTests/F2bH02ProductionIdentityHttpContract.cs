@@ -351,7 +351,7 @@ internal static class F2bH02ProductionIdentityHttpContract
             "F2B_H04_REGISTER_WEAK_PASSWORD_NO_ACCOUNT");
 
         var outboxCountAfterInvalidRegistrations = await ReadTotalOutboxCountAsync(migrator);
-        Check(outboxCountAfterInvalidRegistrations <= outboxCountBeforeInvalidRegistrations,
+        Check(outboxCountAfterInvalidRegistrations == outboxCountBeforeInvalidRegistrations,
             "F2B_H04_INVALID_REGISTRATIONS_NO_OUTBOX_INSERT");
 
         SetTestPeer(client, "192.0.2.10");
