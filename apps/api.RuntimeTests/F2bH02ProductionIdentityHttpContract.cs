@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql;
 using YangSpace.Api;
 
@@ -204,6 +205,8 @@ internal static class F2bH02ProductionIdentityHttpContract
     {
         private readonly string _connection;
         private readonly IReadOnlyDictionary<string, string?> _configuration;
+        private readonly NpgsqlDataSource _dataSource;
+        internal NpgsqlDataSource DataSource => _dataSource;
         internal FakeTransport Fake { get; }
         private readonly bool _adminEnabled;
 
@@ -212,6 +215,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         {
             _connection = connection;
             _configuration = configuration;
+            _dataSource = NpgsqlDataSource.Create(connection);
             Fake = fake;
             _adminEnabled = adminEnabled;
         }
@@ -257,6 +261,16 @@ internal static class F2bH02ProductionIdentityHttpContract
             });
             builder.ConfigureTestServices(services =>
             {
+                // Use an explicitly owned EF data source in this TestServer so
+                // the recovery contract can clear the exact pool used by EF.
+                // Production Program and the connection string remain unchanged.
+                services.RemoveAll<DirectoryDb>();
+                services.RemoveAll<DbContextOptions<DirectoryDb>>();
+                services.RemoveAll<IDbContextOptionsConfiguration<DirectoryDb>>();
+                services.AddDbContext<DirectoryDb>(options =>
+                    options.UseNpgsql(_dataSource,
+                        postgres => postgres.MigrationsAssembly("YangSpace.PostgreSql.Migrations")));
+
                 services.AddSingleton<IStartupFilter>(new TestPeerAddressStartupFilter());
                 if (_adminEnabled)
                 {
@@ -280,6 +294,19 @@ internal static class F2bH02ProductionIdentityHttpContract
                     options.DeadLetterRetentionDays = 90;
                 });
             });
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                base.Dispose(disposing);
+            }
+            finally
+            {
+                if (disposing)
+                    _dataSource.Dispose();
+            }
         }
     }
 
@@ -443,7 +470,7 @@ internal static class F2bH02ProductionIdentityHttpContract
                 "F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200");
         }
 
-        await SetIdentityRoleConnectAsync(migrator, identityConnection, enabled: false);
+        await SetIdentityRoleConnectAsync(migrator, identityConnection, factory.DataSource, enabled: false);
         try
         {
             using var unavailable = await client.GetAsync("/health/ready");
@@ -454,7 +481,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         }
         finally
         {
-            await SetIdentityRoleConnectAsync(migrator, identityConnection, enabled: true);
+            await SetIdentityRoleConnectAsync(migrator, identityConnection, factory.DataSource, enabled: true);
         }
         using (var restoredDatabase = await client.GetAsync("/health/ready"))
         {
@@ -1735,12 +1762,11 @@ internal static class F2bH02ProductionIdentityHttpContract
     }
 
     private static async Task SetIdentityRoleConnectAsync(
-        string migrator, string identityConnection, bool enabled)
+        string migrator, string identityConnection, NpgsqlDataSource dataSource, bool enabled)
     {
         // REVOKE CONNECT affects new sessions only. Existing PostgreSQL sessions
-        // remain usable, and Npgsql pooling can hand them back to readiness checks.
-        // Change the privilege, then clear the TestServer process pools so the
-        // outage probe exercises a genuinely new database connection.
+        // remain usable, and EF's NpgsqlDataSource owns the actual TestServer pool.
+        // Clear that exact data source so readiness must establish a new connection.
         await using (var c = new NpgsqlConnection(migrator))
         {
             await c.OpenAsync();
@@ -1751,10 +1777,10 @@ internal static class F2bH02ProductionIdentityHttpContract
             await cmd.ExecuteNonQueryAsync();
         }
 
-        NpgsqlConnection.ClearAllPools();
-
+        dataSource.Clear();
         if (!enabled)
         {
+            Check(true, "F2B_H05E_DB_UNAVAILABLE_EF_DATASOURCE_CLEARED");
             await WaitForNoIdentitySessionsAsync(migrator, TimeSpan.FromSeconds(5));
             Check(true, "F2B_H05E_DB_UNAVAILABLE_SESSIONS_DRAINED");
             Check(await IdentityConnectionDeniedAsync(identityConnection),
