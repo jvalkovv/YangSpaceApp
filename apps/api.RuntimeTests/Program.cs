@@ -212,7 +212,10 @@ static async Task RunRecoveryRehearsalAsync(
         applied.SequenceEqual(new[]
         {
             "20261110043149_InitialDirectorySchema",
-            "20261111125709_PublicationFreshnessTimestamps"
+            "20261111125709_PublicationFreshnessTimestamps",
+            "20261114183515_F2aOrganizationClaimFoundation",
+            "20261115101409_F2bIdentityEmailOutbox",
+            "20261116213000_F2bIdentityAbuseProtection"
         }),
         "RECOVERED_MIGRATION_HISTORY");
 
@@ -243,6 +246,89 @@ if (args.Length == 1 && string.Equals(
         args[0], "--auth-rate-partition-only", StringComparison.Ordinal))
 {
     AuthRateLimitPartitionContract.Run();
+    return;
+}
+
+// F2b O2 applies real provider migrations only to a guarded disposable SQLite
+// file or a TLS-verified disposable PostgreSQL 17 database. It never enables
+// registration, dispatches mail or touches CT164/production.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o2-sqlite-only", StringComparison.Ordinal))
+{
+    await F2bOutboxO2MigrationContract.RunSqliteAsync();
+    return;
+}
+
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o2-postgresql-only", StringComparison.Ordinal))
+{
+    await F2bOutboxO2MigrationContract.RunPostgreSqlAsync();
+    return;
+}
+
+// O3 worker contract: in-memory SQLite, Identity token providers and injected fake transport only.
+if (args.Length == 1 && string.Equals(args[0], "--f2b-outbox-worker-synthetic-only", StringComparison.Ordinal))
+{
+    await IdentityEmailOutboxWorkerContract.RunAsync();
+    return;
+}
+
+// H01: actual Production Program startup against disposable PostgreSQL 17
+// with public registration/dispatch OFF and fail-closed negative gates.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o4-h01-postgresql-http-only", StringComparison.Ordinal))
+{
+    await F2bO4H01PostgreSqlStartupContract.RunAsync();
+    return;
+}
+
+// H03: real ASP.NET RateLimiter middleware over TestServer with synthetic transport peers.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h03-auth-rate-http-only", StringComparison.Ordinal))
+{
+    await AuthRateLimitHttpContract.RunAsync();
+    return;
+}
+
+// H03: durable account-keyed abuse throttling, SQLite migrations, atomic concurrency and retention.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h03-identity-abuse-sqlite-only", StringComparison.Ordinal))
+{
+    await IdentityAbuseThrottleContract.RunAsync();
+    return;
+}
+
+// H02: signed public-account release authorization; no production-policy bypass.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h02-release-authorization-only", StringComparison.Ordinal))
+{
+    F2bH02ReleaseAuthorizationContract.Run();
+    return;
+}
+
+// H02 Production HTTP lifecycle with a signed ephemeral test authorization and fake transport.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-h02-production-identity-http-only", StringComparison.Ordinal))
+{
+    await F2bH02ProductionIdentityHttpContract.RunAsync();
+    return;
+}
+
+// Disposable PostgreSQL 17 O3 worker/provider contract. Real Npgsql + TLS VerifyFull,
+// dedicated migrator/runtime roles and fake transport only.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--f2b-o3-postgresql-worker-only", StringComparison.Ordinal))
+{
+    await IdentityEmailOutboxPostgreSqlWorkerContract.RunAsync();
+    return;
+}
+
+// Disposable SQLite-only email intent/rollback unit contract.
+// Does not test PostgreSQL migrations, SMTP, HTTP or any real data.
+if (args.Length == 1 &&
+    string.Equals(args[0], "--outbox-enqueue-synthetic-only", StringComparison.Ordinal))
+{
+    await IdentityEmailOutboxEnqueueContract.RunAsync();
     return;
 }
 

@@ -16,6 +16,10 @@ public sealed class DirectoryDb(DbContextOptions<DirectoryDb> options) : Identit
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
     public DbSet<BusinessClaim> BusinessClaims => Set<BusinessClaim>();
     public DbSet<ContentAuditEvent> ContentAuditEvents => Set<ContentAuditEvent>();
+    // F2b email intent: protected by FK; no token or message body persisted.
+    public DbSet<IdentityEmailOutboxMessage> IdentityEmailOutbox => Set<IdentityEmailOutboxMessage>();
+    // H03: keyed, durable abuse counters. Only HMAC digests are persisted; never raw account identifiers.
+    public DbSet<IdentityAbuseCounter> IdentityAbuseCounters => Set<IdentityAbuseCounter>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -100,6 +104,37 @@ public sealed class DirectoryDb(DbContextOptions<DirectoryDb> options) : Identit
             audit.Property(x => x.Reason).HasMaxLength(500);
             audit.HasIndex(x => new { x.EntityType, x.EntityId, x.RevisionAfter }).IsUnique();
             audit.HasIndex(x => new { x.LocationId, x.OccurredAtUtc });
+        });
+
+        builder.Entity<IdentityEmailOutboxMessage>(message =>
+        {
+            message.HasOne<IdentityUser>().WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            message.Property(x => x.UserId).IsRequired();
+            message.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(32);
+            message.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            message.Property(x => x.Revision).IsConcurrencyToken();
+            message.Property(x => x.LastFailureCode).HasMaxLength(64);
+            message.HasIndex(x => new { x.Status, x.AvailableAtUtc });
+            message.HasIndex(x => new { x.UserId, x.Purpose, x.Status });
+            // At most one queued intent for a user and purpose. The partial
+            // unique index is shared by SQLite and PostgreSQL; Leased/Sent/
+            // DeadLetter rows do not block a later request.
+            message.HasIndex(x => new { x.UserId, x.Purpose },
+                    "UX_IdentityEmailOutbox_PendingUserPurpose")
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Pending'");
+        });
+
+        builder.Entity<IdentityAbuseCounter>(counter =>
+        {
+            counter.Property(x => x.Operation).HasMaxLength(32).IsRequired();
+            counter.Property(x => x.KeyHash).HasMaxLength(64).IsRequired();
+            counter.Property(x => x.Count).IsRequired();
+            counter.Property(x => x.WindowStartUtc).IsRequired();
+            counter.Property(x => x.UpdatedAtUtc).IsRequired();
+            counter.HasKey(x => new { x.Operation, x.KeyHash, x.WindowStartUtc });
+            counter.HasIndex(x => x.WindowStartUtc);
         });
 
         builder.Entity<BusinessLocation>().HasIndex(x => x.Slug).IsUnique();
