@@ -39,7 +39,7 @@ Set `PublicAccounts__DataProtection__KeyRingDirectory` through protected service
 
 ## QA/operator scope
 
-The H05 provisional runner is cloned from the accepted H04 TestServer/PG17 runner and pins its own H05 branch. Require these new markers:
+The H05a provisional runner is cloned from the accepted H04 TestServer/PG17 runner; H05b clones that matrix and pins its own exact branch. Require these new markers:
 
 ```
 F2B_H05_DATAPROTECTION_UNCONFIGURED_FAILS_CLOSED
@@ -84,3 +84,40 @@ if (-not $?) { throw 'H05_DP_FOUNDATION_QA_FAILED' }
 **Do not run this against CT164 or any production database.** Evidence is stored under `logs/yangspace/f2b-o4-h05-dataprotection/<exact-sha-id>/`, within the local QA worktree. The H05 runner reuses the accepted H04 disposable PG17/TLS VerifyFull harness and validates its own SHA, markers, hashes and cleanup.
 
 A passing result is **not** authorization to close full H05 #50: complete worker/operator recovery, restore verification and observability are separate unaccepted slices.
+
+
+## H05b — Real Identity token recovery after TestServer replacement
+
+**Status: SOURCE CANDIDATE, EXACT-SHA RUNTIME QA PENDING.** H05a's exact tested SHA remains unchanged.
+
+- Create one unconfirmed and one confirmed public Identity user in the first Production TestServer, using the disposable PG17 identity runtime role and synthetic key ring.
+- Generate a real `UserManager.GenerateEmailConfirmationTokenAsync` and `GeneratePasswordResetTokenAsync` from that first service provider; never serialize the token to any log/evidence.
+- Stop/dispose the **entire first Production TestServer and HttpClient** before replacement.
+- Construct a new Production TestServer over the same disposable database but a separately provisioned **foreign key ring**. The original confirmation/reset tokens must fail, preserving the user confirmation/password state.
+- Copy only the protected key ring files and sentinel into a new restricted temporary directory as an **offline backup/restore simulation**. Verify the restored ring's sentinel decrypts correctly.
+- Construct a third independent Production TestServer over the restored copied ring and same database. The original confirmation and reset tokens must now succeed; old password must fail and new password must authenticate.
+- Delete the synthetic restored copy; Postflight must prove no stray keys or credentials were emitted into the evidence directory.
+- The restored-copy test proves local application recovery semantics; **it does not prove off-host backup/restore, storage encryption, production RPO/RTO or real mail delivery**.
+
+### New H05b exact-SHA markers
+
+```text
+F2B_H05B_FIRST_PRODUCTION_TESTSERVER_DISPOSED
+F2B_H05B_FOREIGN_RING_CONFIRMATION_TOKEN_REFUSED
+F2B_H05B_FOREIGN_RING_RESET_TOKEN_REFUSED
+F2B_H05B_OFFLINE_KEYRING_COPY_CONTINUITY_VALID
+F2B_H05B_RESTORED_RING_CONFIRMATION_HTTP_SUCCESS
+F2B_H05B_RESTORED_RING_RESET_HTTP_SUCCESS
+F2B_H05B_RESTORED_RESET_OLD_PASSWORD_REVOKED
+F2B_H05B_RESTORED_RESET_NEW_PASSWORD_VALID
+F2B_H05B_RESTORED_KEYRING_CLEANED
+F2B_H05B_IDENTITY_RESTART_QA
+F2B_H05B_INDEPENDENT_POSTFLIGHT
+```
+
+### H05b operator acceptance
+
+- Branch: `feat/yangspace-f2b-h05b-restart-token-restore-20261117`; its head must be exact and clean in a fresh detached worktree.
+- Run `scripts/Test-F2b-O4-H01-PostgreSql-Local.ps1 -CommitSha <current H05b 40-character SHA>` from that worktree.
+- Runner requires H01–H04 + H05a regression, all H05b markers, Release build/warnings-as-errors, disposable PostgreSQL 17/TLS VerifyFull, fake-only email transport, and Independent Postflight with SHA256 receipts and cleanup.
+- Completion is **bounded H05b PASS**, not full H05 #50 PASS. Worker operator replay HTTP authorization, restart/fault cases and production observability remain to be accepted. Public account switches remain OFF.
