@@ -555,6 +555,7 @@ internal static class F2bH02ProductionIdentityHttpContract
         _ = await LoginAsync(client, invalidResetEmail, password);
         Check(true, "F2B_H04_RESET_MALFORMED_TOKEN_PRESERVES_PASSWORD");
 
+        SetTestPeer(client, "192.0.2.15");
         var expiredConfirmationEmail = "h02-expired-confirm-" + Guid.NewGuid().ToString("N") + "@example.invalid";
         var expiredConfirmationUser = await CreatePublicUserAsync(
             factory.Services, expiredConfirmationEmail, password, emailConfirmed: false);
