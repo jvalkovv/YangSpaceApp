@@ -42,10 +42,14 @@ Set `PublicAccounts__DataProtection__KeyRingDirectory` through protected service
 The H05 provisional runner is cloned from the accepted H04 TestServer/PG17 runner and pins its own H05 branch. Require these new markers:
 
 ```
+F2B_H05_DATAPROTECTION_UNCONFIGURED_FAILS_CLOSED
 F2B_H05_DATAPROTECTION_OFFLINE_PROVISIONED_KEYRING
 F2B_H05_DATAPROTECTION_CROSS_INSTANCE_UNPROTECT
+F2B_H05_DATAPROTECTION_ISOLATED_RING_REJECTS_TOKEN
 F2B_H05_DATAPROTECTION_MISSING_SENTINEL_READINESS_503_LIVE_200
 F2B_H05_DATAPROTECTION_SENTINEL_RESTORED_READY_200
+F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_READINESS_503
+F2B_H05_DATAPROTECTION_CORRUPT_SENTINEL_RESTORED_READY_200
 F2B_H05_DP_FOUNDATION_QA
 F2B_H05_INDEPENDENT_POSTFLIGHT
 ```
@@ -53,3 +57,30 @@ F2B_H05_INDEPENDENT_POSTFLIGHT
 Run only in an exact-SHA clean detached worktree with existing disposable local PostgreSQL 17/TLS VerifyFull image; fake transport only. Require Release build with warnings as errors, full H01–H04 regression, all H05 markers, independent manifest/hash/Postflight checks and container/network/temp cleanup.
 
 This runner PASS (when obtained) would accept **only the DataProtection foundation slice**, not the full H05 Issue #50.
+
+## Exact-SHA operator invocation
+
+From Windows PowerShell 5.1 in a **new, clean, detached** worktree checked out at the exact current H05 PR head:
+
+```powershell
+$ErrorActionPreference='Stop'
+$Repo='D:\GitHub\YangSpaceApp'
+$Branch='feat/yangspace-f2b-h05-app-recovery-20261117'
+$Sha='<current exact H05 remote HEAD>'
+
+git -C $Repo fetch --no-tags origin $Branch
+if ($LASTEXITCODE -ne 0) { throw 'H05_FETCH_FAILED' }
+if ((git -C $Repo rev-parse "origin/$Branch").Trim() -ne $Sha) {
+    throw 'H05_REMOTE_SHA_MISMATCH'
+}
+$Work='D:\GitHub\YangSpaceApp-F2b-H05-DP-QA-20261117'
+if (Test-Path $Work) { throw 'H05_WORKTREE_EXISTS' }
+git -C $Repo worktree add --detach $Work $Sha
+if ($LASTEXITCODE -ne 0) { throw 'H05_WORKTREE_FAILED' }
+& (Join-Path $Work 'scripts/Test-F2b-O4-H01-PostgreSql-Local.ps1') -CommitSha $Sha
+if (-not $?) { throw 'H05_DP_FOUNDATION_QA_FAILED' }
+```
+
+**Do not run this against CT164 or any production database.** Evidence is stored under `logs/yangspace/f2b-o4-h05-dataprotection/<exact-sha-id>/`, within the local QA worktree. The H05 runner reuses the accepted H04 disposable PG17/TLS VerifyFull harness and validates its own SHA, markers, hashes and cleanup.
+
+A passing result is **not** authorization to close full H05 #50: complete worker/operator recovery, restore verification and observability are separate unaccepted slices.
