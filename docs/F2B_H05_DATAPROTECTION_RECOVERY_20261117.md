@@ -203,3 +203,12 @@ Required new behavioral checks:
 Sixteen new `F2B_H05D_` markers are asserted by the exact-SHA runner and Independent Postflight, along with H01–H05c regressions, build/receipt/hash parity and disposable cleanup. Do not reuse earlier H05c manifest after this changed SHA.
 
 **Still not H05 full acceptance:** deterministic separate worker fault/re-drive observability and runtime DB-loss readiness/restore may remain; no real SMTP/CT164/production DB/public feature activation/ingress/GitHub Actions. No production secrets in source or evidence.
+
+
+## 2026-11-17 — H05e PostgreSQL worker log assertion false positive; structured PII gate corrected
+
+- Failed exact-SHA runtime: `323a121dbacdc39d3dac3b0aaa13570b3ef83f30`. SQLite regression and PostgreSQL 17 provisioning passed; the PG worker contract reached H05e lease fencing, DB-finalization recovery, telemetry snapshot and metric-cardinality markers before failing `F2B_H05E_WORKER_LOGS_NO_PII`.
+- Root cause is in the test oracle, not evidence of a worker data leak: the old assertion rejected any rendered log message containing the substring `Email`, while the required stable event IDs themselves contain `IDENTITY_EMAIL_OUTBOX_...`. The assertion therefore rejected the expected safe event names.
+- Correction: capture each worker log's rendered message, structured property names/values and exception text. The gate now rejects PII-bearing property names, labelled sensitive fields, actual synthetic user IDs/emails, generated delivery payloads/tokens, scoped DB connection strings and release scope token. It still requires both transport-failure and worker-cycle-failure event IDs.
+- This is a test-observability correction; production worker log templates and behavior are unchanged. No weakening or deletion of the no-PII acceptance gate.
+- Corrected exact-SHA runtime and Independent Postflight are pending. Do not claim H05e PASS until the complete runner, cleanup and Independent Postflight pass at one exact SHA. PR #56 remains Draft; Issues #50/#55 remain OPEN; release HOLD.
