@@ -214,6 +214,8 @@ export class AccountComponent implements OnInit {
             this.showError('Твърде много опити. Опитай отново след малко.');
           else if (error.status === 401)
             this.showError('Неуспешен вход. Провери данните и потвърждението на имейла.');
+          else if (error.status === 403)
+            this.showError('Нямаш достъп до този профил. Влез отново.');
           else if (error.status === 400)
             this.showError('Невалидни данни. Провери паролата или кода от имейла.');
           else this.showError('Възникна временен проблем с услугата.');
