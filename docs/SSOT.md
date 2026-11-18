@@ -1216,3 +1216,24 @@ The latest operator rerun passed O3 PostgreSQL worker and O4-H01 Production Test
 Source/test correction: `ed45175a108ff41bee9201d40a4467ac329d1c4b`. Runner: `c6be324e3d458e4b159607f7ca1ba7ba57b9d0b7`. Independent Postflight: `f1e8e0739ffed25bad90886406a24e24f4d448ff`.
 
 **Acceptance boundary:** H02 remains HOLD until a clean full exact-SHA runner, cleanup and Independent Postflight pass. PR #56 remains Draft/Open; Issues #50/#55 remain Open; release HOLD. No production DB, CT164, real SMTP, deployment or GitHub Actions.
+
+
+## 2026-11-18 — F2b H06.1 clean-source browser acceptance PASS
+
+Exact application/test source accepted: `65e9a64f0aa2a1d227f9cc790ffd87d0318e3a3f` on `feat/yangspace-f2b-h06-1-account-browser-e2e-20261118`.
+
+Operator evidence from a newly-created detached worktree:
+- Exact SHA checkout: PASS; initial `git status --porcelain --untracked-files=all` empty.
+- `npm ci --no-audit --no-fund`: PASS (243 packages). npm emitted an `install-scripts` policy warning for four packages whose lifecycle scripts are not covered by `allowScripts`; installation completed and no package script approval was added as part of this QA.
+- TypeScript `npm run typecheck`: PASS.
+- Angular production `npm run build`: PASS; initial bundle 470.67 kB raw / 109.72 kB estimated transfer.
+- Focused Account Playwright: **20/20 PASS**.
+- Full Playwright suite: **46/46 PASS**.
+- Final `git status --porcelain --untracked-files=all`: empty.
+- Evidence directory: `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.1\\65e9a64f0aa2a1d227f9cc790ffd87d0318e3a3f`.
+
+The previous dirty worktree's pre-existing `apps/web/angular.json` change was preserved separately as a patch; it was not carried into the clean QA worktree. The earlier 19/20 and 45/46 diagnostic run is superseded by this exact clean-source 20/20 and 46/46 result.
+
+**H06.1 frontend QA acceptance: PASS.** PR #59 is moved to Ready for Review. This is not a production release authorization: public registration and real email dispatch remain OFF; no deployment, production DB, CT164 or real SMTP access occurred. Issue #58 remains open until PR review and merge are complete.
+
+Operator supplied console evidence in the project conversation. Raw log files remain on the operator workstation; a consolidated SHA-256 evidence manifest has not yet been supplied to GitHub and must be retained with the local evidence directory.
