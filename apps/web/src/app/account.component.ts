@@ -225,7 +225,6 @@ export class AccountComponent implements OnInit {
             this.showError('Невалидни данни. Провери паролата или кода от имейла.');
           else this.showError('Възникна временен проблем с услугата.');
         } else this.showError('Сесията не може да бъде потвърдена. Опитай отново.');
-        this.changeDetector.markForCheck();
       }
     });
   }
