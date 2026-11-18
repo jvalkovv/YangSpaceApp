@@ -39,7 +39,9 @@ type AccountMode = 'login' | 'register' | 'recover' | 'reset' | 'resend' | 'acco
 
         <p class="auth-description">{{ description }}</p>
         <p *ngIf="feedback" class="auth-message"
-           [class.auth-error]="isError" role="status" aria-live="polite">{{ feedback }}</p>
+           [class.auth-error]="isError"
+           [attr.role]="isError ? 'alert' : 'status'"
+           [attr.aria-live]="isError ? 'assertive' : 'polite'">{{ feedback }}</p>
 
         <ng-container *ngIf="mode === 'account'; else accountForm">
           <div *ngIf="session.profile() as profile; else signedOut" class="auth-profile">
@@ -48,6 +50,8 @@ type AccountMode = 'login' | 'register' | 'recover' | 'reset' | 'resend' | 'acco
             <button type="button" class="btn btn-outline" (click)="logout()">Изход</button>
           </div>
           <ng-template #signedOut>
+            <p class="auth-hint">Сесията се пази само докато страницата е отворена.
+              След презареждане влез отново.</p>
             <a routerLink="/login" class="btn btn-primary">Вход в акаунта</a>
           </ng-template>
         </ng-container>
