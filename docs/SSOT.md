@@ -1,5 +1,13 @@
 
 
+### H06.1 implementation candidate — Draft PR #59
+
+- [PR #59](https://github.com/jvalkovv/YangSpaceApp/pull/59), branch `feat/yangspace-f2b-h06-1-account-browser-e2e-20261118`, exact head `238370a95ecda89d19e1b8a522820d91a7b2cbe6`, targets the F2b feature branch only (not main).
+- Changes: account Playwright suite for route/default-off/confirmation/login/bearer/logout/reload/recovery/rate-limit; responsive account widths 320–1440; keyboard focus; accessible error/success announcement; explain memory-only session; clear rejected in-memory bearer after failed session probe.
+- **Status: DRAFT / QA NOT RUN.** No build, typecheck, Playwright or browser PASS is claimed. Exact-SHA clean checkout validation is the next operator action. Do not mark ready or merge until all tests and independent postflight pass.
+- Mock endpoints only. Registration/dispatch OFF. No real SMTP, production DB/key ring, CT164 or deployment. Issue #24 remains legal/privacy blocker for real evidence processing.
+
+
 ## 2026-11-18 — H06.1 active: Account UX and lifecycle Browser E2E
 
 - H06 umbrella: [Issue #57](https://github.com/jvalkovv/YangSpaceApp/issues/57).
