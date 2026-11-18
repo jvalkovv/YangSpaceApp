@@ -1,5 +1,17 @@
 
 
+### H06.1 — QA attempt 3: Angular fix verified; one selector ambiguity (2026-11-18)
+
+- Exact commit tested: `fcb1cb0e4c73426701dec9e76bd9fd358da5d996`.
+- `npm ci`: completed successfully; TypeScript typecheck: PASS; Angular production build: PASS.
+- Account E2E: **19 PASS / 1 FAIL**. Full E2E: **45 PASS / 1 FAIL**. The only reported failure was `forgot/reset/resend flows`, where `getByLabel('Нова парола')` matched both the account section's accessible name and the actual password input. This is a Playwright selector ambiguity, not evidence of a reset API or UI behavior failure.
+- The application zoneless change-detection fix is behaving as intended in the previously failing account flows.
+- Test-only correction committed: `f28ef51051dd48de2a61bf0f50c5e84d7403cf4a`, replacing the ambiguous selector with the unique `#auth-password` locator. Assertions and application behavior are unchanged.
+- **Evidence integrity caveat:** the operator detected `apps/web/angular.json` modified before checkout. `git checkout --detach` preserved that modification. Therefore the 19/20 and 45/46 results are useful diagnostic evidence but are NOT clean-source acceptance evidence. Re-run from a fresh detached worktree at exact commit `f28ef51051dd48de2a61bf0f50c5e84d7403cf4a`, verify `git status --porcelain` is empty before and after tests, then run typecheck/build, Account E2E and full E2E.
+- The operator printed `H06_1_ALL_QA_GATES=PASS` despite prior explicit test failures. That marker is invalid and must not be used as acceptance evidence. PowerShell was run interactively, so a terminating error did not prevent a later separately-entered command from executing.
+- PR #59 remains Draft; no merge/deployment. Registration and email dispatch remain OFF.
+
+
 ### H06.1 — QA attempt 2: zoneless account view-update defect (2026-11-18)
 
 - Exact tested SHA: `22f0f454657156ce8c915376a910c3e8b7cec0ed`.
