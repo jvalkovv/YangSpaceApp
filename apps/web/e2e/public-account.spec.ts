@@ -147,3 +147,34 @@ test('memory-only account session is not restored after a hard reload', async ({
   }));
   expect(storage).toEqual({ local: 0, session: 0, cookie: '' });
 });
+
+test('forgot/reset/resend flows return generic confirmation messages', async ({ page }) => {
+  const called: string[] = [];
+  for (const endpoint of ['forgot-password', 'reset-password', 'resend-confirmation']) {
+    await page.route('**/api/public-account/' + endpoint, async route => {
+      called.push(endpoint);
+      await route.fulfill({ status: 202, body: '' });
+    });
+  }
+
+  await page.goto('/recover');
+  await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
+  await page.getByRole('button', { name: 'Изпрати код' }).click();
+  await expect(page.locator('.auth-complete')).toContainText('ще получиш код');
+  await expect(page.locator('.auth-complete')).not.toContainText('qa@example.invalid');
+
+  await page.goto('/reset');
+  await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
+  await page.getByLabel('Нова парола').fill('Synthetic-Passphrase-For-Tests');
+  await page.getByLabel('Код от имейла').fill('synthetic-reset-code');
+  await page.getByRole('button', { name: 'Запази новата парола' }).click();
+  await expect(page.locator('.auth-complete')).toContainText('паролата е променена');
+
+  await page.goto('/resend-confirmation');
+  await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
+  await page.getByRole('button', { name: 'Изпрати потвърждение' }).click();
+  await expect(page.locator('.auth-complete')).toContainText('ще получиш нов линк');
+  await expect(page.locator('.auth-complete')).not.toContainText('qa@example.invalid');
+
+  expect(called).toEqual(['forgot-password', 'reset-password', 'resend-confirmation']);
+});
