@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, switchMap, tap, throwError, timeout } from 'rxjs';
+import { Observable, catchError, switchMap, tap, throwError, timeout } from 'rxjs';
 
 interface BearerResponse {
   tokenType: string;
@@ -56,7 +56,12 @@ export class PublicAccountApi {
           this.accessToken = response.accessToken;
           this.expiresAt = Date.now() + response.expiresIn * 1000;
         }),
-        switchMap(() => this.loadProfile())
+        switchMap(() => this.loadProfile()),
+        catchError(error => {
+          // Never leave a bearer token resident after a rejected/failed session probe.
+          this.logout();
+          return throwError(() => error);
+        })
       );
   }
 
