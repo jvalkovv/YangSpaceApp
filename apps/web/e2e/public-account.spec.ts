@@ -143,6 +143,11 @@ test('failed login and rate limiting produce accessible generic errors', async (
   await expect.poll(() => loginRequests).toBe(2);
   await expect(page.getByRole('alert')).toContainText('Твърде много опити');
   await expect(page.getByRole('alert')).toHaveAttribute('aria-live', 'assertive');
+
+  status = 403;
+  await page.getByRole('button', { name: 'Вход' }).click();
+  await expect.poll(() => loginRequests).toBe(3);
+  await expect(page.getByRole('alert')).toContainText('Нямаш достъп до този профил');
 });
 
 test('memory-only account session is not restored after a hard reload', async ({ page }) => {
@@ -222,4 +227,75 @@ test('forgot/reset/resend flows return generic confirmation messages', async ({ 
   await expect(page.locator('.auth-complete')).not.toContainText('qa@example.invalid');
 
   expect(called).toEqual(['forgot-password', 'reset-password', 'resend-confirmation']);
+});
+
+test('service unavailable remains a generic default-off response', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/public-account/register', route => {
+    calls++;
+    return route.fulfill({ status: 503, body: 'maintenance details' });
+  });
+  await page.goto('/register');
+  await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
+  await page.getByLabel('Парола', { exact: true }).fill('Synthetic-Passphrase-For-Tests');
+  await page.getByLabel('Повтори паролата').fill('Synthetic-Passphrase-For-Tests');
+  await page.getByRole('button', { name: 'Създай акаунт' }).click();
+  await expect.poll(() => calls).toBe(1);
+  await expect(page.getByRole('alert')).toContainText('Регистрацията и входът още не са активни');
+  await expect(page.getByRole('alert')).not.toContainText('maintenance details');
+});
+
+test('network failure returns generic feedback without leaking transport details', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/public-account/login', route => {
+    calls++;
+    return route.abort('failed');
+  });
+  await page.goto('/login');
+  await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
+  await page.getByLabel('Парола', { exact: true }).fill('Synthetic-Passphrase-For-Tests');
+  await page.getByRole('button', { name: 'Вход' }).click();
+  await expect.poll(() => calls).toBe(1);
+  await expect(page.getByRole('alert')).toContainText('Възникна временен проблем с услугата');
+});
+
+test('failed session validation clears bearer state and does not expose a profile', async ({ page }) => {
+  let sessionCalls = 0;
+  await page.route('**/api/public-account/login', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      tokenType: 'Bearer',
+      accessToken: 'fixture-value',
+      expiresIn: 3600,
+      refreshToken: 'unused-fixture'
+    })
+  }));
+  await page.route('**/api/public-account/session', route => {
+    sessionCalls++;
+    return route.fulfill({ status: 403, body: 'forbidden' });
+  });
+
+  await page.goto('/login');
+  await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
+  await page.getByLabel('Парола', { exact: true }).fill('Synthetic-Passphrase-For-Tests');
+  await page.getByRole('button', { name: 'Вход' }).click();
+
+  await expect.poll(() => sessionCalls).toBe(1);
+  await expect(page.getByRole('alert')).toContainText('Нямаш достъп до този профил');
+  await page.goto('/account');
+  await expect(page.locator('.auth-profile')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Вход в акаунта' })).toBeVisible();
+  const state = await page.evaluate(() => ({
+    local: localStorage.length,
+    session: sessionStorage.length,
+    cookie: document.cookie,
+    url: location.href,
+    body: document.body.innerText
+  }));
+  expect(state.local).toBe(0);
+  expect(state.session).toBe(0);
+  expect(state.cookie).toBe('');
+  expect(state.url).not.toContain('fixture-value');
+  expect(state.body).not.toContain('fixture-value');
 });
