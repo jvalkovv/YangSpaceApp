@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -39,7 +39,9 @@ type AccountMode = 'login' | 'register' | 'recover' | 'reset' | 'resend' | 'acco
 
         <p class="auth-description">{{ description }}</p>
         <p *ngIf="feedback" class="auth-message"
-           [class.auth-error]="isError" role="status" aria-live="polite">{{ feedback }}</p>
+           [class.auth-error]="isError"
+           [attr.role]="isError ? 'alert' : 'status'"
+           [attr.aria-live]="isError ? 'assertive' : 'polite'">{{ feedback }}</p>
 
         <ng-container *ngIf="mode === 'account'; else accountForm">
           <div *ngIf="session.profile() as profile; else signedOut" class="auth-profile">
@@ -48,6 +50,8 @@ type AccountMode = 'login' | 'register' | 'recover' | 'reset' | 'resend' | 'acco
             <button type="button" class="btn btn-outline" (click)="logout()">Изход</button>
           </div>
           <ng-template #signedOut>
+            <p class="auth-hint">Сесията се пази само докато страницата е отворена.
+              След презареждане влез отново.</p>
             <a routerLink="/login" class="btn btn-primary">Вход в акаунта</a>
           </ng-template>
         </ng-container>
@@ -106,6 +110,7 @@ export class AccountComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyed = inject(DestroyRef);
+  private readonly changeDetector = inject(ChangeDetectorRef);
   readonly session = inject(PublicAccountApi);
 
   mode: AccountMode = 'login';
@@ -200,6 +205,10 @@ export class AccountComponent implements OnInit {
       next: () => {
         this.busy = false; this.success = true;
         this.password = ''; this.repeatPassword = ''; this.resetCode = '';
+        // Angular 22 runs zoneless by default. These mutable class fields are
+        // not signals, so explicitly schedule a view check after the async
+        // HttpClient/RxJS notification.
+        this.changeDetector.markForCheck();
       },
       error: (error: unknown) => {
         this.busy = false;
@@ -210,6 +219,8 @@ export class AccountComponent implements OnInit {
             this.showError('Твърде много опити. Опитай отново след малко.');
           else if (error.status === 401)
             this.showError('Неуспешен вход. Провери данните и потвърждението на имейла.');
+          else if (error.status === 403)
+            this.showError('Нямаш достъп до този профил. Влез отново.');
           else if (error.status === 400)
             this.showError('Невалидни данни. Провери паролата или кода от имейла.');
           else this.showError('Възникна временен проблем с услугата.');
@@ -226,5 +237,6 @@ export class AccountComponent implements OnInit {
   private showError(message: string): void {
     this.isError = true;
     this.feedback = message;
+    this.changeDetector.markForCheck();
   }
 }
