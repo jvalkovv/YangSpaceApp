@@ -213,7 +213,7 @@ test('forgot/reset/resend flows return generic confirmation messages', async ({ 
 
   await page.goto('/reset');
   await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
-  await page.getByLabel('Нова парола').fill('Synthetic-Passphrase-For-Tests');
+  await page.locator('#auth-password').fill('Synthetic-Passphrase-For-Tests');
   await page.getByLabel('Код от имейла').fill('synthetic-reset-code');
   await page.getByRole('button', { name: 'Запази новата парола' }).click();
   await expect.poll(() => called).toEqual(['forgot-password', 'reset-password']);
