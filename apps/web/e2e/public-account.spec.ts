@@ -20,7 +20,7 @@ test('registration remains disabled when the API default-off route returns 404',
   );
   await page.goto('/register');
   await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
-  await page.getByLabel('Парола').fill('Synthetic-Passphrase-For-Tests');
+  await page.getByLabel('Парола', { exact: true }).fill('Synthetic-Passphrase-For-Tests');
   await page.getByLabel('Повтори паролата').fill('Synthetic-Passphrase-For-Tests');
   await page.getByRole('button', { name: 'Създай акаунт' }).click();
   await expect(page.getByRole('alert')).toContainText('Регистрацията и входът още не са активни');
@@ -58,7 +58,7 @@ for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1440]) {
 test('account inputs have labels and adjacent controls are keyboard reachable', async ({ page }) => {
   await page.goto('/register');
   const email = page.getByLabel('Имейл адрес');
-  const password = page.getByLabel('Парола');
+  const password = page.getByLabel('Парола', { exact: true });
   const repeat = page.getByLabel('Повтори паролата');
   await email.focus();
   await page.keyboard.press('Tab');
@@ -71,24 +71,38 @@ test('account inputs have labels and adjacent controls are keyboard reachable', 
 
 test('login uses the bearer header, keeps session in memory, and logout clears the profile', async ({ page }) => {
   let authorization = '';
-  await page.route('**/api/public-account/login', route => route.fulfill({
-    json: {
-      tokenType: 'Bearer',
-      accessToken: 'fixture-value',
-      expiresIn: 3600,
-      refreshToken: 'unused-fixture'
-    }
-  }));
+  let loginRequests = 0;
+  let sessionRequests = 0;
+  await page.route('**/api/public-account/login', async route => {
+    loginRequests++;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tokenType: 'Bearer',
+        accessToken: 'fixture-value',
+        expiresIn: 3600,
+        refreshToken: 'unused-fixture'
+      })
+    });
+  });
   await page.route('**/api/public-account/session', async route => {
+    sessionRequests++;
     authorization = route.request().headers().authorization ?? '';
-    await route.fulfill({ json: { email: 'qa@example.invalid' } });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ email: 'qa@example.invalid' })
+    });
   });
 
   await page.goto('/login');
   await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
-  await page.getByLabel('Парола').fill('Synthetic-Passphrase-For-Tests');
+  await page.getByLabel('Парола', { exact: true }).fill('Synthetic-Passphrase-For-Tests');
   await page.getByRole('button', { name: 'Вход' }).click();
 
+  await expect.poll(() => loginRequests).toBe(1);
+  await expect.poll(() => sessionRequests).toBe(1);
   await expect(page.locator('.auth-complete')).toContainText('Успешен вход');
   expect(authorization).toBe('Bearer fixture-value');
   const storage = await page.evaluate(() => ({
@@ -107,33 +121,60 @@ test('login uses the bearer header, keeps session in memory, and logout clears t
 
 test('failed login and rate limiting produce accessible generic errors', async ({ page }) => {
   let status = 401;
-  await page.route('**/api/public-account/login', route =>
-    route.fulfill({ status, body: JSON.stringify({ message: 'internal backend detail' }) })
-  );
+  let loginRequests = 0;
+  await page.route('**/api/public-account/login', route => {
+    loginRequests++;
+    return route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'internal backend detail' })
+    });
+  });
   await page.goto('/login');
   await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
-  await page.getByLabel('Парола').fill('Synthetic-Passphrase-For-Tests');
+  await page.getByLabel('Парола', { exact: true }).fill('Synthetic-Passphrase-For-Tests');
   await page.getByRole('button', { name: 'Вход' }).click();
+  await expect.poll(() => loginRequests).toBe(1);
   await expect(page.getByRole('alert')).toContainText('Неуспешен вход');
   await expect(page.getByRole('alert')).not.toContainText('internal backend detail');
 
   status = 429;
   await page.getByRole('button', { name: 'Вход' }).click();
+  await expect.poll(() => loginRequests).toBe(2);
   await expect(page.getByRole('alert')).toContainText('Твърде много опити');
   await expect(page.getByRole('alert')).toHaveAttribute('aria-live', 'assertive');
 });
 
 test('memory-only account session is not restored after a hard reload', async ({ page }) => {
-  await page.route('**/api/public-account/login', route => route.fulfill({
-    json: { tokenType: 'Bearer', accessToken: 'fixture-value', expiresIn: 3600, refreshToken: 'unused-fixture' }
-  }));
-  await page.route('**/api/public-account/session', route =>
-    route.fulfill({ json: { email: 'qa@example.invalid' } })
-  );
+  let loginRequests = 0;
+  let sessionRequests = 0;
+  await page.route('**/api/public-account/login', route => {
+    loginRequests++;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tokenType: 'Bearer',
+        accessToken: 'fixture-value',
+        expiresIn: 3600,
+        refreshToken: 'unused-fixture'
+      })
+    });
+  });
+  await page.route('**/api/public-account/session', route => {
+    sessionRequests++;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ email: 'qa@example.invalid' })
+    });
+  });
   await page.goto('/login');
   await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
-  await page.getByLabel('Парола').fill('Synthetic-Passphrase-For-Tests');
+  await page.getByLabel('Парола', { exact: true }).fill('Synthetic-Passphrase-For-Tests');
   await page.getByRole('button', { name: 'Вход' }).click();
+  await expect.poll(() => loginRequests).toBe(1);
+  await expect.poll(() => sessionRequests).toBe(1);
   await expect(page.locator('.auth-complete')).toContainText('Успешен вход');
 
   await page.goto('/account');
@@ -150,16 +191,18 @@ test('memory-only account session is not restored after a hard reload', async ({
 
 test('forgot/reset/resend flows return generic confirmation messages', async ({ page }) => {
   const called: string[] = [];
-  for (const endpoint of ['forgot-password', 'reset-password', 'resend-confirmation']) {
+  const expectedEndpoints = ['forgot-password', 'reset-password', 'resend-confirmation'];
+  for (const endpoint of expectedEndpoints) {
     await page.route('**/api/public-account/' + endpoint, async route => {
       called.push(endpoint);
-      await route.fulfill({ status: 202, body: '' });
+      await route.fulfill({ status: 202, contentType: 'application/json', body: '{}' });
     });
   }
 
   await page.goto('/recover');
   await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
   await page.getByRole('button', { name: 'Изпрати код' }).click();
+  await expect.poll(() => called).toEqual(['forgot-password']);
   await expect(page.locator('.auth-complete')).toContainText('ще получиш код');
   await expect(page.locator('.auth-complete')).not.toContainText('qa@example.invalid');
 
@@ -168,11 +211,13 @@ test('forgot/reset/resend flows return generic confirmation messages', async ({ 
   await page.getByLabel('Нова парола').fill('Synthetic-Passphrase-For-Tests');
   await page.getByLabel('Код от имейла').fill('synthetic-reset-code');
   await page.getByRole('button', { name: 'Запази новата парола' }).click();
+  await expect.poll(() => called).toEqual(['forgot-password', 'reset-password']);
   await expect(page.locator('.auth-complete')).toContainText('паролата е променена');
 
   await page.goto('/resend-confirmation');
   await page.getByLabel('Имейл адрес').fill('qa@example.invalid');
   await page.getByRole('button', { name: 'Изпрати потвърждение' }).click();
+  await expect.poll(() => called).toEqual(expectedEndpoints);
   await expect(page.locator('.auth-complete')).toContainText('ще получиш нов линк');
   await expect(page.locator('.auth-complete')).not.toContainText('qa@example.invalid');
 
