@@ -1,5 +1,15 @@
 
 
+### H06.1 — QA attempt 1 and remediation (2026-11-18)
+
+- [Issue #58](https://github.com/jvalkovv/YangSpaceApp/issues/58) · [Draft PR #59](https://github.com/jvalkovv/YangSpaceApp/pull/59).
+- Tested implementation SHA: `cc71c962f8baaf11fc2e0d3ce586b0852a0695d5`. Result: `npm ci` PASS, TypeScript typecheck PASS, Angular production build PASS, Playwright **37 PASS / 6 FAIL**.
+- Two failures were confirmed test-only strict locator ambiguity: the label `Парола` matched both password inputs on registration. Four HTTP-flow failures had no request counters/trace diagnostics, so root cause remains unproven.
+- Remediation committed on PR branch; current QA target SHA: `cfc123ec13fd763c7778bfcc1ed4e30ffc990d2d`. Changes include exact label selectors, explicit JSON response mocks/request counters, 403 feedback, and added 403/503/network/rejected-session tests.
+- **Acceptance remains HOLD until exact-SHA rerun passes all account and full Playwright tests.** No merge/deploy. Registration and email dispatch remain OFF.
+- Reuse the existing QA worktree at `D:\\GitHub\\YangSpaceApp-F2b-H06.1-QA-20261118`; do not attempt to create it again. Verify clean state and checkout the new exact SHA first.
+
+
 ### H06.1 implementation candidate — Draft PR #59
 
 - [PR #59](https://github.com/jvalkovv/YangSpaceApp/pull/59), branch `feat/yangspace-f2b-h06-1-account-browser-e2e-20261118`, exact head `238370a95ecda89d19e1b8a522820d91a7b2cbe6`, targets the F2b feature branch only (not main).
