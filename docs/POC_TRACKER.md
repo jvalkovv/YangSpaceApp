@@ -1,5 +1,16 @@
 
 
+### H06.1 — QA attempt 2: zoneless account view-update defect (2026-11-18)
+
+- Exact tested SHA: `22f0f454657156ce8c915376a910c3e8b7cec0ed`.
+- `npm ci`: PASS; TypeScript typecheck: PASS; Angular production build: PASS.
+- Account Playwright: **12 PASS / 8 FAIL**. Failures consistently show the mocked HTTP endpoint was reached (request counters incremented), while the expected feedback alert or `.auth-complete` element never entered the DOM.
+- Root cause established from source: Angular 22.2 app has no `zone.js` dependency and bootstraps without Zone-based change detection. `AccountComponent` used mutable class fields (`success`, `feedback`, `isError`, `busy`) updated from asynchronous RxJS subscriptions without notifying the zoneless change-detection scheduler.
+- Fix committed: `1cb1587430e3348afbbd6ef8d6cb96ebf7831a55` adds `ChangeDetectorRef.markForCheck()` after async success and through the shared error-feedback path. This fixes application behavior rather than weakening E2E assertions.
+- New exact QA target: `1cb1587430e3348afbbd6ef8d6cb96ebf7831a55`.
+- **Acceptance remains HOLD pending focused Account E2E, full E2E, typecheck/build and clean-source evidence at the new exact SHA.** No merge/deploy; public registration and email dispatch remain OFF. No backend or infrastructure change.
+
+
 ### H06.1 — QA attempt 1 and remediation (2026-11-18)
 
 - [Issue #58](https://github.com/jvalkovv/YangSpaceApp/issues/58) · [Draft PR #59](https://github.com/jvalkovv/YangSpaceApp/pull/59).
