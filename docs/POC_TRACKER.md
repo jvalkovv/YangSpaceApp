@@ -1,3 +1,16 @@
+
+
+## 2026-11-18 — H06.1 active: Account UX and lifecycle Browser E2E
+
+- H06 umbrella: [Issue #57](https://github.com/jvalkovv/YangSpaceApp/issues/57).
+- First bounded implementation slice: [H06.1 Issue #58](https://github.com/jvalkovv/YangSpaceApp/issues/58).
+- Scope: deterministic Playwright coverage and account UX fixes for register/confirmation/login/Bearer session/profile/logout/resend/forgot/reset, 400/401/403/404/503/409/429/network failures, generic non-enumerating feedback, memory-only token/no-cookie/no-storage contract, default-off registration/dispatch, account responsive widths 320–1440 and keyboard/focus semantics.
+- Existing Angular account UI is present; current gap is lifecycle E2E and exact browser acceptance, not a backend rewrite. H01–H05 remain accepted; do not reopen without a concrete regression.
+- Tests use mocked API only. No real SMTP, account activation, production DB/key ring, CT164 or deployment. No localStorage/sessionStorage token persistence.
+- Legal/privacy Issue #24 remains OPEN and is the authority for real evidence-processing notice/lawful-basis decisions. Do not invent or publish legal notice content before responsible controller/legal approval.
+- Remaining H06 after H06.1: whole-product responsive/browser coverage for directory/detail/admin, complete accessibility acceptance and approved privacy dependencies.
+- No Cloudflare/Nginx/proxy/firewall/DNS/ingress work; no GitHub Actions.
+
 ## 2026-11-18 — F2b H05 FULL ACCEPTANCE PASS; H06 NEXT
 
 Exact tested source SHA: `a73422d9037df691857c3ff8b6b029532345d60c`. All nine runtime gates PASS (O4-H01, H02, H03, H04, H05, H05b, H05c, H05d, H05e). Independent Postflight completed with aggregate `F2B_H05_INDEPENDENT_POSTFLIGHT=PASS`; H05e-specific manifest/marker/hash/cleanup/clean-source checks were included before the aggregate PASS.
