@@ -191,6 +191,8 @@ p { line-height: 1.7; }
 .discover-item small { display: block; margin-top: 4px; color: #788b7a; font-size: 10px; }
 .discover-item > span:last-child { color: #52745a; font-size: 18px; }
 .discover-empty { margin-top: auto; padding: 21px 12px; border-top: 1px solid #e3e9dd; color: #839284; font-size: 12px; line-height: 1.6; }
+.discover-unavailable { border-color: #e9c9bc; background: #fffaf8; color: #943d35; }
+.discover-unavailable .btn { margin-top: 12px; }
 .demo-footnote { margin: 18px 0 0; color: #7c8d7d; font-size: 11px; }
 
 /* How it works */
