@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject } from '@angular/core';
 import { PublicAccountApi } from './public-account-api.service';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { NgIf } from '@angular/common';
@@ -15,7 +15,8 @@ import { NgIf } from '@angular/common';
           <span class="brand-mark" aria-hidden="true">Y.</span>
           <span>Yang<span class="brand-accent">Space</span></span>
         </a>
-        <nav class="mainnav" [class.open]="menuOpen" aria-label="Основна навигация" id="primary-nav">
+        <nav class="mainnav" [class.open]="menuOpen" aria-label="Основна навигация"
+             id="primary-nav" (keydown.escape)="onMenuEscape($event)">
           <a routerLink="/" fragment="catalog" (click)="closeMenu()">Обекти</a>
           <a routerLink="/" fragment="offers" (click)="closeMenu()">Промоции</a>
           <a routerLink="/" fragment="jobs" (click)="closeMenu()">Работа</a>
@@ -32,9 +33,10 @@ import { NgIf } from '@angular/common';
           <a *ngIf="!account.profile()" routerLink="/register" class="account-register">Регистрация</a>
         </div>
         <span class="preview-pill" title="Демонстрационни данни">ДЕМО ВЕРСИЯ</span>
-        <button class="menu-toggle" type="button" [attr.aria-expanded]="menuOpen"
-                aria-controls="primary-nav" aria-label="Отвори или затвори навигацията"
-                (click)="menuOpen = !menuOpen">
+        <button #menuToggle class="menu-toggle" type="button" [attr.aria-expanded]="menuOpen"
+                aria-controls="primary-nav"
+                [attr.aria-label]="menuOpen ? 'Затвори навигацията' : 'Отвори навигацията'"
+                (click)="toggleMenu()" (keydown.escape)="onMenuEscape($event)">
           <span></span><span></span><span></span>
         </button>
       </div>
@@ -60,6 +62,23 @@ import { NgIf } from '@angular/common';
 })
 export class AppComponent {
   readonly account = inject(PublicAccountApi);
+  @ViewChild('menuToggle') private menuToggle?: ElementRef<HTMLButtonElement>;
   menuOpen = false;
-  closeMenu(): void { this.menuOpen = false; }
+
+  toggleMenu(): void {
+    this.menuOpen = !this.menuOpen;
+  }
+
+  closeMenu(): void {
+    this.menuOpen = false;
+  }
+
+  onMenuEscape(event: KeyboardEvent): void {
+    if (!this.menuOpen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.closeMenu();
+    // Restore keyboard position after closing the mobile navigation.
+    this.menuToggle?.nativeElement.focus();
+  }
 }
