@@ -73,7 +73,7 @@ export class AppComponent {
     this.menuOpen = false;
   }
 
-  onMenuEscape(event: KeyboardEvent): void {
+  onMenuEscape(event: Event): void {
     if (!this.menuOpen) return;
     event.preventDefault();
     event.stopPropagation();
