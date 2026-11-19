@@ -87,7 +87,7 @@ Correction: `onMenuEscape(event: Event)` is the accurate contract for the operat
 
 New interactive QA package:
 - `scripts/Start-H06-2-Browser-QA.ps1`: single entry point; clean-worktree guard, GitHub fetch and safe fast-forward, automatic exact SHA, Chromium install, build and evidence orchestration, automatic independent postflight.
-- `scripts/Test-H06-2-Web-Acceptance.ps1`: added interactive/ headed mode, Node mock API syntax gate, local server lifecycle, Enter prompt, and headed focused/full Playwright.
+- `scripts/Test-H06-2-Web-Acceptance.ps1`: added interactive/headed mode, Node mock API syntax gate, local server lifecycle, Enter prompt, and headed focused/full Playwright. Preview cleanup is wired to the returned API/web process set.
 - `apps/web/qa/mock-api.mjs`: deterministic fictional data and in-memory preview-only endpoints on loopback `127.0.0.1:5090`; no database, SMTP or persistence.
 - `apps/web/playwright.config.ts`: permits reuse only when the launcher explicitly sets `H06_2_REUSE_SERVER=1`; default Playwright behavior still starts its own server and refuses reuse.
 - `scripts/Verify-H06-2-Web-Postflight.ps1`: now requires the local mock API syntax gate in the evidence manifest.
