@@ -1237,3 +1237,14 @@ The previous dirty worktree's pre-existing `apps/web/angular.json` change was pr
 **H06.1 frontend QA acceptance: PASS.** PR #59 is moved to Ready for Review. This is not a production release authorization: public registration and real email dispatch remain OFF; no deployment, production DB, CT164 or real SMTP access occurred. Issue #58 remains open until PR review and merge are complete.
 
 Operator supplied console evidence in the project conversation. Raw log files remain on the operator workstation; a consolidated SHA-256 evidence manifest has not yet been supplied to GitHub and must be retained with the local evidence directory.
+
+
+## 2026-11-19 — H06.2-B public object detail source implementation (QA pending)
+
+- H06.2 umbrella: [Issue #60](https://github.com/jvalkovv/YangSpaceApp/issues/60); implementation: [Draft PR #61](https://github.com/jvalkovv/YangSpaceApp/pull/61), branch `feat/yangspace-f2b-h06-2-public-product-ux-20261118`, base `feat/yangspace-f2b-public-identity-foundation-20261113`.
+- H06.2-A homepage highlights reliability is committed at `e928b6c998ceec7e349c9fde48fb2588bca097cf`; prior local exact-SHA QA was reported PASS (targeted 6/6, full Playwright 52/52, typecheck/build and clean worktree).
+- H06.2-B object detail implementation is committed on the branch: explicit loading/success/not-found/unavailable states; 404 distinct from transient 5xx/network errors; current-slug retry; stale-route request cancellation via `switchMap`; image-aware hero and category fallback; verified/unverified profile status; offer/brochure/job empty and populated sections; contact actions; responsive detail layout and reduced-motion behavior.
+- Added `apps/web/e2e/detail.spec.ts`: populated/empty content, loading, 503 retry, network retry, 404 distinction, stale-response protection, and responsive screenshots/overflow checks at 320/360/375/390/430/768/820/1024/1280/1440px.
+- Implementation note: `docs/H06_2_OBJECT_DETAIL_20261119.md`.
+- **Current source head:** `94255228fa8d1d633ca6fa17e24cab9d4726d3d6`. Source is committed; exact-SHA typecheck/build/Playwright and owner browser review are **PENDING**. Do not claim H06.2-B runtime acceptance yet.
+- No API/backend contract, H01–H05, migrations, production DB/key-ring, CT164, SMTP, registration/dispatch switches, Owner grant, merchant evidence intake, deployment, ingress or GitHub Actions changes. Public registration and email dispatch remain OFF.
