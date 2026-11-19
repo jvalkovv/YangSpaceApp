@@ -110,3 +110,12 @@ Expected interaction: the launcher starts the local mock API and Angular dev ser
 Preview Admin demo identity is `qa@example.invalid` / `DisposableTestPassword123!`; the mock token is local-only, data is in-memory and resets on shutdown. Public account flows remain disabled.
 
 **Status: source correction and launcher committed; exact-SHA build, headed Playwright, visual review and postflight are PENDING.** Do not mark H06.2 accepted or merge PR #61 until the new launcher completes successfully.
+
+
+### QA package hardening follow-up
+
+- Detail loading test now checks that the loading card disappears while the three publication empty-state live regions remain; it no longer incorrectly expects all `role=status` elements to disappear.
+- Native gate output is captured as separate `.stdout.log` and `.stderr.log` files plus a combined log. Native process exit code remains the only pass/fail authority; npm lifecycle policy warnings are not promoted to gate failures.
+- Evidence folder timestamps include milliseconds to avoid same-second collisions.
+- The one-command launcher snapshots existing evidence folders, identifies exactly one newly created run directory, prints its manifest hash, and preserves the evidence path and first failing gate log when acceptance fails.
+- Latest source checkpoint before this documentation update: `3fd2a648c7037602f58d55083217b7ab52f09ca3`. Runtime typecheck/build, headed Playwright and postflight remain **PENDING**.
