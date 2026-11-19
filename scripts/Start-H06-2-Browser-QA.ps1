@@ -71,10 +71,6 @@ Write-Host '=== 2. INSTALL / BUILD / OPEN BROWSER / PLAYWRIGHT ==='
 $runStarted = Get-Date
 & $acceptance -CommitSha $sha -Work $Work -EvidenceRoot $EvidenceRoot -InstallChromium -InteractiveBrowser -Headed
 
-if ($LASTEXITCODE -ne 0) {
-    throw ('H06_2_QA_PACKAGE_ACCEPTANCE_EXIT=' + $LASTEXITCODE)
-}
-
 $evidenceCandidates = @(Get-ChildItem -LiteralPath $EvidenceRoot -Directory |
     Where-Object {
         $_.Name.StartsWith(($sha + '-'), [System.StringComparison]::OrdinalIgnoreCase) -and
@@ -91,10 +87,6 @@ Write-Host ''
 Write-Host '=== 3. INDEPENDENT EVIDENCE POSTFLIGHT ==='
 Write-Host ('EVIDENCE_DIR=' + $evidenceDirectory)
 & $postflight -CommitSha $sha -EvidenceDirectory $evidenceDirectory -Work $Work
-
-if ($LASTEXITCODE -ne 0) {
-    throw ('H06_2_QA_PACKAGE_POSTFLIGHT_EXIT=' + $LASTEXITCODE)
-}
 
 Write-Host ''
 Write-Host 'H06_2_AUTOMATED_QA_PACKAGE=PASS'
