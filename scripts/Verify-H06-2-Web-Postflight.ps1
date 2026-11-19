@@ -33,6 +33,7 @@ $rows = @(Get-Content -LiteralPath $manifest)
 $required = @(
     'COMMIT_SHA=' + $CommitSha,
     'BRANCH=' + $ExpectedBranch,
+    'LOCAL_MOCK_API_SYNTAX=PASS',
     'NPM_CI=PASS',
     'TYPECHECK=PASS',
     'PRODUCTION_BUILD=PASS',
