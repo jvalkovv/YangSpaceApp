@@ -1256,3 +1256,15 @@ Operator supplied console evidence in the project conversation. Raw log files re
 - Detail loading announcement and 404 copy were aligned with the accepted navigation suite; 503 tests also assert stale profile payloads never render.
 - Documentation: `docs/H06_2_DIRECTORY_20261119.md` and `docs/H06_2_OBJECT_DETAIL_20261119.md`.
 - Current implementation head before this SSOT update: `9dd50c4af71eba94607e570d2c37031f1d218dad`. Exact-SHA typecheck, production build, Playwright and owner browser review remain **PENDING**; no runtime acceptance is claimed.
+
+## 2026-11-19 — H06.2 integrated implementation checkpoint (exact-SHA QA pending)
+
+- Parent: [Issue #60](https://github.com/jvalkovv/YangSpaceApp/issues/60); [Draft PR #61](https://github.com/jvalkovv/YangSpaceApp/pull/61). Target branch remains `feat/yangspace-f2b-public-identity-foundation-20261113`, not `main`.
+- H06.2-A: homepage highlights loading, genuine empty and unavailable/retry states implemented; operator-reported local QA at `e928b6c998ceec7e349c9fde48fb2588bca097cf`: focused 6/6, full 52/52, TypeScript/build PASS.
+- H06.2-B: Object Detail redesigned with visible state-specific layouts (loading, success, not-found, transient unavailable/retry), fallback media, verification note, publications/contact blocks and Bulgaria civil-time formatting. Historical route/date/publication copy assertions remain intact; nested `main` landmark removed and loading status remains announceable while the outer page is busy.
+- H06.2-C: directory/search/filter/pagination workflows retain anonymous contracts; standalone catalogue E2E plus integrated visitor navigation tests added. Mobile menu supports Escape from the toggle/nav and returns focus to the toggle.
+- H06.2-D: homepage and offers/brochures/jobs at ten widths, populated Detail and authorized preview Admin/editor at ten widths, with clipping/overflow assertions and screenshots.
+- QA operator: `scripts/Test-H06-2-Web-Acceptance.ps1` (PowerShell 5.1-safe native exit handling, exact local/remote SHA, typecheck/build, targeted/full browser E2E, SHA-256 evidence); `scripts/Verify-H06-2-Web-Postflight.ps1` (independent checksum/markers/source/remote checks).
+- See `docs/H06_2_PRODUCT_UX_ACCEPTANCE_20261119.md` for complete contract and manual screenshot checklist.
+
+**Implementation is source-committed, but integrated exact-head runtime QA, visual acceptance and independent postflight have NOT passed yet.** Keep PR #61 Draft, Issue #60 OPEN and product release HOLD. No production, backend H01–H05, public account/SMTP, infrastructure or package-policy activation changes.
