@@ -1292,9 +1292,12 @@ Operator supplied console evidence in the project conversation. Raw log files re
 - Added `scripts/Start-H06-2-Browser-QA.ps1` as the single entry point. It checks a clean worktree, safely fetches/fast-forwards only, resolves exact SHA, runs syntax/npm/typecheck/production build, starts mock API and Angular preview, opens the browser, waits for Enter, then runs focused and full headed Chromium Playwright, captures evidence, stops only its own processes and runs independent postflight.
 - Extended `scripts/Test-H06-2-Web-Acceptance.ps1` with the interactive headed mode and mock API syntax gate; `scripts/Verify-H06-2-Web-Postflight.ps1` now requires that gate. The preview process cleanup call was statically checked against its `-ProcessSet` parameter.
 - Operator guide: `docs/H06_2_BROWSER_QA_LAUNCHER_20261120.md`; integrated acceptance record updated in `docs/H06_2_PRODUCT_UX_ACCEPTANCE_20261119.md`.
-- Implementation head at this checkpoint before this SSOT update: `9ab2545d9ad5c73c410c84d05b632bfc805f8990`. The correction, local preview package and docs are committed; exact-SHA build, headed targeted/full Playwright, manual visual review and independent postflight are **PENDING**. PR #61 remains Draft/HOLD; Issue #60 remains OPEN.
+- Implementation head at this checkpoint before this SSOT update: `3fd2a648c7037602f58d55083217b7ab52f09ca3`. The correction, local preview package and docs are committed; exact-SHA build, headed targeted/full Playwright, manual visual review and independent postflight are **PENDING**. PR #61 remains Draft/HOLD; Issue #60 remains OPEN.
 - No production deployment, backend H01–H05 contract, production DB/key-ring, CT164, real SMTP, public registration/email dispatch, Owner grant, merchant evidence intake, DNS/proxy/ingress or GitHub Actions changes.
 
 
 - Launcher hardening: the runner clears any inherited `H06_2_REUSE_SERVER` override before execution, enables it only for the process it starts, and restores the prior environment value after shutting down its own preview processes.
 - Local API smoke gate checks the public homepage fixture, public object detail, local fake PlatformAdmin login/role, admin object list and publication content endpoint; no credentials or token are written to the smoke log.
+
+
+- Additional QA hardening after the initial launcher checkpoint: detail loading E2E now asserts only the loading card disappears while the three intentional empty-state status regions remain; native stdout/stderr are captured separately to avoid PowerShell native-stderr promotion; evidence timestamps include milliseconds; launcher preserves the evidence directory and prints the first failed gate log even when acceptance fails.
