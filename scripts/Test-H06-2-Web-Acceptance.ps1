@@ -118,6 +118,7 @@ try {
             'playwright', 'test',
             'e2e/homepage-highlights.spec.ts',
             'e2e/directory.spec.ts',
+            'e2e/public-journey.spec.ts',
             'e2e/detail.spec.ts',
             'e2e/detail-navigation.spec.ts',
             'e2e/product-responsive.spec.ts',
