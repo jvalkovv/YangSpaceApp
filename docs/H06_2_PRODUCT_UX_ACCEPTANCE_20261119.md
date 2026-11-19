@@ -49,24 +49,36 @@ Manual acceptance on actual devices / browsers:
 - Console/page errors: separate expected mocked 503 noise from unexpected exceptions; no real PII/tokens in screenshots/logs.
 - Record any contrast or WCAG 2.2 AA exception rather than silently marking PASS.
 
-## Acceptance commands
+## One-command interactive browser QA
 
-PowerShell 5.1, from a **clean local worktree** with the exact published branch HEAD:
+Run from PowerShell 5.1 or PowerShell 7, using the existing clean H06.2 worktree:
 
-```powershell
-$Sha = (git -C 'D:\GitHub\YangSpaceApp-F2b-H06.2-20261118' rev-parse HEAD).Trim()
-& 'D:\GitHub\YangSpaceApp-F2b-H06.2-20261118\scripts\Test-H06-2-Web-Acceptance.ps1' -CommitSha $Sha
-```
+\`\`\`powershell
+$Work = 'D:\GitHub\YangSpaceApp-F2b-H06.2-20261118'
+$Branch = 'feat/yangspace-f2b-h06-2-public-product-ux-20261118'
 
-This runner requires exact local/remote SHA, a clean source checkout before/after, `npm ci`, TypeScript, production build, targeted and full Playwright, browser artifacts and SHA-256 manifest. It treats native npm stderr warnings as diagnostics and fails by the **actual process exit code**, avoiding the Windows PowerShell 5.1 failure in the earlier baseline.
+git -C $Work fetch --no-tags origin $Branch
+if ($LASTEXITCODE -ne 0) { throw 'H06_2_FETCH_FAILED' }
 
-After a successful run:
+git -C $Work merge --ff-only ('origin/' + $Branch)
+if ($LASTEXITCODE -ne 0) { throw 'H06_2_SYNC_FAILED' }
 
-```powershell
-& 'D:\GitHub\YangSpaceApp-F2b-H06.2-20261118\scripts\Verify-H06-2-Web-Postflight.ps1' -CommitSha $Sha -EvidenceDirectory '<exact EVIDENCE_DIR printed above>'
-```
+& (Join-Path $Work 'scripts\Start-H06-2-Browser-QA.ps1') -Work $Work
+\`\`\`
 
-Postflight verifies the manifest hash, individual artifact hashes, complete gate markers, branch/source cleanliness and exact remote SHA. A previously printed PASS from another SHA cannot be reused.
+The launcher is the normal operator entry point. It validates the clean branch, fetches and fast-forwards to the exact remote SHA, installs locked dependencies and Chromium, runs TypeScript and production build gates, starts the disposable in-memory mock API plus Angular preview, and opens the browser. Review the homepage, directory, detail page and Preview Admin; then return to the PowerShell window and press **Enter**. The package runs targeted and full headed Playwright suites and performs the independent checksum/source postflight.
+
+The mock API uses disposable demo fixtures only. No production API, database, real account, SMTP, tenant data or external service is used. The browser preview is \`http://127.0.0.1:4300/\`; mock API is \`http://127.0.0.1:5090/\`.
+
+The launcher prints \`EVIDENCE_DIR\` and \`MANIFEST_SHA256\`. On a failed gate it prints the run summary, evidence location and first failing log; do not rerun only the postflight or mark the milestone accepted. Send the evidence directory and first failing log for diagnosis.
+
+The lower-level runner remains available for controlled diagnosis:
+
+\`\`\`powershell
+& (Join-Path $Work 'scripts\Test-H06-2-Web-Acceptance.ps1') -CommitSha $Sha -Work $Work -EvidenceRoot 'D:\GitHub\YangSpaceApp-QA-Evidence\H06.2'
+\`\`\`
+
+Do not use the lower-level command as the normal operator flow. The launcher owns sync, browser preview, test execution, evidence discovery and independent postflight.
 
 ## Status
 
