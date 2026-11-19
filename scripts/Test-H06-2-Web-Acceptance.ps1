@@ -25,10 +25,10 @@ function Get-GitValue([string[]]$Arguments) {
     return ($value | Out-String).Trim()
 }
 
-if ((Get-GitValue @('branch', '--show-current')) -cne $ExpectedBranch) {
+if ((Get-GitValue -Arguments @('branch', '--show-current')) -cne $ExpectedBranch) {
     throw 'H06_2_WRONG_BRANCH'
 }
-if ((Get-GitValue @('rev-parse', 'HEAD')) -cne $CommitSha) {
+if ((Get-GitValue -Arguments @('rev-parse', 'HEAD')) -cne $CommitSha) {
     throw 'H06_2_EXACT_SHA_MISMATCH'
 }
 if (@(& git -C $Work status --porcelain --untracked-files=all).Count -gt 0) {
@@ -137,7 +137,7 @@ catch {
 }
 finally {
     Pop-Location
-    if ((Get-GitValue @('rev-parse', 'HEAD')) -cne $CommitSha) {
+    if ((Get-GitValue -Arguments @('rev-parse', 'HEAD')) -cne $CommitSha) {
         $gates.SOURCE_CLEAN_POST = 'FAIL_SHA_CHANGED'
     }
     elseif (@(& git -C $Work status --porcelain --untracked-files=all).Count -eq 0) {
