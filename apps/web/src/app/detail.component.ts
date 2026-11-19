@@ -42,7 +42,7 @@ type DetailLoadResult =
         <span class="detail-state-icon" aria-hidden="true"><span class="detail-spinner"></span></span>
         <div class="detail-state-copy">
           <span class="kicker">ПРОФИЛ НА ОБЕКТ</span>
-          <h1 id="detail-page-title">Зареждаме информацията…</h1>
+          <h1 id="detail-page-title">Зареждаме информацията за обекта…</h1>
           <p>Подготвяме контактите, актуалните предложения и подробностите за обекта.</p>
           <div class="detail-loading-lines" aria-hidden="true">
             <span></span><span></span><span></span>
