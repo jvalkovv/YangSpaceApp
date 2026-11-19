@@ -19,13 +19,13 @@ After this first update, the launcher fetches the branch itself and fast-forward
 1. Verifies the expected branch and a clean source worktree.
 2. Fetches GitHub and fast-forwards only; verifies local HEAD equals the remote branch HEAD.
 3. Runs Node syntax validation for the local QA mock API.
-4. Runs `npm ci`, installs Playwright Chromium, TypeScript typecheck and Angular production build.
+4. Runs Node syntax validation for the local QA mock API, `npm ci`, Playwright Chromium installation, TypeScript typecheck and Angular production build.
 5. Starts a deterministic in-memory API fixture bound only to `127.0.0.1:5090`.
 6. Starts the Angular development server on `127.0.0.1:4300`, using the existing local proxy configuration.
 7. Opens the default browser at `http://127.0.0.1:4300/` and waits for the operator to press Enter in the same PowerShell window.
-8. On Enter, runs the focused H06.2 and full Playwright suites in headed Chromium against the already-running local preview.
+8. On Enter, smoke-tests public directory/detail and Preview Admin mock endpoints, then runs the focused H06.2 and full Playwright suites in headed Chromium against the already-running local preview.
 9. Stops only the two child processes it started, preserves logs/screenshots/traces and writes a SHA-256 manifest.
-10. Runs the independent evidence postflight automatically. It checks exact source/remote SHA, clean worktree, required gate markers, manifest and every evidence-file hash.
+10. Runs the independent evidence postflight automatically. It checks exact source/remote SHA, clean worktree, mock API syntax and smoke markers, all build/test gate markers, manifest and every evidence-file hash.
 
 The browser opened for manual inspection and the Playwright-controlled Chromium window are separate windows. Keep the PowerShell session open. Inspect the preview first, then return to the console and press Enter.
 
