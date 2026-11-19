@@ -23,7 +23,15 @@ test('detail 503 shows a visitor-facing error and recovers on retry without relo
   let requests = 0;
   await page.route('**/api/v1/locations/bike-demo', route => {
     requests++;
-    if (requests === 1) return route.fulfill({ status: 503, body: 'internal API / 127.0.0.1' });
+    if (requests === 1) return route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...detail,
+        name: 'Остарял профил',
+        description: 'Не показвай тази информация след неуспешен отговор. internal API / 127.0.0.1'
+      })
+    });
     return route.fulfill({ json: detail });
   });
 
@@ -31,6 +39,8 @@ test('detail 503 shows a visitor-facing error and recovers on retry without relo
   const failure = page.getByRole('alert');
   await expect(failure).toContainText('Услугата е временно недостъпна');
   await expect(failure).not.toContainText(/API|127\.0\.0\.1|localhost|proxy|Angular/i);
+  await expect(failure).not.toContainText('Остарял профил');
+  await expect(page.getByText('Остарял профил')).toHaveCount(0);
   await expect(page.locator('.detail-hero')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Опитай отново' })).toBeEnabled();
 
