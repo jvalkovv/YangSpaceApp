@@ -50,7 +50,7 @@ if ($LASTEXITCODE -ne 0 -or $remoteLines.Count -ne 1) {
 $remoteSha = ($remoteLines[0] -split '\s+')[0]
 if ($remoteSha -cne $CommitSha) { throw 'H06_2_REMOTE_SHA_MISMATCH' }
 
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
 $Evidence = Join-Path $EvidenceRoot ($CommitSha + '-' + $stamp)
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 
@@ -76,18 +76,34 @@ function Invoke-NativeGate {
         [Parameter(Mandatory = $true)][string[]]$Arguments
     )
     $log = Join-Path $Evidence ($Name + '.log')
-    # Windows PowerShell 5.1 may wrap native stderr warnings as ErrorRecords.
-    # Preserve stderr and decide from the native process exit code.
+    $stdoutLog = Join-Path $Evidence ($Name + '.stdout.log')
+    $stderrLog = Join-Path $Evidence ($Name + '.stderr.log')
+
+    # PowerShell 7.3+ can promote native stderr text to ErrorRecords when this
+    # preference is enabled. Keep native exit codes authoritative and capture
+    # stdout/stderr as files so npm policy warnings never masquerade as failures.
     $oldPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
+    $PSNativeCommandUseErrorActionPreference = $false
     $exitCode = -1
     try {
-        & $Binary @Arguments *>&1 | Out-File -LiteralPath $log -Encoding utf8
+        & $Binary @Arguments 1> $stdoutLog 2> $stderrLog
         $exitCode = $LASTEXITCODE
     }
     finally {
         $ErrorActionPreference = $oldPreference
     }
+
+    $combined = @('=== STDOUT ===')
+    if (Test-Path -LiteralPath $stdoutLog) {
+        $combined += @(Get-Content -LiteralPath $stdoutLog)
+    }
+    $combined += '=== STDERR ==='
+    if (Test-Path -LiteralPath $stderrLog) {
+        $combined += @(Get-Content -LiteralPath $stderrLog)
+    }
+    $combined | Set-Content -LiteralPath $log -Encoding utf8
+
     Get-Content -LiteralPath $log -Tail 25 | ForEach-Object { Write-Host $_ }
     Write-Host ('GATE=' + $Name + ' EXIT=' + $exitCode)
     if ($exitCode -ne 0) { throw ('H06_2_GATE_FAILED=' + $Name + ' EXIT=' + $exitCode) }
