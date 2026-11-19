@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { catchError, distinctUntilChanged, map, of, switchMap } from 'rxjs';
+import { Subject, catchError, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
-import { DirectoryApi, LocationDetail } from './directory-api.service';
+import { DirectoryApi, LocationDetail, describeDirectoryFailure } from './directory-api.service';
 
 // Public timestamps are consistently shown in Bulgaria's civil timezone,
 // including daylight-saving transitions, regardless of browser timezone.
@@ -24,10 +24,22 @@ const bulgarianDateTime = new Intl.DateTimeFormat('bg-BG', {
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <section class="shell detail-shell">
+    <section class="shell detail-shell" [attr.aria-busy]="loading">
       <a routerLink="/" class="backlink">← Към всички обекти</a>
-      <div class="detail-loading" *ngIf="loading">Зареждане…</div>
-      <div class="state-card error" *ngIf="error" role="alert">{{error}}</div>
+      <div class="detail-loading" *ngIf="loading" role="status" aria-live="polite">
+        <span class="detail-loading-indicator" aria-hidden="true"></span>
+        Зареждаме информацията за обекта…
+      </div>
+      <div class="detail-unavailable state-card error" *ngIf="error" role="alert">
+        <div class="detail-error-copy">
+          <strong>{{ errorKind === 'not-found' ? 'Обектът не е наличен' : 'Не успяхме да заредим обекта' }}</strong>
+          <p>{{error}}</p>
+          <button *ngIf="errorKind === 'unavailable'" type="button"
+                  class="btn btn-outline" (click)="retry()" [disabled]="loading">
+            Опитай отново
+          </button>
+        </div>
+      </div>
       <div *ngIf="location as item">
         <div class="detail-hero">
           <div class="detail-icon">⌂</div>
@@ -87,10 +99,20 @@ export class DetailComponent implements OnInit {
   private readonly title = inject(Title);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly retryRequests = new Subject<void>();
 
   location: LocationDetail | null = null;
   loading = true;
   error = '';
+  errorKind: 'missing' | 'not-found' | 'unavailable' | null = null;
+
+  retry(): void {
+    // Only transient failures are retryable. The current route slug remains
+    // the request source of truth; no stale payload can be replayed.
+    if (!this.loading && this.errorKind === 'unavailable') {
+      this.retryRequests.next();
+    }
+  }
 
   formatBulgarianDateTime(value: string): string {
     const date = new Date(value);
@@ -101,22 +123,30 @@ export class DetailComponent implements OnInit {
     this.route.paramMap.pipe(
       map(params => params.get('slug')),
       distinctUntilChanged(),
-      switchMap(slug => {
-        this.location = null;
-        this.loading = true;
-        this.error = '';
-        this.cdr.markForCheck();
+      switchMap(slug => this.retryRequests.pipe(
+        startWith(void 0),
+        // Nested switchMap cancels a superseded retry. The outer switchMap
+        // cancels the previous slug request on in-app route navigation.
+        switchMap(() => {
+          this.location = null;
+          this.loading = true;
+          this.error = '';
+          this.errorKind = null;
+          this.title.setTitle('Обект | YangSpace');
+          this.cdr.markForCheck();
 
-        if (!slug) return of({ kind: 'missing' as const });
+          if (!slug) return of({ kind: 'missing' as const });
 
-        return this.api.location(slug).pipe(
-          map(location => ({ kind: 'loaded' as const, location })),
-          catchError((reason: unknown) => of({
-            kind: 'failed' as const,
-            notFound: reason instanceof HttpErrorResponse && reason.status === 404
-          }))
-        );
-      }),
+          return this.api.location(slug).pipe(
+            map(location => ({ kind: 'loaded' as const, location })),
+            catchError((reason: unknown) => of({
+              kind: 'failed' as const,
+              notFound: reason instanceof HttpErrorResponse && reason.status === 404,
+              message: describeDirectoryFailure(reason)
+            }))
+          );
+        })
+      )),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(result => {
       this.loading = false;
@@ -124,11 +154,13 @@ export class DetailComponent implements OnInit {
         this.location = result.location;
         this.title.setTitle(result.location.name + ' | YangSpace');
       } else if (result.kind === 'missing') {
+        this.errorKind = 'missing';
         this.error = 'Липсва идентификатор на обекта.';
       } else {
+        this.errorKind = result.notFound ? 'not-found' : 'unavailable';
         this.error = result.notFound
           ? 'Обектът не е намерен или е скрит.'
-          : 'Неуспешно зареждане. Провери връзката с API и опитай отново.';
+          : result.message;
       }
       this.cdr.markForCheck();
     });
