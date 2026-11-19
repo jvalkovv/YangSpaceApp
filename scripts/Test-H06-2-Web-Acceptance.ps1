@@ -55,6 +55,7 @@ $Evidence = Join-Path $EvidenceRoot ($CommitSha + '-' + $stamp)
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 
 $gates = [ordered]@{
+    LOCAL_MOCK_API_SYNTAX = 'NOT_RUN'
     NPM_CI = 'NOT_RUN'
     TYPECHECK = 'NOT_RUN'
     PRODUCTION_BUILD = 'NOT_RUN'
@@ -116,6 +117,7 @@ function Stop-PreviewProcess([System.Diagnostics.Process]$Process) {
     if ($null -ne $Process -and -not $Process.HasExited) {
         $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
         & $taskkill /PID $Process.Id /T /F 2>&1 | Out-Null
+        try { $Process.WaitForExit(10000) | Out-Null } catch { }
     }
 }
 
@@ -133,7 +135,7 @@ function Start-InteractivePreview {
     $commandShell = if ($env:ComSpec) { $env:ComSpec } else { 'cmd.exe' }
 
     try {
-        $apiProcess = Start-Process -FilePath 'node.exe' -ArgumentList @($MockApi) -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $apiStdout -RedirectStandardError $apiStderr -PassThru
+        $apiProcess = Start-Process -FilePath 'node.exe' -ArgumentList ('"' + $MockApi + '"') -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $apiStdout -RedirectStandardError $apiStderr -PassThru
 
         $apiDeadline = (Get-Date).AddSeconds(30)
         $apiReady = $false
@@ -225,6 +227,9 @@ try {
         'HEADED_PLAYWRIGHT=' + [string]$Headed
     )
     $versions | Set-Content -LiteralPath (Join-Path $Evidence 'runtime.txt') -Encoding UTF8
+
+    Invoke-NativeGate 'local-mock-api-syntax' 'node.exe' @('--check', $MockApi)
+    $gates.LOCAL_MOCK_API_SYNTAX = 'PASS'
 
     Invoke-NativeGate 'npm-ci' 'npm.cmd' @('ci', '--no-audit', '--no-fund')
     $gates.NPM_CI = 'PASS'
