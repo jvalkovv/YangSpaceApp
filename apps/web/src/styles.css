@@ -432,3 +432,65 @@ p { line-height: 1.7; }
   .account-nav { display: none; }
   .mainnav .nav-account-link { display: block; }
 }
+
+
+/* H06.2: object detail recovery uses the existing YangSpace design tokens. */
+.detail-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 150px;
+  padding: 24px;
+  margin-top: 24px;
+  color: var(--forest-soft);
+  font-size: 14px;
+  font-weight: 700;
+  background: linear-gradient(115deg, #f4f8f1, #fff);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.detail-loading-indicator {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #d4e5d5;
+  border-top-color: var(--forest-soft);
+  border-radius: 50%;
+  animation: detail-loading-spin .9s linear infinite;
+}
+@keyframes detail-loading-spin { to { transform: rotate(360deg); } }
+.detail-unavailable {
+  justify-content: flex-start;
+  align-items: flex-start;
+  margin-top: 24px;
+  border-style: solid;
+  border-color: #ebd6cc;
+  background: #fffaf7;
+  color: #783f31;
+}
+.detail-error-copy { min-width: 0; max-width: 650px; }
+.detail-error-copy strong { font-size: clamp(18px, 2vw, 23px); color: #70362d; }
+.detail-error-copy p { margin: 9px 0 17px; font-size: 14px; line-height: 1.65; color: #75483b; }
+.detail-error-copy .btn { min-width: 158px; }
+.detail-hero > div:last-child, .detail-grid > *, .admin-columns > *,
+.admin-list-row > *, .admin-edit-header > * { min-width: 0; }
+.detail-main, .detail-sidebar { min-width: 0; }
+.detail-grid a, .detail-info a, .offer-line a,
+.admin-list-row strong, .admin-lead, .admin-help { overflow-wrap: anywhere; }
+.admin-workspace, .admin-edit, .admin-list { min-width: 0; }
+.admin-list-row { align-items: flex-start; }
+.admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.admin-actions { gap: 12px; flex-wrap: wrap; }
+.admin-edit-header { gap: 16px; flex-wrap: wrap; }
+.admin-edit-fields > * { min-width: 0; }
+
+@media (max-width: 560px) {
+  .detail-shell { padding-top: 28px; padding-bottom: 62px; }
+  .detail-hero { align-items: flex-start; margin-top: 26px; }
+  .detail-hero h1 { font-size: clamp(26px, 8.5vw, 35px); letter-spacing: -1px; line-height: 1.2; }
+  .detail-unavailable { align-items: stretch; text-align: left; }
+  .detail-error-copy .btn { width: 100%; }
+  .admin-shell h1 { font-size: clamp(28px, 9vw, 38px); }
+  .admin-list-row { flex-direction: column; gap: 12px; }
+  .admin-row-actions { width: 100%; }
+}
