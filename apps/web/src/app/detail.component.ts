@@ -38,7 +38,7 @@ type DetailLoadResult =
       </a>
 
       <div class="detail-state-card detail-loading-card detail-loading" *ngIf="state === 'loading'"
-           role="status" aria-live="polite" aria-busy="true">
+           role="status" aria-live="polite">
         <span class="detail-state-icon" aria-hidden="true"><span class="detail-spinner"></span></span>
         <div class="detail-state-copy">
           <span class="kicker">ПРОФИЛ НА ОБЕКТ</span>
