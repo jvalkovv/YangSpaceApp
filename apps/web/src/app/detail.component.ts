@@ -32,12 +32,12 @@ type DetailLoadResult =
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <section class="shell detail-shell" aria-labelledby="detail-page-title">
+    <section class="shell detail-shell" aria-labelledby="detail-page-title" [attr.aria-busy]="state === 'loading'">
       <a routerLink="/" class="backlink detail-backlink">
         <span aria-hidden="true">←</span> Към всички обекти
       </a>
 
-      <div class="detail-state-card detail-loading-card" *ngIf="state === 'loading'"
+      <div class="detail-state-card detail-loading-card detail-loading" *ngIf="state === 'loading'"
            role="status" aria-live="polite" aria-busy="true">
         <span class="detail-state-icon" aria-hidden="true"><span class="detail-spinner"></span></span>
         <div class="detail-state-copy">
@@ -98,7 +98,7 @@ type DetailLoadResult =
         </header>
 
         <div class="detail-grid">
-          <main class="detail-main" aria-label="Информация за обекта">
+          <div class="detail-main">
             <section class="panel detail-content-panel" aria-labelledby="detail-offers-title">
               <div class="detail-panel-heading">
                 <div><span class="kicker">АКТУАЛНО</span><h2 id="detail-offers-title">Предложения</h2></div>
@@ -110,7 +110,7 @@ type DetailLoadResult =
               <article class="offer-line detail-entry" *ngFor="let o of item.offers">
                 <div class="detail-entry-heading"><strong>{{o.title}}</strong><span class="detail-entry-tag">ОФЕРТА</span></div>
                 <p>{{o.description}}</p>
-                <span class="detail-entry-date">Валидна от <time [attr.datetime]="o.startsAtUtc">{{formatBulgarianDateTime(o.startsAtUtc)}}</time>
+                <span class="detail-entry-date">Офертата е валидна от <time [attr.datetime]="o.startsAtUtc">{{formatBulgarianDateTime(o.startsAtUtc)}}</time>
                   до <time [attr.datetime]="o.endsAtUtc">{{formatBulgarianDateTime(o.endsAtUtc)}}</time> · българско време</span>
               </article>
             </section>
@@ -125,7 +125,7 @@ type DetailLoadResult =
               </div>
               <article class="offer-line detail-entry" *ngFor="let b of item.brochures">
                 <div class="detail-entry-heading"><strong>{{b.title}}</strong><span class="detail-entry-tag">БРОШУРА</span></div>
-                <p>Валидност:
+                <p>Валидност на брошурата:
                   <time [attr.datetime]="b.validFromUtc">{{formatBulgarianDateTime(b.validFromUtc)}}</time> –
                   <time [attr.datetime]="b.validToUtc">{{formatBulgarianDateTime(b.validToUtc)}}</time> · българско време</p>
                 <a class="detail-entry-link" [href]="b.url" rel="noopener noreferrer" target="_blank">Отвори брошурата <span aria-hidden="true">↗</span></a>
@@ -147,7 +147,7 @@ type DetailLoadResult =
                 <a class="detail-entry-link" [href]="j.applyUrl" rel="noopener noreferrer" target="_blank">Научи повече <span aria-hidden="true">↗</span></a>
               </article>
             </section>
-          </main>
+          </div>
 
           <aside class="detail-sidebar panel" aria-labelledby="detail-info-title">
             <span class="kicker">НАМЕРИ НИ</span>
@@ -161,7 +161,7 @@ type DetailLoadResult =
               <a *ngIf="item.phone" class="btn btn-primary" [href]="'tel:' + item.phone">Обади се <span aria-hidden="true">↗</span></a>
               <a *ngIf="item.website" class="btn btn-outline" [href]="item.website" target="_blank" rel="noopener noreferrer">Уебсайт <span aria-hidden="true">↗</span></a>
             </div>
-            <small class="profile-updated">Последна редакция:
+            <small class="profile-updated">Профилът е редактиран на
               <time [attr.datetime]="item.updatedAtUtc">{{formatBulgarianDateTime(item.updatedAtUtc)}}</time> · българско време</small>
           </aside>
         </div>
@@ -240,7 +240,7 @@ export class DetailComponent implements OnInit {
         this.title.setTitle('Обектът не е намерен | YangSpace');
       } else if (result.notFound) {
         this.state = 'not-found';
-        this.errorMessage = 'Обектът не е намерен или вече не е публично достъпен.';
+        this.errorMessage = 'Обектът не е намерен или е скрит.';
         this.title.setTitle('Обектът не е намерен | YangSpace');
       } else {
         this.state = 'unavailable';
