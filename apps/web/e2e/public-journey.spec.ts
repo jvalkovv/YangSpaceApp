@@ -68,5 +68,5 @@ test('public search remains anonymous and uses the directory endpoint', async ({
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(1);
   await expect(page.getByRole('link', { name: /Вело сервиз „Педал“/ })).toBeVisible();
   expect(searches).toContain('Педал');
-  await expect(page.locator('a[href="/register"]')).toBeVisible();
+  await expect(page.locator('.account-nav a[href="/register"]')).toBeVisible();
 });
