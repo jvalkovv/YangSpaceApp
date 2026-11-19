@@ -56,6 +56,7 @@ New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 
 $gates = [ordered]@{
     LOCAL_MOCK_API_SYNTAX = 'NOT_RUN'
+    LOCAL_MOCK_API_SMOKE = 'NOT_RUN'
     NPM_CI = 'NOT_RUN'
     TYPECHECK = 'NOT_RUN'
     PRODUCTION_BUILD = 'NOT_RUN'
@@ -118,6 +119,51 @@ function Stop-PreviewProcess([System.Diagnostics.Process]$Process) {
         $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
         & $taskkill /PID $Process.Id /T /F 2>&1 | Out-Null
         try { $Process.WaitForExit(10000) | Out-Null } catch { }
+    }
+}
+
+function Invoke-LocalMockApiSmoke {
+    $log = Join-Path $Evidence 'mock-api-smoke.log'
+    $lines = @()
+    try {
+        $homepage = Invoke-RestMethod -Uri 'http://127.0.0.1:5090/api/v1/homepage' -UseBasicParsing -TimeoutSec 5
+        if ($homepage.directory.items.Count -lt 6) { throw 'MOCK_API_PUBLIC_DIRECTORY_FIXTURE_INCOMPLETE' }
+        $lines += 'MOCK_API_PUBLIC_DIRECTORY=PASS'
+
+        $detail = Invoke-RestMethod -Uri 'http://127.0.0.1:5090/api/v1/locations/bike-demo' -UseBasicParsing -TimeoutSec 5
+        if ($detail.slug -cne 'bike-demo' -or $detail.offers.Count -lt 1) {
+            throw 'MOCK_API_PUBLIC_DETAIL_FIXTURE_INCOMPLETE'
+        }
+        $lines += 'MOCK_API_PUBLIC_DETAIL=PASS'
+
+        $loginBody = @{
+            email = 'qa@example.invalid'
+            password = 'DisposableTestPassword123!'
+        } | ConvertTo-Json -Compress
+        $login = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:5090/api/auth/login' -ContentType 'application/json' -Body $loginBody -UseBasicParsing -TimeoutSec 5
+        if ([string]::IsNullOrWhiteSpace($login.accessToken)) { throw 'MOCK_API_ADMIN_LOGIN_FAILED' }
+        $headers = @{ Authorization = 'Bearer ' + $login.accessToken }
+
+        $identity = Invoke-RestMethod -Uri 'http://127.0.0.1:5090/api/v1/admin/me' -Headers $headers -UseBasicParsing -TimeoutSec 5
+        if ($identity.role -cne 'PlatformAdmin') { throw 'MOCK_API_ADMIN_ROLE_FAILED' }
+        $lines += 'MOCK_API_ADMIN_IDENTITY=PASS'
+
+        $adminLocations = Invoke-RestMethod -Uri 'http://127.0.0.1:5090/api/v1/admin/locations' -Headers $headers -UseBasicParsing -TimeoutSec 5
+        if ($adminLocations.Count -lt 6) { throw 'MOCK_API_ADMIN_DIRECTORY_FIXTURE_INCOMPLETE' }
+        $lines += 'MOCK_API_ADMIN_DIRECTORY=PASS'
+
+        $content = Invoke-RestMethod -Uri ('http://127.0.0.1:5090/api/v1/admin/locations/' + $adminLocations[0].id + '/content') -Headers $headers -UseBasicParsing -TimeoutSec 5
+        if ($null -eq $content.offers -or $null -eq $content.brochures -or $null -eq $content.jobs) {
+            throw 'MOCK_API_ADMIN_PUBLICATIONS_FIXTURE_INCOMPLETE'
+        }
+        $lines += 'MOCK_API_ADMIN_PUBLICATIONS=PASS'
+        $lines | Set-Content -LiteralPath $log -Encoding utf8
+        Write-Host 'LOCAL_MOCK_API_SMOKE=PASS'
+    }
+    catch {
+        $lines += ('MOCK_API_SMOKE_FAILURE=' + $_.Exception.Message)
+        $lines | Set-Content -LiteralPath $log -Encoding utf8
+        throw
     }
 }
 
@@ -246,6 +292,8 @@ try {
 
     if ($InteractiveBrowser) {
         $previewProcess = Start-InteractivePreview
+        Invoke-LocalMockApiSmoke
+        $gates.LOCAL_MOCK_API_SMOKE = 'PASS'
     }
 
     $targetedArgs = @(
