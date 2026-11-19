@@ -73,3 +73,28 @@ Postflight verifies the manifest hash, individual artifact hashes, complete gate
 **SOURCE IMPLEMENTATION IN PROGRESS / QA PENDING.** Do not mark this milestone accepted, merge PR #61 or deploy until the complete exact-SHA acceptance matrix and independent postflight are PASS.
 
 No backend H01–H05 contract, package manifest, production host, CT164, real SMTP, Cloudflare/Nginx/ingress, public registration, claim decision, evidence intake or GitHub Actions change belongs to this scope.
+
+
+## 2026-11-20 — integrated build failure correction and interactive QA package
+
+Operator's exact-SHA run at `51a9059d4a520b21d40f0279b536f0ef11b07983`:
+- `npm ci`: PASS (exit 0). npm printed an install-scripts policy warning for four packages; this was not the failing gate.
+- TypeScript typecheck: PASS.
+- Angular production build: FAIL because Angular's template event binding exposes `$event` as `Event`, but `onMenuEscape` unnecessarily required `KeyboardEvent`.
+- Targeted/full Playwright did not run after the build gate failed.
+
+Correction: `onMenuEscape(event: Event)` is the accurate contract for the operations used (`preventDefault`, `stopPropagation`); focus restoration and Escape behavior are retained.
+
+New interactive QA package:
+- `scripts/Start-H06-2-Browser-QA.ps1`: single entry point; clean-worktree guard, GitHub fetch and safe fast-forward, automatic exact SHA, Chromium install, build and evidence orchestration, automatic independent postflight.
+- `scripts/Test-H06-2-Web-Acceptance.ps1`: added interactive/ headed mode, Node mock API syntax gate, local server lifecycle, Enter prompt, and headed focused/full Playwright.
+- `apps/web/qa/mock-api.mjs`: deterministic fictional data and in-memory preview-only endpoints on loopback `127.0.0.1:5090`; no database, SMTP or persistence.
+- `apps/web/playwright.config.ts`: permits reuse only when the launcher explicitly sets `H06_2_REUSE_SERVER=1`; default Playwright behavior still starts its own server and refuses reuse.
+- `scripts/Verify-H06-2-Web-Postflight.ps1`: now requires the local mock API syntax gate in the evidence manifest.
+- Full operator guide: `docs/H06_2_BROWSER_QA_LAUNCHER_20261120.md`.
+
+Expected interaction: the launcher starts the local mock API and Angular dev server, opens the browser on `http://127.0.0.1:4300/`, and waits for Enter in the PowerShell console. After Enter, it opens headed Playwright Chromium, runs the focused and full suites, stops only the processes it created, writes screenshots/logs/trace evidence and performs independent postflight. The manual browser and Playwright-controlled browser are separate windows.
+
+Preview Admin demo identity is `qa@example.invalid` / `DisposableTestPassword123!`; the mock token is local-only, data is in-memory and resets on shutdown. Public account flows remain disabled.
+
+**Status: source correction and launcher committed; exact-SHA build, headed Playwright, visual review and postflight are PENDING.** Do not mark H06.2 accepted or merge PR #61 until the new launcher completes successfully.
