@@ -79,7 +79,9 @@ test('detail loading announces progress and aria-busy clears after data arrives'
   releaseResponse();
   await expect(page.getByRole('heading', { name: detail.name })).toBeVisible();
   await expect(page.locator('.detail-shell')).toHaveAttribute('aria-busy', 'false');
-  await expect(page.getByRole('status')).toHaveCount(0);
+  // The three empty publication sections intentionally retain role=status announcements.
+  await expect(page.locator('.detail-loading-card[role="status"]')).toHaveCount(0);
+  await expect(page.locator('.detail-empty[role="status"]')).toHaveCount(3);
 });
 
 test('detail network errors remain generic and retryable', async ({ page }) => {
