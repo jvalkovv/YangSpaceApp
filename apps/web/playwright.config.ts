@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: {
     command: 'npm start -- --port 4300',
     url: 'http://127.0.0.1:4300',
-    reuseExistingServer: false,
+    reuseExistingServer: process.env['H06_2_REUSE_SERVER'] === '1',
     timeout: 90_000
   }
 });
