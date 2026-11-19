@@ -17,17 +17,16 @@ The detail view now:
 
 No API/backend contract, dependency, migration, infrastructure or production behavior changed.
 
-## Playwright coverage added
+## Playwright coverage
 
-`apps/web/e2e/detail.spec.ts` covers:
-1. Populated profile, offers, brochures, jobs and contact actions.
-2. Genuine empty states for all three content groups.
-3. Accessible loading state.
-4. HTTP 503 unavailable state and retry recovery, including stale payload suppression.
-5. Network failure and retry recovery.
-6. Distinct HTTP 404 state without a misleading retry action.
-7. Late response from an old slug cannot replace the current object.
-8. `apps/web/e2e/detail-navigation.spec.ts` covers 503 retry without exposing diagnostic payload, distinct 404, loading announcement, network retry, navigation cancellation and mobile Escape/focus restoration.\n9. `apps/web/e2e/product-responsive.spec.ts` covers detail and PlatformAdmin preview/editor layout at all ten required widths, with clipping checks and screenshots.
+The tests are split into focused suites:
+- `apps/web/e2e/detail.spec.ts`: populated profile/contact/publications, genuine empty states and stale response on in-app slug change.
+- `apps/web/e2e/detail-navigation.spec.ts`: 503/retry, 404 distinction, loading announcement and busy state, network failure/retry, navigation away during a pending request, mobile Escape/focus.
+- `apps/web/e2e/product-responsive.spec.ts`: detail and PlatformAdmin preview/editor at 320/360/375/390/430/768/820/1024/1280/1440 px, clipping/overflow checks and screenshots.
+- `apps/web/e2e/public-journey.spec.ts`: anonymous category filter → detail → catalogue and public search.
+- `apps/web/e2e/responsive-preview.spec.ts`: homepage and populated highlights at the same ten widths.
+
+These are committed test contracts, not yet runtime PASS at the current feature head.
 
 ## Verification status
 
