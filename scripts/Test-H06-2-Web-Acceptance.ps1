@@ -31,7 +31,8 @@ if ((Get-GitValue -Arguments @('branch', '--show-current')) -cne $ExpectedBranch
 if ((Get-GitValue -Arguments @('rev-parse', 'HEAD')) -cne $CommitSha) {
     throw 'H06_2_EXACT_SHA_MISMATCH'
 }
-if (@(& git -C $Work status --porcelain --untracked-files=all).Count -gt 0) {
+$preflightStatus = @(& git -C $Work status --porcelain --untracked-files=all)
+if ($LASTEXITCODE -ne 0 -or $preflightStatus.Count -gt 0) {
     & git -C $Work status --short
     throw 'H06_2_SOURCE_DIRTY_BEFORE'
 }
@@ -140,13 +141,15 @@ finally {
     if ((Get-GitValue -Arguments @('rev-parse', 'HEAD')) -cne $CommitSha) {
         $gates.SOURCE_CLEAN_POST = 'FAIL_SHA_CHANGED'
     }
-    elseif (@(& git -C $Work status --porcelain --untracked-files=all).Count -eq 0) {
-        $gates.SOURCE_CLEAN_POST = 'PASS'
-    }
     else {
-        $gates.SOURCE_CLEAN_POST = 'FAIL_DIRTY'
-        & git -C $Work status --porcelain --untracked-files=all |
-            Set-Content -LiteralPath (Join-Path $Evidence 'git-status.txt') -Encoding UTF8
+        $postflightStatus = @(& git -C $Work status --porcelain --untracked-files=all)
+        if ($LASTEXITCODE -eq 0 -and $postflightStatus.Count -eq 0) {
+            $gates.SOURCE_CLEAN_POST = 'PASS'
+        }
+        else {
+            $gates.SOURCE_CLEAN_POST = 'FAIL_DIRTY'
+            $postflightStatus | Set-Content -LiteralPath (Join-Path $Evidence 'git-status.txt') -Encoding UTF8
+        }
     }
 
     $summary = @('COMMIT_SHA=' + $CommitSha, 'BRANCH=' + $ExpectedBranch)
