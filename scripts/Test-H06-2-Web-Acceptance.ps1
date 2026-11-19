@@ -17,8 +17,12 @@ $ErrorActionPreference = 'Stop'
 $ExpectedBranch = 'feat/yangspace-f2b-h06-2-public-product-ux-20261118'
 $Work = (Resolve-Path -LiteralPath $Work).Path
 $App = Join-Path $Work 'apps\web'
+$MockApi = Join-Path $App 'qa\mock-api.mjs'
 if (-not (Test-Path -LiteralPath (Join-Path $App 'package-lock.json') -PathType Leaf)) {
     throw 'H06_2_WEB_APP_MISSING'
+}
+if (-not (Test-Path -LiteralPath $MockApi -PathType Leaf)) {
+    throw 'H06_2_LOCAL_MOCK_API_MISSING'
 }
 
 function Get-GitValue([string[]]$Arguments) {
@@ -94,42 +98,83 @@ function Save-BrowserEvidence([string]$Label) {
     }
 }
 
-function Start-InteractivePreview {
-    $url = 'http://127.0.0.1:4300/'
+function Test-LocalTcpPort([int]$Port) {
     $client = New-Object System.Net.Sockets.TcpClient
-    $portBusy = $false
     try {
-        $client.Connect('127.0.0.1', 4300)
-        $portBusy = $true
+        $client.Connect('127.0.0.1', $Port)
+        return $true
     }
     catch {
-        $portBusy = $false
+        return $false
     }
     finally {
         $client.Dispose()
     }
-    if ($portBusy) { throw 'H06_2_PREVIEW_PORT_4300_ALREADY_IN_USE' }
+}
 
-    $stdout = Join-Path $Evidence 'interactive-preview.stdout.log'
-    $stderr = Join-Path $Evidence 'interactive-preview.stderr.log'
+function Stop-PreviewProcess([System.Diagnostics.Process]$Process) {
+    if ($null -ne $Process -and -not $Process.HasExited) {
+        $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+        & $taskkill /PID $Process.Id /T /F 2>&1 | Out-Null
+    }
+}
+
+function Start-InteractivePreview {
+    $url = 'http://127.0.0.1:4300/'
+    if (Test-LocalTcpPort 5090) { throw 'H06_2_MOCK_API_PORT_5090_ALREADY_IN_USE' }
+    if (Test-LocalTcpPort 4300) { throw 'H06_2_PREVIEW_PORT_4300_ALREADY_IN_USE' }
+
+    $apiStdout = Join-Path $Evidence 'mock-api.stdout.log'
+    $apiStderr = Join-Path $Evidence 'mock-api.stderr.log'
+    $webStdout = Join-Path $Evidence 'interactive-preview.stdout.log'
+    $webStderr = Join-Path $Evidence 'interactive-preview.stderr.log'
+    $apiProcess = $null
+    $webProcess = $null
     $commandShell = if ($env:ComSpec) { $env:ComSpec } else { 'cmd.exe' }
-    $process = Start-Process -FilePath $commandShell -ArgumentList @('/d', '/s', '/c', 'npm.cmd start -- --port 4300') -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
 
     try {
-        $deadline = (Get-Date).AddSeconds(90)
-        $ready = $false
-        while ((Get-Date) -lt $deadline) {
-            if ($process.HasExited) {
-                Write-Host '=== PREVIEW SERVER STDOUT ==='
-                if (Test-Path $stdout) { Get-Content $stdout -Tail 40 }
-                Write-Host '=== PREVIEW SERVER STDERR ==='
-                if (Test-Path $stderr) { Get-Content $stderr -Tail 40 }
+        $apiProcess = Start-Process -FilePath 'node.exe' -ArgumentList @($MockApi) -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $apiStdout -RedirectStandardError $apiStderr -PassThru
+
+        $apiDeadline = (Get-Date).AddSeconds(30)
+        $apiReady = $false
+        while ((Get-Date) -lt $apiDeadline) {
+            if ($apiProcess.HasExited) {
+                Write-Host '=== LOCAL MOCK API STDOUT ==='
+                if (Test-Path $apiStdout) { Get-Content $apiStdout -Tail 40 }
+                Write-Host '=== LOCAL MOCK API STDERR ==='
+                if (Test-Path $apiStderr) { Get-Content $apiStderr -Tail 40 }
+                throw 'H06_2_MOCK_API_EXITED_EARLY'
+            }
+            try {
+                $apiResponse = Invoke-WebRequest -Uri 'http://127.0.0.1:5090/health' -UseBasicParsing -TimeoutSec 2
+                if ($apiResponse.StatusCode -eq 200) {
+                    $apiReady = $true
+                    break
+                }
+            }
+            catch {
+                # The local in-memory fixture API is still starting.
+            }
+            Start-Sleep -Seconds 1
+        }
+        if (-not $apiReady) { throw 'H06_2_MOCK_API_START_TIMEOUT' }
+
+        $webProcess = Start-Process -FilePath $commandShell -ArgumentList @('/d', '/s', '/c', 'npm.cmd start -- --port 4300') -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $webStdout -RedirectStandardError $webStderr -PassThru
+
+        $webDeadline = (Get-Date).AddSeconds(90)
+        $webReady = $false
+        while ((Get-Date) -lt $webDeadline) {
+            if ($webProcess.HasExited) {
+                Write-Host '=== ANGULAR PREVIEW STDOUT ==='
+                if (Test-Path $webStdout) { Get-Content $webStdout -Tail 40 }
+                Write-Host '=== ANGULAR PREVIEW STDERR ==='
+                if (Test-Path $webStderr) { Get-Content $webStderr -Tail 40 }
                 throw 'H06_2_PREVIEW_SERVER_EXITED_EARLY'
             }
             try {
                 $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3
                 if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
-                    $ready = $true
+                    $webReady = $true
                     break
                 }
             }
@@ -138,33 +183,34 @@ function Start-InteractivePreview {
             }
             Start-Sleep -Seconds 1
         }
-        if (-not $ready) { throw 'H06_2_PREVIEW_SERVER_START_TIMEOUT' }
+        if (-not $webReady) { throw 'H06_2_PREVIEW_SERVER_START_TIMEOUT' }
 
         [Environment]::SetEnvironmentVariable('H06_2_REUSE_SERVER', '1', 'Process')
         Write-Host ''
         Write-Host ('PREVIEW_READY=' + $url)
-        Write-Host 'Отвори се браузърът. Провери началната страница, каталога и детайлната страница.'
+        Write-Host 'LOCAL_API=127.0.0.1:5090 (in-memory demo data; no database, SMTP or external services)'
+        Write-Host ('ADMIN_DEMO_LOGIN=' + 'qa@example.invalid')
+        Write-Host ('ADMIN_DEMO_PASSWORD=' + 'DisposableTestPassword123!')
+        Write-Host 'Отвори се браузърът. Можеш да разгледаш началната страница, търсенето, обектите и Preview Admin.'
         Write-Host 'Когато си готов, върни се в този PowerShell прозорец и натисни Enter.'
         Start-Process $url
         [void](Read-Host 'ENTER = стартирай headed Playwright acceptance')
 
-        return $process
+        return [pscustomobject]@{ Api = $apiProcess; Web = $webProcess }
     }
     catch {
-        if (-not $process.HasExited) {
-            $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
-            & $taskkill /PID $process.Id /T /F 2>&1 | Out-Null
-        }
+        Stop-PreviewProcess -Process $webProcess
+        Stop-PreviewProcess -Process $apiProcess
         throw
     }
 }
 
 function Stop-InteractivePreview {
-    param([System.Diagnostics.Process]$Process)
-    if ($null -ne $Process -and -not $Process.HasExited) {
-        $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
-        & $taskkill /PID $Process.Id /T /F 2>&1 | Out-Null
-        Write-Host 'INTERACTIVE_PREVIEW_SERVER=STOPPED'
+    param([object]$ProcessSet)
+    if ($null -ne $ProcessSet) {
+        Stop-PreviewProcess -Process $ProcessSet.Web
+        Stop-PreviewProcess -Process $ProcessSet.Api
+        Write-Host 'INTERACTIVE_PREVIEW_SERVERS=STOPPED'
     }
 }
 
