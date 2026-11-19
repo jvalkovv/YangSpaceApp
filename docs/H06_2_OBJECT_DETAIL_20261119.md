@@ -27,7 +27,7 @@ No API/backend contract, dependency, migration, infrastructure or production beh
 5. Network failure and retry recovery.
 6. Distinct HTTP 404 state without a misleading retry action.
 7. Late response from an old slug cannot replace the current object.
-8. Responsive layout and horizontal overflow at 320, 360, 375, 390, 430, 768, 820, 1024, 1280 and 1440px, with screenshots.
+8. `apps/web/e2e/detail-navigation.spec.ts` covers 503 retry without exposing diagnostic payload, distinct 404, loading announcement, network retry, navigation cancellation and mobile Escape/focus restoration.\n9. `apps/web/e2e/product-responsive.spec.ts` covers detail and PlatformAdmin preview/editor layout at all ten required widths, with clipping checks and screenshots.
 
 ## Verification status
 
