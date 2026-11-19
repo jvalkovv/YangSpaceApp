@@ -117,6 +117,8 @@ try {
         Invoke-NativeGate 'targeted-playwright' 'npx.cmd' @(
             'playwright', 'test',
             'e2e/homepage-highlights.spec.ts',
+            'e2e/directory.spec.ts',
+            'e2e/detail.spec.ts',
             'e2e/detail-navigation.spec.ts',
             'e2e/product-responsive.spec.ts',
             'e2e/responsive-preview.spec.ts',
