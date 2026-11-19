@@ -7,7 +7,9 @@ param(
     [string]$Work = 'D:\GitHub\YangSpaceApp-F2b-H06.2-20261118',
     [string]$EvidenceRoot = 'D:\GitHub\YangSpaceApp-QA-Evidence\H06.2',
 
-    [switch]$InstallChromium
+    [switch]$InstallChromium,
+    [switch]$InteractiveBrowser,
+    [switch]$Headed
 )
 
 Set-StrictMode -Version Latest
@@ -57,6 +59,8 @@ $gates = [ordered]@{
     SOURCE_CLEAN_POST = 'NOT_RUN'
 }
 $failure = $null
+$previewProcess = $null
+$previousReuseServer = [Environment]::GetEnvironmentVariable('H06_2_REUSE_SERVER', 'Process')
 
 function Invoke-NativeGate {
     param(
@@ -65,8 +69,8 @@ function Invoke-NativeGate {
         [Parameter(Mandatory = $true)][string[]]$Arguments
     )
     $log = Join-Path $Evidence ($Name + '.log')
-    # Windows PowerShell 5.1 can wrap native stderr warnings as ErrorRecords.
-    # A warning is not a failing exit code: preserve stderr and inspect EXIT.
+    # Windows PowerShell 5.1 may wrap native stderr warnings as ErrorRecords.
+    # Preserve stderr and decide from the native process exit code.
     $oldPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     $exitCode = -1
@@ -90,13 +94,89 @@ function Save-BrowserEvidence([string]$Label) {
     }
 }
 
+function Start-InteractivePreview {
+    $url = 'http://127.0.0.1:4300/'
+    $client = New-Object System.Net.Sockets.TcpClient
+    $portBusy = $false
+    try {
+        $client.Connect('127.0.0.1', 4300)
+        $portBusy = $true
+    }
+    catch {
+        $portBusy = $false
+    }
+    finally {
+        $client.Dispose()
+    }
+    if ($portBusy) { throw 'H06_2_PREVIEW_PORT_4300_ALREADY_IN_USE' }
+
+    $stdout = Join-Path $Evidence 'interactive-preview.stdout.log'
+    $stderr = Join-Path $Evidence 'interactive-preview.stderr.log'
+    $commandShell = if ($env:ComSpec) { $env:ComSpec } else { 'cmd.exe' }
+    $process = Start-Process -FilePath $commandShell -ArgumentList @('/d', '/s', '/c', 'npm.cmd start -- --port 4300') -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+
+    try {
+        $deadline = (Get-Date).AddSeconds(90)
+        $ready = $false
+        while ((Get-Date) -lt $deadline) {
+            if ($process.HasExited) {
+                Write-Host '=== PREVIEW SERVER STDOUT ==='
+                if (Test-Path $stdout) { Get-Content $stdout -Tail 40 }
+                Write-Host '=== PREVIEW SERVER STDERR ==='
+                if (Test-Path $stderr) { Get-Content $stderr -Tail 40 }
+                throw 'H06_2_PREVIEW_SERVER_EXITED_EARLY'
+            }
+            try {
+                $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3
+                if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+                    $ready = $true
+                    break
+                }
+            }
+            catch {
+                # Angular compilation is still starting; retry until deadline.
+            }
+            Start-Sleep -Seconds 1
+        }
+        if (-not $ready) { throw 'H06_2_PREVIEW_SERVER_START_TIMEOUT' }
+
+        [Environment]::SetEnvironmentVariable('H06_2_REUSE_SERVER', '1', 'Process')
+        Write-Host ''
+        Write-Host ('PREVIEW_READY=' + $url)
+        Write-Host 'Отвори се браузърът. Провери началната страница, каталога и детайлната страница.'
+        Write-Host 'Когато си готов, върни се в този PowerShell прозорец и натисни Enter.'
+        Start-Process $url
+        [void](Read-Host 'ENTER = стартирай headed Playwright acceptance')
+
+        return $process
+    }
+    catch {
+        if (-not $process.HasExited) {
+            $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+            & $taskkill /PID $process.Id /T /F 2>&1 | Out-Null
+        }
+        throw
+    }
+}
+
+function Stop-InteractivePreview {
+    param([System.Diagnostics.Process]$Process)
+    if ($null -ne $Process -and -not $Process.HasExited) {
+        $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+        & $taskkill /PID $Process.Id /T /F 2>&1 | Out-Null
+        Write-Host 'INTERACTIVE_PREVIEW_SERVER=STOPPED'
+    }
+}
+
 Push-Location $App
 try {
     $versions = @(
         'COMMIT_SHA=' + $CommitSha,
         'BRANCH=' + $ExpectedBranch,
         'NODE=' + (& node --version),
-        'NPM=' + (& npm.cmd --version)
+        'NPM=' + (& npm.cmd --version),
+        'INTERACTIVE_BROWSER=' + [string]$InteractiveBrowser,
+        'HEADED_PLAYWRIGHT=' + [string]$Headed
     )
     $versions | Set-Content -LiteralPath (Join-Path $Evidence 'runtime.txt') -Encoding UTF8
 
@@ -113,26 +193,36 @@ try {
     Invoke-NativeGate 'production-build' 'npm.cmd' @('run', 'build')
     $gates.PRODUCTION_BUILD = 'PASS'
 
+    if ($InteractiveBrowser) {
+        $previewProcess = Start-InteractivePreview
+    }
+
+    $targetedArgs = @(
+        'playwright', 'test',
+        'e2e/homepage-highlights.spec.ts',
+        'e2e/accessibility.spec.ts',
+        'e2e/admin-cms.spec.ts',
+        'e2e/directory.spec.ts',
+        'e2e/public-journey.spec.ts',
+        'e2e/detail.spec.ts',
+        'e2e/detail-navigation.spec.ts',
+        'e2e/product-responsive.spec.ts',
+        'e2e/responsive-preview.spec.ts',
+        '--reporter=line'
+    )
+    if ($Headed) { $targetedArgs += '--headed' }
+
     try {
-        Invoke-NativeGate 'targeted-playwright' 'npx.cmd' @(
-            'playwright', 'test',
-            'e2e/homepage-highlights.spec.ts',
-            'e2e/accessibility.spec.ts',
-            'e2e/admin-cms.spec.ts',
-            'e2e/directory.spec.ts',
-            'e2e/public-journey.spec.ts',
-            'e2e/detail.spec.ts',
-            'e2e/detail-navigation.spec.ts',
-            'e2e/product-responsive.spec.ts',
-            'e2e/responsive-preview.spec.ts',
-            '--reporter=line'
-        )
+        Invoke-NativeGate 'targeted-playwright' 'npx.cmd' $targetedArgs
         $gates.TARGETED_PLAYWRIGHT = 'PASS'
     }
     finally { Save-BrowserEvidence 'targeted' }
 
+    $fullArgs = @('playwright', 'test', '--reporter=line')
+    if ($Headed) { $fullArgs += '--headed' }
+
     try {
-        Invoke-NativeGate 'full-playwright' 'npm.cmd' @('run', 'test:e2e', '--', '--reporter=line')
+        Invoke-NativeGate 'full-playwright' 'npx.cmd' $fullArgs
         $gates.FULL_PLAYWRIGHT = 'PASS'
     }
     finally { Save-BrowserEvidence 'full' }
@@ -142,7 +232,10 @@ catch {
     Write-Host ('H06_2_QA_FAILED=' + $failure)
 }
 finally {
+    Stop-InteractivePreview -Process $previewProcess
+    [Environment]::SetEnvironmentVariable('H06_2_REUSE_SERVER', $previousReuseServer, 'Process')
     Pop-Location
+
     if ((Get-GitValue -Arguments @('rev-parse', 'HEAD')) -cne $CommitSha) {
         $gates.SOURCE_CLEAN_POST = 'FAIL_SHA_CHANGED'
     }
