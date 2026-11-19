@@ -83,7 +83,7 @@ test('category chip and neighborhood filter are combined in the directory reques
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(1);
   await expect(page.locator('.location-card')).toContainText('Кафене „Ъгълът“');
 
-  const combined = requests.at(-1);
+  const combined = requests[requests.length - 1];
   expect(combined?.searchParams.get('category')).toBe('Заведения');
   expect(combined?.searchParams.get('neighborhood')).toBe('Левски');
 });
