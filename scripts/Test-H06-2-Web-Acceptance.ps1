@@ -67,6 +67,7 @@ $gates = [ordered]@{
 $failure = $null
 $previewProcess = $null
 $previousReuseServer = [Environment]::GetEnvironmentVariable('H06_2_REUSE_SERVER', 'Process')
+[Environment]::SetEnvironmentVariable('H06_2_REUSE_SERVER', $null, 'Process')
 
 function Invoke-NativeGate {
     param(
