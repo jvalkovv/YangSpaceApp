@@ -1,0 +1,412 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Reflection;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Text.Json;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Npgsql;
+using YangSpace.Api;
+
+// H01 executes the real Program Production startup and ProductionSchemaGate via TestServer.
+// Positive route checks remain default-OFF; invalid authorization probes only verify fail-closed startup.
+internal static class F2bO4H01PostgreSqlStartupContract
+{
+    private const string DbName = "yangspace_f2b_o3_worker_disposable";
+
+    private sealed class StartupEnvironmentScope : IDisposable
+    {
+        private readonly Dictionary<string,string?> previous = new(StringComparer.Ordinal);
+        private static readonly string[] Names =
+        [
+            "ConnectionStrings__Main", "Database__Provider", "AllowedHosts",
+            "Preview__Enabled", "Preview__AllowRegistration", "Admin__Enabled",
+            "MerchantRead__Enabled", "ClaimReview__QaEnabled",
+            "ClaimReviewPostgreSqlQa__Enabled", "PublicAccounts__Enabled",
+            "PublicAccounts__Outbox__DispatchEnabled", "PublicAccounts__CanonicalOrigin",
+            "PublicAccounts__ReleaseAuthorization__Payload",
+            "PublicAccounts__ReleaseAuthorization__Signature",
+            "PublicAccounts__ReleaseAuthorization__TrustedKeyId",
+            "PublicAccounts__ReleaseAuthorization__TrustedPublicKeyPem",
+            "YANGSPACE_RELEASE_COMMIT_SHA",
+            "ASPNETCORE_ENVIRONMENT", "DOTNET_ENVIRONMENT"
+        ];
+
+        internal StartupEnvironmentScope()
+        {
+            foreach (var name in Names)
+                previous[name] = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process);
+        }
+
+        private static void SetProcess(string name, string? value) =>
+            Environment.SetEnvironmentVariable(name, value, EnvironmentVariableTarget.Process);
+
+        internal void SetStartup(string connection, bool publicAccounts=false,
+            bool dispatch=false, bool production=true)
+        {
+            SetProcess("ConnectionStrings__Main",connection);
+            SetProcess("Database__Provider","PostgreSQL");
+            SetProcess("AllowedHosts","yangspace.gndstore.eu");
+            SetProcess("Preview__Enabled","false");
+            SetProcess("Preview__AllowRegistration","false");
+            SetProcess("Admin__Enabled","false");
+            SetProcess("MerchantRead__Enabled","false");
+            SetProcess("ClaimReview__QaEnabled","false");
+            SetProcess("ClaimReviewPostgreSqlQa__Enabled","false");
+            SetProcess("PublicAccounts__Enabled",publicAccounts ? "true" : "false");
+            SetProcess("PublicAccounts__Outbox__DispatchEnabled",dispatch ? "true" : "false");
+            SetProcess("PublicAccounts__CanonicalOrigin",PublicAccountReleaseAuthorization.RequiredAudience);
+            SetProcess("PublicAccounts__ReleaseAuthorization__Payload",null);
+            SetProcess("PublicAccounts__ReleaseAuthorization__Signature",null);
+            SetProcess("PublicAccounts__ReleaseAuthorization__TrustedKeyId",null);
+            SetProcess("PublicAccounts__ReleaseAuthorization__TrustedPublicKeyPem",null);
+            SetProcess("ASPNETCORE_ENVIRONMENT",production ? "Production" : "Development");
+            SetProcess("DOTNET_ENVIRONMENT",production ? "Production" : "Development");
+        }
+
+        internal void SetReleaseAuthorization(
+            IReadOnlyDictionary<string,string?> values, string expectedCommit)
+        {
+            foreach (var (name,value) in values)
+                SetProcess(name.Replace(":", "__", StringComparison.Ordinal), value);
+            SetProcess("YANGSPACE_RELEASE_COMMIT_SHA", expectedCommit);
+        }
+
+        public void Dispose()
+        {
+            foreach (var (name,value) in previous)
+                Environment.SetEnvironmentVariable(name,value,EnvironmentVariableTarget.Process);
+        }
+    }
+
+    private sealed class Factory : WebApplicationFactory<ApiAssemblyMarker>
+    {
+        internal required string Connection { get; init; }
+        internal bool PublicAccounts { get; init; }
+        internal bool Dispatch { get; init; }
+        internal bool Production { get; init; } = true;
+
+        protected override IEnumerable<Assembly> GetTestAssemblies()
+        {
+            yield return typeof(F2bO4H01PostgreSqlStartupContract).Assembly;
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            var root = AppContext.BaseDirectory;
+            if (Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) != "/qa")
+                throw new InvalidOperationException("F2B_O4_H01_UNEXPECTED_CONTENT_ROOT");
+            if (!File.Exists(Path.Combine(root, "appsettings.json")))
+                throw new InvalidOperationException("F2B_O4_H01_APPSETTINGS_NOT_PUBLISHED");
+            builder.UseContentRoot(root);
+            builder.UseEnvironment(Production ? "Production" : "Development");
+            builder.ConfigureAppConfiguration((_, settings) => settings.AddInMemoryCollection(
+                new Dictionary<string,string?>
+                {
+                    ["ConnectionStrings:Main"] = Connection,
+                    ["Database:Provider"] = "PostgreSQL",
+                    ["AllowedHosts"] = "yangspace.gndstore.eu",
+                    ["Preview:Enabled"] = "false",
+                    ["Preview:AllowRegistration"] = "false",
+                    ["Admin:Enabled"] = "false",
+                    ["MerchantRead:Enabled"] = "false",
+                    ["ClaimReview:QaEnabled"] = "false",
+                    ["ClaimReviewPostgreSqlQa:Enabled"] = "false",
+                    ["PublicAccounts:Enabled"] = PublicAccounts ? "true" : "false",
+                    ["PublicAccounts:Outbox:DispatchEnabled"] = Dispatch ? "true" : "false"
+                }));
+        }
+    }
+
+    private static Dictionary<string,string?> CreateAuthorization(
+        ECDsa signer, string sourceCommit, DateTimeOffset issuedAtUtc,
+        DateTimeOffset expiresAtUtc, bool corruptSignature = false)
+    {
+        var payload = new PublicAccountReleaseAuthorization.Payload(
+            1, "h01-ephemeral-test-key", PublicAccountReleaseAuthorization.RequiredScope,
+            Environments.Production, PublicAccountReleaseAuthorization.RequiredAudience,
+            sourceCommit, "issue-44", issuedAtUtc, expiresAtUtc);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(payload, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+        var signature = signer.SignData(bytes, HashAlgorithmName.SHA256,
+            DSASignatureFormat.Rfc3279DerSequence);
+        if (corruptSignature)
+            signature[0] ^= 0x01;
+
+        return new Dictionary<string,string?>
+        {
+            ["PublicAccounts:CanonicalOrigin"] = PublicAccountReleaseAuthorization.RequiredAudience,
+            ["PublicAccounts:ReleaseAuthorization:TrustedKeyId"] = "h01-ephemeral-test-key",
+            ["PublicAccounts:ReleaseAuthorization:TrustedPublicKeyPem"] = signer.ExportSubjectPublicKeyInfoPem(),
+            ["PublicAccounts:ReleaseAuthorization:Payload"] = WebEncoders.Base64UrlEncode(bytes),
+            ["PublicAccounts:ReleaseAuthorization:Signature"] = WebEncoders.Base64UrlEncode(signature)
+        };
+    }
+
+    private static void Check(bool ok, string marker)
+    {
+        if (!ok) throw new InvalidOperationException("F2B_O4_H01_FAILED=" + marker);
+        Console.WriteLine(marker + "=PASS");
+    }
+
+    private static string Required(string name) =>
+        Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
+            ? value : throw new InvalidOperationException("F2B_O4_H01_ENV_MISSING=" + name);
+
+    private static NpgsqlConnectionStringBuilder Scoped(string raw, string role)
+    {
+        var cs = new NpgsqlConnectionStringBuilder(raw);
+        if (cs.Host != "localhost" || cs.Port != 5432 ||
+            cs.Database != DbName || cs.Username != role ||
+            cs.SslMode != SslMode.VerifyFull || cs.Pooling || cs.IncludeErrorDetail ||
+            cs.RootCertificate != "/run/pgcerts/ca.crt")
+            throw new InvalidOperationException("F2B_O4_H01_CONNECTION_NOT_DISPOSABLE");
+        return cs;
+    }
+
+    private static async Task VerifyRuntimeScope(string connection, string token)
+    {
+        await using var c = new NpgsqlConnection(connection);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            SELECT current_database()=@db
+              AND current_user='ys_o3_runtime'
+              AND (SELECT scope_token FROM public.yangspace_f2b_o3_qa_guard LIMIT 1)=@token
+              AND (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid())
+              AND current_setting('server_version_num')::integer BETWEEN 170000 AND 179999
+              AND NOT (SELECT rolsuper FROM pg_roles WHERE rolname=current_user)
+              AND has_schema_privilege(current_user,'public','USAGE')
+              AND NOT has_schema_privilege(current_user,'public','CREATE')
+            """;
+        cmd.Parameters.AddWithValue("db", DbName);
+        cmd.Parameters.AddWithValue("token", token);
+        Check((bool)(await cmd.ExecuteScalarAsync() ?? false),
+            "F2B_O4_H01_RUNTIME_TLS_SCOPE_NON_ELEVATED");
+    }
+
+    private static async Task GrantHistoryOnly(string migrator)
+    {
+        await using var c = new NpgsqlConnection(migrator);
+        await c.OpenAsync();
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = """
+            GRANT SELECT ON TABLE public."__EFMigrationsHistory" TO ys_o3_runtime;
+            """;
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static bool HasMessage(Exception exception, string expected)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+            if (current.Message.Contains(expected, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private static bool HasAuthenticationFailure(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+            if (current is AuthenticationException) return true;
+        return false;
+    }
+
+    private static async Task RejectStartup(Factory factory, string error, string marker)
+    {
+        var refused = false;
+        try
+        {
+            using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://yangspace.gndstore.eu")
+            });
+            using var response = await client.GetAsync("/health/live");
+        }
+        catch (Exception ex) when (HasMessage(ex, error)) { refused = true; }
+        Check(refused, marker);
+    }
+
+    internal static async Task RunAsync()
+    {
+        var releaseCommit = Required("YANGSPACE_RELEASE_COMMIT_SHA");
+        var migrator = Required("YANGSPACE_F2B_O3_PG_MIGRATOR_CONNECTION");
+        var runtime = Required("YANGSPACE_F2B_O3_PG_RUNTIME_CONNECTION");
+        var scopeToken = Required("YANGSPACE_F2B_O3_PG_SCOPE_TOKEN");
+
+        using var startupEnvironment = new StartupEnvironmentScope();
+        Scoped(migrator, "ys_o3_migrator");
+        Scoped(runtime, "ys_o3_runtime");
+        await VerifyRuntimeScope(runtime,scopeToken);
+        await GrantHistoryOnly(migrator);
+
+        await using (var db = new NpgsqlConnection(runtime))
+        {
+            await db.OpenAsync();
+            await using var cmd = db.CreateCommand();
+            cmd.CommandText = """
+                SELECT has_table_privilege(current_user,'public."__EFMigrationsHistory"','SELECT')
+                  AND NOT has_schema_privilege(current_user,'public','CREATE')
+                  AND NOT has_column_privilege(current_user,'public."AspNetUsers"','PasswordHash','SELECT')
+                  AND NOT has_table_privilege(current_user,'public."Organizations"','SELECT')
+                """;
+            Check((bool)(await cmd.ExecuteScalarAsync() ?? false),
+                "F2B_O4_H01_RUNTIME_METADATA_READ_ONLY");
+        }
+
+        // Public accounts are disabled in this H01 baseline. Prove the generic
+        // application runtime role has no account-abuse table grant; readiness
+        // must not require feature-specific permissions while the feature is off.
+        await using (var db = new NpgsqlConnection(runtime))
+        {
+            await db.OpenAsync();
+            await using var cmd = db.CreateCommand();
+            cmd.CommandText = """
+                SELECT NOT has_table_privilege(
+                    current_user, 'public."IdentityAbuseCounters"', 'SELECT');
+                """;
+            Check((bool)(await cmd.ExecuteScalarAsync() ?? false),
+                "F2B_O4_H01_PUBLIC_ACCOUNTS_OFF_NO_ABUSE_COUNTER_GRANT");
+        }
+
+        // This is the SAME policy used by Program for its Production PostgreSQL startup.
+        ProductionPostgreSqlPolicy.RequirePreparedConnection(runtime);
+        Check(true, "F2B_O4_H01_PRODUCTION_PG_POLICY");
+
+        startupEnvironment.SetStartup(runtime);
+        using (var factory = new Factory { Connection = runtime })
+        {
+            using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://yangspace.gndstore.eu"),
+                AllowAutoRedirect = false
+            });
+            Check(factory.Services.GetRequiredService<IWebHostEnvironment>().IsProduction(),
+                "F2B_O4_H01_REAL_PRODUCTION_ENVIRONMENT");
+            using var live = await client.GetAsync("/health/live");
+            Check(live.StatusCode == HttpStatusCode.OK,
+                "F2B_O4_H01_PRODUCTION_HTTP_LIVE");
+            using var ready = await client.GetAsync("/health/ready");
+            Check(ready.StatusCode == HttpStatusCode.OK,
+                "F2B_O4_H01_PRODUCTION_HTTP_READY");
+
+            using var blocked = await client.PostAsJsonAsync("/api/public-account/register",
+                new { email = "qa-none@example.invalid", password = "QaOnlyPassword!2026" });
+            Check(blocked.StatusCode == HttpStatusCode.NotFound,
+                "F2B_O4_H01_DISABLED_PUBLIC_REGISTER_404");
+
+            using var legacy = await client.PostAsJsonAsync("/api/auth/register",
+                new { email = "qa-none@example.invalid", password = "QaOnlyPassword!2026" });
+            Check(legacy.StatusCode == HttpStatusCode.NotFound,
+                "F2B_O4_H01_DISABLED_LEGACY_REGISTER_404");
+        }
+
+        var invalidTlsConnection = new NpgsqlConnectionStringBuilder(runtime) {
+            SslMode = SslMode.Disable
+        }.ConnectionString;
+        startupEnvironment.SetStartup(invalidTlsConnection);
+        using (var invalidTls = new Factory { Connection = invalidTlsConnection })
+            await RejectStartup(invalidTls, "SslMode=VerifyFull",
+                "F2B_O4_H01_REJECTS_DISABLED_TLS");
+
+        // Hostname verification must fail when the SAN is localhost, not 127.0.0.1.
+        var wrongHost = new NpgsqlConnectionStringBuilder(runtime) {
+            Host = "127.0.0.1"
+        }.ConnectionString;
+        var wrongHostRefused = false;
+        try
+        {
+            await using var c = new NpgsqlConnection(wrongHost);
+            await c.OpenAsync();
+        }
+        catch (Exception ex) when (HasAuthenticationFailure(ex))
+        { wrongHostRefused = true; }
+        Check(wrongHostRefused,"F2B_O4_H01_REJECTS_TLS_HOSTNAME_MISMATCH");
+
+        startupEnvironment.SetStartup(migrator);
+        using (var elevated = new Factory { Connection = migrator })
+            await RejectStartup(elevated,
+                "PostgreSQL runtime role must be non-elevated",
+                "F2B_O4_H01_REJECTS_MIGRATOR_AS_RUNTIME");
+
+        // With switches on, missing signed authorization must be the reason
+        // Production startup refuses public activation.
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
+        using (var missingAuthorization = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(missingAuthorization, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_MISSING_RELEASE_AUTHORIZATION");
+
+        // A well-formed payload with a corrupted signature must fail during
+        // the real Production Program startup, before SMTP or worker activation.
+        using var signer = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var signatureNow = DateTimeOffset.UtcNow;
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
+        startupEnvironment.SetReleaseAuthorization(
+            CreateAuthorization(signer, releaseCommit,
+                signatureNow.AddMinutes(-1), signatureNow.AddMinutes(59),
+                corruptSignature:true),
+            releaseCommit);
+        using (var badSignature = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(badSignature, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_BAD_RELEASE_SIGNATURE");
+
+        // Expired, correctly signed authorizations are refused by the same
+        // verifier used for valid Production activation.
+        var expiredNow = DateTimeOffset.UtcNow;
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
+        startupEnvironment.SetReleaseAuthorization(
+            CreateAuthorization(signer, releaseCommit,
+                expiredNow.AddHours(-2), expiredNow.AddHours(-1)),
+            releaseCommit);
+        using (var expiredAuthorization = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(expiredAuthorization, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_EXPIRED_RELEASE_AUTHORIZATION");
+
+        // A valid signature bound to a different source commit must not
+        // authorize this process's deployed SHA.
+        var commitNow = DateTimeOffset.UtcNow;
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true);
+        startupEnvironment.SetReleaseAuthorization(
+            CreateAuthorization(signer, releaseCommit,
+                commitNow.AddMinutes(-1), commitNow.AddMinutes(59)),
+            new string('0', 40));
+        using (var wrongCommit = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true
+        })
+            await RejectStartup(wrongCommit, "PUBLIC_ACCOUNT_RELEASE_AUTHORIZATION_REFUSED",
+                "F2B_O4_H01_REJECTS_WRONG_RELEASE_COMMIT");
+
+        // Dispatch switch is checked independently of the signed authorization.
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:false);
+        using (var noDispatch = new Factory { Connection = runtime, PublicAccounts = true })
+            await RejectStartup(noDispatch, "PUBLIC_ACCOUNT_EMAIL_DISPATCH_NOT_READY",
+                "F2B_O4_H01_REJECTS_PUBLIC_WITH_DISPATCH_OFF");
+
+        // Environment scope is checked before authorization; this must not be
+        // a false-positive caused by the missing signature.
+        startupEnvironment.SetStartup(runtime,publicAccounts:true,dispatch:true,production:false);
+        using (var notProduction = new Factory {
+            Connection = runtime, PublicAccounts = true, Dispatch = true, Production = false
+        })
+            await RejectStartup(notProduction, "PUBLIC_ACCOUNT_SCOPE_REFUSED",
+                "F2B_O4_H01_REJECTS_NONPRODUCTION_PUBLIC_ENABLE");
+
+        Console.WriteLine("F2B_O4_H01_REAL_TESTSERVER_DEFAULT_OFF=PASS");
+        Console.WriteLine("F2B_O4_H01_DISPOSABLE_PG_TLS_VERIFYFULL=PASS");
+        Console.WriteLine("F2B_O4_H01_PRODUCTION_GATES_FAIL_CLOSED=PASS");
+        Console.WriteLine("F2B_O4_H01_SMTP=NOT_CONNECTED");
+        Console.WriteLine("F2B_O4_H01_ENABLED_PUBLIC_HTTP=BLOCKED_BY_SIGNED_AUTHORIZATION");
+        Console.WriteLine("F2B_O4_H01_CT164=NOT_ACCESSED");
+    }
+}

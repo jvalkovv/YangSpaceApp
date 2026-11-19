@@ -43,6 +43,50 @@ internal static class ProductionSchemaGate
             await ValidatePostgreSqlIntegrityAsync(db);
     }
 
+    internal static async Task ValidateRuntimeReadinessAsync(
+        DirectoryDb db, bool publicAccountsEnabled, CancellationToken cancellationToken)
+    {
+        var provider = db.Database.ProviderName;
+        if (provider is not SqliteProvider and not PostgreSqlProvider)
+            throw new InvalidOperationException("Production readiness refused an unsupported provider.");
+
+        if (!db.Database.GetMigrations().Any())
+            throw new InvalidOperationException("Production readiness refused a missing migration set.");
+
+        if (!await db.Database.CanConnectAsync(cancellationToken))
+            throw new InvalidOperationException("Production readiness database is unavailable.");
+
+        if ((await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
+            throw new InvalidOperationException("Production readiness refused pending migrations.");
+
+        if (db.Database.HasPendingModelChanges())
+            throw new InvalidOperationException("Production readiness refused EF model drift.");
+
+        // Validate required application tables and columns, not merely TCP connectivity.
+        _ = await db.Users.AsNoTracking()
+            .Select(x => new { x.Id, x.Email, x.EmailConfirmed, x.SecurityStamp })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        _ = await db.IdentityEmailOutbox.AsNoTracking()
+            .Select(x => new
+            {
+                x.Id, x.UserId, x.Purpose, x.Status, x.QueuedAtUtc, x.AvailableAtUtc,
+                x.ExpiresAtUtc, x.AttemptCount, x.LeaseId, x.LeasedUntilUtc,
+                x.SentAtUtc, x.DeadLetterAtUtc, x.LastFailureCode, x.Revision
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Account-abuse storage is a dependency only while public accounts are enabled.
+        // The disabled/default-off Production surface must remain ready without granting
+        // this runtime principal access to account-throttle data.
+        if (publicAccountsEnabled)
+        {
+            _ = await db.IdentityAbuseCounters.AsNoTracking()
+                .Select(x => new { x.Operation, x.KeyHash, x.Count, x.WindowStartUtc, x.UpdatedAtUtc })
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+    }
+
     private static async Task ValidateSqliteIntegrityAsync(DirectoryDb db)
     {
         await db.Database.OpenConnectionAsync();
@@ -137,6 +181,34 @@ internal static class ProductionSchemaGate
                     throw new InvalidOperationException(
                         "Production CMS blocked: PostgreSQL has invalid or not-ready indexes.");
             }
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
+    internal static async Task ValidatePublicAccountAbuseStorageAsync(DirectoryDb db)
+    {
+        if (db.Database.ProviderName != PostgreSqlProvider)
+            throw new InvalidOperationException(
+                "Production public accounts blocked: account abuse storage requires PostgreSQL.");
+
+        await db.Database.OpenConnectionAsync();
+        try
+        {
+            await using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = """
+                SELECT has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'SELECT')
+                   AND has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'INSERT')
+                   AND has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'UPDATE')
+                   AND has_table_privilege(current_user, 'public."IdentityAbuseCounters"', 'DELETE');
+                """;
+            var allowed = Convert.ToBoolean(
+                await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+            if (!allowed)
+                throw new InvalidOperationException(
+                    "PUBLIC_ACCOUNT_ABUSE_STORAGE_PRIVILEGE_REQUIRED");
         }
         finally
         {

@@ -1,10 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { PublicAccountApi } from './public-account-api.service';
 import { RouterLink, RouterOutlet } from '@angular/router';
+import { NgIf } from '@angular/common';
 
 @Component({
   selector: 'ys-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink],
+  imports: [RouterOutlet, RouterLink, NgIf],
   template: `
     <a class="skip-link" href="#main-content">Към основното съдържание</a>
     <header class="topbar">
@@ -18,7 +20,17 @@ import { RouterLink, RouterOutlet } from '@angular/router';
           <a routerLink="/" fragment="offers" (click)="closeMenu()">Промоции</a>
           <a routerLink="/" fragment="jobs" (click)="closeMenu()">Работа</a>
           <a routerLink="/" fragment="business" (click)="closeMenu()">За бизнеса</a>
+          <a class="nav-account-link" [routerLink]="account.profile() ? '/account' : '/login'" (click)="closeMenu()">
+            {{ account.profile() ? 'Моят профил' : 'Вход' }}
+          </a>
+          <a *ngIf="!account.profile()" class="nav-account-link" routerLink="/register" (click)="closeMenu()">Регистрация</a>
         </nav>
+        <div class="account-nav">
+          <a [routerLink]="account.profile() ? '/account' : '/login'">
+            {{ account.profile() ? 'Моят профил' : 'Вход' }}
+          </a>
+          <a *ngIf="!account.profile()" routerLink="/register" class="account-register">Регистрация</a>
+        </div>
         <span class="preview-pill" title="Демонстрационни данни">ДЕМО ВЕРСИЯ</span>
         <button class="menu-toggle" type="button" [attr.aria-expanded]="menuOpen"
                 aria-controls="primary-nav" aria-label="Отвори или затвори навигацията"
@@ -47,6 +59,7 @@ import { RouterLink, RouterOutlet } from '@angular/router';
   `
 })
 export class AppComponent {
+  readonly account = inject(PublicAccountApi);
   menuOpen = false;
   closeMenu(): void { this.menuOpen = false; }
 }

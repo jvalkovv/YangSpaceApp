@@ -18,6 +18,10 @@ var productionAdmin = builder.Configuration.GetValue<bool>("Admin:Enabled");
 var merchantRead = builder.Configuration.GetValue<bool>("MerchantRead:Enabled");
 var claimReviewQa = builder.Configuration.GetValue<bool>("ClaimReview:QaEnabled");
 var claimReviewPostgreSqlQa = builder.Configuration.GetValue<bool>("ClaimReviewPostgreSqlQa:Enabled");
+var publicAccounts = builder.Configuration.GetValue<bool>("PublicAccounts:Enabled");
+var outboxDispatchEnabled = builder.Configuration.GetValue<bool>("PublicAccounts:Outbox:DispatchEnabled");
+if (outboxDispatchEnabled && !publicAccounts)
+    throw new InvalidOperationException("PUBLIC_ACCOUNT_OUTBOX_DISPATCH_REQUIRES_PUBLIC_ACCOUNTS");
 // F2a-2's first HTTP slice is a QA-only test surface, not a public merchant release.
 // It is impossible to enable accidentally in Development, Preview, or Production.
 if (merchantRead && (preview || productionAdmin || allowPreviewRegistration ||
@@ -108,6 +112,11 @@ if (claimReviewPostgreSqlQa)
 var databaseProvider = builder.Configuration["Database:Provider"];
 if (string.IsNullOrWhiteSpace(databaseProvider))
     throw new InvalidOperationException("Database:Provider must explicitly select SQLite or PostgreSQL.");
+PublicAccountEndpoints.ValidateConfiguration(builder.Configuration, builder.Environment,
+    preview, merchantRead, claimReviewQa, productionAdmin);
+var publicAccountKeyRing = publicAccounts
+    ? PublicAccountDataProtectionPolicy.RequireExistingKeyRing(builder.Configuration)
+    : null;
 // QA-only: an isolated SQLite model created by the test harness; no production
 // PostgreSQL role or database is implicitly approved through this feature.
 if (merchantRead && !string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
@@ -164,9 +173,14 @@ switch (databaseProvider.Trim().ToLowerInvariant())
         throw new InvalidOperationException(
             "Database:Provider must be exactly SQLite or PostgreSQL; implicit provider fallback is forbidden.");
 }
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+if (publicAccountKeyRing is not null)
+    PublicAccountDataProtectionPolicy.Configure(builder.Services, publicAccountKeyRing);
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 {
     options.User.RequireUniqueEmail = true;
+    // Public accounts require verified email before login.
+    options.SignIn.RequireConfirmedEmail = publicAccounts;
     options.Password.RequiredLength = 12;
     options.Password.RequireDigit = true;
     options.Password.RequireUppercase = true;
@@ -174,6 +188,17 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<DirectoryDb>();
+if (publicAccounts)
+{
+    // Queue inside the registration transaction; no synchronous SMTP in HTTP.
+    builder.Services.AddScoped<IEmailSender<IdentityUser>, OutboxIdentityEmailSender>();
+    builder.Services.AddScoped<IIdentityAbuseThrottle, IdentityAbuseThrottle>();
+    builder.Services.Configure<IdentityEmailOutboxOptions>(builder.Configuration.GetSection("PublicAccounts:Outbox"));
+    builder.Services.AddTransient<SmtpPublicIdentityEmailSender>();
+    builder.Services.AddTransient<IIdentityEmailOutboxTransport>(services => services.GetRequiredService<SmtpPublicIdentityEmailSender>());
+    builder.Services.AddSingleton<IdentityEmailOutboxWorkerTelemetry>();
+    builder.Services.AddHostedService<IdentityEmailOutboxWorker>();
+}
 builder.Services.AddScoped<IAuthorizationHandler, LiveIdentityRoleAuthorizationHandler>();
 builder.Services.AddScoped<ClaimReviewConflictPolicy>();
 
@@ -201,12 +226,9 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("auth", limiter =>
-    {
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.PermitLimit = 12;
-        limiter.QueueLimit = 0;
-    });
+    // A shared limiter allows one client to exhaust everyone's auth budget.
+    // Trust only the transport peer here; never parse untrusted forwarding headers.
+    options.AddPolicy<string>("auth", AuthRateLimitPolicy.CreatePartition);
 });
 builder.Services.AddProblemDetails();
 
@@ -224,10 +246,34 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
-app.MapGet("/health/ready", async (DirectoryDb db, CancellationToken ct) =>
-    await db.Database.CanConnectAsync(ct)
-        ? Results.Ok(new { status = "ready" })
-        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
+app.MapGet("/health/ready", async (
+    DirectoryDb db, ILoggerFactory loggerFactory, CancellationToken ct) =>
+{
+    if (publicAccountKeyRing is not null &&
+        !PublicAccountDataProtectionPolicy.IsReady(publicAccountKeyRing))
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+    try
+    {
+        if (app.Environment.IsProduction())
+            await ProductionSchemaGate.ValidateRuntimeReadinessAsync(db, publicAccounts, ct);
+        else if (!await db.Database.CanConnectAsync(ct))
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        return Results.Ok(new { status = "ready" });
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+    {
+        throw;
+    }
+    catch (Exception)
+    {
+        // Health responses expose no connection strings, schema details or exception text.
+        loggerFactory.CreateLogger("YangSpace.Readiness")
+            .LogWarning("YANGSPACE_HEALTH_READY_DATABASE_OR_SCHEMA_UNAVAILABLE");
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 app.MapDirectory();
 // The production schema is created and migrated only by a reviewed OFFLINE
@@ -244,6 +290,13 @@ if (app.Environment.IsProduction())
         await ProductionSchemaGate.ValidateSchemaAsync(
             scope.ServiceProvider.GetRequiredService<DirectoryDb>());
     }
+}
+
+if (publicAccounts)
+{
+    using var scope = app.Services.CreateScope();
+    await ProductionSchemaGate.ValidatePublicAccountAbuseStorageAsync(
+        scope.ServiceProvider.GetRequiredService<DirectoryDb>());
 }
 
 if (preview || productionAdmin || merchantRead || claimReviewQa || claimReviewPostgreSqlQa)
@@ -301,6 +354,8 @@ if (preview || productionAdmin || merchantRead || claimReviewQa || claimReviewPo
 }
 if (merchantRead)
     app.MapMerchantRead();
+if (publicAccounts)
+    app.MapPublicAccounts();
 if (claimReviewQa || claimReviewPostgreSqlQa)
     app.MapClaimReviewQa();
 await PreviewBootstrap.Initialize(app);
