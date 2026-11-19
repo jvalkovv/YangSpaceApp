@@ -1246,7 +1246,7 @@ Operator supplied console evidence in the project conversation. Raw log files re
 - H06.2-B object detail implementation is committed on the branch: explicit loading/success/not-found/unavailable states; 404 distinct from transient 5xx/network errors; current-slug retry; stale-route request cancellation via `switchMap`; image-aware hero and category fallback; verified/unverified profile status; offer/brochure/job empty and populated sections; contact actions; responsive detail layout and reduced-motion behavior.
 - Added `apps/web/e2e/detail.spec.ts` for populated/empty content and stale route-response protection. `apps/web/e2e/detail-navigation.spec.ts` covers loading, 503 retry without stale payload leakage, network retry, 404 distinction, navigation cancellation and mobile Escape/focus restoration. `apps/web/e2e/product-responsive.spec.ts` covers detail and PlatformAdmin preview/editor at all ten required widths.
 - Implementation note: `docs/H06_2_OBJECT_DETAIL_20261119.md`.
-- **Current implementation head before this SSOT update:** `9dd50c4af71eba94607e570d2c37031f1d218dad`. Source is committed; exact-SHA typecheck/build/Playwright and owner browser review are **PENDING**. Do not claim H06.2 runtime acceptance yet.
+- **Current implementation head before this SSOT update:** `e3f4b1a79ba881f1daa4413a11c11531de4728ef`. Source is committed; exact-SHA typecheck/build/Playwright and owner browser review are **PENDING**. Do not claim H06.2 runtime acceptance yet.
 - No API/backend contract, H01–H05, migrations, production DB/key-ring, CT164, SMTP, registration/dispatch switches, Owner grant, merchant evidence intake, deployment, ingress or GitHub Actions changes. Public registration and email dispatch remain OFF.
 ## 2026-11-19 — H06.2-C public directory implementation/tests committed (QA pending)
 
@@ -1255,7 +1255,7 @@ Operator supplied console evidence in the project conversation. Raw log files re
 - Updated `scripts/Test-H06-2-Web-Acceptance.ps1` so the targeted Playwright gate includes the directory and object-detail suites.
 - Detail loading announcement and 404 copy were aligned with the accepted navigation suite; 503 tests also assert stale profile payloads never render.
 - Documentation: `docs/H06_2_DIRECTORY_20261119.md` and `docs/H06_2_OBJECT_DETAIL_20261119.md`.
-- Current implementation head before this SSOT update: `9dd50c4af71eba94607e570d2c37031f1d218dad`. Exact-SHA typecheck, production build, Playwright and owner browser review remain **PENDING**; no runtime acceptance is claimed.
+- Current implementation head before this SSOT update: `e3f4b1a79ba881f1daa4413a11c11531de4728ef`. Exact-SHA typecheck, production build, Playwright and owner browser review remain **PENDING**; no runtime acceptance is claimed.
 
 ## 2026-11-19 — H06.2 integrated implementation checkpoint (exact-SHA QA pending)
 
@@ -1268,3 +1268,12 @@ Operator supplied console evidence in the project conversation. Raw log files re
 - See `docs/H06_2_PRODUCT_UX_ACCEPTANCE_20261119.md` for complete contract and manual screenshot checklist.
 
 **Implementation is source-committed, but integrated exact-head runtime QA, visual acceptance and independent postflight have NOT passed yet.** Keep PR #61 Draft, Issue #60 OPEN and product release HOLD. No production, backend H01–H05, public account/SMTP, infrastructure or package-policy activation changes.
+
+
+## 2026-11-19 — H06.2-D PlatformAdmin preview visual consistency (source committed / QA pending)
+
+- Added an operator-focused responsive style layer for the existing isolated Preview Console: clearer workspace hierarchy, form control sizing, panel spacing, list/action treatment, focus states and tablet/mobile stacking.
+- The change is CSS-only. Admin endpoints, bearer authorization, preview-only warning, publication semantics and production boundaries are unchanged.
+- Existing `product-responsive.spec.ts` covers the authorized mock PlatformAdmin workspace and editor at all ten responsive widths.
+- Existing `public-journey.spec.ts` covers anonymous directory filter → object detail → catalogue return; the acceptance runner includes it.
+- Current implementation head before this SSOT update: `e3f4b1a79ba881f1daa4413a11c11531de4728ef`. Exact-SHA typecheck/build/targeted/full Playwright and independent postflight remain **PENDING**. PR #61 remains Draft/HOLD.
