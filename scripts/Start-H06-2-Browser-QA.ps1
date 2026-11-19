@@ -67,29 +67,69 @@ Write-Host ('COMMIT_SHA=' + $sha)
 Write-Host 'GITHUB_SYNC=PASS'
 Write-Host ''
 
+New-Item -ItemType Directory -Force -Path $EvidenceRoot | Out-Null
+$beforeEvidence = @(
+    Get-ChildItem -LiteralPath $EvidenceRoot -Directory -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty FullName
+)
+$acceptanceFailure = $null
+
 Write-Host '=== 2. INSTALL / BUILD / OPEN BROWSER / PLAYWRIGHT ==='
-$runStarted = Get-Date
-& $acceptance -CommitSha $sha -Work $Work -EvidenceRoot $EvidenceRoot -InstallChromium -InteractiveBrowser -Headed
+try {
+    & $acceptance -CommitSha $sha -Work $Work -EvidenceRoot $EvidenceRoot -InstallChromium -InteractiveBrowser -Headed
+}
+catch {
+    $acceptanceFailure = $_.Exception.Message
+    Write-Host ('H06_2_QA_PACKAGE_ACCEPTANCE_HOLD=' + $acceptanceFailure)
+}
 
 $evidenceCandidates = @(Get-ChildItem -LiteralPath $EvidenceRoot -Directory |
     Where-Object {
         $_.Name.StartsWith(($sha + '-'), [System.StringComparison]::OrdinalIgnoreCase) -and
-        $_.CreationTime -ge $runStarted.AddMinutes(-2)
+        $beforeEvidence -notcontains $_.FullName
     } |
     Sort-Object CreationTime -Descending)
 
-if ($evidenceCandidates.Count -eq 0) {
-    throw 'H06_2_QA_PACKAGE_EVIDENCE_DIRECTORY_NOT_FOUND'
+if ($evidenceCandidates.Count -ne 1) {
+    throw ('H06_2_QA_PACKAGE_EVIDENCE_DIRECTORY_COUNT=' + $evidenceCandidates.Count +
+        '; ACCEPTANCE_FAILURE=' + $acceptanceFailure)
 }
 $evidenceDirectory = $evidenceCandidates[0].FullName
+$manifestHashPath = Join-Path $evidenceDirectory 'manifest.sha256'
+
+Write-Host ''
+Write-Host ('EVIDENCE_DIR=' + $evidenceDirectory)
+if (Test-Path -LiteralPath $manifestHashPath -PathType Leaf) {
+    $manifestHash = (Get-Content -LiteralPath $manifestHashPath -Raw).Trim()
+    Write-Host ('MANIFEST_SHA256=' + $manifestHash)
+}
+
+if ($acceptanceFailure) {
+    $summaryPath = Join-Path $evidenceDirectory 'run-summary.txt'
+    if (Test-Path -LiteralPath $summaryPath -PathType Leaf) {
+        Write-Host '=== QA RUN SUMMARY ==='
+        Get-Content -LiteralPath $summaryPath | ForEach-Object { Write-Host $_ }
+    }
+
+    if ($acceptanceFailure -match 'H06_2_GATE_FAILED=([a-z0-9-]+)') {
+        $failedLog = Join-Path $evidenceDirectory ($Matches[1] + '.log')
+        if (Test-Path -LiteralPath $failedLog -PathType Leaf) {
+            Write-Host ('=== FIRST FAILING LOG: ' + $failedLog + ' ===')
+            Get-Content -LiteralPath $failedLog -Tail 80 | ForEach-Object { Write-Host $_ }
+        }
+    }
+
+    throw ('H06_2_QA_PACKAGE_HOLD=' + $acceptanceFailure +
+        '; EVIDENCE_DIR=' + $evidenceDirectory)
+}
 
 Write-Host ''
 Write-Host '=== 3. INDEPENDENT EVIDENCE POSTFLIGHT ==='
-Write-Host ('EVIDENCE_DIR=' + $evidenceDirectory)
 & $postflight -CommitSha $sha -EvidenceDirectory $evidenceDirectory -Work $Work
 
 Write-Host ''
 Write-Host 'H06_2_AUTOMATED_QA_PACKAGE=PASS'
 Write-Host ('COMMIT_SHA=' + $sha)
 Write-Host ('EVIDENCE_DIR=' + $evidenceDirectory)
+Write-Host ('MANIFEST_SHA256=' + $manifestHash)
 Write-Host 'Следваща стъпка: изпрати screenshots и MANIFEST_SHA256 за визуална приемка.'
