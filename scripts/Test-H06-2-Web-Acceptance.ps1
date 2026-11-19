@@ -283,7 +283,7 @@ catch {
     Write-Host ('H06_2_QA_FAILED=' + $failure)
 }
 finally {
-    Stop-InteractivePreview -Process $previewProcess
+    Stop-InteractivePreview -ProcessSet $previewProcess
     [Environment]::SetEnvironmentVariable('H06_2_REUSE_SERVER', $previousReuseServer, 'Process')
     Pop-Location
 
