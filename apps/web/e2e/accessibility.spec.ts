@@ -28,6 +28,9 @@ const detail = {
 
 test('skip link is the first keyboard stop and directory controls have accessible names', async ({ page }) => {
   await page.route('**/api/v1/homepage', route => route.fulfill({ json: homepage }));
+  await page.route('**/api/v1/locations?*', route => route.fulfill({
+    json: { items: [], page: 1, pageSize: 12, total: 0 }
+  }));
   await page.goto('/');
 
   await page.keyboard.press('Tab');
