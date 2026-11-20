@@ -1343,3 +1343,19 @@ Committed frontend work:
 No backend/API contract, DB, package manifest, dependency, account activation, SMTP, production deployment or infrastructure changes.
 
 **Status: IMPLEMENTATION COMMITTED; RUNTIME QA PENDING.** The H06.3 Windows package has not yet been executed at this exact HEAD. PR must remain Draft and stacked on H06.2. No merge/deploy until exact-SHA QA and owner visual review pass.
+
+
+## 2026-11-20 — H06.3 QA harness correction
+
+The first H06.3 browser QA attempt completed mock API syntax/smoke, npm CI, Chromium installation, TypeScript typecheck and production build. Targeted Playwright did not execute: Playwright tried to start a second preview server on port 4300.
+
+Root cause: `scripts/Test-H06-3-Web-Acceptance.ps1` set `H06_3_REUSE_SERVER=1`, but `apps/web/playwright.config.ts` still read the H06.2 variable `H06_2_REUSE_SERVER`.
+
+Corrective commits:
+- `adb77e7ef0c83931ffbb8bea0523d45c4ba953fb`: align Playwright config with H06.3 runner.
+- `00a13be163f899cfa849a2882d2fdb149e271427` and `1ac7b34d561dd1083dc2343c106c268a631a3dc4`: add a pre-test runner contract guard.
+- `6d0dc67a3c7016cf2eca23c280d1f565bb056be0`: require `PLAYWRIGHT_REUSE_CONFIG=PASS` in independent evidence postflight.
+
+Previous evidence is preserved at `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.3\\df705458a77861b5fe88226d774a7a77bfa92d79-20261120-072246-658`, manifest SHA-256 `7394897063e5b7f350e906fbbf6a20a05883b88ad025cc0cf8f5f4b4fbe44549`.
+
+The first attempt is a QA harness configuration failure, not an application test failure. Runtime acceptance remains **PENDING**. Re-run from the existing clean H06.3 worktree; the launcher fetches and fast-forwards to the latest exact remote SHA. Do not create another worktree or kill unrelated port owners. No merge or deployment is authorized.
