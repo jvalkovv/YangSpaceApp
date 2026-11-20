@@ -226,9 +226,8 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
             </div>
             <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме брошурите…</div>
             <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && brochures.length === 0">Няма активни брошури в момента.</div>
-            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || highlightsState === 'inconsistent'">
-              <span *ngIf="highlightsState === 'unavailable'">Не успяхме да заредим брошурите.</span>
-              <span *ngIf="highlightsState === 'inconsistent'">Данните за публикациите не са съгласувани. Опитай отново.</span>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable'">
+              <span>Не успяхме да заредим брошурите.</span>
               <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на брошурите" (click)="retryHighlights()">Опитай отново</button>
             </div>
           </article>
