@@ -77,3 +77,28 @@ If any gate fails, the package stops, preserves evidence and reports the first f
 The QA preview and mock API are disposable local processes. If the browser closes unexpectedly, return to the PowerShell window and allow the runner to capture the failure and evidence. Do not delete the evidence directory before review.
 
 No production deployment, backend activation, account registration or email dispatch is part of H06.3.
+
+
+## Re-run after a failed attempt (existing worktree)
+
+If `D:\\GitHub\\YangSpaceApp-F2b-H06.3-20261120` already exists, **do not run the create-worktree block again**. The H06.3 launcher will fetch the remote branch and fast-forward the clean worktree to the latest commit before starting QA.
+
+Run:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$Work = 'D:\\GitHub\\YangSpaceApp-F2b-H06.3-20261120'
+$Launcher = Join-Path $Work 'scripts\\Start-H06-3-Browser-QA.ps1'
+$PowerShellExe = (Get-Process -Id $PID).Path
+
+if (!(Test-Path -LiteralPath $Launcher -PathType Leaf)) {
+    throw 'H06_3_LAUNCHER_NOT_FOUND'
+}
+
+& $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $Launcher -Work $Work
+if ($LASTEXITCODE -ne 0) { throw 'H06_3_QA_LAUNCHER_FAILED' }
+```
+
+The corrected Playwright configuration and QA runner both use `H06_3_REUSE_SERVER`. The runner now checks this contract before starting browser tests and writes `PLAYWRIGHT_REUSE_CONFIG=PASS` into the evidence manifest. Independent postflight requires that marker.
+
+The previous attempt stopped before Playwright executed any test because the config looked for the old H06.2 environment variable and tried to start a second preview server. That run is retained as diagnostic evidence only; it is not an acceptance result.
