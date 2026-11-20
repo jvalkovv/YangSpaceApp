@@ -1301,3 +1301,23 @@ Operator supplied console evidence in the project conversation. Raw log files re
 
 
 - Additional QA hardening after the initial launcher checkpoint: detail loading E2E now asserts only the loading card disappears while the three intentional empty-state status regions remain; native stdout/stderr are captured separately to avoid PowerShell native-stderr promotion; evidence timestamps include milliseconds; launcher preserves the evidence directory and prints the first failed gate log even when acceptance fails.
+
+
+## 2026-11-20 — H06.2 headed browser run passed; Postflight harness corrected
+
+Operator exact-SHA run at `545674d60293c29cf7ec0e0abd43a5b5d0bf5a93`:
+- GitHub sync/exact SHA: PASS.
+- Mock API syntax + five endpoint smoke checks: PASS.
+- npm CI: PASS (exit 0; four non-fatal npm install-scripts policy warnings remain informational).
+- TypeScript typecheck + Angular production build: PASS.
+- Targeted headed Playwright: **71/71 PASS**.
+- Full headed Playwright: **103/103 PASS**.
+- Source clean post-run: PASS.
+- Evidence manifest SHA-256: `5d6a03972c38a1741b522acb4c6ed6b82670bf274342d60d2cba2a2f87c452d6`; all 123 file hashes in the operator-provided archive independently matched.
+
+Postflight initially failed because comma-separated string concatenation inside PowerShell array expressions collapsed required markers into one string; the evidence producer also joined the commit and branch header markers. Corrected in the H06.2 branch:
+- Producer now writes runtime, run-summary and manifest records using explicit `List[string]` entries.
+- Postflight constructs required markers explicitly and normalizes the legacy combined commit/branch header.
+- All integrity, artifact, exact-source, clean-worktree and remote-SHA checks remain required.
+
+**Current acceptance: application build and 174 Playwright test executions PASS; corrected independent Postflight and owner visual acceptance remain pending at the new exact HEAD.** PR #61 remains Draft/Open; Issue #60 remains Open; release HOLD. No production deployment, backend activation, account registration or email dispatch is authorized.
