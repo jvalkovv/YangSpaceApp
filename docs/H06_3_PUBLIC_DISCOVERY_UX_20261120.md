@@ -83,3 +83,22 @@ H06.2 remains Draft/owner-sign-off pending. H06.3 PR is stacked on H06.2.
 - Evidence root: `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.3`.
 
 **Runtime QA has not yet been executed at this HEAD.** Implementation is committed; all acceptance checkboxes remain pending until the operator runs the package.
+
+
+## 2026-11-20 — first QA attempt and operator defect correction
+
+First operator run at the previous HEAD:
+- Evidence directory: `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.3\\df705458a77861b5fe88226d774a7a77bfa92d79-20261120-072246-658`
+- Manifest SHA-256: `7394897063e5b7f350e906fbbf6a20a05883b88ad025cc0cf8f5f4b4fbe44549`
+- Mock API syntax/smoke, npm CI, Chromium install, TypeScript typecheck and production build passed.
+- Targeted Playwright did not execute tests; it stopped before test discovery because the already-running preview occupied port 4300.
+- Root cause was an environment variable mismatch: the H06.3 runner set `H06_3_REUSE_SERVER=1`, while Playwright config still read `H06_2_REUSE_SERVER`. This caused Playwright to launch a second server instead of reusing the QA preview.
+
+Correction committed:
+- `adb77e7ef0c83931ffbb8bea0523d45c4ba953fb` — Playwright config now reads `H06_3_REUSE_SERVER`.
+- `00a13be163f899cfa849a2882d2fdb149e271427` and `1ac7b34d561dd1083dc2343c106c268a631a3dc4` — runner checks the exact config/runner reuse contract before tests.
+- `6d0dc67a3c7016cf2eca23c280d1f565bb056be0` — independent postflight requires the new `PLAYWRIGHT_REUSE_CONFIG=PASS` evidence marker.
+
+The first attempt is **not** a Playwright test failure and is not an application acceptance pass. Re-run the package from the existing H06.3 worktree at the latest remote HEAD. The launcher fast-forwards that clean worktree automatically. Do not create another worktree and do not kill unrelated processes.
+
+The npm install-scripts warnings were non-fatal (npm CI returned exit code 0; TypeScript and production build passed). Do not approve package install scripts merely to suppress warnings.
