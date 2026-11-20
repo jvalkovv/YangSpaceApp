@@ -79,6 +79,7 @@ test('directory card renders supplied business photography and verified state', 
   const card = page.locator('.location-card').filter({ hasText: business.name });
   const image = card.locator('.card-cover-image');
   await expect(image).toHaveAttribute('alt', 'Снимка на ' + business.name);
+  await image.scrollIntoViewIfNeeded();
   await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBe(640);
   await expect(card.locator('.cover-verified')).toContainText('Проверен');
   await expect(card.locator('.cover-verified')).toHaveAttribute('aria-label', 'Проверен профил');
@@ -91,6 +92,7 @@ test('broken business image falls back to the category illustration', async ({ p
   await page.goto('/');
 
   const card = page.locator('.location-card').filter({ hasText: business.name });
+  await card.scrollIntoViewIfNeeded();
   await expect(card.locator('.cover-symbol')).toBeVisible();
   await expect(card.locator('.card-cover-image')).toHaveCount(0);
 });
