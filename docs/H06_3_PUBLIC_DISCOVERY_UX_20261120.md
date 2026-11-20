@@ -71,3 +71,15 @@ See [H06.3 Browser QA Launcher](H06_3_BROWSER_QA_LAUNCHER_20261120.md). It creat
 **Implementation committed; runtime QA pending.** No local Windows build/browser run has been executed by the operator at this exact H06.3 HEAD. Do not mark H06.3 accepted or merge/deploy until the exact-SHA package passes and screenshots receive owner review.
 
 H06.2 remains Draft/owner-sign-off pending. H06.3 PR is stacked on H06.2.
+
+
+## 2026-11-20 — implementation handoff
+
+- Current exact branch HEAD: `f649a0181912d99296cf511d9f3911c7a8277d46`.
+- New exact-SHA launcher: `scripts/Start-H06-3-Browser-QA.ps1`.
+- Targeted runner includes `e2e/discovery-ux.spec.ts` plus the H06.2 public, accessibility, detail and responsive suites.
+- Independent postflight retains exact SHA, remote branch, clean-source, manifest SHA-256 and all-file hash checks.
+- Dedicated worktree default: `D:\\GitHub\\YangSpaceApp-F2b-H06.3-20261120`.
+- Evidence root: `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.3`.
+
+**Runtime QA has not yet been executed at this HEAD.** Implementation is committed; all acceptance checkboxes remain pending until the operator runs the package.
