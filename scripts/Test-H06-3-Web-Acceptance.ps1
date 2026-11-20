@@ -58,6 +58,7 @@ New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 $gates = [ordered]@{
     LOCAL_MOCK_API_SYNTAX = 'NOT_RUN'
     LOCAL_MOCK_API_SMOKE = 'NOT_RUN'
+    PLAYWRIGHT_REUSE_CONFIG = 'NOT_RUN'
     NPM_CI = 'NOT_RUN'
     TYPECHECK = 'NOT_RUN'
     PRODUCTION_BUILD = 'NOT_RUN'
@@ -294,6 +295,16 @@ try {
 
     Invoke-NativeGate 'local-mock-api-syntax' 'node.exe' @('--check', $MockApi)
     $gates.LOCAL_MOCK_API_SYNTAX = 'PASS'
+
+    $playwrightConfig = Get-Content -LiteralPath (Join-Path $App 'playwright.config.ts') -Raw
+    $runnerSource = Get-Content -LiteralPath $PSCommandPath -Raw
+    if ($playwrightConfig -notmatch "process\['H06_3_REUSE_SERVER'\]\s*===\s*'1'" -or
+        $playwrightConfig -match 'H06_2_REUSE_SERVER' -or
+        $runnerSource -notmatch "SetEnvironmentVariable\('H06_3_REUSE_SERVER',\s*'1',\s*'Process'\)") {
+        throw 'H06_3_PLAYWRIGHT_REUSE_SERVER_CONTRACT_MISMATCH'
+    }
+    $gates.PLAYWRIGHT_REUSE_CONFIG = 'PASS'
+    Write-Host 'PLAYWRIGHT_REUSE_CONFIG=PASS'
 
     Invoke-NativeGate 'npm-ci' 'npm.cmd' @('ci', '--no-audit', '--no-fund')
     $gates.NPM_CI = 'PASS'
