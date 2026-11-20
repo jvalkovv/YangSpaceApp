@@ -281,15 +281,15 @@ function Stop-InteractivePreview {
 
 Push-Location $App
 try {
-    $versions = @(
-        'COMMIT_SHA=' + $CommitSha,
-        'BRANCH=' + $ExpectedBranch,
-        'NODE=' + (& node --version),
-        'NPM=' + (& npm.cmd --version),
-        'INTERACTIVE_BROWSER=' + [string]$InteractiveBrowser,
-        'HEADED_PLAYWRIGHT=' + [string]$Headed
-    )
-    $versions | Set-Content -LiteralPath (Join-Path $Evidence 'runtime.txt') -Encoding UTF8
+    # Write explicit records; avoid comma/concatenation array coercion on Windows PowerShell.
+    $versions = New-Object 'System.Collections.Generic.List[string]'
+    [void]$versions.Add('COMMIT_SHA=' + $CommitSha)
+    [void]$versions.Add('BRANCH=' + $ExpectedBranch)
+    [void]$versions.Add('NODE=' + (& node --version))
+    [void]$versions.Add('NPM=' + (& npm.cmd --version))
+    [void]$versions.Add('INTERACTIVE_BROWSER=' + [string]$InteractiveBrowser)
+    [void]$versions.Add('HEADED_PLAYWRIGHT=' + [string]$Headed)
+    $versions.ToArray() | Set-Content -LiteralPath (Join-Path $Evidence 'runtime.txt') -Encoding UTF8
 
     Invoke-NativeGate 'local-mock-api-syntax' 'node.exe' @('--check', $MockApi)
     $gates.LOCAL_MOCK_API_SYNTAX = 'PASS'
@@ -366,22 +366,32 @@ finally {
         }
     }
 
-    $summary = @('COMMIT_SHA=' + $CommitSha, 'BRANCH=' + $ExpectedBranch)
-    foreach ($key in $gates.Keys) { $summary += ($key + '=' + $gates[$key]) }
-    $summary += ('FAILURE=' + $failure)
-    $summary | Set-Content -LiteralPath (Join-Path $Evidence 'run-summary.txt') -Encoding UTF8
+    # Use explicit string records: the previous comma/concatenation expression
+    # joined COMMIT_SHA and BRANCH into one line under Windows PowerShell.
+    $summary = New-Object 'System.Collections.Generic.List[string]'
+    [void]$summary.Add('COMMIT_SHA=' + $CommitSha)
+    [void]$summary.Add('BRANCH=' + $ExpectedBranch)
+    foreach ($key in $gates.Keys) {
+        [void]$summary.Add($key + '=' + $gates[$key])
+    }
+    [void]$summary.Add('FAILURE=' + $failure)
+    $summaryLines = $summary.ToArray()
+    $summaryLines | Set-Content -LiteralPath (Join-Path $Evidence 'run-summary.txt') -Encoding UTF8
 
     $files = @(Get-ChildItem -LiteralPath $Evidence -Recurse -File |
         Where-Object { $_.Name -notin @('manifest.txt', 'manifest.sha256') } |
         Sort-Object FullName)
-    $manifestLines = @($summary)
+    $manifestLines = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($row in $summaryLines) {
+        [void]$manifestLines.Add($row)
+    }
     foreach ($file in $files) {
         $rel = $file.FullName.Substring($Evidence.Length).TrimStart('\')
         $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-        $manifestLines += ('FILE_SHA256=' + $rel + '|' + $hash)
+        [void]$manifestLines.Add('FILE_SHA256=' + $rel + '|' + $hash)
     }
     $manifest = Join-Path $Evidence 'manifest.txt'
-    $manifestLines | Set-Content -LiteralPath $manifest -Encoding UTF8
+    $manifestLines.ToArray() | Set-Content -LiteralPath $manifest -Encoding UTF8
     $manifestHash = (Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant()
     $manifestHash | Set-Content -LiteralPath (Join-Path $Evidence 'manifest.sha256') -Encoding Ascii
     Write-Host ('EVIDENCE_DIR=' + $Evidence)
