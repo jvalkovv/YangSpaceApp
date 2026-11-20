@@ -125,4 +125,4 @@ Corrections committed to the same H06.3 branch:
 - `02fbcc8555699a1e8972d833cabd1f9726734ee6` — scope public journey link checks to directory cards.
 - `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54` — scope responsive link checks to directory cards.
 
-Latest exact HEAD for the next run: `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`. Re-run the existing H06.3 launcher from the existing worktree. The launcher syncs the clean worktree to this exact remote HEAD. Do not create a new worktree. Runtime acceptance remains pending until targeted and full Playwright plus independent postflight pass.
+The test-correction commit is `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`. Subsequent acceptance-document updates advanced the branch tip; run the existing H06.3 launcher from the existing worktree so it fetches and fast-forwards to the current remote branch HEAD. Do not create a new worktree or pin the earlier test commit. Runtime acceptance remains pending until targeted and full Playwright plus independent postflight pass.
