@@ -49,10 +49,11 @@ test('anonymous visitor can filter the directory, open a profile and return to t
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(2);
   await page.getByRole('button', { name: /Услуги/ }).click();
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(1);
-  await expect(page.getByRole('link', { name: /Вело сервиз „Педал“/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Кафене „Ъгълът“/ })).toHaveCount(0);
+  const bikeCard = page.locator('.location-card').filter({ hasText: 'Вело сервиз „Педал“' });
+  await expect(bikeCard).toBeVisible();
+  await expect(page.locator('.location-card').filter({ hasText: 'Кафене „Ъгълът“' })).toHaveCount(0);
 
-  await page.getByRole('link', { name: /Вело сервиз „Педал“/ }).click();
+  await bikeCard.click();
   await expect(page).toHaveURL(/\/obekt\/bike-demo$/);
   await expect(page.getByRole('heading', { name: 'Вело сервиз „Педал“' })).toBeVisible();
   await expect(page.locator('.detail-sidebar')).toBeVisible();
@@ -76,7 +77,7 @@ test('public search remains anonymous and uses the directory endpoint', async ({
   await page.getByRole('searchbox', { name: 'Име на обект или ключова дума' }).fill('Педал');
   await page.getByRole('button', { name: /Търси/ }).click();
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(1);
-  await expect(page.getByRole('link', { name: /Вело сервиз „Педал“/ })).toBeVisible();
+  await expect(page.locator('.location-card').filter({ hasText: 'Вело сервиз „Педал“' })).toBeVisible();
   expect(searches).toContain('Педал');
   await expect(page.locator('.account-nav a[href="/register"]')).toBeVisible();
 });
