@@ -4,7 +4,7 @@ param(
     [ValidatePattern('^[0-9a-f]{40}$')]
     [string]$CommitSha,
 
-    [string]$Work = 'D:\GitHub\YangSpaceApp-F2b-H06.3-20261118',
+    [string]$Work = 'D:\GitHub\YangSpaceApp-F2b-H06.3-20261120',
     [string]$EvidenceRoot = 'D:\GitHub\YangSpaceApp-QA-Evidence\H06.3',
 
     [switch]$InstallChromium,
