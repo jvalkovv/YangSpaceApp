@@ -1363,7 +1363,7 @@ The first attempt is a QA harness configuration failure, not an application test
 
 ## 2026-11-20 — H06.3 Playwright findings and test correction
 
-At exact SHA `68eadb43c729ec01a6d27aa3f4c76b0`, QA passed mock API syntax/smoke, Playwright reuse contract, npm CI, TypeScript and production build. Targeted Playwright executed 76 tests: 62 passed / 14 failed. Full suite and independent postflight did not run.
+At exact SHA `68eadb43c729ec01a6d27aa3f4b2d214c76b0`, QA passed mock API syntax/smoke, Playwright reuse contract, npm CI, TypeScript and production build. Targeted Playwright executed 76 tests: 62 passed / 14 failed. Full suite and independent postflight did not run.
 
 Root causes mapped to the failing test specs:
 - DOM-order test used `classList[0]`, incorrectly assuming the first class token identifies `.quick-discovery`; fixed to test class membership.
