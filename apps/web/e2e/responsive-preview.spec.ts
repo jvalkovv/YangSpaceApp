@@ -29,7 +29,7 @@ const homepage = {
   offers: [], brochures: [], jobs: []
 };
 
-for (const width of [375, 390, 768, 1024, 1440]) {
+for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1280, 1440]) {
   test(`homepage fits ${width}px viewport, renders cards, and captures layout`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.route('**/api/v1/homepage', route => route.fulfill({ json: homepage }));
@@ -103,7 +103,7 @@ const populatedHomepage = {
   ]
 };
 
-for (const width of [390, 768, 1440]) {
+for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1280, 1440]) {
   test(`populated offers, brochures and jobs fit ${width}px viewport`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.route('**/api/v1/homepage', route => route.fulfill({ json: populatedHomepage }));

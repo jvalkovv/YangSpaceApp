@@ -9,6 +9,8 @@ import {
   DirectoryApi, DirectoryMeta, HomepagePayload, LocationCard, PublicHighlight, describeDirectoryFailure
 } from './directory-api.service';
 
+type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
+
 @Component({
   selector: 'ys-home',
   standalone: true,
@@ -176,32 +178,47 @@ import {
           <article class="discover-card discover-offers">
             <div class="discover-card-top"><span class="discover-icon">✳</span><span class="discover-number">01</span></div>
             <h3>Актуални оферти</h3><p class="discover-intro">Виж какво предлагат обектите близо до теб.</p>
-            <div class="discover-items" *ngIf="offers.length; else noOffers">
+            <div class="discover-items" *ngIf="highlightsState === 'success' && offers.length > 0">
               <a *ngFor="let item of offers; trackBy: trackHighlight" [routerLink]="['/obekt',item.slug]" class="discover-item">
                 <span><strong>{{item.title}}</strong><small>{{item.locationName}} · {{item.neighborhood}}</small></span><span aria-hidden="true">↗</span>
               </a>
             </div>
-            <ng-template #noOffers><div class="discover-empty">{{loadingExtra ? 'Зареждаме офертите…' : 'Няма активни предложения в момента.'}}</div></ng-template>
+            <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме офертите…</div>
+            <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && offers.length === 0">Няма активни предложения в момента.</div>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable'">
+              <span>Не успяхме да заредим офертите.</span>
+              <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на офертите" (click)="retryHighlights()">Опитай отново</button>
+            </div>
           </article>
           <article class="discover-card discover-brochures">
             <div class="discover-card-top"><span class="discover-icon">▤</span><span class="discover-number">02</span></div>
             <h3>Брошури и каталози</h3><p class="discover-intro">Седмични и месечни издания от местния бизнес.</p>
-            <div class="discover-items" *ngIf="brochures.length; else noBrochures">
+            <div class="discover-items" *ngIf="highlightsState === 'success' && brochures.length > 0">
               <a *ngFor="let item of brochures; trackBy: trackHighlight" [routerLink]="['/obekt',item.slug]" class="discover-item">
                 <span><strong>{{item.title}}</strong><small>{{item.locationName}} · {{item.neighborhood}}</small></span><span aria-hidden="true">↗</span>
               </a>
             </div>
-            <ng-template #noBrochures><div class="discover-empty">{{loadingExtra ? 'Зареждаме брошурите…' : 'Няма активни брошури в момента.'}}</div></ng-template>
+            <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме брошурите…</div>
+            <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && brochures.length === 0">Няма активни брошури в момента.</div>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable'">
+              <span>Не успяхме да заредим брошурите.</span>
+              <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на брошурите" (click)="retryHighlights()">Опитай отново</button>
+            </div>
           </article>
           <article class="discover-card discover-jobs" id="jobs">
             <div class="discover-card-top"><span class="discover-icon">⌁</span><span class="discover-number">03</span></div>
             <h3>Работа наблизо</h3><p class="discover-intro">Възможности в квартала, без да търсиш надалеч.</p>
-            <div class="discover-items" *ngIf="jobs.length; else noJobs">
+            <div class="discover-items" *ngIf="highlightsState === 'success' && jobs.length > 0">
               <a *ngFor="let item of jobs; trackBy: trackHighlight" [routerLink]="['/obekt',item.slug]" class="discover-item">
                 <span><strong>{{item.title}}</strong><small>{{item.locationName}} · {{item.neighborhood}}</small></span><span aria-hidden="true">↗</span>
               </a>
             </div>
-            <ng-template #noJobs><div class="discover-empty">{{loadingExtra ? 'Зареждаме позициите…' : 'Няма активни позиции в момента.'}}</div></ng-template>
+            <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме позициите…</div>
+            <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && jobs.length === 0">Няма активни позиции в момента.</div>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable'">
+              <span>Не успяхме да заредим позициите.</span>
+              <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на позициите" (click)="retryHighlights()">Опитай отново</button>
+            </div>
           </article>
         </div>
         <p class="demo-footnote">Показаните предложения са демонстрационни. Реални публикации ще има след пилотното включване на търговци.</p>
@@ -252,13 +269,13 @@ export class HomeComponent implements OnInit {
   offers: PublicHighlight[] = [];
   brochures: PublicHighlight[] = [];
   jobs: PublicHighlight[] = [];
+  highlightsState: HomepageHighlightsState = 'loading';
   q = '';
   neighborhood = '';
   category = '';
   page = 1;
   total = 0;
   loading = true;
-  loadingExtra = true;
   hasLoaded = false;
   error = '';
 
@@ -274,13 +291,18 @@ export class HomeComponent implements OnInit {
 
   ngOnInit(): void { this.loadHomepage(); }
 
-  private loadHomepage(): void {
+  private loadHomepage(preserveDirectory = false): void {
     const version = this.requestVersion;
     this.homepageSubscription?.unsubscribe();
-    this.loading = true;
-    this.loadingExtra = true;
-    this.hasLoaded = false;
-    this.error = '';
+    this.highlightsState = 'loading';
+    this.offers = [];
+    this.brochures = [];
+    this.jobs = [];
+    if (!preserveDirectory) {
+      this.loading = true;
+      this.hasLoaded = false;
+      this.error = '';
+    }
     this.cdr.markForCheck();
     this.homepageSubscription = this.api.homepage().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (payload: HomepagePayload) => {
@@ -288,13 +310,18 @@ export class HomeComponent implements OnInit {
         this.offers = payload.offers;
         this.brochures = payload.brochures;
         this.jobs = payload.jobs;
-        this.loadingExtra = false;
+        this.highlightsState = 'success';
         this.cdr.markForCheck();
         // Do not overwrite results if the visitor searched before bootstrap finished.
-        if (version === this.requestVersion && !this.hasFilters && this.page === 1) this.acceptResults(payload.directory);
+        if (!preserveDirectory && version === this.requestVersion && !this.hasFilters && this.page === 1) {
+          this.acceptResults(payload.directory);
+        }
       },
       error: (reason: unknown) => {
-        this.loadingExtra = false;
+        this.highlightsState = 'unavailable';
+        this.offers = [];
+        this.brochures = [];
+        this.jobs = [];
         this.cdr.markForCheck();
         // A 404 indicates a temporarily older API; search can still be used.
         // A timeout/network error must NOT trigger another 10-second wait.
@@ -303,10 +330,10 @@ export class HomeComponent implements OnInit {
             next: m => { this.meta = m; this.cdr.markForCheck(); },
             error: () => {}
           });
-          if (version === this.requestVersion && !this.hasFilters) this.performSearch();
+          if (!preserveDirectory && version === this.requestVersion && !this.hasFilters) this.performSearch();
           return;
         }
-        if (version === this.requestVersion) {
+        if (!preserveDirectory && version === this.requestVersion) {
           this.loading = false;
           this.hasLoaded = false;
           this.error = describeDirectoryFailure(reason);
@@ -384,6 +411,16 @@ export class HomeComponent implements OnInit {
       this.searchSubscription?.unsubscribe();
       this.loadHomepage();
     }
+  }
+
+  retryHighlights(): void {
+    if (this.hasFilters || this.page !== 1) {
+      // Refresh the homepage payload without cancelling or replacing the
+      // visitor's current directory results, filters, pagination or error.
+      this.loadHomepage(true);
+      return;
+    }
+    this.reload();
   }
 
   changePage(page: number): void {

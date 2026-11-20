@@ -1237,3 +1237,87 @@ The previous dirty worktree's pre-existing `apps/web/angular.json` change was pr
 **H06.1 frontend QA acceptance: PASS.** PR #59 is moved to Ready for Review. This is not a production release authorization: public registration and real email dispatch remain OFF; no deployment, production DB, CT164 or real SMTP access occurred. Issue #58 remains open until PR review and merge are complete.
 
 Operator supplied console evidence in the project conversation. Raw log files remain on the operator workstation; a consolidated SHA-256 evidence manifest has not yet been supplied to GitHub and must be retained with the local evidence directory.
+
+
+## 2026-11-19 — H06.2-B public object detail source implementation (QA pending)
+
+- H06.2 umbrella: [Issue #60](https://github.com/jvalkovv/YangSpaceApp/issues/60); implementation: [Draft PR #61](https://github.com/jvalkovv/YangSpaceApp/pull/61), branch `feat/yangspace-f2b-h06-2-public-product-ux-20261118`, base `feat/yangspace-f2b-public-identity-foundation-20261113`.
+- H06.2-A homepage highlights reliability is committed at `e928b6c998ceec7e349c9fde48fb2588bca097cf`; prior local exact-SHA QA was reported PASS (targeted 6/6, full Playwright 52/52, typecheck/build and clean worktree).
+- H06.2-B object detail implementation is committed on the branch: explicit loading/success/not-found/unavailable states; 404 distinct from transient 5xx/network errors; current-slug retry; stale-route request cancellation via `switchMap`; image-aware hero and category fallback; verified/unverified profile status; offer/brochure/job empty and populated sections; contact actions; responsive detail layout and reduced-motion behavior.
+- Added `apps/web/e2e/detail.spec.ts` for populated/empty content and stale route-response protection. `apps/web/e2e/detail-navigation.spec.ts` covers loading, 503 retry without stale payload leakage, network retry, 404 distinction, navigation cancellation and mobile Escape/focus restoration. `apps/web/e2e/product-responsive.spec.ts` covers detail and PlatformAdmin preview/editor at all ten required widths.
+- Implementation note: `docs/H06_2_OBJECT_DETAIL_20261119.md`.
+- **Current implementation head before this SSOT update:** `3bbbf2dae8d9f747a6c8927d6d90ce031c2d99c7`. Source is committed; exact-SHA typecheck/build/Playwright and owner browser review are **PENDING**. Do not claim H06.2 runtime acceptance yet.
+- No API/backend contract, H01–H05, migrations, production DB/key-ring, CT164, SMTP, registration/dispatch switches, Owner grant, merchant evidence intake, deployment, ingress or GitHub Actions changes. Public registration and email dispatch remain OFF.
+## 2026-11-19 — H06.2-C public directory implementation/tests committed (QA pending)
+
+- Added `apps/web/e2e/directory.spec.ts` for name search, category + neighborhood composition, successful empty results, 503 retry with query preservation, stale-search suppression and pagination.
+- Expanded homepage and populated-highlight responsive coverage to 320/360/375/390/430/768/820/1024/1280/1440px. Object detail and PlatformAdmin preview/editor are covered at the same ten widths in `product-responsive.spec.ts`.
+- Updated `scripts/Test-H06-2-Web-Acceptance.ps1` so the targeted Playwright gate includes the directory and object-detail suites.
+- Detail loading announcement and 404 copy were aligned with the accepted navigation suite; 503 tests also assert stale profile payloads never render.
+- Documentation: `docs/H06_2_DIRECTORY_20261119.md` and `docs/H06_2_OBJECT_DETAIL_20261119.md`.
+- Current implementation head before this SSOT update: `3bbbf2dae8d9f747a6c8927d6d90ce031c2d99c7`. Exact-SHA typecheck, production build, Playwright and owner browser review remain **PENDING**; no runtime acceptance is claimed.
+
+## 2026-11-19 — H06.2 integrated implementation checkpoint (exact-SHA QA pending)
+
+- Parent: [Issue #60](https://github.com/jvalkovv/YangSpaceApp/issues/60); [Draft PR #61](https://github.com/jvalkovv/YangSpaceApp/pull/61). Target branch remains `feat/yangspace-f2b-public-identity-foundation-20261113`, not `main`.
+- H06.2-A: homepage highlights loading, genuine empty and unavailable/retry states implemented; operator-reported local QA at `e928b6c998ceec7e349c9fde48fb2588bca097cf`: focused 6/6, full 52/52, TypeScript/build PASS.
+- H06.2-B: Object Detail redesigned with visible state-specific layouts (loading, success, not-found, transient unavailable/retry), fallback media, verification note, publications/contact blocks and Bulgaria civil-time formatting. Historical route/date/publication copy assertions remain intact; nested `main` landmark removed and loading status remains announceable while the outer page is busy.
+- H06.2-C: directory/search/filter/pagination workflows retain anonymous contracts; standalone catalogue E2E plus integrated visitor navigation tests added. Mobile menu supports Escape from the toggle/nav and returns focus to the toggle.
+- H06.2-D: homepage and offers/brochures/jobs at ten widths, populated Detail and authorized preview Admin/editor at ten widths, with clipping/overflow assertions and screenshots.
+- QA operator: `scripts/Test-H06-2-Web-Acceptance.ps1` (PowerShell 5.1-safe native exit handling, exact local/remote SHA, typecheck/build, targeted/full browser E2E, SHA-256 evidence); `scripts/Verify-H06-2-Web-Postflight.ps1` (independent checksum/markers/source/remote checks).
+- See `docs/H06_2_PRODUCT_UX_ACCEPTANCE_20261119.md` for complete contract and manual screenshot checklist.
+
+**Implementation is source-committed, but integrated exact-head runtime QA, visual acceptance and independent postflight have NOT passed yet.** Keep PR #61 Draft, Issue #60 OPEN and product release HOLD. No production, backend H01–H05, public account/SMTP, infrastructure or package-policy activation changes.
+
+
+## 2026-11-19 — H06.2-D PlatformAdmin preview visual consistency (source committed / QA pending)
+
+- Added an operator-focused responsive style layer for the existing isolated Preview Console: clearer workspace hierarchy, form control sizing, panel spacing, list/action treatment, focus states and tablet/mobile stacking.
+- The change is CSS-only. Admin endpoints, bearer authorization, preview-only warning, publication semantics and production boundaries are unchanged.
+- Existing `product-responsive.spec.ts` covers the authorized mock PlatformAdmin workspace and editor at all ten responsive widths.
+- Existing `public-journey.spec.ts` covers anonymous directory filter → object detail → catalogue return; the acceptance runner includes it.
+- Current implementation head before this SSOT update: `3bbbf2dae8d9f747a6c8927d6d90ce031c2d99c7`. Exact-SHA typecheck/build/targeted/full Playwright and independent postflight remain **PENDING**. PR #61 remains Draft/HOLD.
+
+## 2026-11-19 — H06.2 accessibility browser checks added (QA pending)
+
+- Added `apps/web/e2e/accessibility.spec.ts`: first keyboard stop/visible skip-link focus, named directory search/filter controls, `aria-pressed` category state, single main landmark and reduced-motion behavior for detail loading.
+- Added `admin-cms.spec.ts` to the targeted exact-SHA acceptance suite so PlatformAdmin authorization denial and preview CMS mutation contracts run in the focused gate as well as the full suite.
+- Current source head before this SSOT update: `3bbbf2dae8d9f747a6c8927d6d90ce031c2d99c7`. Typecheck, production build, targeted/full Playwright, manual browser review and independent postflight remain **PENDING**.
+
+## 2026-11-20 — H06.2 build correction and interactive browser QA package (runtime QA pending)
+
+- Operator exact-SHA result at `51a9059d4a520b21d40f0279b536f0ef11b07983`: npm CI PASS (exit 0, with non-fatal install-scripts warnings), TypeScript typecheck PASS, Angular production build FAIL. Root cause: Angular typed the template keyboard event as `Event`, while `onMenuEscape` unnecessarily required `KeyboardEvent`. Playwright did not run after the build gate.
+- Source correction: `onMenuEscape(event: Event)`; retains `preventDefault`, `stopPropagation`, menu close and focus restoration. Playwright config only reuses an existing dev server when the launcher explicitly sets `H06_2_REUSE_SERVER=1`; default isolated runner behavior remains unchanged.
+- Added `apps/web/qa/mock-api.mjs`: localhost-only (127.0.0.1:5090), fictional in-memory demo data, search/detail and Preview Admin fixtures, no DB/filesystem persistence/SMTP/external services. Demo account and fake bearer token are local-only; public account flows are disabled.
+- Added `scripts/Start-H06-2-Browser-QA.ps1` as the single entry point. It checks a clean worktree, safely fetches/fast-forwards only, resolves exact SHA, runs syntax/npm/typecheck/production build, starts mock API and Angular preview, opens the browser, waits for Enter, then runs focused and full headed Chromium Playwright, captures evidence, stops only its own processes and runs independent postflight.
+- Extended `scripts/Test-H06-2-Web-Acceptance.ps1` with the interactive headed mode and mock API syntax gate; `scripts/Verify-H06-2-Web-Postflight.ps1` now requires that gate. The preview process cleanup call was statically checked against its `-ProcessSet` parameter.
+- Operator guide: `docs/H06_2_BROWSER_QA_LAUNCHER_20261120.md`; integrated acceptance record updated in `docs/H06_2_PRODUCT_UX_ACCEPTANCE_20261119.md`.
+- Implementation head at this checkpoint before this SSOT update: `3fd2a648c7037602f58d55083217b7ab52f09ca3`. The correction, local preview package and docs are committed; exact-SHA build, headed targeted/full Playwright, manual visual review and independent postflight are **PENDING**. PR #61 remains Draft/HOLD; Issue #60 remains OPEN.
+- No production deployment, backend H01–H05 contract, production DB/key-ring, CT164, real SMTP, public registration/email dispatch, Owner grant, merchant evidence intake, DNS/proxy/ingress or GitHub Actions changes.
+
+
+- Launcher hardening: the runner clears any inherited `H06_2_REUSE_SERVER` override before execution, enables it only for the process it starts, and restores the prior environment value after shutting down its own preview processes.
+- Local API smoke gate checks the public homepage fixture, public object detail, local fake PlatformAdmin login/role, admin object list and publication content endpoint; no credentials or token are written to the smoke log.
+
+
+- Additional QA hardening after the initial launcher checkpoint: detail loading E2E now asserts only the loading card disappears while the three intentional empty-state status regions remain; native stdout/stderr are captured separately to avoid PowerShell native-stderr promotion; evidence timestamps include milliseconds; launcher preserves the evidence directory and prints the first failed gate log even when acceptance fails.
+
+
+## 2026-11-20 — H06.2 headed browser run passed; Postflight harness corrected
+
+Operator exact-SHA run at `545674d60293c29cf7ec0e0abd43a5b5d0bf5a93`:
+- GitHub sync/exact SHA: PASS.
+- Mock API syntax + five endpoint smoke checks: PASS.
+- npm CI: PASS (exit 0; four non-fatal npm install-scripts policy warnings remain informational).
+- TypeScript typecheck + Angular production build: PASS.
+- Targeted headed Playwright: **71/71 PASS**.
+- Full headed Playwright: **103/103 PASS**.
+- Source clean post-run: PASS.
+- Evidence manifest SHA-256: `5d6a03972c38a1741b522acb4c6ed6b82670bf274342d60d2cba2a2f87c452d6`; all 123 file hashes in the operator-provided archive independently matched.
+
+Postflight initially failed because comma-separated string concatenation inside PowerShell array expressions collapsed required markers into one string; the evidence producer also joined the commit and branch header markers. Corrected in the H06.2 branch:
+- Producer now writes runtime, run-summary and manifest records using explicit `List[string]` entries.
+- Postflight constructs required markers explicitly and normalizes the legacy combined commit/branch header.
+- All integrity, artifact, exact-source, clean-worktree and remote-SHA checks remain required.
+
+**Current acceptance: application build and 174 Playwright test executions PASS; corrected independent Postflight and owner visual acceptance remain pending at the new exact HEAD.** PR #61 remains Draft/Open; Issue #60 remains Open; release HOLD. No production deployment, backend activation, account registration or email dispatch is authorized.
