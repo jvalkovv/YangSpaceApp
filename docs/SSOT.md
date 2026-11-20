@@ -1328,7 +1328,7 @@ Postflight initially failed because comma-separated string concatenation inside 
 - Issue: #62.
 - Branch: `feat/yangspace-f2b-h06-3-public-discovery-ux-20261120`.
 - Stacked base: H06.2 branch at `080602b4a3eaa209f4045d4232495348512be06d` (PR #61 remains Draft / owner visual sign-off pending).
-- Current implementation HEAD: `f649a0181912d99296cf511d9f3911c7a8277d46`.
+- Current implementation HEAD: `b997fbb88e4305d6dd23f094a355bff5d611b4d5`.
 
 Committed frontend work:
 - Move the primary directory search directly below the pilot notice and before categories/results; hero CTA targets the search.
