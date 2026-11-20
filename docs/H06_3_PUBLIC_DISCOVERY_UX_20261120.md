@@ -102,3 +102,27 @@ Correction committed:
 The first attempt is **not** a Playwright test failure and is not an application acceptance pass. Re-run the package from the existing H06.3 worktree at the latest remote HEAD. The launcher fast-forwards that clean worktree automatically. Do not create another worktree and do not kill unrelated processes.
 
 The npm install-scripts warnings were non-fatal (npm CI returned exit code 0; TypeScript and production build passed). Do not approve package install scripts merely to suppress warnings.
+
+
+## 2026-11-20 — H06.3 first Playwright execution and test corrections
+
+QA attempt at exact SHA `68eadb43c729ec01a6d27aa3f6b2a35d214c76b0`:
+- Evidence: `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.3\\68eadb43c729ec01a6d27aa3f6b2a35d214c76b0-20261120-073003-092`
+- Manifest SHA-256: `7eb7d8d44e42b89ded75078dbda30ab7261d8cc9c40161cc8bbf458a9d7ab03f`
+- Passed: mock API syntax/smoke, Playwright reuse contract, npm CI, TypeScript typecheck, production build.
+- Targeted Playwright executed 76 tests: 62 passed, 14 failed. Full suite and independent postflight did not run because the targeted gate stopped on failures.
+
+Failure analysis from the failing specs and current template:
+1. `discovery-ux.spec.ts`: the DOM-order assertion read `classList[0]`; `.quick-discovery` has multiple classes and its first class is `shell`. The test was checking class-token order rather than the intended semantic section selector.
+2. `homepage-highlights.spec.ts`: the “genuine empty state” fixture returned empty offers/jobs while directory cards still advertised active offers/jobs. The application correctly treated these contradictory counters as inconsistent/unavailable. The empty-state fixture now sets both counters to zero.
+3. `public-journey.spec.ts` and `responsive-preview.spec.ts`: broad accessible-link matching for the business name matched both the directory profile card and a separate offer highlight linking to the same profile. The assertions now scope to `.location-card`, preserving both valid public links.
+
+The 14 reported failures map to these test expectation/fixture defects (1 discovery-order assertion, 1 empty-state fixture, 2 public journey link assertions, 10 responsive viewport assertions). This run did not establish an application runtime defect; it also does not constitute acceptance.
+
+Corrections committed to the same H06.3 branch:
+- `892e70465eb588362163974333d62f83050fda9d` — use semantic class membership for DOM-order assertion.
+- `2a59af6143f45e9936c5409182b7bd17461279a5` — make empty highlights fixture internally consistent.
+- `02fbcc8555699a1e8972d833cabd1f9726734ee6` — scope public journey link checks to directory cards.
+- `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54` — scope responsive link checks to directory cards.
+
+Latest exact HEAD for the next run: `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`. Re-run the existing H06.3 launcher from the existing worktree. The launcher syncs the clean worktree to this exact remote HEAD. Do not create a new worktree. Runtime acceptance remains pending until targeted and full Playwright plus independent postflight pass.
