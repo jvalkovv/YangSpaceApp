@@ -119,3 +119,26 @@ Preview Admin demo identity is `qa@example.invalid` / `DisposableTestPassword123
 - Evidence folder timestamps include milliseconds to avoid same-second collisions.
 - The one-command launcher snapshots existing evidence folders, identifies exactly one newly created run directory, prints its manifest hash, and preserves the evidence path and first failing gate log when acceptance fails.
 - Latest source checkpoint before this documentation update: `3fd2a648c7037602f58d55083217b7ab52f09ca3`. Runtime typecheck/build, headed Playwright and postflight remain **PENDING**.
+
+
+## 2026-11-20 — exact-SHA browser run and Postflight marker RCA
+
+Operator run at `545674d60293c29cf7ec0e0abd43a5b5d0bf5a93`:
+- GitHub synchronization and exact remote SHA: PASS.
+- Local mock API syntax and smoke checks: PASS.
+- npm CI: PASS (exit 0). npm emitted a non-fatal `install-scripts` policy warning for four packages; no scripts were approved as part of this QA.
+- TypeScript typecheck and Angular production build: PASS.
+- Targeted headed Playwright: **71/71 PASS**.
+- Full headed Playwright: **103/103 PASS**.
+- Source worktree clean after test execution: PASS.
+- Evidence manifest SHA-256: `5d6a03972c38a1741b522acb4c6ed6b82670bf274342d60d2cba2a2f87c452d6`.
+- Archive contains 123 file-hash records; all 123 recorded file hashes and the manifest SHA-256 were independently verified against the operator-provided ZIP.
+
+**Postflight failure RCA:** comma-separated string-concatenation array expressions collapsed records under the operator's Windows PowerShell execution. The evidence producer joined `COMMIT_SHA` and `BRANCH` into one header line; the postflight's expected-marker array collapsed the complete required set into one string. This caused `H06_2_POSTFLIGHT_MISSING_MARKER` after all application gates had passed. It is a QA harness defect, not an application or Playwright failure.
+
+Correction committed:
+- Evidence `runtime.txt`, `run-summary.txt` and `manifest.txt` now use explicit `List[string]` records, one marker per line.
+- Postflight builds the required marker set explicitly and normalizes the legacy combined header for backward-compatible evidence parsing.
+- SHA-256 validation, per-file hashes, exact source SHA, clean worktree and remote SHA checks remain mandatory; no acceptance gate is removed.
+
+**Current status: application build and all 174 browser test executions PASS; independent Postflight must be rerun at the corrected exact branch HEAD.** Keep PR #61 Draft and H06.2 release HOLD until the corrected launcher reports `H06_2_AUTOMATED_QA_PACKAGE=PASS` and owner visual review is complete. No production deployment or backend activation is authorized.
