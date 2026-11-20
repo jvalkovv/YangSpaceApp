@@ -26,7 +26,15 @@ const homepage = {
     categories: [...new Set(previewLocations.map(location => location.category))]
   },
   directory: { items: previewLocations, page: 1, pageSize: 12, total: 6 },
-  offers: [], brochures: [], jobs: []
+  offers: previewLocations.slice(0, 3).map((location, index) => ({
+    slug: location.slug,
+    locationName: location.name,
+    neighborhood: location.neighborhood,
+    category: location.category,
+    title: 'Демо оферта ' + (index + 1),
+    expiresAtUtc: '2026-12-31T23:59:00Z'
+  })),
+  brochures: [], jobs: []
 };
 
 for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1280, 1440]) {
