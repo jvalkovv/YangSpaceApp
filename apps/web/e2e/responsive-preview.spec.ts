@@ -46,6 +46,11 @@ for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1280, 1440]) {
     await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(6);
     await expect(page.locator('.hero h1')).toBeVisible();
     await expect(page.locator('.search-panel')).toBeVisible();
+    const searchBounds = await page.locator('.discovery-search').boundingBox();
+    const categoryBounds = await page.locator('.quick-discovery').boundingBox();
+    expect(searchBounds).not.toBeNull();
+    expect(categoryBounds).not.toBeNull();
+    expect(searchBounds!.y, 'primary search must precede category chips').toBeLessThan(categoryBounds!.y);
     await expect(page.getByRole('link', { name: /Вело сервиз „Педал“/ })).toBeVisible();
 
     const layout = await page.evaluate(() => ({
