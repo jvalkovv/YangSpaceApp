@@ -1359,3 +1359,17 @@ Corrective commits:
 Previous evidence is preserved at `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.3\\df705458a77861b5fe88226d774a7a77bfa92d79-20261120-072246-658`, manifest SHA-256 `7394897063e5b7f350e906fbbf6a20a05883b88ad025cc0cf8f5f4b4fbe44549`.
 
 The first attempt is a QA harness configuration failure, not an application test failure. Runtime acceptance remains **PENDING**. Re-run from the existing clean H06.3 worktree; the launcher fetches and fast-forwards to the latest exact remote SHA. Do not create another worktree or kill unrelated port owners. No merge or deployment is authorized.
+
+
+## 2026-11-20 — H06.3 Playwright findings and test correction
+
+At exact SHA `68eadb43c729ec01a6d27aa3f5d6a3ca540e54` (previous QA run recorded SHA `68eadb43c729ec01a6d27aa3f5b6d` is not authoritative; evidence manifest is authoritative), QA passed mock API syntax/smoke, Playwright reuse contract, npm CI, TypeScript and production build. Targeted Playwright executed 76 tests: 62 passed / 14 failed. Full suite and independent postflight did not run.
+
+Root causes mapped to the failing test specs:
+- DOM-order test used `classList[0]`, incorrectly assuming the first class token identifies `.quick-discovery`; fixed to test class membership.
+- “Genuine empty” homepage fixture had non-zero active publication counters with empty highlight arrays; app correctly reported inconsistency. Fixture now zeros the counters.
+- Public journey and 10 responsive assertions matched both a directory card and an offer link to the same business; selectors now scope to `.location-card`.
+
+No application runtime defect was established by these failures; acceptance is still pending.
+
+Test corrections are committed; latest exact H06.3 HEAD: `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`. Re-run from the existing clean worktree. Targeted Playwright, full Playwright and independent postflight must all pass before owner visual review or merge/deploy. PR #65 remains Draft; release HOLD.
