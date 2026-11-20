@@ -166,7 +166,7 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable' | 'inconsis
                 <span class="cover-pattern" aria-hidden="true"></span>
                 <span class="cover-symbol" aria-hidden="true">{{icon(item.category)}}</span>
               </ng-template>
-              <span class="cover-verified" *ngIf="item.isVerified" aria-label="Проверен профил">
+              <span class="cover-verified" *ngIf="item.isVerified" role="img" aria-label="Проверен профил">
                 <span aria-hidden="true">✓</span> Проверен
               </span>
               <span class="cover-category">{{item.category}}</span>
