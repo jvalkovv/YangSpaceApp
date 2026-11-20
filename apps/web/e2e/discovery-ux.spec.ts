@@ -86,6 +86,19 @@ test('directory card renders supplied business photography and verified state', 
   await expect(card.locator('.cover-symbol')).toHaveCount(0);
 });
 
+test('unverified profiles do not display the verified badge', async ({ page }) => {
+  const unverified = { ...business, imageUrl: null, isVerified: false };
+  const payload = homepage({
+    directory: { items: [unverified], page: 1, pageSize: 12, total: 1 }
+  });
+  await mockHomepage(page, payload);
+  await page.goto('/');
+
+  const card = page.locator('.location-card').filter({ hasText: business.name });
+  await expect(card).toBeVisible();
+  await expect(card.locator('.cover-verified')).toHaveCount(0);
+});
+
 test('broken business image falls back to the category illustration', async ({ page }) => {
   await page.route('**/api/v1/homepage', route => route.fulfill({ json: homepage() }));
   await page.route('**/bakery.svg', route => route.fulfill({ status: 404, body: 'not found' }));
