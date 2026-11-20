@@ -1372,4 +1372,4 @@ Root causes mapped to the failing test specs:
 
 No application runtime defect was established by these failures; acceptance is still pending.
 
-Test corrections are committed; latest exact H06.3 HEAD: `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`. Re-run from the existing clean worktree. Targeted Playwright, full Playwright and independent postflight must all pass before owner visual review or merge/deploy. PR #65 remains Draft; release HOLD.
+Test corrections are committed at `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`; subsequent documentation commits advanced the branch tip. Re-run the existing clean worktree using the H06.3 launcher, which fetches the current remote branch HEAD automatically. Targeted Playwright, full Playwright and independent postflight must all pass before owner visual review or merge/deploy. PR #65 remains Draft; release HOLD.
