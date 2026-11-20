@@ -75,7 +75,7 @@ H06.2 remains Draft/owner-sign-off pending. H06.3 PR is stacked on H06.2.
 
 ## 2026-11-20 — implementation handoff
 
-- Current exact branch HEAD: `f649a0181912d99296cf511d9f3911c7a8277d46`.
+- Current exact branch HEAD: `b997fbb88e4305d6dd23f094a355bff5d611b4d5`.
 - New exact-SHA launcher: `scripts/Start-H06-3-Browser-QA.ps1`.
 - Targeted runner includes `e2e/discovery-ux.spec.ts` plus the H06.2 public, accessibility, detail and responsive suites.
 - Independent postflight retains exact SHA, remote branch, clean-source, manifest SHA-256 and all-file hash checks.
