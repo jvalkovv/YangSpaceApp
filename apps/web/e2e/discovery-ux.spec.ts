@@ -115,6 +115,7 @@ test('inconsistent publication counters are not presented as genuine empty state
   await expect(offers).not.toContainText('Няма активни предложения в момента.');
   await expect(jobs).not.toContainText('Няма активни позиции в момента.');
   await expect(page.locator('.discover-brochures')).toContainText('Няма активни брошури в момента.');
+  await expect(page.locator('.discover-brochures')).toContainText('Няма активни брошури в момента.');
 
   await offers.getByRole('button', { name: 'Повтори зареждането на офертите' }).click();
   await expect(offers.locator('.discover-item')).toContainText('Оферта за закуска');
