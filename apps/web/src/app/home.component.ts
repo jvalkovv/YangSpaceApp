@@ -9,7 +9,7 @@ import {
   DirectoryApi, DirectoryMeta, HomepagePayload, LocationCard, PublicHighlight, describeDirectoryFailure
 } from './directory-api.service';
 
-type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
+type HomepageHighlightsState = 'loading' | 'success' | 'unavailable' | 'inconsistent';
 
 @Component({
   selector: 'ys-home',
@@ -24,7 +24,7 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
           <h1 id="hero-title">Добрите места са <span>по-близо,</span> отколкото мислиш.</h1>
           <p class="hero-lead">Любими магазини, местни услуги, актуални предложения и работа — всичко важно за твоя квартал на едно място.</p>
           <div class="hero-actions">
-            <a href="#catalog" class="btn btn-cream">Разгледай обектите <span aria-hidden="true">↗</span></a>
+            <a href="#catalog-search" class="btn btn-cream">Разгледай обектите <span aria-hidden="true">↗</span></a>
             <a href="#offers" class="hero-text-link">Виж предложенията <span aria-hidden="true">→</span></a>
           </div>
           <div class="hero-points" aria-label="За какво е YangSpace">
@@ -56,39 +56,21 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
 
     <div class="preview-strip">
       <div class="shell preview-strip-inner">
-        <span><strong>DEMO PREVIEW</strong> · Платформата е в разработка, а показаните обекти и предложения са примерни.</span>
+        <span><strong>ПИЛОТНА ВЕРСИЯ</strong> · Обектите и публикациите са демонстрационни.</span>
         <a href="#how-it-works">Как работи <span aria-hidden="true">→</span></a>
       </div>
     </div>
 
-    <section class="shell quick-discovery" aria-labelledby="discovery-title">
-      <div class="section-heading compact">
-        <div><span class="kicker">ЛЕСНО ОТКРИВАНЕ</span><h2 id="discovery-title">Кое ти трябва днес?</h2></div>
-        <p>Избери категория и разгледай местата наоколо.</p>
-      </div>
-      <div class="category-chips category-loading" *ngIf="loading && meta.categories.length === 0" aria-hidden="true">
-        <span *ngFor="let i of [1,2,3,4,5]" class="category-placeholder shimmer"></span>
-      </div>
-      <div class="category-chips" aria-label="Категории обекти">
-        <button type="button" class="category-chip" [class.selected]="!category"
-                [attr.aria-pressed]="!category" (click)="chooseCategory('')">
-          <span class="category-icon">⌂</span> Всички места
-        </button>
-        <button type="button" class="category-chip" *ngFor="let cat of meta.categories; trackBy: trackCategory"
-                [class.selected]="category === cat" [attr.aria-pressed]="category === cat"
-                (click)="chooseCategory(cat)">
-          <span class="category-icon">{{ icon(cat) }}</span> {{cat}}
-        </button>
-      </div>
-    </section>
-
-    <section class="catalog-wrap" id="catalog" aria-labelledby="catalog-title">
+    <section class="discovery-search" id="catalog-search" aria-labelledby="discovery-search-title">
       <div class="shell">
-        <div class="section-heading">
-          <div><span class="kicker">ЛОКАЛЕН КАТАЛОГ</span><h2 id="catalog-title">Места, които си струва да откриеш.</h2><p>Търси по име, квартал или категория. Без задължителна регистрация.</p></div>
-          <span class="section-index">01 / ОТКРИЙ</span>
+        <div class="discovery-search-heading">
+          <div>
+            <span class="kicker">ТЪРСИ ВЪВ ВАРНА</span>
+            <h2 id="discovery-search-title">Какво търсиш днес?</h2>
+          </div>
+          <p>По име, квартал или категория.</p>
         </div>
-        <form class="search-panel" (ngSubmit)="submitSearch()" role="search" aria-label="Търсене на търговски обекти">
+        <form class="search-panel discovery-search-panel" (ngSubmit)="submitSearch()" role="search" aria-label="Търсене на търговски обекти">
           <label class="search-field search-main">
             <span class="search-icon" aria-hidden="true">⌕</span>
             <span class="sr-only">Име на обект или ключова дума</span>
@@ -111,6 +93,37 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
           </label>
           <button class="btn btn-primary search-submit" type="submit">Търси <span aria-hidden="true">→</span></button>
         </form>
+      </div>
+    </section>
+
+    <section class="shell quick-discovery" aria-labelledby="discovery-title">
+      <div class="section-heading compact">
+        <div><span class="kicker">ЛЕСНО ОТКРИВАНЕ</span><h2 id="discovery-title">Избери категория.</h2></div>
+        <p>Филтрирай каталога с едно докосване.</p>
+      </div>
+      <div class="category-chips category-loading" *ngIf="loading && meta.categories.length === 0" aria-hidden="true">
+        <span *ngFor="let i of [1,2,3,4,5]" class="category-placeholder shimmer"></span>
+      </div>
+      <div class="category-chips" aria-label="Категории обекти">
+        <button type="button" class="category-chip" [class.selected]="!category"
+                [attr.aria-pressed]="!category" (click)="chooseCategory('')">
+          <span class="category-icon">⌂</span> Всички места
+        </button>
+        <button type="button" class="category-chip" *ngFor="let cat of meta.categories; trackBy: trackCategory"
+                [class.selected]="category === cat" [attr.aria-pressed]="category === cat"
+                (click)="chooseCategory(cat)">
+          <span class="category-icon">{{ icon(cat) }}</span> {{cat}}
+        </button>
+      </div>
+    </section>
+
+    <section class="catalog-wrap" id="catalog" aria-labelledby="catalog-title">
+      <div class="shell">
+        <div class="section-heading">
+          <div><span class="kicker">ЛОКАЛЕН КАТАЛОГ</span><h2 id="catalog-title">Места, които си струва да откриеш.</h2><p>Разгледай местните обекти и услугите във Варна.</p></div>
+          <span class="section-index">01 / ОТКРИЙ</span>
+        </div>
+
 
         <div class="catalog-toolbar">
           <div><strong>{{ loading ? 'Търсим в квартала…' : 'Обекти в твоя район' }}</strong>
@@ -142,8 +155,20 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
         <div class="locations-grid" *ngIf="!loading && !error && hasLoaded && locations.length > 0" [class.is-single]="locations.length === 1" aria-label="Намерени търговски обекти">
           <a *ngFor="let item of locations; trackBy: trackLocation" [routerLink]="['/obekt', item.slug]" class="location-card">
             <div class="card-cover" [ngClass]="cover(item.category)">
-              <span class="cover-pattern" aria-hidden="true"></span>
-              <span class="cover-symbol" aria-hidden="true">{{icon(item.category)}}</span>
+              <img *ngIf="showCardImage(item); else categoryCover"
+                   class="card-cover-image"
+                   [src]="item.imageUrl!"
+                   [alt]="'Снимка на ' + item.name"
+                   loading="lazy"
+                   decoding="async"
+                   (error)="onCardImageError(item)" />
+              <ng-template #categoryCover>
+                <span class="cover-pattern" aria-hidden="true"></span>
+                <span class="cover-symbol" aria-hidden="true">{{icon(item.category)}}</span>
+              </ng-template>
+              <span class="cover-verified" *ngIf="item.isVerified" aria-label="Проверен профил">
+                <span aria-hidden="true">✓</span> Проверен
+              </span>
               <span class="cover-category">{{item.category}}</span>
               <span class="cover-corner" aria-hidden="true">↗</span>
             </div>
@@ -185,8 +210,9 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
             </div>
             <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме офертите…</div>
             <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && offers.length === 0">Няма активни предложения в момента.</div>
-            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable'">
-              <span>Не успяхме да заредим офертите.</span>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || highlightsState === 'inconsistent'">
+              <span *ngIf="highlightsState === 'unavailable'">Не успяхме да заредим офертите.</span>
+              <span *ngIf="highlightsState === 'inconsistent'">Данните за офертите не са съгласувани. Опитай отново.</span>
               <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на офертите" (click)="retryHighlights()">Опитай отново</button>
             </div>
           </article>
@@ -200,8 +226,9 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
             </div>
             <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме брошурите…</div>
             <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && brochures.length === 0">Няма активни брошури в момента.</div>
-            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable'">
-              <span>Не успяхме да заредим брошурите.</span>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || highlightsState === 'inconsistent'">
+              <span *ngIf="highlightsState === 'unavailable'">Не успяхме да заредим брошурите.</span>
+              <span *ngIf="highlightsState === 'inconsistent'">Данните за публикациите не са съгласувани. Опитай отново.</span>
               <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на брошурите" (click)="retryHighlights()">Опитай отново</button>
             </div>
           </article>
@@ -215,8 +242,9 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
             </div>
             <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме позициите…</div>
             <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && jobs.length === 0">Няма активни позиции в момента.</div>
-            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable'">
-              <span>Не успяхме да заредим позициите.</span>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || highlightsState === 'inconsistent'">
+              <span *ngIf="highlightsState === 'unavailable'">Не успяхме да заредим позициите.</span>
+              <span *ngIf="highlightsState === 'inconsistent'">Данните за публикациите не са съгласувани. Опитай отново.</span>
               <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на позициите" (click)="retryHighlights()">Опитай отново</button>
             </div>
           </article>
@@ -265,6 +293,7 @@ export class HomeComponent implements OnInit {
 
   readonly skeletons = [1, 2, 3, 4, 5, 6];
   locations: LocationCard[] = [];
+  private readonly failedCardImages = new Set<string>();
   meta: DirectoryMeta = { cities: [], neighborhoods: [], categories: [] };
   offers: PublicHighlight[] = [];
   brochures: PublicHighlight[] = [];
@@ -307,10 +336,11 @@ export class HomeComponent implements OnInit {
     this.homepageSubscription = this.api.homepage().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (payload: HomepagePayload) => {
         this.meta = payload.meta;
-        this.offers = payload.offers;
-        this.brochures = payload.brochures;
-        this.jobs = payload.jobs;
-        this.highlightsState = 'success';
+        const inconsistent = this.hasInconsistentHighlights(payload);
+        this.offers = inconsistent ? [] : payload.offers;
+        this.brochures = inconsistent ? [] : payload.brochures;
+        this.jobs = inconsistent ? [] : payload.jobs;
+        this.highlightsState = inconsistent ? 'inconsistent' : 'success';
         this.cdr.markForCheck();
         // Do not overwrite results if the visitor searched before bootstrap finished.
         if (!preserveDirectory && version === this.requestVersion && !this.hasFilters && this.page === 1) {
@@ -341,6 +371,23 @@ export class HomeComponent implements OnInit {
         }
       }
     });
+  }
+
+  private hasInconsistentHighlights(payload: HomepagePayload): boolean {
+    const directoryAdvertisesOffers = payload.directory.items.some(item => item.activeOffers > 0);
+    const directoryAdvertisesJobs = payload.directory.items.some(item => item.activeJobs > 0);
+    return (directoryAdvertisesOffers && payload.offers.length === 0) ||
+      (directoryAdvertisesJobs && payload.jobs.length === 0);
+  }
+
+  showCardImage(item: LocationCard): boolean {
+    return !!item.imageUrl && !this.failedCardImages.has(item.id + '|' + item.imageUrl);
+  }
+
+  onCardImageError(item: LocationCard): void {
+    if (!item.imageUrl) return;
+    this.failedCardImages.add(item.id + '|' + item.imageUrl);
+    this.cdr.markForCheck();
   }
 
   get pages(): number { return Math.max(1, Math.ceil(this.total / 12)); }
