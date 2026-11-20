@@ -7,7 +7,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$EvidenceDirectory,
 
-    [string]$Work = 'D:\GitHub\YangSpaceApp-F2b-H06.3-20261118'
+    [string]$Work = 'D:\GitHub\YangSpaceApp-F2b-H06.3-20261120'
 )
 
 Set-StrictMode -Version Latest
