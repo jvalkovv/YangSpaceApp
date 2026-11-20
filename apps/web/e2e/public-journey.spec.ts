@@ -19,7 +19,11 @@ const items = [
 const homepage = {
   meta: { cities: ['Варна'], neighborhoods: ['Левски', 'Чайка'], categories: ['Услуги', 'Заведения'] },
   directory: { page: 1, pageSize: 12, total: items.length, items },
-  offers: [], brochures: [], jobs: []
+  offers: [{
+    slug: 'bike-demo', locationName: 'Вело сервиз „Педал“', neighborhood: 'Левски',
+    category: 'Услуги', title: 'Активна оферта', expiresAtUtc: '2026-12-01T18:00:00Z'
+  }],
+  brochures: [], jobs: []
 };
 
 test('anonymous visitor can filter the directory, open a profile and return to the catalogue', async ({ page }) => {
@@ -32,7 +36,12 @@ test('anonymous visitor can filter the directory, open a profile and return to t
   await page.route('**/api/v1/locations/bike-demo', route => route.fulfill({
     json: {
       ...items[0], city: 'Варна', phone: null, website: null, openingHours: null,
-      updatedAtUtc: '2026-11-08T12:00:00Z', offers: [], brochures: [], jobs: []
+      updatedAtUtc: '2026-11-08T12:00:00Z',
+      offers: [{
+        id: 'offer-bike-demo', title: 'Активна оферта', description: 'Демо предложение.',
+        startsAtUtc: '2026-11-01T08:00:00Z', endsAtUtc: '2026-12-01T18:00:00Z'
+      }],
+      brochures: [], jobs: []
     }
   }));
 
@@ -47,6 +56,7 @@ test('anonymous visitor can filter the directory, open a profile and return to t
   await expect(page).toHaveURL(/\/obekt\/bike-demo$/);
   await expect(page.getByRole('heading', { name: 'Вело сервиз „Педал“' })).toBeVisible();
   await expect(page.locator('.detail-sidebar')).toBeVisible();
+  await expect(page.locator('.detail-entry').filter({ hasText: 'Активна оферта' })).toBeVisible();
   await page.getByRole('link', { name: /Към всички обекти/ }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(2);
