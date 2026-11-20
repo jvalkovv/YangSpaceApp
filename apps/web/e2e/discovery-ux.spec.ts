@@ -54,7 +54,10 @@ test('mobile discovery order puts search before categories and directory results
 
   await expect(page.locator('.discovery-search .search-panel')).toBeVisible();
   const order = await page.locator('.discovery-search, .quick-discovery, .catalog-wrap')
-    .evaluateAll(nodes => nodes.map(node => node.classList[0]));
+    .evaluateAll(nodes => nodes.map(node =>
+      node.classList.contains('discovery-search') ? 'discovery-search' :
+      node.classList.contains('quick-discovery') ? 'quick-discovery' : 'catalog-wrap'
+    ));
   expect(order).toEqual(['discovery-search', 'quick-discovery', 'catalog-wrap']);
 
   const search = await page.locator('.discovery-search').boundingBox();
