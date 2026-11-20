@@ -298,7 +298,7 @@ try {
 
     $playwrightConfig = Get-Content -LiteralPath (Join-Path $App 'playwright.config.ts') -Raw
     $runnerSource = Get-Content -LiteralPath $PSCommandPath -Raw
-    if ($playwrightConfig -notmatch "process\['H06_3_REUSE_SERVER'\]\s*===\s*'1'" -or
+    if ($playwrightConfig -notmatch "process\.env\['H06_3_REUSE_SERVER'\]\s*===\s*'1'" -or
         $playwrightConfig -match 'H06_2_REUSE_SERVER' -or
         $runnerSource -notmatch "SetEnvironmentVariable\('H06_3_REUSE_SERVER',\s*'1',\s*'Process'\)") {
         throw 'H06_3_PLAYWRIGHT_REUSE_SERVER_CONTRACT_MISMATCH'
