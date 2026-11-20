@@ -53,6 +53,7 @@ $required = New-Object 'System.Collections.Generic.List[string]'
 [void]$required.Add('BRANCH=' + $ExpectedBranch)
 [void]$required.Add('LOCAL_MOCK_API_SYNTAX=PASS')
 [void]$required.Add('LOCAL_MOCK_API_SMOKE=PASS')
+[void]$required.Add('PLAYWRIGHT_REUSE_CONFIG=PASS')
 [void]$required.Add('NPM_CI=PASS')
 [void]$required.Add('TYPECHECK=PASS')
 [void]$required.Add('PRODUCTION_BUILD=PASS')
