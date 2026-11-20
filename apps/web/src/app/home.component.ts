@@ -9,7 +9,7 @@ import {
   DirectoryApi, DirectoryMeta, HomepagePayload, LocationCard, PublicHighlight, describeDirectoryFailure
 } from './directory-api.service';
 
-type HomepageHighlightsState = 'loading' | 'success' | 'unavailable' | 'inconsistent';
+type HomepageHighlightsState = 'loading' | 'success' | 'unavailable';
 
 @Component({
   selector: 'ys-home',
@@ -203,16 +203,16 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable' | 'inconsis
           <article class="discover-card discover-offers">
             <div class="discover-card-top"><span class="discover-icon">✳</span><span class="discover-number">01</span></div>
             <h3>Актуални оферти</h3><p class="discover-intro">Виж какво предлагат обектите близо до теб.</p>
-            <div class="discover-items" *ngIf="highlightsState === 'success' && offers.length > 0">
+            <div class="discover-items" *ngIf="highlightsState === 'success' && !inconsistentOffers && offers.length > 0">
               <a *ngFor="let item of offers; trackBy: trackHighlight" [routerLink]="['/obekt',item.slug]" class="discover-item">
                 <span><strong>{{item.title}}</strong><small>{{item.locationName}} · {{item.neighborhood}}</small></span><span aria-hidden="true">↗</span>
               </a>
             </div>
             <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме офертите…</div>
-            <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && offers.length === 0">Няма активни предложения в момента.</div>
-            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || highlightsState === 'inconsistent'">
+            <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && !inconsistentOffers && offers.length === 0">Няма активни предложения в момента.</div>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || (highlightsState === 'success' && inconsistentOffers)">
               <span *ngIf="highlightsState === 'unavailable'">Не успяхме да заредим офертите.</span>
-              <span *ngIf="highlightsState === 'inconsistent'">Данните за офертите не са съгласувани. Опитай отново.</span>
+              <span *ngIf="highlightsState === 'success' && inconsistentOffers">Данните за офертите не са съгласувани. Опитай отново.</span>
               <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на офертите" (click)="retryHighlights()">Опитай отново</button>
             </div>
           </article>
@@ -235,16 +235,16 @@ type HomepageHighlightsState = 'loading' | 'success' | 'unavailable' | 'inconsis
           <article class="discover-card discover-jobs" id="jobs">
             <div class="discover-card-top"><span class="discover-icon">⌁</span><span class="discover-number">03</span></div>
             <h3>Работа наблизо</h3><p class="discover-intro">Възможности в квартала, без да търсиш надалеч.</p>
-            <div class="discover-items" *ngIf="highlightsState === 'success' && jobs.length > 0">
+            <div class="discover-items" *ngIf="highlightsState === 'success' && !inconsistentJobs && jobs.length > 0">
               <a *ngFor="let item of jobs; trackBy: trackHighlight" [routerLink]="['/obekt',item.slug]" class="discover-item">
                 <span><strong>{{item.title}}</strong><small>{{item.locationName}} · {{item.neighborhood}}</small></span><span aria-hidden="true">↗</span>
               </a>
             </div>
             <div class="discover-empty" role="status" aria-live="polite" *ngIf="highlightsState === 'loading'">Зареждаме позициите…</div>
-            <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && jobs.length === 0">Няма активни позиции в момента.</div>
-            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || highlightsState === 'inconsistent'">
+            <div class="discover-empty" role="status" *ngIf="highlightsState === 'success' && !inconsistentJobs && jobs.length === 0">Няма активни позиции в момента.</div>
+            <div class="discover-empty discover-unavailable" role="status" aria-live="polite" *ngIf="highlightsState === 'unavailable' || (highlightsState === 'success' && inconsistentJobs)">
               <span *ngIf="highlightsState === 'unavailable'">Не успяхме да заредим позициите.</span>
-              <span *ngIf="highlightsState === 'inconsistent'">Данните за публикациите не са съгласувани. Опитай отново.</span>
+              <span *ngIf="highlightsState === 'success' && inconsistentJobs">Данните за публикациите не са съгласувани. Опитай отново.</span>
               <button type="button" class="btn btn-outline" aria-label="Повтори зареждането на позициите" (click)="retryHighlights()">Опитай отново</button>
             </div>
           </article>
@@ -299,6 +299,8 @@ export class HomeComponent implements OnInit {
   brochures: PublicHighlight[] = [];
   jobs: PublicHighlight[] = [];
   highlightsState: HomepageHighlightsState = 'loading';
+  inconsistentOffers = false;
+  inconsistentJobs = false;
   q = '';
   neighborhood = '';
   category = '';
@@ -324,6 +326,8 @@ export class HomeComponent implements OnInit {
     const version = this.requestVersion;
     this.homepageSubscription?.unsubscribe();
     this.highlightsState = 'loading';
+    this.inconsistentOffers = false;
+    this.inconsistentJobs = false;
     this.offers = [];
     this.brochures = [];
     this.jobs = [];
@@ -336,11 +340,14 @@ export class HomeComponent implements OnInit {
     this.homepageSubscription = this.api.homepage().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (payload: HomepagePayload) => {
         this.meta = payload.meta;
-        const inconsistent = this.hasInconsistentHighlights(payload);
-        this.offers = inconsistent ? [] : payload.offers;
-        this.brochures = inconsistent ? [] : payload.brochures;
-        this.jobs = inconsistent ? [] : payload.jobs;
-        this.highlightsState = inconsistent ? 'inconsistent' : 'success';
+        this.inconsistentOffers = payload.directory.items.some(item => item.activeOffers > 0) &&
+          payload.offers.length === 0;
+        this.inconsistentJobs = payload.directory.items.some(item => item.activeJobs > 0) &&
+          payload.jobs.length === 0;
+        this.offers = payload.offers;
+        this.brochures = payload.brochures;
+        this.jobs = payload.jobs;
+        this.highlightsState = 'success';
         this.cdr.markForCheck();
         // Do not overwrite results if the visitor searched before bootstrap finished.
         if (!preserveDirectory && version === this.requestVersion && !this.hasFilters && this.page === 1) {
@@ -348,6 +355,8 @@ export class HomeComponent implements OnInit {
         }
       },
       error: (reason: unknown) => {
+        this.inconsistentOffers = false;
+        this.inconsistentJobs = false;
         this.highlightsState = 'unavailable';
         this.offers = [];
         this.brochures = [];
@@ -371,13 +380,6 @@ export class HomeComponent implements OnInit {
         }
       }
     });
-  }
-
-  private hasInconsistentHighlights(payload: HomepagePayload): boolean {
-    const directoryAdvertisesOffers = payload.directory.items.some(item => item.activeOffers > 0);
-    const directoryAdvertisesJobs = payload.directory.items.some(item => item.activeJobs > 0);
-    return (directoryAdvertisesOffers && payload.offers.length === 0) ||
-      (directoryAdvertisesJobs && payload.jobs.length === 0);
   }
 
   showCardImage(item: LocationCard): boolean {
