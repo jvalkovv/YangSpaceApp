@@ -1321,3 +1321,25 @@ Postflight initially failed because comma-separated string concatenation inside 
 - All integrity, artifact, exact-source, clean-worktree and remote-SHA checks remain required.
 
 **Current acceptance: application build and 174 Playwright test executions PASS; corrected independent Postflight and owner visual acceptance remain pending at the new exact HEAD.** PR #61 remains Draft/Open; Issue #60 remains Open; release HOLD. No production deployment, backend activation, account registration or email dispatch is authorized.
+
+
+## 2026-11-20 — H06.3 Public Discovery UX implementation
+
+- Issue: #62.
+- Branch: `feat/yangspace-f2b-h06-3-public-discovery-ux-20261120`.
+- Stacked base: H06.2 branch at `080602b4a3eaa209f4045d4232495348512be06d` (PR #61 remains Draft / owner visual sign-off pending).
+- Current implementation HEAD: `f649a0181912d99296cf511d9f3911c7a8277d46`.
+
+Committed frontend work:
+- Move the primary directory search directly below the pilot notice and before categories/results; hero CTA targets the search.
+- Reduce mobile hero vertical footprint while retaining the existing green/cream identity and desktop/tablet map artwork.
+- Render the existing `imageUrl` field on directory cards with lazy loading, alt text and deterministic category fallback after absent/broken images.
+- Display a restrained verified badge only for `isVerified=true`.
+- Detect contradictory homepage counters (active offers/jobs advertised by directory cards but empty highlight collection) and show an explicit inconsistent/unavailable state with retry rather than a false empty state.
+- Correct synthetic Playwright fixtures so Homepage counters/highlights and Object Detail offer data agree.
+- Add `e2e/discovery-ux.spec.ts` for mobile ordering, image success/fallback, verification cue and inconsistent payload recovery.
+- Add a dedicated exact-SHA H06.3 browser QA launcher, runner and independent postflight. Targeted tests include the new discovery spec.
+
+No backend/API contract, DB, package manifest, dependency, account activation, SMTP, production deployment or infrastructure changes.
+
+**Status: IMPLEMENTATION COMMITTED; RUNTIME QA PENDING.** The H06.3 Windows package has not yet been executed at this exact HEAD. PR must remain Draft and stacked on H06.2. No merge/deploy until exact-SHA QA and owner visual review pass.
