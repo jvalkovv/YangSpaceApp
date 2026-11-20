@@ -51,7 +51,7 @@ for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1280, 1440]) {
     expect(searchBounds).not.toBeNull();
     expect(categoryBounds).not.toBeNull();
     expect(searchBounds!.y, 'primary search must precede category chips').toBeLessThan(categoryBounds!.y);
-    await expect(page.getByRole('link', { name: /Вело сервиз „Педал“/ })).toBeVisible();
+    await expect(page.locator('.location-card').filter({ hasText: 'Вело сервиз „Педал“' })).toBeVisible();
 
     const layout = await page.evaluate(() => ({
       viewport: window.innerWidth,
