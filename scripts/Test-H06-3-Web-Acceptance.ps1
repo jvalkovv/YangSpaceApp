@@ -59,6 +59,7 @@ $gates = [ordered]@{
     LOCAL_MOCK_API_SYNTAX = 'NOT_RUN'
     LOCAL_MOCK_API_SMOKE = 'NOT_RUN'
     PLAYWRIGHT_REUSE_CONFIG = 'NOT_RUN'
+    PREVIEW_PORT_ISOLATION = 'NOT_RUN'
     NPM_CI = 'NOT_RUN'
     TYPECHECK = 'NOT_RUN'
     PRODUCTION_BUILD = 'NOT_RUN'
@@ -69,7 +70,9 @@ $gates = [ordered]@{
 $failure = $null
 $previewProcess = $null
 $previousReuseServer = [Environment]::GetEnvironmentVariable('H06_3_REUSE_SERVER', 'Process')
+$previousPreviewPort = [Environment]::GetEnvironmentVariable('H06_3_PREVIEW_PORT', 'Process')
 [Environment]::SetEnvironmentVariable('H06_3_REUSE_SERVER', $null, 'Process')
+[Environment]::SetEnvironmentVariable('H06_3_PREVIEW_PORT', $null, 'Process')
 
 function Invoke-NativeGate {
     param(
@@ -133,6 +136,18 @@ function Test-LocalTcpPort([int]$Port) {
     }
 }
 
+function Get-FreeLoopbackTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    try {
+        $listener.Start()
+        $port = $listener.LocalEndpoint.Port
+        return [int]$port
+    }
+    finally {
+        $listener.Stop()
+    }
+}
+
 function Stop-PreviewProcess([System.Diagnostics.Process]$Process) {
     if ($null -ne $Process -and -not $Process.HasExited) {
         $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
@@ -187,9 +202,11 @@ function Invoke-LocalMockApiSmoke {
 }
 
 function Start-InteractivePreview {
-    $url = 'http://127.0.0.1:4300/'
+    $previewPort = Get-FreeLoopbackTcpPort
+    $url = "http://127.0.0.1:$previewPort/"
     if (Test-LocalTcpPort 5090) { throw 'H06_3_MOCK_API_PORT_5090_ALREADY_IN_USE' }
-    if (Test-LocalTcpPort 4300) { throw 'H06_3_PREVIEW_PORT_4300_ALREADY_IN_USE' }
+    if (Test-LocalTcpPort $previewPort) { throw 'H06_3_PREVIEW_PORT_ALLOCATION_COLLISION' }
+    [Environment]::SetEnvironmentVariable('H06_3_PREVIEW_PORT', [string]$previewPort, 'Process')
 
     $apiStdout = Join-Path $Evidence 'mock-api.stdout.log'
     $apiStderr = Join-Path $Evidence 'mock-api.stderr.log'
@@ -226,7 +243,8 @@ function Start-InteractivePreview {
         }
         if (-not $apiReady) { throw 'H06_3_MOCK_API_START_TIMEOUT' }
 
-        $webProcess = Start-Process -FilePath $commandShell -ArgumentList @('/d', '/s', '/c', 'npm.cmd start -- --port 4300') -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $webStdout -RedirectStandardError $webStderr -PassThru
+        $webCommand = "npm.cmd start -- --port $previewPort"
+        $webProcess = Start-Process -FilePath $commandShell -ArgumentList @('/d', '/s', '/c', $webCommand) -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput $webStdout -RedirectStandardError $webStderr -PassThru
 
         $webDeadline = (Get-Date).AddSeconds(90)
         $webReady = $false
@@ -253,8 +271,12 @@ function Start-InteractivePreview {
         if (-not $webReady) { throw 'H06_3_PREVIEW_SERVER_START_TIMEOUT' }
 
         [Environment]::SetEnvironmentVariable('H06_3_REUSE_SERVER', '1', 'Process')
+        $gates.PREVIEW_PORT_ISOLATION = 'PASS'
+        Add-Content -LiteralPath (Join-Path $Evidence 'runtime.txt') -Value ('PREVIEW_PORT=' + $previewPort) -Encoding UTF8
         Write-Host ''
+        Write-Host ('PREVIEW_PORT=' + $previewPort)
         Write-Host ('PREVIEW_READY=' + $url)
+        Write-Host 'PREVIEW_PORT_ISOLATION=PASS'
         Write-Host 'LOCAL_API=127.0.0.1:5090 (in-memory demo data; no database, SMTP or external services)'
         Write-Host ('ADMIN_DEMO_LOGIN=' + 'qa@example.invalid')
         Write-Host ('ADMIN_DEMO_PASSWORD=' + 'DisposableTestPassword123!')
@@ -299,7 +321,12 @@ try {
     $playwrightConfig = Get-Content -LiteralPath (Join-Path $App 'playwright.config.ts') -Raw
     $runnerSource = Get-Content -LiteralPath $PSCommandPath -Raw
     if ($playwrightConfig -notmatch "process\.env\['H06_3_REUSE_SERVER'\]\s*===\s*'1'" -or
+        $playwrightConfig -notmatch "process\.env\['H06_3_PREVIEW_PORT'\]" -or
+        $playwrightConfig -notmatch 'baseURL:\s*previewBaseUrl' -or
+        $playwrightConfig -notmatch 'command:\s*`npm start -- --port \$\{previewPort\}`' -or
         $playwrightConfig -match 'H06_2_REUSE_SERVER' -or
+        $runnerSource -notmatch 'Get-FreeLoopbackTcpPort' -or
+        $runnerSource -notmatch 'SetEnvironmentVariable\(''H06_3_PREVIEW_PORT'',\s*\[string\]\$previewPort,\s*''Process''\)' -or
         $runnerSource -notmatch "SetEnvironmentVariable\('H06_3_REUSE_SERVER',\s*'1',\s*'Process'\)") {
         throw 'H06_3_PLAYWRIGHT_REUSE_SERVER_CONTRACT_MISMATCH'
     }
@@ -363,6 +390,7 @@ catch {
 finally {
     Stop-InteractivePreview -ProcessSet $previewProcess
     [Environment]::SetEnvironmentVariable('H06_3_REUSE_SERVER', $previousReuseServer, 'Process')
+    [Environment]::SetEnvironmentVariable('H06_3_PREVIEW_PORT', $previousPreviewPort, 'Process')
     Pop-Location
 
     if ((Get-GitValue -Arguments @('rev-parse', 'HEAD')) -cne $CommitSha) {
