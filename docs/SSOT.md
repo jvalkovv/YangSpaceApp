@@ -1321,3 +1321,79 @@ Postflight initially failed because comma-separated string concatenation inside 
 - All integrity, artifact, exact-source, clean-worktree and remote-SHA checks remain required.
 
 **Current acceptance: application build and 174 Playwright test executions PASS; corrected independent Postflight and owner visual acceptance remain pending at the new exact HEAD.** PR #61 remains Draft/Open; Issue #60 remains Open; release HOLD. No production deployment, backend activation, account registration or email dispatch is authorized.
+
+
+## 2026-11-20 — H06.3 Public Discovery UX implementation
+
+- Issue: #62.
+- Branch: `feat/yangspace-f2b-h06-3-public-discovery-ux-20261120`.
+- Stacked base: H06.2 branch at `080602b4a3eaa209f4045d4232495348512be06d` (PR #61 remains Draft / owner visual sign-off pending).
+- Current implementation HEAD: `b997fbb88e4305d6dd23f094a355bff5d611b4d5`.
+
+Committed frontend work:
+- Move the primary directory search directly below the pilot notice and before categories/results; hero CTA targets the search.
+- Reduce mobile hero vertical footprint while retaining the existing green/cream identity and desktop/tablet map artwork.
+- Render the existing `imageUrl` field on directory cards with lazy loading, alt text and deterministic category fallback after absent/broken images.
+- Display a restrained verified badge only for `isVerified=true`.
+- Detect contradictory homepage counters (active offers/jobs advertised by directory cards but empty highlight collection) and show an explicit inconsistent/unavailable state with retry rather than a false empty state.
+- Correct synthetic Playwright fixtures so Homepage counters/highlights and Object Detail offer data agree.
+- Add `e2e/discovery-ux.spec.ts` for mobile ordering, image success/fallback, verification cue and inconsistent payload recovery.
+- Add a dedicated exact-SHA H06.3 browser QA launcher, runner and independent postflight. Targeted tests include the new discovery spec.
+
+No backend/API contract, DB, package manifest, dependency, account activation, SMTP, production deployment or infrastructure changes.
+
+**Status: IMPLEMENTATION COMMITTED; RUNTIME QA PENDING.** The H06.3 Windows package has not yet been executed at this exact HEAD. PR must remain Draft and stacked on H06.2. No merge/deploy until exact-SHA QA and owner visual review pass.
+
+
+## 2026-11-20 — H06.3 QA harness correction
+
+The first H06.3 browser QA attempt completed mock API syntax/smoke, npm CI, Chromium installation, TypeScript typecheck and production build. Targeted Playwright did not execute: Playwright tried to start a second preview server on port 4300.
+
+Root cause: `scripts/Test-H06-3-Web-Acceptance.ps1` set `H06_3_REUSE_SERVER=1`, but `apps/web/playwright.config.ts` still read the H06.2 variable `H06_2_REUSE_SERVER`.
+
+Corrective commits:
+- `adb77e7ef0c83931ffbb8bea0523d45c4ba953fb`: align Playwright config with H06.3 runner.
+- `00a13be163f899cfa849a2882d2fdb149e271427` and `1ac7b34d561dd1083dc2343c106c268a631a3dc4`: add a pre-test runner contract guard.
+- `6d0dc67a3c7016cf2eca23c280d1f565bb056be0`: require `PLAYWRIGHT_REUSE_CONFIG=PASS` in independent evidence postflight.
+
+Previous evidence is preserved at `D:\\GitHub\\YangSpaceApp-QA-Evidence\\H06.3\\df705458a77861b5fe88226d774a7a77bfa92d79-20261120-072246-658`, manifest SHA-256 `7394897063e5b7f350e906fbbf6a20a05883b88ad025cc0cf8f5f4b4fbe44549`.
+
+The first attempt is a QA harness configuration failure, not an application test failure. Runtime acceptance remains **PENDING**. Re-run from the existing clean H06.3 worktree; the launcher fetches and fast-forwards to the latest exact remote SHA. Do not create another worktree or kill unrelated port owners. No merge or deployment is authorized.
+
+
+## 2026-11-20 — H06.3 Playwright findings and test correction
+
+At exact SHA `68eadb43c729ec01a6d27aa3f4b2d214c76b0`, QA passed mock API syntax/smoke, Playwright reuse contract, npm CI, TypeScript and production build. Targeted Playwright executed 76 tests: 62 passed / 14 failed. Full suite and independent postflight did not run.
+
+Root causes mapped to the failing test specs:
+- DOM-order test used `classList[0]`, incorrectly assuming the first class token identifies `.quick-discovery`; fixed to test class membership.
+- “Genuine empty” homepage fixture had non-zero active publication counters with empty highlight arrays; app correctly reported inconsistency. Fixture now zeros the counters.
+- Public journey and 10 responsive assertions matched both a directory card and an offer link to the same business; selectors now scope to `.location-card`.
+
+No application runtime defect was established by these failures; acceptance is still pending.
+
+Test corrections are committed at `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`; subsequent documentation commits advanced the branch tip. Re-run the existing clean worktree using the H06.3 launcher, which fetches the current remote branch HEAD automatically. Targeted Playwright, full Playwright and independent postflight must all pass before owner visual review or merge/deploy. PR #65 remains Draft; release HOLD.
+
+
+## 2026-11-21 — H06.3 rerun blocked by occupied preview port
+
+Rerun at exact commit `1be585705b044f3f1afc6b430fd4b0371ff4ba6f` synchronized successfully from GitHub. Gates:
+- LOCAL_MOCK_API_SYNTAX=PASS
+- PLAYWRIGHT_REUSE_CONFIG=PASS
+- NPM_CI=PASS (npm emitted install-scripts approval warnings to stderr, but native exit code was 0; do not approve install scripts as part of this incident)
+- Chromium install=PASS
+- TYPECHECK=PASS
+- PRODUCTION_BUILD=PASS
+- SOURCE_CLEAN_POST=PASS
+- LOCAL_MOCK_API_SMOKE=NOT_RUN
+- TARGETED_PLAYWRIGHT=NOT_RUN
+- FULL_PLAYWRIGHT=NOT_RUN
+
+The runner stopped in `Start-InteractivePreview()` with `H06_3_PREVIEW_PORT_4300_ALREADY_IN_USE`. Its preflight checks port 4300 and refuses to start a second Angular preview. This is an environment/process ownership collision, not a Playwright test failure and not a code/build failure.
+
+Evidence directory: `D:\GitHub\YangSpaceApp-QA-Evidence\H06.3\1be585705b044f3f1afc6b430fd4b0371ff4ba6f-20261121-125252-247`
+Manifest SHA-256: `1bbae75d1c849a553a19a86375a87ec03032b042dac3f7b77ea982f7f0068095`
+
+Recovery is deliberately read-only first: inspect listeners on TCP 4300 and 5090, capture PID, executable, command line and parent process, then decide whether the process is the stale H06.3 preview, another project, or an unrelated service. Do not terminate an unidentified listener. After identifying it, either reuse the correct existing H06.3 preview safely or stop only the confirmed stale QA process and rerun the launcher.
+
+Acceptance remains HOLD. No merge, deployment, process termination, or npm install-script approval is authorized by this run.

@@ -26,7 +26,15 @@ const homepage = {
     categories: [...new Set(previewLocations.map(location => location.category))]
   },
   directory: { items: previewLocations, page: 1, pageSize: 12, total: 6 },
-  offers: [], brochures: [], jobs: []
+  offers: previewLocations.slice(0, 3).map((location, index) => ({
+    slug: location.slug,
+    locationName: location.name,
+    neighborhood: location.neighborhood,
+    category: location.category,
+    title: 'Демо оферта ' + (index + 1),
+    expiresAtUtc: '2026-12-31T23:59:00Z'
+  })),
+  brochures: [], jobs: []
 };
 
 for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1280, 1440]) {
@@ -38,7 +46,12 @@ for (const width of [320, 360, 375, 390, 430, 768, 820, 1024, 1280, 1440]) {
     await expect(page.locator('.location-card:not(.skeleton-card)')).toHaveCount(6);
     await expect(page.locator('.hero h1')).toBeVisible();
     await expect(page.locator('.search-panel')).toBeVisible();
-    await expect(page.getByRole('link', { name: /Вело сервиз „Педал“/ })).toBeVisible();
+    const searchBounds = await page.locator('.discovery-search').boundingBox();
+    const categoryBounds = await page.locator('.quick-discovery').boundingBox();
+    expect(searchBounds).not.toBeNull();
+    expect(categoryBounds).not.toBeNull();
+    expect(searchBounds!.y, 'primary search must precede category chips').toBeLessThan(categoryBounds!.y);
+    await expect(page.locator('.location-card').filter({ hasText: 'Вело сервиз „Педал“' })).toBeVisible();
 
     const layout = await page.evaluate(() => ({
       viewport: window.innerWidth,

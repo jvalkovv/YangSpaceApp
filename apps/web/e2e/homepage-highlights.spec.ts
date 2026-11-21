@@ -134,7 +134,14 @@ test('highlight retry reloads bootstrap and renders populated offers, brochures 
 
 test('a successful empty homepage response shows genuine empty states for each highlight', async ({ page }) => {
   await page.route('**/api/v1/homepage', route => route.fulfill({
-    json: { ...homepage, offers: [], brochures: [], jobs: [] }
+    json: {
+      ...homepage,
+      directory: {
+        ...homepage.directory,
+        items: locations.map(location => ({ ...location, activeOffers: 0, activeJobs: 0 }))
+      },
+      offers: [], brochures: [], jobs: []
+    }
   }));
   await page.goto('/');
 

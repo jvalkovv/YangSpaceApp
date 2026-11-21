@@ -32,7 +32,12 @@ const homepage = {
     categories: ['Красота', 'Заведения', 'Услуги']
   },
   directory: { page: 1, pageSize: 12, total: seed.length, items: seed },
-  offers: [], brochures: [], jobs: []
+  offers: [{
+    slug: bike.slug, locationName: bike.name, neighborhood: bike.neighborhood,
+    category: bike.category, title: 'Демо оферта',
+    expiresAtUtc: '2026-12-31T23:59:00Z'
+  }],
+  brochures: [], jobs: []
 };
 
 test('initial API data renders without focus, click, or blur', async ({ page }) => {
