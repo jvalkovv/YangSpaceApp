@@ -1373,3 +1373,27 @@ Root causes mapped to the failing test specs:
 No application runtime defect was established by these failures; acceptance is still pending.
 
 Test corrections are committed at `ef5e1e78cd7b5e47aa56e974e73ad6a3ca540e54`; subsequent documentation commits advanced the branch tip. Re-run the existing clean worktree using the H06.3 launcher, which fetches the current remote branch HEAD automatically. Targeted Playwright, full Playwright and independent postflight must all pass before owner visual review or merge/deploy. PR #65 remains Draft; release HOLD.
+
+
+## 2026-11-21 — H06.3 rerun blocked by occupied preview port
+
+Rerun at exact commit `1be585705b044f3f1afc6b430fd4b0371ff4ba6f` synchronized successfully from GitHub. Gates:
+- LOCAL_MOCK_API_SYNTAX=PASS
+- PLAYWRIGHT_REUSE_CONFIG=PASS
+- NPM_CI=PASS (npm emitted install-scripts approval warnings to stderr, but native exit code was 0; do not approve install scripts as part of this incident)
+- Chromium install=PASS
+- TYPECHECK=PASS
+- PRODUCTION_BUILD=PASS
+- SOURCE_CLEAN_POST=PASS
+- LOCAL_MOCK_API_SMOKE=NOT_RUN
+- TARGETED_PLAYWRIGHT=NOT_RUN
+- FULL_PLAYWRIGHT=NOT_RUN
+
+The runner stopped in `Start-InteractivePreview()` with `H06_3_PREVIEW_PORT_4300_ALREADY_IN_USE`. Its preflight checks port 4300 and refuses to start a second Angular preview. This is an environment/process ownership collision, not a Playwright test failure and not a code/build failure.
+
+Evidence directory: `D:\GitHub\YangSpaceApp-QA-Evidence\H06.3\1be585705b044f3f1afc6b430fd4b0371ff4ba6f-20261121-125252-247`
+Manifest SHA-256: `1bbae75d1c849a553a19a86375a87ec03032b042dac3f7b77ea982f7f0068095`
+
+Recovery is deliberately read-only first: inspect listeners on TCP 4300 and 5090, capture PID, executable, command line and parent process, then decide whether the process is the stale H06.3 preview, another project, or an unrelated service. Do not terminate an unidentified listener. After identifying it, either reuse the correct existing H06.3 preview safely or stop only the confirmed stale QA process and rerun the launcher.
+
+Acceptance remains HOLD. No merge, deployment, process termination, or npm install-script approval is authorized by this run.
