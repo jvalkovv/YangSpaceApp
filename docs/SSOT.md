@@ -1397,3 +1397,26 @@ Manifest SHA-256: `1bbae75d1c849a553a19a86375a87ec03032b042dac3f7b77ea982f7f0068
 Recovery is deliberately read-only first: inspect listeners on TCP 4300 and 5090, capture PID, executable, command line and parent process, then decide whether the process is the stale H06.3 preview, another project, or an unrelated service. Do not terminate an unidentified listener. After identifying it, either reuse the correct existing H06.3 preview safely or stop only the confirmed stale QA process and rerun the launcher.
 
 Acceptance remains HOLD. No merge, deployment, process termination, or npm install-script approval is authorized by this run.
+
+
+## 2026-11-21 — Port ownership diagnosis and isolated preview-port fix
+
+Operator diagnostics established the owner of TCP/4300:
+- Listener PID `70440`, `node.exe`, launched from `vntech-events/.../apps/public/node_modules/@angular/cli/bin/ng.js serve --host 127.0.0.1 --port 4300 --proxy-config proxy.e2e.conf.json`.
+- Parent PID `50956`, `cmd.exe`, from the same vntech-events workspace.
+- TCP/5090 had no listener.
+- Therefore port 4300 belongs to the separate vntech-events browser preview. It is not a stale YangSpace process and must not be terminated.
+- The H06.3 worktree was clean but behind the remote at local SHA `1be585705b044f3f1afc6b430fd4b0371ff4ba6f`.
+
+The H06.3 branch already contains the correct isolation fix:
+- `e7818761151b3424cf056e39143fc883b7ef764d`: Playwright preview port is configurable via `H06_3_PREVIEW_PORT`.
+- `541fffb9063cb6495f49dc969f7cecff5c6768b5`: each interactive QA run reserves an available loopback port, sets the Playwright environment, starts Angular on that port and reuses that exact server. Port 4300 is no longer hard-coded for H06.3.
+- The local mock API continues to use 127.0.0.1:5090; operator confirmed it was free.
+
+Additional independent postflight hardening:
+- Commit `b4cd8e22a8f803f67392ff1b11a6e435d0abcb28` now requires `PREVIEW_PORT_ISOLATION=PASS`, so a run cannot pass postflight without recording the isolated preview-port gate.
+
+No process was terminated. No production service, database, Events project or YangSpace runtime was changed.
+
+Latest branch tip after the postflight guard: `b4cd8e22a8f803f67392ff1b11a6e435d0abcb28`.
+Next action: rerun the existing H06.3 launcher. It fetches and fast-forwards the clean worktree. Expect a dynamically allocated `PREVIEW_PORT`, `PREVIEW_PORT_ISOLATION=PASS`, and `PREVIEW_READY=http://127.0.0.1:<port>/`. Review the browser and press Enter; then targeted/full Playwright and independent postflight run.
